@@ -8,7 +8,9 @@ All three lanes were selected by the user:
 - [Multitenant business](multitenant-business/README.md): API, Worker, SQL, event recovery and tenant isolation
 - [AI / Agent / Retrieval](ai-retrieval/README.md): model/provider portability, scoped retrieval, tool authorization and bounded evaluations
 
-These folders are scenario plans. There are no executable consumer samples, certified providers or E2E passes yet. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
+These three folders remain scenario plans with no real-transport consumer E2E passes or certified providers. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
+
+The separate [portable Core consumer](portable-core/README.md) exercises generated typed operation registrations, appsettings module selection and shared business logic entirely in process. Its module recorders establish a bounded W1 integration proof and do not implement the three transport/provider sample lanes.
 
 [Owned provider qualification fixtures](qualification/README.md) now have component probe and cleanup evidence for five immutable images. These checks are separate from the three consumer scenarios. See the [current SDK/artifact/tracking qualification report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/w0-qualification-and-sync.md) for the supported-Windows and hosted-CI blocker.
 
