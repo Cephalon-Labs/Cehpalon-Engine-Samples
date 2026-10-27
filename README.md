@@ -8,7 +8,9 @@ All three lanes were selected by the user:
 - [Multitenant business](multitenant-business/README.md): API, Worker, SQL, event recovery and tenant isolation
 - [AI / Agent / Retrieval](ai-retrieval/README.md): model/provider portability, scoped retrieval, tool authorization and bounded evaluations
 
-These folders are scenario plans. There are no executable samples, certified providers or E2E passes yet. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
+These folders are scenario plans. There are no executable consumer samples, certified providers or E2E passes yet. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
+
+[Owned provider qualification fixtures](qualification/README.md) now have component probe and cleanup evidence for five immutable images. These checks are separate from the three consumer scenarios. See the [current SDK/artifact/tracking qualification report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/w0-qualification-and-sync.md) for the supported-Windows and hosted-CI blocker.
 
 W0 provider/workload selection is recorded in the [decision package](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/w0-decisions.md). Each lane below points to its ADR and predeclared acceptance protocol. All runtime profiles remain M0 until qualification and execution evidence exists.
 
