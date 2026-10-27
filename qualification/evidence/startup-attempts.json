@@ -1,0 +1,13 @@
+{
+  "attempts": [
+    {
+      "id": "initial-internal-network",
+      "outcome": "failed-host-endpoint-inspection",
+      "observed": "Docker25 owned internal bridge had HostConfig loopback PortBindings but empty NetworkSettings.Ports; PostgreSQL itself started and was ready.",
+      "failure": "KeyError5432/tcp when reading host port; no provider smoke pass claimed",
+      "cleanup": "Recovered container ID by exact owned name and checked owner label, then removed only that owned container/anonymous volumes and owned network.",
+      "correction": "Record container identity before port inspection; use owned bridge with loopback-only host bindings. No outbound-network isolation claim. Preserve stopped private state before starting the next attempt."
+    }
+  ],
+  "scope": "Fixture startup history only; no runtime/sample/benchmark pass from failed attempt"
+}
