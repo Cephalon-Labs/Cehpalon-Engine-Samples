@@ -204,7 +204,7 @@ class Runner:
             'runtimeconfig': json.loads(self.args.assembly.with_suffix('.runtimeconfig.json').read_text()),
             'deps_sha256': sha(self.args.assembly.with_suffix('.deps.json')),
             'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'server_cpus': SERVER_CPUS, 'driver_cpus': DRIVER_CPUS, 'orchestrator_cpus': ORCHESTRATOR_CPUS, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS}, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_ReadyToRun']}},
-            'protocol': {'requested_phases': self.args.phases, 'startup_launches_per_variant_transport': 30, 'startup_order': 'BE/EB alternation by index', 'idle_pairs_per_transport': 5, 'load_pairs_per_transport': 5, 'pair_order': ORDER, 'warmup_seconds': 60, 'idle_settle_seconds': 120, 'idle_samples': 60, 'idle_sample_hz': 1, 'measured_load_seconds': 180, 'offered_requests_per_second': 1000, 'maximum_outstanding': 128, 'request_timeout_seconds': 1, 'latency': 'completed minus scheduled; drops/errors retained; no outlier filtering', 'diagnostic_rate_sweeps': 'Not run: 100/500/2000 diagnostic series is separate from acceptance series', 'startup_cache_boundary': 'Fresh processes with OS cache state observed; not machine-cold boots', 'cv_analysis': 'Population standard deviation divided by mean, all five p95 observations per variant/transport'},
+            'protocol': {'requested_phases': self.args.phases, 'startup_launches_per_variant_transport': 30, 'startup_order': 'BE/EB alternation by index', 'idle_pairs_per_transport': 5, 'load_pairs_per_transport': 5, 'pair_order': ORDER, 'warmup_seconds': 60, 'idle_settle_seconds': 120, 'idle_samples': 60, 'idle_sample_hz': 1, 'measured_load_seconds': 180, 'offered_requests_per_second': 1000, 'maximum_outstanding': 128, 'request_timeout_seconds': 1, 'latency': 'completed minus scheduled; drops/errors retained; no outlier filtering', 'diagnostic_rate_sweeps': {'rates_and_order': [{'rate': 100, 'order': 'BE'}, {'rate': 500, 'order': 'EB'}, {'rate': 2000, 'order': 'BE'}], 'transports': ['http', 'graphql'], 'warmup_seconds': 60, 'measured_seconds': 180, 'maximum_outstanding': 128, 'acceptance_budget_role': 'None: diagnostics never replace or select an acceptance rate; structured failed collector preflights remain failed attempts without timed runs.'}, 'startup_cache_boundary': 'Fresh processes with OS cache state observed; not machine-cold boots', 'cv_analysis': 'Population standard deviation divided by mean, all five p95 observations per variant/transport'},
             'budgets': {'startup_p95_ms': 1000, 'startup_engine_extra_ms': 150, 'idle_rss_mib': 256, 'idle_engine_extra_mib': 16, 'load_p95_ms': 20, 'load_p99_ms': 50, 'engine_p95_extra': 'max(1ms,15% baseline p95)', 'engine_allocation_extra_bytes_per_request': 1024, 'success_floor': .999, 'unplanned_errors_timeouts_drops': 0, 'p95_coefficient_of_variation': .10},
             'private_fixture': 'Private server.pfx stays in task-owned Linux-home .local/share storage with verified0700/0600 modes; never copy it into evidence. Only public CA DER/hash may be retained externally.'
         }
@@ -254,9 +254,9 @@ class Runner:
         write_json(self.output / 'startup-summary.json', summaries)
         return summaries
 
-    def child_driver(self, server, directory, warm_only=False):
+    def child_driver(self, server, directory, warm_only=False, rate=1000, allow_capacity_failure=False):
         directory.mkdir(parents=True, exist_ok=False)
-        command = self.command(DRIVER_CPUS, '--load-client', '--url=' + server.ready['address'], '--ca-file=' + str(self.ca), '--transport=' + server.transport, '--output=' + str(directory), '--warmup=60', '--seconds=' + ('1' if warm_only else '180'), '--rate=1000')
+        command = self.command(DRIVER_CPUS, '--load-client', '--url=' + server.ready['address'], '--ca-file=' + str(self.ca), '--transport=' + server.transport, '--output=' + str(directory), '--warmup=60', '--seconds=' + ('1' if warm_only else '180'), '--rate=' + str(rate))
         if warm_only:
             command.append('--warmup-only=true')
         write_json(directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
@@ -277,6 +277,11 @@ class Runner:
                     self.terminate(process)
         result_path = directory / ('warmup-result.json' if warm_only else 'load-result.json')
         if not result_path.is_file():
+            preflight_path = directory / 'collector-preflight.json'
+            if allow_capacity_failure and not warm_only and process.returncode and preflight_path.is_file():
+                preflight = json.loads(preflight_path.read_text())
+                if diagnostic_preflight_failed(preflight, rate):
+                    return {'diagnostic_preflight_failed': True, 'collector_preflight': preflight, 'driver_exit_code': process.returncode, 'rate': rate, 'timed_measurement_executed': False}
             raise InfrastructureFailure('Driver produced no structured result; inspect retained stdout/stderr.')
         result = json.loads(result_path.read_text())
         required = ('warmup', 'state', 'manifestHash', 'logicalManifestHash') if warm_only else ('warmup', 'measured', 'state', 'initialValidation', 'initialMetrics', 'finalMetrics', 'manifestHash', 'logicalManifestHash')
@@ -368,9 +373,96 @@ class Runner:
         write_json(self.output / 'load-summary.json', result)
         return result
 
+    def diagnostics(self):
+        """Fixed diagnostic attempts: never used to select/replace the 1000req/s gates."""
+        observations, pairs = [], []
+        for transport in ('http', 'graphql'):
+            for rate, order in ((100, 'BE'), (500, 'EB'), (2000, 'BE')):
+                pair = {}
+                for letter in order:
+                    variant = 'baseline' if letter == 'B' else 'engine'
+                    directory = self.output / 'diagnostics' / transport / f'{rate:04d}-{variant}'
+                    self.progress.update(phase='diagnostic-warmup60-measure180', transport=transport, rate=rate, pair_order=order, variant=variant)
+                    with Server(self, directory, variant, transport) as server:
+                        result = self.child_driver(server, directory / 'driver', rate=rate, allow_capacity_failure=True)
+                    if result.get('diagnostic_preflight_failed') is True:
+                        item = {
+                            'variant': variant, 'transport': transport, 'rate': rate, 'pair_order': order,
+                            'diagnostic_status': 'collector-preflight-failed', 'timed_measurement_executed': False,
+                            'failure_classification': 'Capacity/contract preflight observation; warmup and measurement were not entered.',
+                            'collector_preflight': result['collector_preflight'], 'driver_exit_code': result['driver_exit_code'],
+                            'shutdown': server.shutdown, 'acceptance_budget_gate': 'Not applicable; diagnostic attempts cannot replace the 1000req/s series.'
+                        }
+                    else:
+                        measured = result['measured']
+                        valid = phase_correct(result['warmup'], rate * 60) and phase_correct(measured, rate * 180) and result['initialValidation'].get('passed') is True and result['state'].get('passed') is True and result['driver_exit_code'] == 0
+                        initial, final = result['initialMetrics'], result['finalMetrics']
+                        allocation = (final['totalAllocatedBytes'] - initial['totalAllocatedBytes']) / (rate * 180) if 'totalAllocatedBytes' in initial and 'totalAllocatedBytes' in final else None
+                        item = {
+                            'variant': variant, 'transport': transport, 'rate': rate, 'pair_order': order,
+                            'diagnostic_status': 'completed' if valid else 'completed-with-capacity-or-contract-errors',
+                            'timed_measurement_executed': True, 'contract_and_offered_work_observation_valid': valid,
+                            'measured': measured, 'manifest_hash': result['manifestHash'], 'logical_manifest_hash': result['logicalManifestHash'],
+                            'final_state_hash': result.get('finalState', {}).get('stateHash'), 'driver_exit_code': result['driver_exit_code'],
+                            'allocations_bytes_per_offered_request': allocation, 'shutdown': server.shutdown,
+                            'acceptance_budget_gate': 'Not applicable; diagnostic rates have no latency/allocation pass gate and never replace 1000req/s.'
+                        }
+                    observations.append(item)
+                    pair[variant] = item
+                    write_json(directory / 'observation.json', item)
+                    write_json(self.output / 'diagnostic-observations.json', observations)
+                baseline, engine = pair['baseline'], pair['engine']
+                comparable = baseline['timed_measurement_executed'] and engine['timed_measurement_executed']
+                paired = {
+                    'transport': transport, 'rate': rate, 'pair_order': order, 'paired_measurements_available': comparable,
+                    'baseline_status': baseline['diagnostic_status'], 'engine_status': engine['diagnostic_status'],
+                    'same_manifest': baseline.get('manifest_hash') is not None and baseline.get('manifest_hash') == engine.get('manifest_hash') if comparable else None,
+                    'baseline_p95_ms': baseline.get('measured', {}).get('p95Ms'), 'engine_p95_ms': engine.get('measured', {}).get('p95Ms'),
+                    'baseline_p99_ms': baseline.get('measured', {}).get('p99Ms'), 'engine_p99_ms': engine.get('measured', {}).get('p99Ms'),
+                    'baseline_allocation_bytes_per_offered_request': baseline.get('allocations_bytes_per_offered_request'),
+                    'engine_allocation_bytes_per_offered_request': engine.get('allocations_bytes_per_offered_request'),
+                    'acceptance_budget_gate': 'Not scored; no acceptance rate selection or substitution.'
+                }
+                pairs.append(paired)
+                write_json(self.output / 'diagnostic-pairs.json', pairs)
+                write_json(self.output / 'diagnostic-summary.json', diagnostic_summary(observations, pairs))
+        summary = diagnostic_summary(observations, pairs)
+        if summary['attempted_runs'] != 12 or not summary['all_planned_attempts_accounted_for']:
+            raise InfrastructureFailure('Diagnostic series omitted a planned attempt.')
+        return summary
+
 
 def phase_correct(phase, expected):
     return isinstance(phase, dict) and phase.get('offered') == expected and phase.get('correct') == expected and phase.get('errors') == 0 and phase.get('dropped') == 0 and phase.get('successfulWithinDrain', 0) >= .999 * expected
+
+
+def diagnostic_preflight_failed(result, rate):
+    """Recognize only a complete, genuinely failed collector report, not an arbitrary crash."""
+    if not isinstance(result, dict) or not isinstance(result.get('preflight'), dict) or not isinstance(result.get('state'), dict):
+        return False
+    phase, state = result['preflight'], result['state']
+    keys = ('offered', 'correct', 'errors', 'dropped')
+    if any(not isinstance(phase.get(key), int) or isinstance(phase.get(key), bool) or phase[key] < 0 for key in keys):
+        return False
+    if phase['offered'] != rate * 2 or phase['correct'] + phase['errors'] != phase['offered'] or phase['dropped'] > phase['errors'] or not isinstance(state.get('passed'), bool):
+        return False
+    return phase['correct'] != rate * 2 or phase['errors'] != 0 or phase['dropped'] != 0 or not state['passed']
+
+
+def diagnostic_summary(observations, pairs):
+    planned = {(transport, rate, variant) for transport in ('http', 'graphql') for rate in (100, 500, 2000) for variant in ('baseline', 'engine')}
+    actual = {(item['transport'], item['rate'], item['variant']) for item in observations}
+    return {
+        'planned_runs': 12, 'attempted_runs': len(observations),
+        'timed_measurement_runs': sum(item['timed_measurement_executed'] for item in observations),
+        'collector_preflight_failures': sum(item['diagnostic_status'] == 'collector-preflight-failed' for item in observations),
+        'timed_runs_with_capacity_or_contract_errors': sum(item['diagnostic_status'] == 'completed-with-capacity-or-contract-errors' for item in observations),
+        'shutdown_failures': sum(not item['shutdown']['passed'] for item in observations),
+        'all_planned_attempts_accounted_for': len(observations) == len(actual) == 12 and actual == planned,
+        'observations': observations, 'pairs': pairs,
+        'acceptance_budget_gate': 'Not applicable; all diagnostic outcomes remain separate from unchanged1000req/s acceptance series.',
+        'reference_gate_passed': False
+    }
 
 
 class Server:
@@ -504,15 +596,15 @@ def main():
     parser.add_argument('--assembly', required=True, type=Path)
     parser.add_argument('--engine-root', type=Path, default=ROOT.parent / 'Cehpalon-Engine')
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--phases', default='startup,idle,load')
+    parser.add_argument('--phases', default='startup,idle,load,diagnostics')
     parser.add_argument('--preflight-only', action='store_true')
     args = parser.parse_args()
     if sys.platform != 'linux':
         parser.error('This observational orchestrator is Linux-only; Windows remains a separate proof gate.')
     args.dotnet, args.assembly, args.engine_root = args.dotnet.resolve(), args.assembly.resolve(), args.engine_root.resolve()
     args.phases = args.phases.split(',')
-    if len(set(args.phases)) != len(args.phases) or any(phase not in ('startup', 'idle', 'load') for phase in args.phases):
-        parser.error('Select unique phases from startup,idle,load; full defaults are never shortened.')
+    if len(set(args.phases)) != len(args.phases) or any(phase not in ('startup', 'idle', 'load', 'diagnostics') for phase in args.phases):
+        parser.error('Select unique phases from startup,idle,load,diagnostics; full defaults are never shortened.')
     output = (ROOT / args.output).resolve()
     private = (ROOT / '.local').resolve()
     if not output.is_relative_to(private) or output == private:
@@ -523,7 +615,7 @@ def main():
     def interrupted(signum, frame):
         raise KeyboardInterrupt('Received signal ' + str(signum) + '; stopping only owned processes.')
     signal.signal(signal.SIGTERM, interrupted)
-    summary = {'started_at_utc': stamp(), 'classification': 'OBSERVATIONAL; nonqualifying W0 reference environment', 'reference_gate_passed': False, 'completed_phases': [], 'not_run_phases': ['startup', 'idle', 'load']}
+    summary = {'started_at_utc': stamp(), 'classification': 'OBSERVATIONAL; nonqualifying W0 reference environment', 'reference_gate_passed': False, 'completed_phases': [], 'not_run_phases': ['startup', 'idle', 'load', 'diagnostics']}
     try:
         runner.preflight()
         if not args.preflight_only:
@@ -534,6 +626,8 @@ def main():
                 write_json(output / 'summary.json', summary)
         numeric = []
         for phase in summary['completed_phases']:
+            if phase == 'diagnostics':
+                continue  # Diagnostic capacity failures are reported, never scored as acceptance budgets.
             numeric.append(summary[phase]['all_budget_observations_passed'] if phase == 'load' else all(item['budget_observation_passed'] for item in summary[phase]))
         summary.update(status='preflight-only' if args.preflight_only else 'observations-complete', numeric_budget_observations_passed=all(numeric) if numeric else None, completed_at_utc=stamp())
         runner.manifest.update(status=summary['status'], completed_at_utc=summary['completed_at_utc'])
