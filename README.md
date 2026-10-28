@@ -19,3 +19,5 @@ The [tenant/identity consumer](tenant-identity/README.md) adds fresh authoritati
 W0 provider/workload selection is recorded in the [decision package](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/w0-decisions.md). Each lane below points to its ADR and predeclared acceptance protocol. All runtime profiles remain M0 until qualification and execution evidence exists.
 
 See the [program plan](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/2026-10-27-program-plan.md), [Project](https://github.com/orgs/Cephalon-Labs/projects/4) and [AGENTS.md](AGENTS.md).
+
+The [protected Small API consumer](small-api/README.md) reuses generated Core gateways and guarded tenant handlers through HTTP/GraphQL with actual localhost HTTPS/JWT fixture checks. It is a separate experimental protected profile; original W0 performance gates remain unexecuted and #3 remains Blocked.

@@ -1,9 +1,29 @@
-# Small API sample plan
+# Experimental protected Small API consumer
 
-Implement a minimal API-only consumer, then expose the same supported business operation through an optional second transport by configuration. Prove validation, policy, cancellation and zero activation of disabled GraphQL/Worker/AI modules. Measure startup and idle footprint against a declared baseline. Status: M0, not executable.
+This external project consumes the exact clean Engine revision in `engine-lock.json`. Three generated Core gateways reuse the same tenant-aware catalog handler over typed HTTP POST and optional HotChocolate16.7.1 GraphQL. Pinned JwtBearer11 RC3 validates process-local RSA fixture tokens before fresh tenant identity/membership/resource/policy checks. No real IdP, database, broker, cache or AI service is required.
 
-W0 selects Kestrel + Minimal API with a bounded BCL catalog fixture; no external database/cache/broker/AI/IdP. Hot Chocolate 16.7.1 is opt-in and still requires RC3 qualification. Workload: 10,000 records, 1,000 req/s, five baseline/Engine pairs; warm p95/p99 budgets 20/50 ms. These are design budgets, not results.
+Run from the Samples root with the pinned SDK:
 
-- [ADR-0002](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/adr/ADR-0002-small-api-profile.md)
-- [Full protocol and gates](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/validation/small-api-workload.md)
-- Engine task: [#11](https://github.com/Cephalon-Labs/Cehpalon-Engine/issues/11)
+```powershell
+python tools/verify_small_api.py --dotnet D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe --output .local/small-api/new-attempt
+```
+
+The Engine checkout must be clean at the locked full SHA. The verifier restores locked dependencies, builds Release, runs actual loopback HTTPS requests with a custom fixture CA, preserves source/package/output hashes, and verifies generated registrations compile without Roslyn in the runtime graph. Output directories must be new. Keys/tokens stay in process; no trust root is installed. Failed attempts are retained.
+
+`FixtureHost.Config(api, graphql)` constructs schema1 configuration. Composition validates before host creation. API-only omits GraphQL registration/mapping, GraphQL-only leaves API off, all-off creates no WebApplication/listener, and unsupported worker/provider selections fail before activation. Unimplemented modules have throwing factory traps. The combined consumer carries GraphQL assemblies, which does not imply activation. API-only checks zero registration branch/HotChocolate DI descriptors and forbidden factory calls through10,000 requests and shutdown; these counters do not separately instrument vendor schema/executor constructors.
+
+| Operation | HTTP POST | GraphQL field |
+| --- | --- | --- |
+| GetItem | `/api/catalog/get` | query `catalogItem(input: GetItemInput!)` |
+| ListItems | `/api/catalog/list` | query `catalogPage(input: ListItemsInput!)` |
+| SetLabel | `/api/catalog/set` | mutation `setLabel(input: SetLabelInput!)` |
+
+Fixture alice belongs to tenant-a, bob to tenant-b; identical item IDs exist independently. Authority checks the tenant-owned catalog, then guarded data ports apply item/pagination/update semantics. Metadata grants no membership. Immutable inputs have bounded labels/pages and optimistic revision updates. Intentional semantic error codes match, while REST statuses/problem details and GraphQL field-error envelopes differ. Parsing/coercion errors remain transport-specific.
+
+GraphQL is authenticated POST JSON only,16KiB, depth8/cost1000, with no introspection/schema download/IDE/WS/batching/multipart/incremental execution. DTO field changes are schema changes. Runtime business contracts contain no HttpContext/vendor objects. Host authentication and dispatcher wiring are mandatory; calling an adapter alone does not establish tenant authority.
+
+The functional suite checks TLS trust/hostname, invalid JWT signature/issuer/audience/time/type/ambiguous or malformed subject, cross-tenant rejection before business work, same-ID isolation, metadata spoofing, fresh membership revocation, wrong owner/default policy, validation/not-found/pagination/update/conflict, abort/no delayed write, malformed/oversized bodies, disabled exposure and owned cleanup. Startup timings are diagnostics only.
+
+This protected fixture has10,000 records per tenant (20,000 total), so it is **separate from the unchanged public W0 benchmark**. Full1,000-case ordered corpus,100 timed cancellations/profile,30 restarts, startup/RSS/latency/throughput pairs remain Not run. Windows26H2 observations do not clear #3; WSL evidence does not prove native deployment or production. Full features remain M0.
+
+See [ADR0008](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/adr/ADR-0008-protected-http-graphql-adapters.md), [functional protocol](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/validation/transport-small-api-functional-protocol.md) and unchanged [W0 gates](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/validation/small-api-workload.md).

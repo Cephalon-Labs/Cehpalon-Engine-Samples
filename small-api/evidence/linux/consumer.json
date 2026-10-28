@@ -1,0 +1,210 @@
+{
+  "observedAtUtc": "2026-10-28T02:44:19.6646692+00:00",
+  "framework": ".NET 11.0.0-rc.3.26522.148",
+  "os": "Ubuntu 22.04.5 LTS",
+  "scope": "Protected localhost HTTPS fixture, pinned JWT validation, generated Core gateway, tenant dispatcher, synthetic in-memory data. Not W0 public benchmark, real IdP/provider, supported-Windows, production, or full performance gate.",
+  "passed": 40,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "invalid configuration fails before host/module factories",
+      "passed": true
+    },
+    {
+      "name": "unsupported worker profile fails before host/module factories",
+      "passed": true
+    },
+    {
+      "name": "all entrypoints disabled creates no WebApplication/listener/services",
+      "passed": true
+    },
+    {
+      "name": "api-only: strict custom CA trust and hostname",
+      "passed": true
+    },
+    {
+      "name": "api-only: wrong TLS hostname rejected",
+      "passed": true
+    },
+    {
+      "name": "api-only: untrusted TLS fixture CA rejected",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: anonymous/bad JWT denies before business",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: same ID A/B remains isolated despite metadata",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: both cross-tenant directions deny with zero business",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: revocation/owner mismatch/default policy deny",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: validation precedes business mutation",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: not-found/list/update/conflict semantics",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: abort observed and no delayed mutation",
+      "passed": true
+    },
+    {
+      "name": "api-only/http: malformed/oversized body does no business",
+      "passed": true
+    },
+    {
+      "name": "api-only: disabled endpoints/schema/IDE/WS remain absent",
+      "passed": true
+    },
+    {
+      "name": "api-only: 10000 requests keep disabled modules at zero",
+      "passed": true
+    },
+    {
+      "name": "api-only: shutdown owns handlers and closes listener",
+      "passed": true
+    },
+    {
+      "name": "api-graphql: strict custom CA trust and hostname",
+      "passed": true
+    },
+    {
+      "name": "api-graphql: wrong TLS hostname rejected",
+      "passed": true
+    },
+    {
+      "name": "api-graphql: untrusted TLS fixture CA rejected",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: anonymous/bad JWT denies before business",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: same ID A/B remains isolated despite metadata",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: both cross-tenant directions deny with zero business",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: revocation/owner mismatch/default policy deny",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: validation precedes business mutation",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: not-found/list/update/conflict semantics",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: abort observed and no delayed mutation",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/http: malformed/oversized body does no business",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: anonymous/bad JWT denies before business",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: same ID A/B remains isolated despite metadata",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: both cross-tenant directions deny with zero business",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: revocation/owner mismatch/default policy deny",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: validation precedes business mutation",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: not-found/list/update/conflict semantics",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: abort observed and no delayed mutation",
+      "passed": true
+    },
+    {
+      "name": "api-graphql/graphql: malformed/oversized body does no business",
+      "passed": true
+    },
+    {
+      "name": "api-graphql: disabled endpoints/schema/IDE/WS remain absent",
+      "passed": true
+    },
+    {
+      "name": "api-graphql: introspection disabled",
+      "passed": true
+    },
+    {
+      "name": "api-graphql: shutdown owns handlers and closes listener",
+      "passed": true
+    },
+    {
+      "name": "GraphQL-only keeps API entrypoint disabled",
+      "passed": true
+    }
+  ],
+  "profiles": [
+    {
+      "name": "api-only",
+      "startupMilliseconds": 597.7787,
+      "counters": {
+        "HostFactories": 1,
+        "ApiFactories": 1,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 4
+      },
+      "store": {
+        "Count": 20000,
+        "Factories": 10010,
+        "Reads": 10007,
+        "Writes": 1,
+        "Disposals": 10010
+      }
+    },
+    {
+      "name": "api-graphql",
+      "startupMilliseconds": 423.5232,
+      "counters": {
+        "HostFactories": 1,
+        "ApiFactories": 1,
+        "GraphQLFactories": 1,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 28,
+        "Endpoints": 5
+      },
+      "store": {
+        "Count": 20000,
+        "Factories": 20,
+        "Reads": 14,
+        "Writes": 2,
+        "Disposals": 20
+      }
+    }
+  ]
+}
