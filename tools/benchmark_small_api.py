@@ -69,6 +69,8 @@ class Progress:
         self.output = output
         self.state = {'observed_at_utc': stamp(), 'status': 'preflight', 'phase': 'preflight'}
         self.last = 0.0
+        self.clock_offset_ns = time.time_ns() - time.monotonic_ns()
+        self.clock_failed = False
         self.events = (output / 'progress-events.jsonl').open('x', encoding='utf-8', buffering=1)
 
     def update(self, **values):
@@ -78,6 +80,11 @@ class Progress:
 
     def tick(self, force=False):
         now = time.monotonic()
+        deviation = time.time_ns() - time.monotonic_ns() - self.clock_offset_ns
+        self.state['wall_monotonic_offset_deviation_ns'] = deviation
+        if abs(deviation) > 1_000_000_000 and not self.clock_failed:
+            self.clock_failed = True
+            raise InfrastructureFailure('Wall/monotonic clock continuity changed by more than1s; retain this whole attempt as invalid.')
         if force or now - self.last >= 30:
             self.state['heartbeat_at_utc'] = stamp()
             write_json(self.output / 'progress.json', self.state)
@@ -185,6 +192,7 @@ class Runner:
         cgroup_files = {name: optional_read(cgroup_path / name) if cgroup_path else None for name in ['cpu.max', 'cpu.stat', 'cpuset.cpus.effective', 'memory.max', 'memory.current', 'memory.events']}
         self.manifest = {
             'schema_version': 1, 'declared_at_utc': stamp(), 'status': 'preflight-complete',
+            'orchestrator_pid': os.getpid(),
             'classification': 'OBSERVATIONAL; nonqualifying W0 reference environment',
             'reference_environment_qualified': False,
             'reference_failures': ['WSL CPUs are shared and nonreserved; affinity does not establish dedicated vCPUs.', 'No owned 2GiB application memory cap is established.', 'Host and driver share one WSL/Windows machine; this is not native deployment proof.'],
