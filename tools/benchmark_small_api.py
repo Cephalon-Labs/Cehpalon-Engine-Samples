@@ -24,6 +24,7 @@ import time
 import tempfile
 import traceback
 from urllib.parse import urlsplit
+from small_api_collector_evidence import validate_collector_preparation, validate_phase_telemetry, validate_preflight_rejection
 
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE_REVISION = '6804271d429106864e01e4ec546a41dff771f84b'
@@ -199,6 +200,7 @@ class Runner:
             'reference_environment_qualified': False,
             'reference_failures': ['WSL CPUs are shared and nonreserved; affinity does not establish dedicated vCPUs.', 'No owned 2GiB application memory cap is established.', 'Host and driver share one WSL/Windows machine; this is not native deployment proof.'],
             'budgets_unchanged': True,
+            'collector_preparation': {'decision': 'ADR0011', 'control_pool_separate': True, 'load_pool_initially_fresh': True, 'held_http11_responses_required': 128, 'load_tls_connection_identities_required': 128, 'shared_barrier_deadline_seconds': 30, 'preflight_seconds': 2, 'preparation_retries': 0, 'entered_phase_tls_evidence_required': True, 'boundary': 'A verified simultaneous held-response barrier establishes observed preparation readiness; it is not sustained capacity or production qualification.'},
             'engine_revision': ENGINE_REVISION, 'samples_revision': git(ROOT, 'rev-parse', 'HEAD'), 'sdk': sdk,
             'source_sha256': source_hashes, 'assembly': str(self.args.assembly), 'assembly_sha256': sha(self.args.assembly),
             'deployment': {'dotnet': str(self.args.dotnet), 'assembly_directory': str(self.args.assembly.parent), 'server_working_directory': str(self.args.server_working_directory), 'output_directory': str(self.output), 'boundary': 'Filesystem/deployment paths are explicit and shared by both variants; native storage does not establish dedicated CPU/RAM or native OS deployment proof.'},
@@ -277,18 +279,35 @@ class Runner:
             finally:
                 if process.poll() is None:
                     self.terminate(process)
+        # Missing readiness/failure telemetry is an infrastructure defect, even if
+        # the driver emitted a plausible numerical result or a nonzero exit.
+        try:
+            validate_collector_preparation(directory)
+            validate_phase_telemetry(directory, 'preflight')
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            raise InfrastructureFailure('Incomplete collector readiness/preflight evidence: ' + str(error)) from error
         result_path = directory / ('warmup-result.json' if warm_only else 'load-result.json')
         if not result_path.is_file():
             preflight_path = directory / 'collector-preflight.json'
-            if allow_capacity_failure and not warm_only and process.returncode and preflight_path.is_file():
+            if allow_capacity_failure and not warm_only and process.returncode == 1 and preflight_path.is_file():
                 preflight = json.loads(preflight_path.read_text())
                 if diagnostic_preflight_failed(preflight, rate):
+                    try:
+                        validate_preflight_rejection(directory, rate, server.transport)
+                    except (ValueError, OSError, KeyError, TypeError) as error:
+                        raise InfrastructureFailure('Diagnostic exit is not a complete preflight rejection: ' + str(error)) from error
                     return {'diagnostic_preflight_failed': True, 'collector_preflight': preflight, 'driver_exit_code': process.returncode, 'rate': rate, 'timed_measurement_executed': False}
             raise InfrastructureFailure('Driver produced no structured result; inspect retained stdout/stderr.')
         result = json.loads(result_path.read_text())
         required = ('warmup', 'state', 'manifestHash', 'logicalManifestHash') if warm_only else ('warmup', 'measured', 'state', 'initialValidation', 'initialMetrics', 'finalMetrics', 'manifestHash', 'logicalManifestHash')
         if not isinstance(result, dict) or any(key not in result for key in required):
             raise InfrastructureFailure('Driver result schema is incomplete or incompatible; no selective continuation.')
+        try:
+            validate_phase_telemetry(directory, 'warmup')
+            if not warm_only:
+                validate_phase_telemetry(directory, 'measured')
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            raise InfrastructureFailure('Incomplete collector entered-phase evidence: ' + str(error)) from error
         result['driver_exit_code'] = process.returncode
         # A structured correctness/budget failure is preserved and scored, never hidden by retries.
         return result
@@ -443,10 +462,17 @@ def diagnostic_preflight_failed(result, rate):
     if not isinstance(result, dict) or not isinstance(result.get('preflight'), dict) or not isinstance(result.get('state'), dict):
         return False
     phase, state = result['preflight'], result['state']
-    keys = ('offered', 'correct', 'errors', 'dropped')
+    keys = ('offered', 'correct', 'errors', 'dropped', 'successfulWithinDrain')
     if any(not isinstance(phase.get(key), int) or isinstance(phase.get(key), bool) or phase[key] < 0 for key in keys):
         return False
     if phase['offered'] != rate * 2 or phase['correct'] + phase['errors'] != phase['offered'] or phase['dropped'] > phase['errors'] or not isinstance(state.get('passed'), bool):
+        return False
+    kinds = phase.get('errorKinds')
+    if (not isinstance(kinds, dict)
+            or any(not isinstance(key, str) or not key or not isinstance(value, int) or isinstance(value, bool) or value <= 0 for key, value in kinds.items())
+            or sum(kinds.values()) != phase['errors']
+            or kinds.get('offered.dropped', 0) != phase['dropped']
+            or phase['successfulWithinDrain'] > phase['correct']):
         return False
     return phase['correct'] != rate * 2 or phase['errors'] != 0 or phase['dropped'] != 0 or not state['passed']
 

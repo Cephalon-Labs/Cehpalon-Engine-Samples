@@ -17,6 +17,9 @@ public static class LoadDriver
 {
     private sealed record Offered(int Index,string Operation,int Id,int Page,int Lane,int Ordinal,int ExpectedRevision,string? Label,byte[] Payload,string Path);
     private sealed record Observation(int Index,string Operation,long Scheduled,long Sent,long Completed,int Status,int Bytes,string Error);
+    private sealed record TlsConnection(long ConnectionId,string Pool,string Protocol,string Cipher,string HttpVersion,long ConnectedTicks,long StopwatchFrequency,int? PreparationIndex);
+    private static readonly HttpRequestOptionsKey<long> ConnectionIdOption=new("cehpalon.fixture.connection-id");
+    private static readonly HttpRequestOptionsKey<int> PreparationIndexOption=new("cehpalon.fixture.preparation-index");
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web){WriteIndented=false};
     private const string Seed="cehpalon-small-api-v1:20261027";
     public static async Task<int> RunAsync(string[] args)
@@ -25,18 +28,30 @@ public static class LoadDriver
         var output=Path.GetFullPath(Arg("output"));Directory.CreateDirectory(output);
         var transport=Arg("transport");var rate=int.Parse(Arg("rate","1000"));var seconds=int.Parse(Arg("seconds","180"));var warmSeconds=int.Parse(Arg("warmup","60"));
         var warmOnly=Arg("warmup-only","false")=="true";
+        var preflightOnly=Arg("preflight-only","false")=="true";
+        if(warmOnly && preflightOnly)throw new ArgumentException("Select either warmup-only or preflight-only.");
         if(transport is not("http" or "graphql") || rate<=0 || seconds<=0 || warmSeconds<0) throw new ArgumentException("Invalid load protocol.");
         using var root=X509CertificateLoader.LoadCertificateFromFile(Arg("ca-file"));
         var chain=new X509ChainPolicy{TrustMode=X509ChainTrustMode.CustomRootTrust,RevocationMode=X509RevocationMode.NoCheck};chain.CustomTrustStore.Add(root);
-        using var sockets=new SocketsHttpHandler{UseProxy=false,MaxConnectionsPerServer=128,SslOptions=new SslClientAuthenticationOptions{EnabledSslProtocols=SslProtocols.Tls13,CertificateChainPolicy=chain}};
-        var tlsConnections=new ConcurrentBag<object>();
-        sockets.PlaintextStreamFilter=(context,ct)=>
+        var tlsConnections=new ConcurrentBag<TlsConnection>();long connectionSequence=0;
+        SocketsHttpHandler CreateSockets(string pool)
         {
-            if(context.PlaintextStream is not SslStream ssl || ssl.SslProtocol!=SslProtocols.Tls13) throw new InvalidOperationException("Expected an observed TLS1.3 collector connection.");
-            tlsConnections.Add(new{protocol=ssl.SslProtocol.ToString(),cipher=ssl.NegotiatedCipherSuite.ToString(),httpVersion=context.NegotiatedHttpVersion.ToString(),connectedTicks=Stopwatch.GetTimestamp(),stopwatchFrequency=Stopwatch.Frequency});
-            return ValueTask.FromResult(context.PlaintextStream);
-        };
+            var handler=new SocketsHttpHandler{UseProxy=false,MaxConnectionsPerServer=128,SslOptions=new SslClientAuthenticationOptions{EnabledSslProtocols=SslProtocols.Tls13,CertificateChainPolicy=chain}};
+            handler.PlaintextStreamFilter=(context,ct)=>
+            {
+                if(context.PlaintextStream is not SslStream ssl || ssl.SslProtocol!=SslProtocols.Tls13 || context.NegotiatedHttpVersion!=HttpVersion.Version11)throw new InvalidOperationException("Expected an observed TLS1.3/HTTP1.1 collector connection.");
+                var id=Interlocked.Increment(ref connectionSequence);
+                context.InitialRequestMessage.Options.Set(ConnectionIdOption,id);
+                int? preparationIndex=context.InitialRequestMessage.Options.TryGetValue(PreparationIndexOption,out var index)?index:null;
+                tlsConnections.Add(new(id,pool,ssl.SslProtocol.ToString(),ssl.NegotiatedCipherSuite.ToString(),context.NegotiatedHttpVersion.ToString(),Stopwatch.GetTimestamp(),Stopwatch.Frequency,preparationIndex));
+                return ValueTask.FromResult(context.PlaintextStream);
+            };
+            return handler;
+        }
+        TlsConnection[] SnapshotTls()=>tlsConnections.OrderBy(x=>x.ConnectionId).ToArray();
+        using var sockets=CreateSockets("load");using var controlSockets=CreateSockets("control");
         using var client=new HttpClient(sockets){BaseAddress=new Uri(Arg("url")),Timeout=Timeout.InfiniteTimeSpan};
+        using var controlClient=new HttpClient(controlSockets){BaseAddress=client.BaseAddress,Timeout=Timeout.InfiniteTimeSpan};
         var count=checked(rate*seconds);var warmCount=checked(rate*warmSeconds);
         var workload=Build(Math.Max(Math.Max(count,warmCount),checked(rate*2)),transport);
         await using(var file=new FileStream(Path.Combine(output,"offered-manifest.jsonl.gz"),FileMode.CreateNew))
@@ -48,81 +63,195 @@ public static class LoadDriver
         Console.WriteLine(JsonSerializer.Serialize(new{stage="manifest-frozen",count=warmOnly?warmCount:count,rate,seconds,warmSeconds,transport,manifestHash,logicalManifestHash}));
         // Establish the collector's HTTP/TLS machinery before imposing an offered schedule.
         // These read-only preparations and the complete capacity preflight are retained, never scored as warmup.
-        using(var reset=await client.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"))) reset.EnsureSuccessStatusCode();
-        var preparation=new ConcurrentBag<object>();var noWrites=new ConcurrentDictionary<int,int>();
-        async Task Prepare(Offered item)
+        var preparation=new ConcurrentBag<PreparationRecord>();var noWrites=new ConcurrentDictionary<int,int>();var barrier=new BarrierProof();
+        var enteredPhases=new List<string>();
+        JsonElement measuredFinalMetrics=default;
+        var preparationStarted=Stopwatch.GetTimestamp();var preparationBefore=ClientMetrics();
+        using var preparationDeadline=new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var release=new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);Task[] heldTasks=[];
+        Exception? preparationFailure=null;
+        HttpRequestMessage PreparationRequest(Offered item,int preparationIndex)
         {
-            var started=Stopwatch.GetTimestamp();var status=0;var byteCount=0;string? failure=null;
-            try
-            {
-            using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            using var request=new HttpRequestMessage(HttpMethod.Post,item.Path){Version=HttpVersion.Version11,VersionPolicy=HttpVersionPolicy.RequestVersionExact,Content=new ByteArrayContent(item.Payload)};
-            request.Content.Headers.ContentType=new MediaTypeHeaderValue("application/json");
-            using var response=await client.SendAsync(request,deadline.Token);var body=await response.Content.ReadAsByteArrayAsync(deadline.Token);
-            status=(int)response.StatusCode;byteCount=body.Length;
-            response.EnsureSuccessStatusCode();using var document=JsonDocument.Parse(body);var value=document.RootElement;
+            var request=new HttpRequestMessage(HttpMethod.Post,item.Path){Version=HttpVersion.Version11,VersionPolicy=HttpVersionPolicy.RequestVersionExact,Content=new ByteArrayContent(item.Payload)};
+            request.Content.Headers.ContentType=new MediaTypeHeaderValue("application/json");request.Options.Set(PreparationIndexOption,preparationIndex);return request;
+        }
+        async Task ReadAndValidate(HttpResponseMessage response,Offered item,PreparationRecord row,CancellationToken ct)
+        {
+            row.BodyReadStartedTicks=Stopwatch.GetTimestamp();
+            var body=await response.Content.ReadAsByteArrayAsync(ct);row.Bytes=body.Length;row.BodyCompletedTicks=Stopwatch.GetTimestamp();
+            if(body.Length==0)throw new InvalidOperationException("Preparation body must be nonempty.");
+            using var document=JsonDocument.Parse(body);var value=document.RootElement;
             if(transport=="graphql")
             {
-                if(value.TryGetProperty("errors",out _)) throw new InvalidOperationException("GraphQL collector preparation failed.");
+                if(value.TryGetProperty("errors",out _))throw new InvalidOperationException("GraphQL collector preparation failed.");
                 value=value.GetProperty("data").GetProperty(item.Operation=="get"?"catalogItem":"catalogPage");
             }
-            if(!Validate(value,item,noWrites)) throw new InvalidOperationException("Collector preparation business validation failed.");
+            if(!Validate(value,item,noWrites))throw new InvalidOperationException("Collector preparation business validation failed.");
+            row.Passed=true;
+        }
+        async Task WarmRead(Offered item,int preparationIndex)
+        {
+            var row=new PreparationRecord{PreparationIndex=preparationIndex,Index=item.Index,Operation=item.Operation,Pool="control",Stage="warm-read",StartedTicks=Stopwatch.GetTimestamp()};preparation.Add(row);
+            try
+            {
+                using var request=PreparationRequest(item,preparationIndex);
+                using var response=await controlClient.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,preparationDeadline.Token);
+                ValidatePreparationHeaders(response,row);
+                row.ConnectionId=request.Options.TryGetValue(ConnectionIdOption,out var id)?id:null;
+                await ReadAndValidate(response,item,row,preparationDeadline.Token);
             }
-            catch(Exception error){failure=error.ToString();throw;}
-            finally {preparation.Add(new{item.Index,item.Operation,startedTicks=started,completedTicks=Stopwatch.GetTimestamp(),status,bytes=byteCount,error=failure});}
+            catch(Exception error){row.Error=error.ToString();throw;}
+            finally{row.CompletedTicks=Stopwatch.GetTimestamp();}
+        }
+        async Task HoldRead(Offered item,int preparationIndex,TaskCompletionSource headers)
+        {
+            var row=new PreparationRecord{PreparationIndex=preparationIndex,Index=item.Index,Operation=item.Operation,Pool="load",Stage="held-load",StartedTicks=Stopwatch.GetTimestamp()};preparation.Add(row);
+            try
+            {
+                using var request=PreparationRequest(item,preparationIndex);
+                using var response=await client.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,preparationDeadline.Token);
+                ValidatePreparationHeaders(response,row);
+                row.ConnectionId=request.Options.TryGetValue(ConnectionIdOption,out var id)?id:null;
+                if(row.ConnectionId is null)throw new InvalidOperationException("A held response did not identify its new physical load connection.");
+                headers.TrySetResult();
+                await release.Task.WaitAsync(preparationDeadline.Token);
+                await ReadAndValidate(response,item,row,preparationDeadline.Token);
+            }
+            catch(Exception error){row.Error=error.ToString();headers.TrySetException(error);throw;}
+            finally{row.CompletedTicks=Stopwatch.GetTimestamp();}
+        }
+        void ReleaseHeld()
+        {
+            barrier.ReleasedTicks??=Stopwatch.GetTimestamp();release.TrySetResult(barrier.ReleasedTicks.Value);
         }
         try
         {
-            await Prepare(workload.First(item=>item.Operation=="get"));
-            await Prepare(workload.First(item=>item.Operation=="list"));
-            await Task.WhenAll(workload.Where(item=>item.Operation=="get").Take(128).Select(Prepare));
+            using(var reset=await controlClient.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"),preparationDeadline.Token))reset.EnsureSuccessStatusCode();
+            await WarmRead(workload.First(item=>item.Operation=="get"),0);
+            await WarmRead(workload.First(item=>item.Operation=="list"),1);
+            var selected=workload.Where(item=>item.Operation=="get").Take(128).ToArray();
+            if(selected.Length!=128)throw new InvalidOperationException("The frozen manifest must contain128 read-only preparation inputs.");
+            var headers=Enumerable.Range(0,128).Select(_=>new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).ToArray();
+            barrier.StartedTicks=Stopwatch.GetTimestamp();
+            heldTasks=selected.Select((item,index)=>HoldRead(item,index+2,headers[index])).ToArray();
+            await Task.WhenAll(headers.Select(signal=>signal.Task)).WaitAsync(preparationDeadline.Token);
+            barrier.AllHeadersReadyTicks=Stopwatch.GetTimestamp();
+            var held=preparation.Where(row=>row.Stage=="held-load").OrderBy(row=>row.PreparationIndex).ToArray();
+            var physical=SnapshotTls().Where(connection=>connection.Pool=="load").ToArray();
+            barrier.HeldResponses=held.Length;barrier.TlsConnectionsAtBarrier=physical.Length;
+            barrier.DistinctConnectionIds=held.Where(row=>row.ConnectionId is not null).Select(row=>row.ConnectionId!.Value).Distinct().Order().ToArray();
+            barrier.DistinctConnectionCount=barrier.DistinctConnectionIds.Length;barrier.LoadTlsConnectionIdsAtBarrier=physical.Select(connection=>connection.ConnectionId).Order().ToArray();
+            if(held.Length!=128 || physical.Length!=128 || barrier.DistinctConnectionCount!=128 || !barrier.DistinctConnectionIds.SequenceEqual(barrier.LoadTlsConnectionIdsAtBarrier) || held.Any(row=>row.HeadersReadyTicks is null || row.BodyReadStartedTicks is not null || row.CompletedTicks is not null))
+                throw new InvalidOperationException("Physical connection readiness barrier did not hold128 distinct live HTTP1.1 responses before body consumption.");
+            ReleaseHeld();await Task.WhenAll(heldTasks);
+            preparationDeadline.Token.ThrowIfCancellationRequested();
+            if(Stopwatch.GetElapsedTime(preparationStarted)>TimeSpan.FromSeconds(30))throw new TimeoutException("Shared30-second preparation deadline elapsed.");
+            barrier.NonemptyHttp11Responses=held.Count(row=>row.Passed && row.HttpVersion=="1.1" && row.Bytes>0);
+            barrier.CompletedTicks=Stopwatch.GetTimestamp();
+            barrier.Passed=barrier.NonemptyHttp11Responses==128;
+            if(!barrier.Passed)throw new InvalidOperationException("Not all held response bodies validated before preflight.");
+        }
+        catch(Exception error)
+        {
+            preparationFailure=error;preparationDeadline.Cancel();ReleaseHeld();
+            try{await Task.WhenAll(heldTasks);}
+            catch(Exception cleanupFailure){preparationFailure=new AggregateException("Preparation and joined held-request cleanup failed.",preparationFailure,cleanupFailure);}
         }
         finally
         {
-            await File.WriteAllTextAsync(Path.Combine(output,"collector-preparation.json"),JsonSerializer.Serialize(new{requests=preparation.ToArray(),stopwatchFrequency=Stopwatch.Frequency,tlsConnections=tlsConnections.ToArray(),scope="Read-only connection/JIT preparation outside offered schedules"},Json));
+            ReleaseHeld();barrier.CompletedTicks??=Stopwatch.GetTimestamp();
+            await WriteEvidence(Path.Combine(output,"collector-preparation.json"),new
+            {
+                schemaVersion=1,status=preparationFailure is null?"passed":"preparation-failed",plannedReadOnlyRequests=130,
+                readOnlyRequests=preparation.Count,successfulReadOnlyRequests=preparation.Count(row=>row.Passed),
+                requests=preparation.OrderBy(row=>row.PreparationIndex).ToArray(),barrier,clientBefore=preparationBefore,clientAfter=ClientMetrics(),
+                preparationStartedTicks=preparationStarted,preparationCompletedTicks=Stopwatch.GetTimestamp(),
+                stopwatchFrequency=Stopwatch.Frequency,tlsConnections=SnapshotTls(),error=preparationFailure?.ToString(),
+                scope="Two verified control-pool reads plus128 held load-pool responses; all bodies released only after physical TLS readiness, outside offered schedules and startup measurement"
+            });
         }
-        var preflight=await Phase("preflight",rate*2,2);
-        var preflightState=ValidateFinal(await State(),workload.Take(rate*2));
-        await File.WriteAllTextAsync(Path.Combine(output,"collector-preflight.json"),JsonSerializer.Serialize(new{preflight,state=preflightState},Json));
-        if(preflight.errors!=0 || preflight.dropped!=0 || preflight.correct!=rate*2 || !preflightState.passed) throw new InvalidOperationException("Collector preflight failed; retain the whole attempt, do not enter timed warmup/load.");
-        using(var reset=await client.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"))) reset.EnsureSuccessStatusCode();
-        var warm=warmCount==0?null:await Phase("warmup",warmCount,warmSeconds);
-        if(warmOnly)
+        var preparationSummary=new{readOnlyRequests=preparation.Count,successfulReadOnlyRequests=preparation.Count(row=>row.Passed),barrier};
+        if(preparationFailure is not null)
         {
-            var finalWarm=await State();var validation=ValidateFinal(finalWarm,workload.Take(warmCount));
-            await File.WriteAllTextAsync(Path.Combine(output,"warmup-result.json"),JsonSerializer.Serialize(new{transport,rate,warmSeconds,manifestHash,logicalManifestHash,tlsConnections=tlsConnections.ToArray(),warmup=warm,state=validation,finalState=finalWarm},new JsonSerializerOptions(Json){WriteIndented=true}));
-            Console.WriteLine(JsonSerializer.Serialize(new{stage="warmup-completed",transport,warm?.correct,warm?.errors,validation.passed}));
-            return 0;
+            await WriteCollectorFailure("preparation-failed","preparation",preparationFailure.ToString(),"collector-preparation.json");
+            return 1;
         }
-        using(var reset=await client.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"))) reset.EnsureSuccessStatusCode();
-        var initial=await State();
-        var initialMetrics=await Metrics();
-        JsonElement measuredFinalMetrics=default;
-        var measured=await Phase("measured",count,seconds);
-        if(measuredFinalMetrics.ValueKind!=JsonValueKind.Object)throw new InvalidOperationException("Measured completion metrics were not captured before evidence persistence.");
-        var finalMetrics=measuredFinalMetrics;
-        var final=await State();
-        var state=ValidateFinal(final,workload.Take(count));
-        var initialValidation=ValidateFinal(initial,[]);
-        var report=new{transport,rate,seconds,warmSeconds,manifestHash,logicalManifestHash,stopwatchFrequency=Stopwatch.Frequency,tlsConnections=tlsConnections.ToArray(),initialState=initial,initialValidation,initialMetrics,finalMetrics,finalState=final,warmup=warm,measured,state,
-            collectorEvidence=new{storage="Preallocated indexed reference slots; Observation records still allocate per offered row; all rows persisted after joining the phase",serverMetricsBracket="Initial metrics before Phase; final metrics immediately after measured request join, before raw JSON/gzip persistence. This explicitly corrects the prior flush-inclusive metrics bracket.",clientMetricsBracket="Snapshots before schedule origin and immediately after request join, excluding completion-metrics control request and raw persistence",tlsTimestampBoundary="connectedTicks is PlaintextStreamFilter after the TLS handshake, not TCP connection start; phase accounting has the matching Stopwatch clock",crashBoundary="Managed phase failures flush observed rows before failing; abrupt process termination may lose the in-memory phase and invalidates the attempt"},
-            scope="Fixed open-loop localhost observation; environment qualification is determined by orchestrator, never inferred from numeric budgets."};
-        await File.WriteAllTextAsync(Path.Combine(output,"load-result.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions(Json){WriteIndented=true}));
-        Console.WriteLine(JsonSerializer.Serialize(new{stage="completed",transport,measured.correct,measured.errors,measured.dropped,statePassed=state.passed}));
-        return 0; // Preserve complete runs even when engineering budgets fail; the report is authoritative.
+        PhaseResult preflight;StateValidation preflightState;
+        try
+        {
+            preflight=await Phase("preflight",rate*2,2);
+            preflightState=ValidateFinal(await State(),workload.Take(rate*2));
+        }
+        catch(Exception error)
+        {
+            await WriteCollectorFailure("collector-phase-failed","preflight",error.ToString(),"preflight-evidence-accounting.json");return 1;
+        }
+        var preflightPassed=preflight.errors==0 && preflight.dropped==0 && preflight.correct==rate*2 && preflightState.passed;
+        await WriteEvidence(Path.Combine(output,"collector-preflight.json"),new{schemaVersion=1,status=preflightPassed?"passed":"collector-preflight-failed",preflight,state=preflightState,preparation=preparationSummary,tlsConnections=SnapshotTls(),telemetryFile="preflight-evidence-accounting.json",enteredPhases=enteredPhases.ToArray(),warmupEntered=false,measuredEntered=false});
+        if(preflightOnly)
+            await WriteEvidence(Path.Combine(output,"preflight-result.json"),new{schemaVersion=1,mode="preflight-only",transport,rate,offeredCount=rate*2,seconds=2,plannedManifestOffers=warmOnly?warmCount:count,status=preflightPassed?"passed":"collector-preflight-failed",preparation=preparationSummary,preflight,state=preflightState,tlsConnections=SnapshotTls(),telemetryFile="preflight-evidence-accounting.json",enteredPhases=enteredPhases.ToArray(),warmupEntered=false,measuredEntered=false});
+        if(!preflightPassed)
+        {
+            await WriteCollectorFailure("collector-preflight-failed","preflight","Collector capacity/state preflight failed; timed warmup and measurement were not entered.","preflight-evidence-accounting.json",preflight);return 1;
+        }
+        if(preflightOnly)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new{stage="preflight-only-completed",transport,rate,preflight.offered,preflight.correct,preflight.errors,preflight.dropped,preflightState.passed}));return 0;
+        }
+        try
+        {
+            await ResetControl();
+            var warm=warmCount==0?null:await Phase("warmup",warmCount,warmSeconds);
+            if(warmOnly)
+            {
+                var finalWarm=await State();var validation=ValidateFinal(finalWarm,workload.Take(warmCount));
+                await File.WriteAllTextAsync(Path.Combine(output,"warmup-result.json"),JsonSerializer.Serialize(new{transport,rate,warmSeconds,manifestHash,logicalManifestHash,preparation=preparationSummary,tlsConnections=SnapshotTls(),warmup=warm,state=validation,finalState=finalWarm},new JsonSerializerOptions(Json){WriteIndented=true}));
+                Console.WriteLine(JsonSerializer.Serialize(new{stage="warmup-completed",transport,warm?.correct,warm?.errors,validation.passed}));
+                return 0;
+            }
+            await ResetControl();
+            var initial=await State();
+            var initialMetrics=await Metrics();
+            var measured=await Phase("measured",count,seconds);
+            if(measuredFinalMetrics.ValueKind!=JsonValueKind.Object)throw new InvalidOperationException("Measured completion metrics were not captured before evidence persistence.");
+            var finalMetrics=measuredFinalMetrics;
+            var final=await State();
+            var state=ValidateFinal(final,workload.Take(count));
+            var initialValidation=ValidateFinal(initial,[]);
+            var report=new{transport,rate,seconds,warmSeconds,manifestHash,logicalManifestHash,stopwatchFrequency=Stopwatch.Frequency,preparation=preparationSummary,tlsConnections=SnapshotTls(),initialState=initial,initialValidation,initialMetrics,finalMetrics,finalState=final,warmup=warm,measured,state,
+                collectorEvidence=new{storage="Preallocated indexed reference slots; Observation records still allocate per offered row; all rows persisted after joining the phase",serverMetricsBracket="Initial metrics before Phase; final metrics immediately after measured request join, before raw JSON/gzip persistence. This explicitly corrects the prior flush-inclusive metrics bracket.",clientMetricsBracket="Snapshots before schedule origin and immediately after request join, excluding completion-metrics control request and raw persistence",tlsTimestampBoundary="connectedTicks is PlaintextStreamFilter after the TLS handshake, not TCP connection start; phase accounting has the matching Stopwatch clock",crashBoundary="Managed phase failures flush observed rows before failing; abrupt process termination may lose the in-memory phase and invalidates the attempt"},
+                scope="Fixed open-loop localhost observation; environment qualification is determined by orchestrator, never inferred from numeric budgets."};
+            await File.WriteAllTextAsync(Path.Combine(output,"load-result.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions(Json){WriteIndented=true}));
+            Console.WriteLine(JsonSerializer.Serialize(new{stage="completed",transport,measured.correct,measured.errors,measured.dropped,statePassed=state.passed}));
+            return 0; // Preserve complete runs even when engineering budgets fail; the report is authoritative.
+        }
+        catch(Exception error)
+        {
+            var phase=enteredPhases.LastOrDefault()??"continuation";
+            await WriteCollectorFailure("collector-phase-failed",phase,error.ToString(),phase+"-evidence-accounting.json");return 1;
+        }
 
+        async Task ResetControl()
+        {using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var response=await controlClient.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"),deadline.Token);response.EnsureSuccessStatusCode();}
         async Task<JsonElement> State()
-        {using var response=await client.GetAsync("/__fixture/state");response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync()).RootElement.Clone();}
+        {using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var response=await controlClient.GetAsync("/__fixture/state",deadline.Token);response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(deadline.Token)).RootElement.Clone();}
         async Task<JsonElement> Metrics()
-        {using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var response=await client.GetAsync("/__fixture/metrics",deadline.Token);response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(deadline.Token)).RootElement.Clone();}
+        {using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var response=await controlClient.GetAsync("/__fixture/metrics",deadline.Token);response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(deadline.Token)).RootElement.Clone();}
+        async Task WriteCollectorFailure(string status,string stage,string error,string telemetryFile,PhaseResult? counts=null)
+        {
+            var path=Path.Combine(output,"collector-failure.json");
+            if(File.Exists(path))return;
+            await WriteEvidence(path,new{schemaVersion=1,status,stage,transport,rate,error,stopwatchFrequency=Stopwatch.Frequency,telemetryFile,preparationFile="collector-preparation.json",reportFile=stage=="preflight"?"collector-preflight.json":null,counts,enteredPhases=enteredPhases.ToArray(),warmupEntered=enteredPhases.Contains("warmup"),measuredEntered=enteredPhases.Contains("measured"),tlsConnections=SnapshotTls(),client=ClientMetrics(),observedTicks=Stopwatch.GetTimestamp()});
+        }
 
         async Task<PhaseResult> Phase(string phase,int offeredCount,int duration)
         {
+            enteredPhases.Add(phase);
             // Allocate outside the offered interval. Compression/JSON work runs only after
             // all requests finish, rather than competing with HTTP continuations in the pool.
             var observations=new Observation?[offeredCount];var issued=new ConcurrentDictionary<int,int>();
             var lanes=Enumerable.Range(0,32).Select(_=>new SemaphoreSlim(1,1)).ToArray();
-            var clientBefore=ClientMetrics();
+            var tlsBefore=SnapshotTls();var clientBefore=ClientMetrics();
             var pending=new HashSet<Task>();var start=Stopwatch.GetTimestamp();var outstanding=0;var nextProgress=start+30*Stopwatch.Frequency;
             Exception? phaseFailure=null;
             try
@@ -157,6 +286,7 @@ public static class LoadDriver
                 ClientMetricsSnapshot? clientAfter=null;
                 try{clientAfter=ClientMetrics();}
                 catch(Exception error){phaseFailure=phaseFailure is null?error:new AggregateException(phaseFailure,error);}
+                var tlsAfter=SnapshotTls();
                 long? completionMetricsStarted=null,completionMetricsCompleted=null;
                 if(phase=="measured")
                 {
@@ -171,8 +301,9 @@ public static class LoadDriver
                     await PersistObservations(Path.Combine(output,phase+"-requests.jsonl.gz"),observations);
                     await File.WriteAllTextAsync(Path.Combine(output,phase+"-evidence-accounting.json"),JsonSerializer.Serialize(new
                     {
-                        phase,offeredCount,observedCount=observations.Count(row=>row is not null),phaseStartedTicks=start,requestsCompletedTicks=requestsCompleted,
+                        telemetrySchemaVersion=1,phase,offeredCount,observedCount=observations.Count(row=>row is not null),phaseStartedTicks=start,requestsCompletedTicks=requestsCompleted,
                         clientBefore,clientAfter,completionMetricsStartedTicks=completionMetricsStarted,completionMetricsCompletedTicks=completionMetricsCompleted,
+                        tlsConnectionsBefore=tlsBefore,tlsConnectionsAfter=tlsAfter,newTlsConnectionIds=tlsAfter.Select(connection=>connection.ConnectionId).Except(tlsBefore.Select(connection=>connection.ConnectionId)).Order().ToArray(),
                         persistenceStartedTicks=persistenceStarted,persistenceCompletedTicks=Stopwatch.GetTimestamp(),
                         stopwatchFrequency=Stopwatch.Frequency,phaseFailure=phaseFailure?.ToString(),
                         serverMetricsBracket=phase=="measured"?"Final server metrics captured after request join and before this flush; latency timestamps still stop before Record":"No completion server-metrics query for this phase; only the measured phase captures that boundary",
@@ -183,7 +314,8 @@ public static class LoadDriver
                 {throw phaseFailure is null?new InvalidOperationException("Raw evidence persistence failed.",persistenceFailure):new AggregateException("Phase execution and raw evidence persistence failed.",phaseFailure,persistenceFailure);}
                 finally{foreach(var lane in lanes)lane.Dispose();}
             }
-            if(phaseFailure is not null)throw new InvalidOperationException("Collector phase failed; retained all observed rows and accounting.",phaseFailure);
+            if(phaseFailure is not null)
+            {await WriteCollectorFailure("collector-phase-failed",phase,phaseFailure.ToString(),phase+"-evidence-accounting.json");throw new InvalidOperationException("Collector phase failed; retained all observed rows and accounting.",phaseFailure);}
             RequireCompleteObservations(observations);
             var all=observations.Select(row=>row!).ToArray();var good=all.Where(x=>x.Error=="").ToArray();
             var latencies=all.Select(x=>(x.Completed-x.Scheduled)*1000.0/Stopwatch.Frequency).Order().ToArray();
@@ -230,6 +362,37 @@ public static class LoadDriver
                 }
             }
         }
+    }
+
+    private sealed class PreparationRecord
+    {
+        public int PreparationIndex{get;init;}public int Index{get;init;}public string Operation{get;init;}="";
+        public string Stage{get;init;}="";public string Pool{get;init;}="";
+        public long StartedTicks{get;init;}public long? HeadersReadyTicks{get;set;}public long? BodyReadStartedTicks{get;set;}
+        public long? BodyCompletedTicks{get;set;}public long? CompletedTicks{get;set;}public long? ConnectionId{get;set;}
+        public int Status{get;set;}public int Bytes{get;set;}public string? Error{get;set;}public bool Passed{get;set;}
+        public string? HttpVersion{get;set;}public long? ContentLength{get;set;}public bool Chunked{get;set;}public bool ConnectionClose{get;set;}
+    }
+    private sealed class BarrierProof
+    {
+        public int TargetConnections=>128;public string PoolScope=>"load";public int HeldResponses{get;set;}
+        public int NonemptyHttp11Responses{get;set;}public int TlsConnectionsAtBarrier{get;set;}public int DistinctConnectionCount{get;set;}
+        public long[] DistinctConnectionIds{get;set;}=[];public long[] LoadTlsConnectionIdsAtBarrier{get;set;}=[];
+        public long StartedTicks{get;set;}public long? AllHeadersReadyTicks{get;set;}public long? ReleasedTicks{get;set;}
+        public long? CompletedTicks{get;set;}public int DeadlineSeconds=>30;public bool Passed{get;set;}
+    }
+    private static void ValidatePreparationHeaders(HttpResponseMessage response,PreparationRecord row)
+    {
+        row.Status=(int)response.StatusCode;row.HttpVersion=response.Version.ToString();row.ContentLength=response.Content.Headers.ContentLength;
+        row.Chunked=response.Headers.TransferEncodingChunked==true;row.ConnectionClose=response.Headers.ConnectionClose==true;row.HeadersReadyTicks=Stopwatch.GetTimestamp();
+        response.EnsureSuccessStatusCode();
+        if(row.Status!=200 || response.Version!=HttpVersion.Version11 || row.ConnectionClose || row.ContentLength==0 || row.ContentLength is null && !row.Chunked)
+            throw new InvalidOperationException("Preparation requires200/nonempty-framed HTTP1.1 keep-alive responses.");
+    }
+    private static async Task WriteEvidence(string path,object value)
+    {
+        await using var stream=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.None);
+        await JsonSerializer.SerializeAsync(stream,value,Json);
     }
 
     private sealed record ClientMetricsSnapshot(long ObservedTicks,double CpuMilliseconds,long AllocatedBytesApproximate,int Gc0,int Gc1,int Gc2,int ThreadPoolThreads,long ThreadPoolPendingWorkItems,long ThreadPoolCompletedWorkItems);
