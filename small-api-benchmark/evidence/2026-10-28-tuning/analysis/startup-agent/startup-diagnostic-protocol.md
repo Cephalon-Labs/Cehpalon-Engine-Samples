@@ -1,0 +1,9 @@
+# Bounded startup-stage diagnosis protocol
+
+Declared before timed trials. Candidate64b45dc + opt-in instrumentation only. No acceptance threshold/source/profile changes. Root sole timing orchestrator; no concurrent builds/collectors.
+
+Compare12 fresh processes per deployment layout,3 per baseline/Engine x HTTP/GraphQL lane, alternating layouts AB/BA/AB per lane. Freeze common app CPU affinity2logicalCPUs, same private shared precreated TLS fixture/hostname/trust, runtime/config/dependencies and identical assembly hashes. Warm OS caches are observed; do not flush caches or call these machine-cold starts. Linux-home layout must declare whether app output, runtime host/sharedFX and cwd/content root all relocate, otherwise keep explicit partial-layout scope. Preserve every raw invocation, ready/trace/shutdown and first verified business response.
+
+Opt-in --startup-trace=<freshfile> stores in-memory application-stage monotonic marks and writes only after shutdown. It records the first application timestamp (runtime loading and entry-method JIT occur earlier), store/host construction, rootDER/PKCS12 loading, configuration, builder/services/appbuild/routes, appstart, readiness dataset hash/file, first business request/response and shutdown. External process-start/readiness/first verified response timestamps remain authoritative for total startup. Linux clock-origin correlation must be verified before subtracting external and internal absolute ticks. Instrumented diagnostics are not acceptance measurements; traces stay disabled during full benchmark.
+
+NoTLS/KDF/trust/validation/workload/budget weakening, startup-work removal, selective outlier rerun or favorable-result selection. Diagnose all stages/all starts before selecting one source/deployment candidate. Any later optimized candidate receives the complete unchanged functional and benchmark protocol. #3 remainsBlocked and sharedWSL remainsnonqualifying regardlesstiming.

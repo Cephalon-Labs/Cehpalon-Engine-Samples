@@ -5,6 +5,7 @@ selector only leaves explicitly unrun phases; it does not shorten an executed ph
 """
 import argparse
 import base64
+import errno
 from datetime import datetime, timezone
 import hashlib
 import http.client
@@ -200,10 +201,11 @@ class Runner:
             'budgets_unchanged': True,
             'engine_revision': ENGINE_REVISION, 'samples_revision': git(ROOT, 'rev-parse', 'HEAD'), 'sdk': sdk,
             'source_sha256': source_hashes, 'assembly': str(self.args.assembly), 'assembly_sha256': sha(self.args.assembly),
+            'deployment': {'dotnet': str(self.args.dotnet), 'assembly_directory': str(self.args.assembly.parent), 'server_working_directory': str(self.args.server_working_directory), 'output_directory': str(self.output), 'boundary': 'Filesystem/deployment paths are explicit and shared by both variants; native storage does not establish dedicated CPU/RAM or native OS deployment proof.'},
             'artifact_provenance_boundary': 'Caller-supplied compiled artifact hash captured; clean committed source and package hashes captured. Compilation provenance must also be retained by the build workflow.',
             'runtimeconfig': json.loads(self.args.assembly.with_suffix('.runtimeconfig.json').read_text()),
             'deps_sha256': sha(self.args.assembly.with_suffix('.deps.json')),
-            'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'server_cpus': SERVER_CPUS, 'driver_cpus': DRIVER_CPUS, 'orchestrator_cpus': ORCHESTRATOR_CPUS, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS}, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_ReadyToRun']}},
+            'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'server_cpus': SERVER_CPUS, 'driver_cpus': DRIVER_CPUS, 'orchestrator_cpus': ORCHESTRATOR_CPUS, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS}, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_ROOT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'DOTNET_TieredCompilation', 'DOTNET_TieredPGO', 'DOTNET_ReadyToRun', 'DOTNET_TC_QuickJit', 'DOTNET_TC_QuickJitForLoops', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_TieredPGO', 'COMPlus_ReadyToRun']}},
             'protocol': {'requested_phases': self.args.phases, 'startup_launches_per_variant_transport': 30, 'startup_order': 'BE/EB alternation by index', 'idle_pairs_per_transport': 5, 'load_pairs_per_transport': 5, 'pair_order': ORDER, 'warmup_seconds': 60, 'idle_settle_seconds': 120, 'idle_samples': 60, 'idle_sample_hz': 1, 'measured_load_seconds': 180, 'offered_requests_per_second': 1000, 'maximum_outstanding': 128, 'request_timeout_seconds': 1, 'latency': 'completed minus scheduled; drops/errors retained; no outlier filtering', 'diagnostic_rate_sweeps': {'rates_and_order': [{'rate': 100, 'order': 'BE'}, {'rate': 500, 'order': 'EB'}, {'rate': 2000, 'order': 'BE'}], 'transports': ['http', 'graphql'], 'warmup_seconds': 60, 'measured_seconds': 180, 'maximum_outstanding': 128, 'acceptance_budget_role': 'None: diagnostics never replace or select an acceptance rate; structured failed collector preflights remain failed attempts without timed runs.'}, 'startup_cache_boundary': 'Fresh processes with OS cache state observed; not machine-cold boots', 'cv_analysis': 'Population standard deviation divided by mean, all five p95 observations per variant/transport'},
             'budgets': {'startup_p95_ms': 1000, 'startup_engine_extra_ms': 150, 'idle_rss_mib': 256, 'idle_engine_extra_mib': 16, 'load_p95_ms': 20, 'load_p99_ms': 50, 'engine_p95_extra': 'max(1ms,15% baseline p95)', 'engine_allocation_extra_bytes_per_request': 1024, 'success_floor': .999, 'unplanned_errors_timeouts_drops': 0, 'p95_coefficient_of_variation': .10},
             'private_fixture': 'Private server.pfx stays in task-owned Linux-home .local/share storage with verified0700/0600 modes; never copy it into evidence. Only public CA DER/hash may be retained externally.'
@@ -261,7 +263,7 @@ class Runner:
             command.append('--warmup-only=true')
         write_json(directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
         with (directory / 'stdout.txt').open('xb') as stdout, (directory / 'stderr.txt').open('xb') as stderr:
-            process = subprocess.Popen(command, cwd=ROOT, env=self.environment, stdout=stdout, stderr=stderr, start_new_session=True)
+            process = subprocess.Popen(command, cwd=self.args.server_working_directory, env=self.environment, stdout=stdout, stderr=stderr, start_new_session=True)
             self.owned.append(process)
             deadline = time.monotonic() + (120 if warm_only else 300)
             try:
@@ -480,7 +482,7 @@ class Server:
         self.stdout = (self.directory / 'server.stdout.txt').open('xb')
         self.stderr = (self.directory / 'server.stderr.txt').open('xb')
         self.started_ns = time.monotonic_ns()
-        self.process = subprocess.Popen(command, cwd=ROOT, env=self.runner.environment, stdin=subprocess.PIPE, stdout=self.stdout, stderr=self.stderr, text=True, start_new_session=True)
+        self.process = subprocess.Popen(command, cwd=self.runner.args.server_working_directory, env=self.runner.environment, stdin=subprocess.PIPE, stdout=self.stdout, stderr=self.stderr, text=True, start_new_session=True)
         self.runner.owned.append(self.process)
         try:
             deadline = time.monotonic() + 60
@@ -489,18 +491,29 @@ class Server:
                     raise InfrastructureFailure('Server exited before readiness; see retained server logs.')
                 if time.monotonic() > deadline:
                     raise InfrastructureFailure('Server readiness exceeded 60 seconds.')
-                if ready_file.is_file():
-                    try:
+                try:
+                    if ready_file.is_file():
                         value = json.loads(ready_file.read_text())
                         if value.get('address') and value.get('tlsProtocol') == 'Tls13':
                             self.ready = value
-                    except json.JSONDecodeError:
-                        pass
+                except json.JSONDecodeError:
+                    pass
+                except OSError as error:
+                    # A cross-filesystem readiness publication can race stat/read.
+                    # Retry only transient absence; the original deadline and
+                    # startup stopwatch continue to include this waiting time.
+                    if error.errno not in (errno.ENOENT, errno.EAGAIN, errno.ENODATA):
+                        raise
                 self.runner.progress.tick()
                 if self.ready is None:
                     time.sleep(.005)
             self.verify_first_response()
             self.startup_milliseconds = (self.verified_ns - self.started_ns) / 1e6
+            # Provenance inspection follows the counted first response and is
+            # outside startup/load timing; both variants use this same observer.
+            mappings = Path(f'/proc/{self.process.pid}/maps').read_text()
+            loaded = sorted({line.split()[-1] for line in mappings.splitlines() if any(name in line for name in ('libcoreclr.so', 'libhostpolicy.so', 'System.Private.CoreLib.dll', 'Microsoft.AspNetCore.Server.Kestrel.Core.dll'))})
+            write_json(self.directory / 'loaded-runtime.json', {'process_id': self.process.pid, 'paths': loaded, 'inspection_after_first_response': True})
             return self
         except BaseException:
             self.stop()
@@ -596,19 +609,27 @@ def main():
     parser.add_argument('--assembly', required=True, type=Path)
     parser.add_argument('--engine-root', type=Path, default=ROOT.parent / 'Cehpalon-Engine')
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--server-working-directory', type=Path, default=ROOT)
     parser.add_argument('--phases', default='startup,idle,load,diagnostics')
     parser.add_argument('--preflight-only', action='store_true')
     args = parser.parse_args()
     if sys.platform != 'linux':
         parser.error('This observational orchestrator is Linux-only; Windows remains a separate proof gate.')
     args.dotnet, args.assembly, args.engine_root = args.dotnet.resolve(), args.assembly.resolve(), args.engine_root.resolve()
+    args.server_working_directory = args.server_working_directory.resolve()
+    if not args.server_working_directory.is_dir():
+        parser.error('Server working directory must already exist.')
     args.phases = args.phases.split(',')
     if len(set(args.phases)) != len(args.phases) or any(phase not in ('startup', 'idle', 'load', 'diagnostics') for phase in args.phases):
         parser.error('Select unique phases from startup,idle,load,diagnostics; full defaults are never shortened.')
     output = (ROOT / args.output).resolve()
     private = (ROOT / '.local').resolve()
-    if not output.is_relative_to(private) or output == private:
-        parser.error('Use a fresh attempt directory beneath ignored Samples .local.')
+    native_private = (Path.home() / '.local/share/cehpalon-benchmark-runs').resolve()
+    if not ((output.is_relative_to(private) and output != private) or (output.is_relative_to(native_private) and output != native_private)):
+        parser.error('Use a fresh attempt directory beneath ignored Samples .local or task-owned Linux-home .local/share/cehpalon-benchmark-runs.')
+    if output.is_relative_to(native_private):
+        native_private.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(native_private, 0o700)
     output.mkdir(parents=True, exist_ok=False)
     os.chmod(output, 0o700)
     runner = Runner(args, output)

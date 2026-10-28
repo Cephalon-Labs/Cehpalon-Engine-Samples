@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Diagnostics;
 using SmallApi.Benchmark;
 
+var managedEntryTimestamp=Stopwatch.GetTimestamp();
 string? Option(string name)=>args.FirstOrDefault(a=>a.StartsWith("--"+name+"=",StringComparison.Ordinal))?[(name.Length+3)..];
 if(Option("create-fixture") is { } fixturePath)
 {
@@ -12,6 +14,7 @@ if(Option("create-fixture") is { } fixturePath)
     if(!OperatingSystem.IsWindows())File.SetUnixFileMode(privatePath,UnixFileMode.UserRead|UnixFileMode.UserWrite);
     Console.WriteLine(JsonSerializer.Serialize(new{created=true,certificateSha256=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fixture.Server.RawData)).ToLowerInvariant()},Wire.Json));return 0;
 }
+using var startupTrace=Option("startup-trace") is { } tracePath?new StartupTrace(tracePath,managedEntryTimestamp):null;
 var mode=Option("mode")??"serve";
 if(mode=="conformance")
 {
@@ -24,7 +27,7 @@ if(args.Contains("--load-client") || mode=="load-client")
     return await (Task<int>)type.GetMethod("RunAsync")!.Invoke(null,[args])!;
 }
 var variant=Option("variant")??"engine";var transport=Option("transport")??"http";
-await using var host=await BenchmarkHost.StartAsync(variant,transport,fixtureDirectory:Option("fixture-dir"));
+await using var host=await BenchmarkHost.StartAsync(variant,transport,fixtureDirectory:Option("fixture-dir"),startupTrace:startupTrace);
 if(mode=="self-test")
 {
     using var client=host.Client();using var response=await client.PostAsJsonAsync("/api/catalog/get",new GetItem(1));response.EnsureSuccessStatusCode();var item=await response.Content.ReadFromJsonAsync<Item>();
@@ -38,11 +41,21 @@ if(mode=="self-test")
     Console.WriteLine(JsonSerializer.Serialize(new{passed=true,ready=host.Ready()},Wire.Json));return 0;
 }
 var readyPath=Path.GetFullPath(Option("ready-file")??throw new ArgumentException("--ready-file required"));
+startupTrace?.Mark("ready.file.begin");
 Directory.CreateDirectory(Path.GetDirectoryName(readyPath)!);
-await using(var stream=new FileStream(readyPath,FileMode.CreateNew,FileAccess.Write))await JsonSerializer.SerializeAsync(stream,host.Ready(),Wire.Json);
+var readyWorkingPath=readyPath+".writing";
+await using(var stream=new FileStream(readyWorkingPath,FileMode.CreateNew,FileAccess.Write))
+{
+    await JsonSerializer.SerializeAsync(stream,host.Ready(),Wire.Json);
+    await stream.FlushAsync();
+}
+File.Move(readyWorkingPath,readyPath,overwrite:false);
+startupTrace?.Mark("ready.file.end");
 Console.WriteLine("READY");
 while(await Console.In.ReadLineAsync() is { } line)if(line=="STOP")break;
+startupTrace?.Mark("shutdown.begin");
 await host.DisposeAsync();
+startupTrace?.Mark("shutdown.end");
 if(Option("state-file") is { } statePath)
 {
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(statePath))!);

@@ -9,7 +9,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
 
 namespace SmallApi.Benchmark;
 
@@ -34,7 +33,7 @@ public static class LoadDriver
         sockets.PlaintextStreamFilter=(context,ct)=>
         {
             if(context.PlaintextStream is not SslStream ssl || ssl.SslProtocol!=SslProtocols.Tls13) throw new InvalidOperationException("Expected an observed TLS1.3 collector connection.");
-            tlsConnections.Add(new{protocol=ssl.SslProtocol.ToString(),cipher=ssl.NegotiatedCipherSuite.ToString(),httpVersion=context.NegotiatedHttpVersion.ToString()});
+            tlsConnections.Add(new{protocol=ssl.SslProtocol.ToString(),cipher=ssl.NegotiatedCipherSuite.ToString(),httpVersion=context.NegotiatedHttpVersion.ToString(),connectedTicks=Stopwatch.GetTimestamp(),stopwatchFrequency=Stopwatch.Frequency});
             return ValueTask.FromResult(context.PlaintextStream);
         };
         using var client=new HttpClient(sockets){BaseAddress=new Uri(Arg("url")),Timeout=Timeout.InfiniteTimeSpan};
@@ -98,12 +97,15 @@ public static class LoadDriver
         using(var reset=await client.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"))) reset.EnsureSuccessStatusCode();
         var initial=await State();
         var initialMetrics=await Metrics();
+        JsonElement measuredFinalMetrics=default;
         var measured=await Phase("measured",count,seconds);
-        var finalMetrics=await Metrics();
+        if(measuredFinalMetrics.ValueKind!=JsonValueKind.Object)throw new InvalidOperationException("Measured completion metrics were not captured before evidence persistence.");
+        var finalMetrics=measuredFinalMetrics;
         var final=await State();
         var state=ValidateFinal(final,workload.Take(count));
         var initialValidation=ValidateFinal(initial,[]);
         var report=new{transport,rate,seconds,warmSeconds,manifestHash,logicalManifestHash,stopwatchFrequency=Stopwatch.Frequency,tlsConnections=tlsConnections.ToArray(),initialState=initial,initialValidation,initialMetrics,finalMetrics,finalState=final,warmup=warm,measured,state,
+            collectorEvidence=new{storage="Preallocated indexed reference slots; Observation records still allocate per offered row; all rows persisted after joining the phase",serverMetricsBracket="Initial metrics before Phase; final metrics immediately after measured request join, before raw JSON/gzip persistence. This explicitly corrects the prior flush-inclusive metrics bracket.",clientMetricsBracket="Snapshots before schedule origin and immediately after request join, excluding completion-metrics control request and raw persistence",tlsTimestampBoundary="connectedTicks is PlaintextStreamFilter after the TLS handshake, not TCP connection start; phase accounting has the matching Stopwatch clock",crashBoundary="Managed phase failures flush observed rows before failing; abrupt process termination may lose the in-memory phase and invalidates the attempt"},
             scope="Fixed open-loop localhost observation; environment qualification is determined by orchestrator, never inferred from numeric budgets."};
         await File.WriteAllTextAsync(Path.Combine(output,"load-result.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions(Json){WriteIndented=true}));
         Console.WriteLine(JsonSerializer.Serialize(new{stage="completed",transport,measured.correct,measured.errors,measured.dropped,statePassed=state.passed}));
@@ -112,54 +114,85 @@ public static class LoadDriver
         async Task<JsonElement> State()
         {using var response=await client.GetAsync("/__fixture/state");response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync()).RootElement.Clone();}
         async Task<JsonElement> Metrics()
-        {using var response=await client.GetAsync("/__fixture/metrics");response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync()).RootElement.Clone();}
+        {using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var response=await client.GetAsync("/__fixture/metrics",deadline.Token);response.EnsureSuccessStatusCode();return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(deadline.Token)).RootElement.Clone();}
 
         async Task<PhaseResult> Phase(string phase,int offeredCount,int duration)
         {
-            var rows=Channel.CreateUnbounded<Observation>(new UnboundedChannelOptions{SingleReader=true,SingleWriter=false});
-            var observations=new ConcurrentBag<Observation>();var issued=new ConcurrentDictionary<int,int>();
+            // Allocate outside the offered interval. Compression/JSON work runs only after
+            // all requests finish, rather than competing with HTTP continuations in the pool.
+            var observations=new Observation?[offeredCount];var issued=new ConcurrentDictionary<int,int>();
             var lanes=Enumerable.Range(0,32).Select(_=>new SemaphoreSlim(1,1)).ToArray();
-            var writing=Task.Run(async()=>
-            {
-                await using var file=new FileStream(Path.Combine(output,phase+"-requests.jsonl.gz"),FileMode.CreateNew);
-                await using var gzip=new GZipStream(file,CompressionLevel.Fastest);
-                await using var writer=new StreamWriter(gzip,new UTF8Encoding(false));
-                await writer.WriteLineAsync(JsonSerializer.Serialize(new{schema=1,columns=new[]{"index","operation","scheduledTicks","sentTicks","completedTicks","httpStatus","bodyBytes","error"},frequency=Stopwatch.Frequency}));
-                await foreach(var row in rows.Reader.ReadAllAsync())
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new object[]{row.Index,row.Operation,row.Scheduled,row.Sent,row.Completed,row.Status,row.Bytes,row.Error}));
-            });
+            var clientBefore=ClientMetrics();
             var pending=new HashSet<Task>();var start=Stopwatch.GetTimestamp();var outstanding=0;var nextProgress=start+30*Stopwatch.Frequency;
-            for(var i=0;i<offeredCount;i++)
+            Exception? phaseFailure=null;
+            try
             {
-                var scheduled=start+(long)(i*(double)Stopwatch.Frequency/rate);
-                while(Stopwatch.GetTimestamp()<scheduled)
+                for(var i=0;i<offeredCount;i++)
                 {
-                    var remaining=(scheduled-Stopwatch.GetTimestamp())*1000.0/Stopwatch.Frequency;
-                    if(remaining>1.5) await Task.Delay(TimeSpan.FromMilliseconds(remaining-0.5)); else Thread.SpinWait(30);
+                    var scheduled=start+(long)(i*(double)Stopwatch.Frequency/rate);
+                    while(Stopwatch.GetTimestamp()<scheduled)
+                    {
+                        var remaining=(scheduled-Stopwatch.GetTimestamp())*1000.0/Stopwatch.Frequency;
+                        if(remaining>1.5) await Task.Delay(TimeSpan.FromMilliseconds(remaining-0.5)); else Thread.SpinWait(30);
+                    }
+                    var item=workload[i];
+                    if(Volatile.Read(ref outstanding)>=128)
+                    {Record(new(i,item.Operation,scheduled,0,Stopwatch.GetTimestamp(),0,0,"offered.dropped"));}
+                    else
+                    {
+                        Interlocked.Increment(ref outstanding);
+                        var task=Send(item,scheduled);pending.Add(task);
+                        pending.RemoveWhere(t=>t.IsCompletedSuccessfully);
+                    }
+                    if(Stopwatch.GetTimestamp()>=nextProgress)
+                    {Console.WriteLine(JsonSerializer.Serialize(new{stage=phase,offered=i+1,total=offeredCount,outstanding}));nextProgress+=30*Stopwatch.Frequency;}
                 }
-                var item=workload[i];
-                if(Volatile.Read(ref outstanding)>=128)
-                {Record(new(i,item.Operation,scheduled,0,Stopwatch.GetTimestamp(),0,0,"offered.dropped"));}
-                else
-                {
-                    Interlocked.Increment(ref outstanding);
-                    var task=Send(item,scheduled);pending.Add(task);
-                    pending.RemoveWhere(t=>t.IsCompleted);
-                }
-                if(Stopwatch.GetTimestamp()>=nextProgress)
-                {Console.WriteLine(JsonSerializer.Serialize(new{stage=phase,offered=i+1,total=offeredCount,outstanding}));nextProgress+=30*Stopwatch.Frequency;}
             }
-            await Task.WhenAll(pending);rows.Writer.TryComplete();await writing;
-            foreach(var lane in lanes) lane.Dispose();
-            var all=observations.OrderBy(x=>x.Index).ToArray();var good=all.Where(x=>x.Error=="").ToArray();
-            if(all.Length!=offeredCount || all.Select(x=>x.Index).Distinct().Count()!=offeredCount) throw new InvalidOperationException("Missing/duplicate offered observations.");
+            catch(Exception error){phaseFailure=error;}
+            finally
+            {
+                try{await Task.WhenAll(pending);}
+                catch(Exception error){phaseFailure=phaseFailure is null?error:new AggregateException(phaseFailure,error);}
+                var requestsCompleted=Stopwatch.GetTimestamp();
+                ClientMetricsSnapshot? clientAfter=null;
+                try{clientAfter=ClientMetrics();}
+                catch(Exception error){phaseFailure=phaseFailure is null?error:new AggregateException(phaseFailure,error);}
+                long? completionMetricsStarted=null,completionMetricsCompleted=null;
+                if(phase=="measured")
+                {
+                    completionMetricsStarted=Stopwatch.GetTimestamp();
+                    try{measuredFinalMetrics=await Metrics();}
+                    catch(Exception error){phaseFailure=phaseFailure is null?error:new AggregateException(phaseFailure,error);}
+                    finally{completionMetricsCompleted=Stopwatch.GetTimestamp();}
+                }
+                var persistenceStarted=Stopwatch.GetTimestamp();
+                try
+                {
+                    await PersistObservations(Path.Combine(output,phase+"-requests.jsonl.gz"),observations);
+                    await File.WriteAllTextAsync(Path.Combine(output,phase+"-evidence-accounting.json"),JsonSerializer.Serialize(new
+                    {
+                        phase,offeredCount,observedCount=observations.Count(row=>row is not null),phaseStartedTicks=start,requestsCompletedTicks=requestsCompleted,
+                        clientBefore,clientAfter,completionMetricsStartedTicks=completionMetricsStarted,completionMetricsCompletedTicks=completionMetricsCompleted,
+                        persistenceStartedTicks=persistenceStarted,persistenceCompletedTicks=Stopwatch.GetTimestamp(),
+                        stopwatchFrequency=Stopwatch.Frequency,phaseFailure=phaseFailure?.ToString(),
+                        serverMetricsBracket=phase=="measured"?"Final server metrics captured after request join and before this flush; latency timestamps still stop before Record":"No completion server-metrics query for this phase; only the measured phase captures that boundary",
+                        clientMetricsBracket="Before schedule origin to after request join; completion-metrics request and raw persistence excluded"
+                    },Json));
+                }
+                catch(Exception persistenceFailure)
+                {throw phaseFailure is null?new InvalidOperationException("Raw evidence persistence failed.",persistenceFailure):new AggregateException("Phase execution and raw evidence persistence failed.",phaseFailure,persistenceFailure);}
+                finally{foreach(var lane in lanes)lane.Dispose();}
+            }
+            if(phaseFailure is not null)throw new InvalidOperationException("Collector phase failed; retained all observed rows and accounting.",phaseFailure);
+            RequireCompleteObservations(observations);
+            var all=observations.Select(row=>row!).ToArray();var good=all.Where(x=>x.Error=="").ToArray();
             var latencies=all.Select(x=>(x.Completed-x.Scheduled)*1000.0/Stopwatch.Frequency).Order().ToArray();
             var sentLatencies=all.Where(x=>x.Sent>0).Select(x=>(x.Completed-x.Sent)*1000.0/Stopwatch.Frequency).Order().ToArray();
             var floorEnd=start+(long)((duration+1.0)*Stopwatch.Frequency);
             return new(offeredCount,good.Length,all.Count(x=>x.Error!=""),all.Count(x=>x.Error=="offered.dropped"),good.Count(x=>x.Completed<=floorEnd),Percentile(latencies,.95),Percentile(latencies,.99),Percentile(sentLatencies,.95),all.Max(x=>Math.Max(0,x.Sent-x.Scheduled))*1000.0/Stopwatch.Frequency,(all.Max(x=>x.Completed)-start)*1000.0/Stopwatch.Frequency,
                 all.Where(x=>x.Error!="").GroupBy(x=>x.Error).ToDictionary(x=>x.Key,x=>x.Count()));
 
-            void Record(Observation row){observations.Add(row);if(!rows.Writer.TryWrite(row)) throw new InvalidOperationException("Raw evidence writer closed early.");}
+            void Record(Observation row)=>StoreObservation(observations,row);
             async Task Send(Offered item,long scheduled)
             {
                 long sent=0;int status=0,bytes=0;string error="";bool locked=false;
@@ -192,10 +225,39 @@ public static class LoadDriver
                 finally
                 {
                     if(locked) lanes[item.Lane].Release();
-                    Record(new(item.Index,item.Operation,scheduled,sent,Stopwatch.GetTimestamp(),status,bytes,error));Interlocked.Decrement(ref outstanding);
+                    try{Record(new(item.Index,item.Operation,scheduled,sent,Stopwatch.GetTimestamp(),status,bytes,error));}
+                    finally{Interlocked.Decrement(ref outstanding);}
                 }
             }
         }
+    }
+
+    private sealed record ClientMetricsSnapshot(long ObservedTicks,double CpuMilliseconds,long AllocatedBytesApproximate,int Gc0,int Gc1,int Gc2,int ThreadPoolThreads,long ThreadPoolPendingWorkItems,long ThreadPoolCompletedWorkItems);
+    private static ClientMetricsSnapshot ClientMetrics()
+    {
+        using var process=Process.GetCurrentProcess();
+        return new(Stopwatch.GetTimestamp(),process.TotalProcessorTime.TotalMilliseconds,GC.GetTotalAllocatedBytes(false),
+            GC.CollectionCount(0),GC.CollectionCount(1),GC.CollectionCount(2),ThreadPool.ThreadCount,ThreadPool.PendingWorkItemCount,ThreadPool.CompletedWorkItemCount);
+    }
+
+    private static void StoreObservation(Observation?[] observations,Observation row)
+    {
+        if((uint)row.Index>=(uint)observations.Length)throw new InvalidOperationException("Offered observation index is out of range.");
+        if(Interlocked.CompareExchange(ref observations[row.Index],row,null) is not null)throw new InvalidOperationException("Duplicate offered observation index.");
+    }
+    private static void RequireCompleteObservations(Observation?[] observations)
+    {
+        for(var index=0;index<observations.Length;index++)
+            if(observations[index] is not { } row || row.Index!=index)throw new InvalidOperationException("Missing/misindexed offered observation.");
+    }
+    private static async Task PersistObservations(string path,Observation?[] observations)
+    {
+        await using var file=new FileStream(path,FileMode.CreateNew);
+        await using var gzip=new GZipStream(file,CompressionLevel.Fastest);
+        await using var writer=new StreamWriter(gzip,new UTF8Encoding(false));
+        await writer.WriteLineAsync(JsonSerializer.Serialize(new{schema=1,columns=new[]{"index","operation","scheduledTicks","sentTicks","completedTicks","httpStatus","bodyBytes","error"},frequency=Stopwatch.Frequency}));
+        foreach(var row in observations)
+            if(row is not null)await writer.WriteLineAsync(JsonSerializer.Serialize(new object[]{row.Index,row.Operation,row.Scheduled,row.Sent,row.Completed,row.Status,row.Bytes,row.Error}));
     }
 
     private sealed record PhaseResult(int offered,int correct,int errors,int dropped,int successfulWithinDrain,double p95Ms,double p99Ms,double sentP95Ms,double maximumQueueMs,double elapsedMs,Dictionary<string,int> errorKinds);

@@ -35,6 +35,7 @@ public static class Conformance
         var declaration = new
         {
             seed = Seed, cases = 1000, recordCount = 10000,
+            stopwatchFrequency = Stopwatch.Frequency,
             categories = new { success = 500, conflict = 100, notFound = 100, validation = 200, cancelled = 100 },
             datasetSha256 = Sha(dataset), orderedCorpusSha256 = Sha(requests), finalDatasetSha256 = Sha(finalDataset),
             serialization = "System.Text.Json web camelCase, compact UTF8 without BOM or trailing newline; Item declaration order",
