@@ -8,7 +8,7 @@ All three lanes were selected by the user:
 - [Multitenant business](multitenant-business/README.md): API, Worker, SQL, event recovery and tenant isolation
 - [AI / Agent / Retrieval](ai-retrieval/README.md): model/provider portability, scoped retrieval, tool authorization and bounded evaluations
 
-These three folders remain scenario plans with no real-transport consumer E2E passes or certified providers. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
+Small API now has a bounded experimental protected HTTP/GraphQL consumer and a separate public measurement fixture. The business and AI folders remain scenario plans; none establishes certified providers or full production acceptance. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
 
 The separate [portable Core consumer](portable-core/README.md) exercises generated typed operation registrations, appsettings module selection and shared business logic entirely in process. Its module recorders establish a bounded W1 integration proof and do not implement the three transport/provider sample lanes.
 
@@ -20,4 +20,4 @@ W0 provider/workload selection is recorded in the [decision package](https://git
 
 See the [program plan](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/2026-10-27-program-plan.md), [Project](https://github.com/orgs/Cephalon-Labs/projects/4) and [AGENTS.md](AGENTS.md).
 
-The [protected Small API consumer](small-api/README.md) reuses generated Core gateways and guarded tenant handlers through HTTP/GraphQL with actual localhost HTTPS/JWT fixture checks. It is a separate experimental protected profile; original W0 performance gates remain unexecuted and #3 remains Blocked.
+The [protected Small API consumer](small-api/README.md) reuses generated Core gateways and guarded tenant handlers through HTTP/GraphQL with actual localhost HTTPS/JWT fixture checks. It is a separate experimental protected profile; the separate [public Small API comparison](small-api-benchmark/README.md) now has complete observational conformance/startup/idle/load/diagnostic results. Startup failed the absolute budget, Engine GraphQL stability invalidated the performance series and reference qualification remains Blocked. #3 remains Blocked.
