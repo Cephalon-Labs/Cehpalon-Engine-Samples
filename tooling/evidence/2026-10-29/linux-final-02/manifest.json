@@ -1,0 +1,1165 @@
+{
+  "started_utc": "2026-10-28T19:30:18.279007+00:00",
+  "status": "passed",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "engine-head.txt",
+      "sha256": "6ceefd6d6678e4f1309f2f7c78d13c99560de506e2d3dc06fe002d093e2a1c4e"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "engine-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "--version"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "sdk-version.txt",
+      "sha256": "8f311fda85131eb472c3f117c2c4e441c86aaeb72740d76f44d89ff1e75ae7ae"
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--local",
+        "--no-hardlinks",
+        "--no-checkout",
+        "/mnt/d/Cephalon/Cehpalon-Engine",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "source-clone.txt",
+      "sha256": "cc93f989363cfdbf435b36639bc6f682ec3c61c4302ab2ce273a81482cb55f46"
+    },
+    {
+      "argv": [
+        "git",
+        "checkout",
+        "--detach",
+        "39ae0cc6ae56045a9d3d24f94eb564efa5941254"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "source-checkout.txt",
+      "sha256": "d3607a99c25cd0e42752225c006c53d733b5477f887eaa0084bac49293e34744"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-head.txt",
+      "sha256": "6ceefd6d6678e4f1309f2f7c78d13c99560de506e2d3dc06fe002d093e2a1c4e"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj",
+        "--locked-mode",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "cli-restore.txt",
+      "sha256": "5daf8a0a81cee096b8a296f1e117a2023ea42b8908c519522be7bac9f12bb09b"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "cli-build.txt",
+      "sha256": "90e3fe4fc493bf911b4c700a2fcb770c3f5fb862c0cd0acfc1b40eef141c57dc"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "PortableProof",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new.txt",
+      "sha256": "56ff2f10fada33aeb3f91077e53e362c0a60a055de49fc4174333a40e16f6f5b"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/consumer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-restore.txt",
+      "sha256": "f022fadbdb5d9e6b504c3c70047a04e347bc1e333608e03e51ede285cc20ae04"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "--locked-mode",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/consumer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-locked-restore.txt",
+      "sha256": "d885e51bd3b36e3de479f4d9a77ace5b440be230ad6bbe33d81dbfc8acfd5342"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/consumer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-build.txt",
+      "sha256": "8f263ae2a5f5c1ea43cb01261e9d72c709655a1e163f9048b0cf2ab0902266f5"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "enabled-validate.txt",
+      "sha256": "07da5ff1144f6512d086d6b9e61c9bbc0c2a10a273067623825566bd9d25bf94"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/consumer-artifacts/bin/Consumer/release/PortableConsumer.PortableProof.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "enabled-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/appsettings.off.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "off-validate.txt",
+      "sha256": "79b51b3556260165eaec3b382b302184335ab8e72f917aec143554539499de38"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/consumer-artifacts/bin/Consumer/release/PortableConsumer.PortableProof.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/appsettings.off.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "off-run.txt",
+      "sha256": "429822cb734ff23d11b0996f68cdffc36aa61385a59d935d5b238c37a7fb0607"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/consumer-artifacts/bin/Consumer/release/PortableConsumer.PortableProof.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/invalid.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "invalid-run.txt",
+      "sha256": "fd573e72e97ab1e2d788909191de9b5a07c9979d460f35ae24389e323a242cc3"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces/invalid.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "invalid-validate.txt",
+      "sha256": "70c30f129925a03da9792eaada82fb42461d4a9ffa042ca1242c294b58bcfc84"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "Program",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-Program-new.txt",
+      "sha256": "67a147f329af8e65d26534e98633307d2a7955dd675964d206db16c18e4c1093"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program",
+      "exit": 0,
+      "log": "name-Program-restore.txt",
+      "sha256": "c6259796ef14252f2ed79d435acb887cbf8b1d234d6648eb090d237988daf7eb"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program",
+      "exit": 0,
+      "log": "name-Program-build.txt",
+      "sha256": "0f9f2e3b8fff3c72a15de4f53681b32e3b8f3a9b9ccf219e9222e5ed80fd29e2"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program-artifacts/bin/Consumer/release/PortableConsumer.Program.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Program",
+      "exit": 0,
+      "log": "name-Program-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "Console",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-Console-new.txt",
+      "sha256": "b7c13cd99656f27f8f9136eb8f8322128465925fe5c9dc356f6428c6e7337fbf"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console",
+      "exit": 0,
+      "log": "name-Console-restore.txt",
+      "sha256": "32b556dac04215dc0f6927f8023eb8c34cbc85b9d2bcc871cf2f153e7fb52671"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console",
+      "exit": 0,
+      "log": "name-Console-build.txt",
+      "sha256": "cec10f63e0278c452ed58f609da600e959b8e1d316c6977c244807c3b39ed335"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console-artifacts/bin/Consumer/release/PortableConsumer.Console.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Console",
+      "exit": 0,
+      "log": "name-Console-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "Path",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-Path-new.txt",
+      "sha256": "a679a64aa4be92988f6f02be802e9c898bd42a77bbeebc0c34ae195b231990ba"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path",
+      "exit": 0,
+      "log": "name-Path-restore.txt",
+      "sha256": "404702e62b0c6bec0fd856b58ed792145466a566ac2c3f16c1e0d8b1fdd59832"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path",
+      "exit": 0,
+      "log": "name-Path-build.txt",
+      "sha256": "e94b5fbf5685f6ed3ee143afd1d2f038d9eb965c6eae219501247853d7927696"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path-artifacts/bin/Consumer/release/PortableConsumer.Path.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-Path",
+      "exit": 0,
+      "log": "name-Path-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "JsonSerializer",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-JsonSerializer-new.txt",
+      "sha256": "ec8487b856fdecd04b089d87704056959d055b83035d327b2a9b45602e5be856"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer",
+      "exit": 0,
+      "log": "name-JsonSerializer-restore.txt",
+      "sha256": "6462dbcd5d2eaaf9e6cf6712b8d7bab8fec320771879dd5fa4cad651c5dccdbf"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer",
+      "exit": 0,
+      "log": "name-JsonSerializer-build.txt",
+      "sha256": "4d443a3e762dd08fbaaebae6203d3ed1f0da265a8f338ea7f076f1b55ec32a32"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer-artifacts/bin/Consumer/release/PortableConsumer.JsonSerializer.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-JsonSerializer",
+      "exit": 0,
+      "log": "name-JsonSerializer-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "File",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-File-new.txt",
+      "sha256": "c4ce02468a194f710c2bdb68283bfc497ee26fb00097b3333e16722be9b66532"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File",
+      "exit": 0,
+      "log": "name-File-restore.txt",
+      "sha256": "51ba8a821ca55b086d1f9734312d82a13b9c4c19c2e55ecb5959a4a453dd25e0"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File",
+      "exit": 0,
+      "log": "name-File-build.txt",
+      "sha256": "4d2d1fd9457a7a69f32de80579f091c8a3cdbac4ab7adfb1ea0152b79a61a73d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File-artifacts/bin/Consumer/release/PortableConsumer.File.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-File",
+      "exit": 0,
+      "log": "name-File-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "System",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-System-new.txt",
+      "sha256": "bbf9cccb84182afb0ebf77f9c9fe93377b5fc9a841f4bcadaca43ddef028a04c"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System",
+      "exit": 0,
+      "log": "name-System-restore.txt",
+      "sha256": "b0c5a1881e65033fa4558d02bdd832c692731f84d827b137cc5faa0a211106ce"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System",
+      "exit": 0,
+      "log": "name-System-build.txt",
+      "sha256": "d91a57d4b619e4f3c66457975eccc8a03966880c50af2af48717309cb8ca5115"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-System",
+      "exit": 0,
+      "log": "name-System-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "OperationContext",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-OperationContext-new.txt",
+      "sha256": "b69f948d21eb0768d50ef6472b5b800d5b6fffd0c9b894363820c51ccf0d9dd5"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext",
+      "exit": 0,
+      "log": "name-OperationContext-restore.txt",
+      "sha256": "28651936b1f4501468d0e77dc59337ba3f2177db065df1aa1ac1e259404aae3b"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext",
+      "exit": 0,
+      "log": "name-OperationContext-build.txt",
+      "sha256": "b9e0b90b31326bed04430ef9d30e2ae0887e2df528c0710f9482897fd0545f44"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext-artifacts/bin/Consumer/release/PortableConsumer.OperationContext.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-OperationContext",
+      "exit": 0,
+      "log": "name-OperationContext-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--name",
+        "ModuleRole",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-ModuleRole-new.txt",
+      "sha256": "91899ef1c2318abc80e3314d96fd342561f75c2eaf6696b0e9d36b3f0c6eabb1"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole",
+      "exit": 0,
+      "log": "name-ModuleRole-restore.txt",
+      "sha256": "2b68ac9e3c8d87b4fdb3eadbf84557a1e5dcce7efffa6b664d58f9dcebdd87da"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole",
+      "exit": 0,
+      "log": "name-ModuleRole-build.txt",
+      "sha256": "2d90d6f5e8342334a381d91df2601c4edf00e861b03eb3c7df373e5f4f5a4b32"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole-artifacts/bin/Consumer/release/PortableConsumer.ModuleRole.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/name-ModuleRole",
+      "exit": 0,
+      "log": "name-ModuleRole-run.txt",
+      "sha256": "1318b005c4fd70c8ce3fc38c7bed21d65c15b9ed6a8cc6c38081b4eecef6f606"
+    }
+  ],
+  "scope": "Experimental portable console scaffolding only; no tenant authority, transport/provider, packaging, supported-Windows or production qualification",
+  "harness_sha256": "9b4786e5f0d4dd13a3cd8f333f5ebc9c17f8c2da3e5effb74fd623588482c0a8",
+  "checks": [
+    "clean Engine matches actual locked revision",
+    "exact pinned SDK",
+    "actual clean source clone under Unicode ampersand and space path",
+    "exact nine fresh scaffold files",
+    "source manifest declares observation boundary",
+    "unique bounded source input Directory.Packages.props",
+    "observed source bytes match Directory.Packages.props",
+    "unique bounded source input NuGet.Config",
+    "observed source bytes match NuGet.Config",
+    "unique bounded source input global.json",
+    "observed source bytes match global.json",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Composition/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Core/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationResult.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationResult.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Core/packages.lock.json",
+    "source manifest includes locks and generator",
+    "initial consumer restore actually creates package lock",
+    "locked restore preserves actual consumer lock",
+    "exact one emitted operation registry",
+    "actual emitted typed operation registration",
+    "one executable consumer runtime",
+    "no compiler or CLI dependency in runtime consumer",
+    "enabled pure configuration validation",
+    "enabled consumer passed",
+    "enabled exact module factory counts",
+    "enabled balanced handler/module cleanup and dispatch counts",
+    "enabled business response",
+    "enabled actual composition activation order",
+    "off pure configuration validation",
+    "off consumer passed",
+    "off exact module factory counts",
+    "off balanced handler/module cleanup and dispatch counts",
+    "off business response",
+    "off actual composition activation order",
+    "invalid consumer emits no success/activation output",
+    "invalid dependency rejected by Composition before activation",
+    "invalid consumer observed zero activation and dispatch counters",
+    "invalid CLI validation emits no success output",
+    "valid type-collision name compiles and dispatches: Program",
+    "valid type-collision name compiles and dispatches: Console",
+    "valid type-collision name compiles and dispatches: Path",
+    "valid type-collision name compiles and dispatches: JsonSerializer",
+    "valid type-collision name compiles and dispatches: File",
+    "valid type-collision name compiles and dispatches: System",
+    "valid type-collision name compiles and dispatches: OperationContext",
+    "valid type-collision name compiles and dispatches: ModuleRole"
+  ],
+  "engine_revision": "39ae0cc6ae56045a9d3d24f94eb564efa5941254",
+  "source_state": "exact clean committed source",
+  "tooling_source_sha256": {
+    "src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj": "d054175e7de729a99af6b0c74ce1532a72655ea184c779b4098ac08e5612d68d",
+    "src/Cehpalon.Engine.Tooling/CliApplication.cs": "117b644eb6414c933e5a51839eef0309353fafd4907edad4e5290d14864b7769",
+    "src/Cehpalon.Engine.Tooling/FileSystem.cs": "d10d2ad39a2a30699b07922594e5a005330eb60a6385e34fd7e46b1119abe5ad",
+    "src/Cehpalon.Engine.Tooling/Program.cs": "959ddd47daa0cb91e700fe6c6476c65c460fb9c101c11ddfdaf340b62ed5b4a8",
+    "src/Cehpalon.Engine.Tooling/README.md": "f41f08899d7b41e66d5dcfb13e58b8926a12b3b2f3b92c0575c833b80cb1001b",
+    "src/Cehpalon.Engine.Tooling/TemplateFiles.cs": "6b5109c13e970c7b046835e298c5ad375d779583390ada60c6337cb5ddc7db8b",
+    "src/Cehpalon.Engine.Tooling/packages.lock.json": "d7b5ee33907d69d24acd9e4d6ad66eb225ea95977b85567732ca5519aad338b4"
+  },
+  "sdk": "11.0.100-rc.3.26522.148",
+  "consumer_engine_root": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces",
+  "new_result": {
+    "success": true,
+    "status": "passed",
+    "profile": "portable-request-reply",
+    "name": "PortableProof",
+    "output": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/generated consumer \u0e44\u0e17\u0e22 & spaces",
+    "files": [
+      "Catalog.cs",
+      "Consumer.csproj",
+      "NuGet.Config",
+      "Program.cs",
+      "README.md",
+      "appsettings.json",
+      "appsettings.off.json",
+      "engine-source.json",
+      "global.json"
+    ],
+    "sourceInputs": 17
+  },
+  "generated_files_sha256": {
+    "Catalog.cs": "9f055fdc0920dc62dee8891539d93727a39a64cb59730f0a750d8a6eb94f22cd",
+    "Consumer.csproj": "5e039ecf39c6b064b62e24ac2c9090c43f08c4d870147c9609229b943f306001",
+    "NuGet.Config": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+    "Program.cs": "4c2211d22ec972507fb4915d206892f1aacf29b2c63960ff4719f1e860ee97c2",
+    "README.md": "02b95c935a7963813c2ab99cc1da6dcb6018757f83969267836e090247139787",
+    "appsettings.json": "1a06297f1f31f978642891b272693745f490b92b543574613697ecbd71991c0e",
+    "appsettings.off.json": "530cce79ecd955c4c8d047f1999e53d8b7900d3bb33867af6b79da79f12b2f03",
+    "engine-source.json": "15537106125c887a4e4aec0e1f202b994ab7cfc49165901f9e2a153ed08ab71c",
+    "global.json": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e"
+  },
+  "observed_source_manifest": {
+    "schemaVersion": 1,
+    "provenance": "observed-source-bytes-not-git-attestation",
+    "sourceRoot": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling/linux-final-02/engine source \u0e44\u0e17\u0e22 & spaces",
+    "inputs": [
+      {
+        "path": "Directory.Packages.props",
+        "sha256": "f6dee39a015915dd9b51eba3b1cdadcc288df400a0fd0b236388fd1165ed00e5",
+        "bytes": 648
+      },
+      {
+        "path": "NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "global.json",
+        "sha256": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+        "bytes": 119
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+        "sha256": "0e1d6b857e0e6381f951c6fc480808603041752e868a3e05c76870b606e3a651",
+        "bytes": 752
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+        "sha256": "8f4c8ff6f2bc2bf8f1932b6a31f05b05865f74a4896850835a203f051649c384",
+        "bytes": 11853
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+        "sha256": "6187016baba6d3f5319a053ce245d1670c658957bc47718f51ae89fe27e163d8",
+        "bytes": 4904
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+        "sha256": "0c846782b7aab61ec6d05f399ee135f643484727d68c84791869e75e4d7a5f25",
+        "bytes": 369
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+        "sha256": "e0fb34e20e9e15b64efb5068d6090a52834d9781cf4f83835c5954d5a4405ce2",
+        "bytes": 11409
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Contracts.cs",
+        "sha256": "6c38370e3c79e2bf4a374545912a254c74289be7a921d4c933759664c61fa010",
+        "bytes": 2567
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/PlanActivator.cs",
+        "sha256": "77fce0d6a3e80addc0022251b010b72efdd4f3da33d9774b4db907779c8571b2",
+        "bytes": 4445
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+        "sha256": "99c4640d85dbb93e3833d6e3c0ce9c515146aa61bcdbaabdb512332ddbbd74e5",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Contracts.cs",
+        "sha256": "81c4f8e7ef7d3db8a3da66c3a07b47e0db522ab7fee0187974c59b1ccc9954f5",
+        "bytes": 3020
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationRegistry.cs",
+        "sha256": "1913777dae7f0d065d4634665e724ceb436c1fa487bf01efb9d8bf9cd9e46012",
+        "bytes": 4671
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationResult.cs",
+        "sha256": "65b920c5a1befe0d21630146507a9d537e9450a4fc902ba7c8f24075408ab755",
+        "bytes": 1518
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      }
+    ]
+  },
+  "consumer_package_lock_sha256": "604c11af3e948d2704a444e62f7d0be5d760e5901d75ec071fbd5965d212c111",
+  "generated_registry_sha256": "87aa59c359d36e90b6ed0e2dee6bac97fb3b060327e1c28df0ad1852d45f28ae",
+  "runtime_libraries": [
+    "Cehpalon.Engine.Composition/1.0.0",
+    "Cehpalon.Engine.Core/1.0.0",
+    "PortableConsumer.PortableProof/1.0.0"
+  ],
+  "consumer_observations": {
+    "enabled": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "off": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [],
+      "factories": {
+        "core": 0,
+        "app": 0,
+        "optional": 0
+      },
+      "handlersConstructed": 0,
+      "handlersDisposed": 0,
+      "dispatches": 0,
+      "modulesDisposed": 0,
+      "response": null
+    }
+  },
+  "invalid_observation": {
+    "status": "failed",
+    "code": "config.invalid",
+    "diagnostics": [
+      {
+        "code": "PLAN_FORBIDDEN",
+        "path": "$.Cehpalon",
+        "message": "Configuration violates the selected portable profile."
+      }
+    ],
+    "factories": {
+      "core": 0,
+      "app": 0,
+      "optional": 0
+    },
+    "handlersConstructed": 0,
+    "handlersDisposed": 0,
+    "dispatches": 0,
+    "modulesDisposed": 0
+  },
+  "name_collision_observations": {
+    "Program": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "Console": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "Path": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "JsonSerializer": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "File": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "System": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "OperationContext": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "ModuleRole": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    }
+  },
+  "finished_utc": "2026-10-28T19:31:41.266925+00:00"
+}

@@ -1,0 +1,1114 @@
+{
+  "started_utc": "2026-10-28T19:17:45.368387+00:00",
+  "status": "passed",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine",
+      "exit": 0,
+      "log": "engine-head.txt",
+      "sha256": "683e367b265c1e600163fa3d1174aab1b9f9f7886ff27807c47f469c30de593b"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine",
+      "exit": 0,
+      "log": "engine-status.txt",
+      "sha256": "b5c6bc2919b9634d4ab0bc3f08d9660df67d843fbd842869cff3fecb2c54bd04"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "--version"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine",
+      "exit": 0,
+      "log": "sdk-version.txt",
+      "sha256": "2a1983f9624c51ebc4e357db46400d4a0c586be897ce82123c46926dddf13fcf"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine\\src\\Cehpalon.Engine.Tooling\\Cehpalon.Engine.Tooling.csproj",
+        "--locked-mode",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine",
+      "exit": 0,
+      "log": "cli-restore.txt",
+      "sha256": "8890db1edd4c7d815328bc6887a55b1e920b72f2112027608a68562ea8afdf9d"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine\\src\\Cehpalon.Engine.Tooling\\Cehpalon.Engine.Tooling.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine",
+      "exit": 0,
+      "log": "cli-build.txt",
+      "sha256": "84815532fbc60940241f66da2649a70132a9f539b3a4a7fee4d226e821aa6e6b"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "PortableProof",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new.txt",
+      "sha256": "ca58e3eecf57a7e12b66a6e2099a4bba0ba68d3808d664438439ea8f053ea3f3"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\consumer-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-restore.txt",
+      "sha256": "0270a1280d5e50bb756820de733aef7b5166f9bba14db3d5d83b5972335d23d4"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\Consumer.csproj",
+        "--locked-mode",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\consumer-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-locked-restore.txt",
+      "sha256": "ba46900b0a91cfc037f27055e3e33ef1119d749fc7cb0c966b11ff5daebb065c"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\consumer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-build.txt",
+      "sha256": "64a894063f2499adad7a1003623dfb5340a0b5a1fc701872a869fa3557ef8a99"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "enabled-validate.txt",
+      "sha256": "8b5ea344806366b86319002fc6f7df4bd5c19ddcb7fb5e21a0485dd59a7608fa"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.PortableProof.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "enabled-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "off-validate.txt",
+      "sha256": "a99cc8815ff025637afd87307b9edf53e936ceaca3b4d220fe0fbd0389c6dd82"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.PortableProof.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "off-run.txt",
+      "sha256": "ca5d60370175cb617c6f5888ccb18b9d71893e64775c896e63c0ff387b5b7b72"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.PortableProof.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\invalid.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "invalid-run.txt",
+      "sha256": "f8413f766caa53c3260765f6791a09b9516239fce98067304ae6f315a07abd6b"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces\\invalid.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "invalid-validate.txt",
+      "sha256": "7231a6557068422e160bfd59cb9172845d3fa84a1a0839a0d2eaa7277756472c"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "Program",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-Program-new.txt",
+      "sha256": "487811ac101d86f20efed7231cd9b1eb55388dbf9a83120afc71c1a4c4564777"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program",
+      "exit": 0,
+      "log": "name-Program-restore.txt",
+      "sha256": "9512af3ff0c246cbdef53185d07a0226308e7af8a7a34e19c9b9835953ecc6c4"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program",
+      "exit": 0,
+      "log": "name-Program-build.txt",
+      "sha256": "36a1b18f833d5379630c5a50c721f5cc15bb18d31baf900b285a709d9861a37a"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program-artifacts\\bin\\Consumer\\release\\PortableConsumer.Program.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Program",
+      "exit": 0,
+      "log": "name-Program-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "Console",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-Console-new.txt",
+      "sha256": "4c2ebe8c7e16372d70d78990de56e51bb6b61c7ac13aeaae0cc5fc65dffc9ae6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console",
+      "exit": 0,
+      "log": "name-Console-restore.txt",
+      "sha256": "02a94ccb3e37202eff8da347fb51c3441aeba33c87712ac009c22c24702566f3"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console",
+      "exit": 0,
+      "log": "name-Console-build.txt",
+      "sha256": "0150a7f3d42083c459e77fe01dfdee382e7edc493ba87481810df69e2a1ff6eb"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console-artifacts\\bin\\Consumer\\release\\PortableConsumer.Console.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Console",
+      "exit": 0,
+      "log": "name-Console-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "Path",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-Path-new.txt",
+      "sha256": "c0ab6fc1ce0040ffa478175ecfc67ef02ae41a588f86a553d8e9ee60e7705727"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path",
+      "exit": 0,
+      "log": "name-Path-restore.txt",
+      "sha256": "19bfb5d7103bccf77f03a74985e523c7daade7ec9d7dfca07dce9ceb73a98e1f"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path",
+      "exit": 0,
+      "log": "name-Path-build.txt",
+      "sha256": "e7738fc5d7a87c7c65c93282b02ef2824fae4c069c74de2bd3c60ec160cdac19"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path-artifacts\\bin\\Consumer\\release\\PortableConsumer.Path.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-Path",
+      "exit": 0,
+      "log": "name-Path-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "JsonSerializer",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-JsonSerializer-new.txt",
+      "sha256": "3777c1d89be0454c0fe8de80a510545dd5a36bb07ed4ce2be0a5456518cfc11d"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer",
+      "exit": 0,
+      "log": "name-JsonSerializer-restore.txt",
+      "sha256": "a304cc495853961b2cce49021b8435397f1422f377d4ab69189a00f5262ff1a3"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer",
+      "exit": 0,
+      "log": "name-JsonSerializer-build.txt",
+      "sha256": "5285ea7508d49a9a6f04cf81cadea74f2fdd8fb9cc64dd269f0e967e9abf4864"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer-artifacts\\bin\\Consumer\\release\\PortableConsumer.JsonSerializer.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-JsonSerializer",
+      "exit": 0,
+      "log": "name-JsonSerializer-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "File",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-File-new.txt",
+      "sha256": "c9661833f58499e5a3812b1ce5431ea068810147d1518d24b9a6b151e375a766"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File",
+      "exit": 0,
+      "log": "name-File-restore.txt",
+      "sha256": "126dbbb1e1abde4176e698c5b99d56c51b0a56c426161cad75b5572ec60043b5"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File",
+      "exit": 0,
+      "log": "name-File-build.txt",
+      "sha256": "bbc29b61ce1bc38cf031d22164c4f46540c6d2c192a0127a39a7a232b9a576c8"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File-artifacts\\bin\\Consumer\\release\\PortableConsumer.File.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-File",
+      "exit": 0,
+      "log": "name-File-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "System",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-System-new.txt",
+      "sha256": "7d5d50fcea87cbc1b40cea6798d6f8e82caab4b3c4b8a356bf7d158ae3659ce5"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System",
+      "exit": 0,
+      "log": "name-System-restore.txt",
+      "sha256": "222f9cd5d52922f8f9a11c95af6ab9b78fcf84002502ecf873947c80a44f4e73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System",
+      "exit": 0,
+      "log": "name-System-build.txt",
+      "sha256": "67e08ea989501e25b9f2366896863f0f51879891de6a15dcbbacc98d63725ca9"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System-artifacts\\bin\\Consumer\\release\\PortableConsumer.System.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-System",
+      "exit": 0,
+      "log": "name-System-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "OperationContext",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-OperationContext-new.txt",
+      "sha256": "61b2ebdaa8414273f2beab2a3a54d3fd321c9b82cc54096f71660ff453e2973f"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext",
+      "exit": 0,
+      "log": "name-OperationContext-restore.txt",
+      "sha256": "ae3c329a99475811b003221e9d611ce65da6efe5aa5ab6b9c2bedf5dad92adee"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext",
+      "exit": 0,
+      "log": "name-OperationContext-build.txt",
+      "sha256": "a9f0be3ff5aadc074ac3948d5c08c325fa900e427e8c8f030a8649fd46cbb67f"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext-artifacts\\bin\\Consumer\\release\\PortableConsumer.OperationContext.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-OperationContext",
+      "exit": 0,
+      "log": "name-OperationContext-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--name",
+        "ModuleRole",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "name-ModuleRole-new.txt",
+      "sha256": "1a303b6c076d1959a4d8ac229034b04f5558c4edce460a280920a9e3b985fa38"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole",
+      "exit": 0,
+      "log": "name-ModuleRole-restore.txt",
+      "sha256": "f8567390e3e56cde6eb77db069cbadfcd518d51cdda92b697d86a5bfac9ebf13"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole",
+      "exit": 0,
+      "log": "name-ModuleRole-build.txt",
+      "sha256": "39d06d8b94ff0c5838572c37ded99e1a09aa0aef643aac0996f8b49c8c2d5c4a"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole-artifacts\\bin\\Consumer\\release\\PortableConsumer.ModuleRole.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\name-ModuleRole",
+      "exit": 0,
+      "log": "name-ModuleRole-run.txt",
+      "sha256": "0c21f6ad670aeb751c886027eece919bb00b56bc557f0ce2f074d40f4721f3e6"
+    }
+  ],
+  "scope": "Experimental portable console scaffolding only; no tenant authority, transport/provider, packaging, supported-Windows or production qualification",
+  "harness_sha256": "9b4786e5f0d4dd13a3cd8f333f5ebc9c17f8c2da3e5effb74fd623588482c0a8",
+  "checks": [
+    "exact pinned SDK",
+    "exact nine fresh scaffold files",
+    "source manifest declares observation boundary",
+    "unique bounded source input Directory.Packages.props",
+    "observed source bytes match Directory.Packages.props",
+    "unique bounded source input NuGet.Config",
+    "observed source bytes match NuGet.Config",
+    "unique bounded source input global.json",
+    "observed source bytes match global.json",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Composition/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Core/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationResult.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationResult.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Core/packages.lock.json",
+    "source manifest includes locks and generator",
+    "initial consumer restore actually creates package lock",
+    "locked restore preserves actual consumer lock",
+    "exact one emitted operation registry",
+    "actual emitted typed operation registration",
+    "one executable consumer runtime",
+    "no compiler or CLI dependency in runtime consumer",
+    "enabled pure configuration validation",
+    "enabled consumer passed",
+    "enabled exact module factory counts",
+    "enabled balanced handler/module cleanup and dispatch counts",
+    "enabled business response",
+    "enabled actual composition activation order",
+    "off pure configuration validation",
+    "off consumer passed",
+    "off exact module factory counts",
+    "off balanced handler/module cleanup and dispatch counts",
+    "off business response",
+    "off actual composition activation order",
+    "invalid consumer emits no success/activation output",
+    "invalid dependency rejected by Composition before activation",
+    "invalid consumer observed zero activation and dispatch counters",
+    "invalid CLI validation emits no success output",
+    "valid type-collision name compiles and dispatches: Program",
+    "valid type-collision name compiles and dispatches: Console",
+    "valid type-collision name compiles and dispatches: Path",
+    "valid type-collision name compiles and dispatches: JsonSerializer",
+    "valid type-collision name compiles and dispatches: File",
+    "valid type-collision name compiles and dispatches: System",
+    "valid type-collision name compiles and dispatches: OperationContext",
+    "valid type-collision name compiles and dispatches: ModuleRole"
+  ],
+  "engine_revision": "3974c7d8099945e4446e210e04bca2ab630f3174",
+  "source_state": "uncommitted integration",
+  "tooling_source_sha256": {
+    "src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj": "d054175e7de729a99af6b0c74ce1532a72655ea184c779b4098ac08e5612d68d",
+    "src/Cehpalon.Engine.Tooling/CliApplication.cs": "fae480c5c0f75d5e7e470cc7305a00c0c61c36186a36a370544117934b22f590",
+    "src/Cehpalon.Engine.Tooling/FileSystem.cs": "d10d2ad39a2a30699b07922594e5a005330eb60a6385e34fd7e46b1119abe5ad",
+    "src/Cehpalon.Engine.Tooling/packages.lock.json": "d7b5ee33907d69d24acd9e4d6ad66eb225ea95977b85567732ca5519aad338b4",
+    "src/Cehpalon.Engine.Tooling/Program.cs": "959ddd47daa0cb91e700fe6c6476c65c460fb9c101c11ddfdaf340b62ed5b4a8",
+    "src/Cehpalon.Engine.Tooling/README.md": "f41f08899d7b41e66d5dcfb13e58b8926a12b3b2f3b92c0575c833b80cb1001b",
+    "src/Cehpalon.Engine.Tooling/TemplateFiles.cs": "6b5109c13e970c7b046835e298c5ad375d779583390ada60c6337cb5ddc7db8b"
+  },
+  "sdk": "11.0.100-rc.3.26522.148",
+  "consumer_engine_root": "D:\\Cephalon\\Cehpalon-Engine",
+  "new_result": {
+    "success": true,
+    "status": "passed",
+    "profile": "portable-request-reply",
+    "name": "PortableProof",
+    "output": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling\\windows-integration-03\\generated consumer \u0e44\u0e17\u0e22 & spaces",
+    "files": [
+      "Catalog.cs",
+      "Consumer.csproj",
+      "NuGet.Config",
+      "Program.cs",
+      "README.md",
+      "appsettings.json",
+      "appsettings.off.json",
+      "engine-source.json",
+      "global.json"
+    ],
+    "sourceInputs": 17
+  },
+  "generated_files_sha256": {
+    "appsettings.json": "1a06297f1f31f978642891b272693745f490b92b543574613697ecbd71991c0e",
+    "appsettings.off.json": "530cce79ecd955c4c8d047f1999e53d8b7900d3bb33867af6b79da79f12b2f03",
+    "Catalog.cs": "9f055fdc0920dc62dee8891539d93727a39a64cb59730f0a750d8a6eb94f22cd",
+    "Consumer.csproj": "7f2b38058f9ded8e61feb416500105dff4ffcd3b1c1585880422552e59e1fb9e",
+    "engine-source.json": "e55c876f7d855a1d0e3676c1f7a4f8a31c5ef689b4aa9330e067952ac4179837",
+    "global.json": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+    "NuGet.Config": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+    "Program.cs": "4c2211d22ec972507fb4915d206892f1aacf29b2c63960ff4719f1e860ee97c2",
+    "README.md": "02b95c935a7963813c2ab99cc1da6dcb6018757f83969267836e090247139787"
+  },
+  "observed_source_manifest": {
+    "schemaVersion": 1,
+    "provenance": "observed-source-bytes-not-git-attestation",
+    "sourceRoot": "D:\\Cephalon\\Cehpalon-Engine",
+    "inputs": [
+      {
+        "path": "Directory.Packages.props",
+        "sha256": "f6dee39a015915dd9b51eba3b1cdadcc288df400a0fd0b236388fd1165ed00e5",
+        "bytes": 648
+      },
+      {
+        "path": "NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "global.json",
+        "sha256": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+        "bytes": 119
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+        "sha256": "0e1d6b857e0e6381f951c6fc480808603041752e868a3e05c76870b606e3a651",
+        "bytes": 752
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+        "sha256": "8f4c8ff6f2bc2bf8f1932b6a31f05b05865f74a4896850835a203f051649c384",
+        "bytes": 11853
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+        "sha256": "6187016baba6d3f5319a053ce245d1670c658957bc47718f51ae89fe27e163d8",
+        "bytes": 4904
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+        "sha256": "0c846782b7aab61ec6d05f399ee135f643484727d68c84791869e75e4d7a5f25",
+        "bytes": 369
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+        "sha256": "e0fb34e20e9e15b64efb5068d6090a52834d9781cf4f83835c5954d5a4405ce2",
+        "bytes": 11409
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Contracts.cs",
+        "sha256": "6c38370e3c79e2bf4a374545912a254c74289be7a921d4c933759664c61fa010",
+        "bytes": 2567
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/PlanActivator.cs",
+        "sha256": "77fce0d6a3e80addc0022251b010b72efdd4f3da33d9774b4db907779c8571b2",
+        "bytes": 4445
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+        "sha256": "99c4640d85dbb93e3833d6e3c0ce9c515146aa61bcdbaabdb512332ddbbd74e5",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Contracts.cs",
+        "sha256": "81c4f8e7ef7d3db8a3da66c3a07b47e0db522ab7fee0187974c59b1ccc9954f5",
+        "bytes": 3020
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationRegistry.cs",
+        "sha256": "1913777dae7f0d065d4634665e724ceb436c1fa487bf01efb9d8bf9cd9e46012",
+        "bytes": 4671
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationResult.cs",
+        "sha256": "65b920c5a1befe0d21630146507a9d537e9450a4fc902ba7c8f24075408ab755",
+        "bytes": 1518
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      }
+    ]
+  },
+  "consumer_package_lock_sha256": "9eac5b4d5bb723d44e6f3b2d2222d8271bf396679942e7a883f1b9b6da720d62",
+  "generated_registry_sha256": "87aa59c359d36e90b6ed0e2dee6bac97fb3b060327e1c28df0ad1852d45f28ae",
+  "runtime_libraries": [
+    "Cehpalon.Engine.Composition/1.0.0",
+    "Cehpalon.Engine.Core/1.0.0",
+    "PortableConsumer.PortableProof/1.0.0"
+  ],
+  "consumer_observations": {
+    "enabled": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "off": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [],
+      "factories": {
+        "core": 0,
+        "app": 0,
+        "optional": 0
+      },
+      "handlersConstructed": 0,
+      "handlersDisposed": 0,
+      "dispatches": 0,
+      "modulesDisposed": 0,
+      "response": null
+    }
+  },
+  "invalid_observation": {
+    "status": "failed",
+    "code": "config.invalid",
+    "diagnostics": [
+      {
+        "code": "PLAN_FORBIDDEN",
+        "path": "$.Cehpalon",
+        "message": "Configuration violates the selected portable profile."
+      }
+    ],
+    "factories": {
+      "core": 0,
+      "app": 0,
+      "optional": 0
+    },
+    "handlersConstructed": 0,
+    "handlersDisposed": 0,
+    "dispatches": 0,
+    "modulesDisposed": 0
+  },
+  "name_collision_observations": {
+    "Program": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "Console": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "Path": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "JsonSerializer": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "File": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "System": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "OperationContext": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    },
+    "ModuleRole": {
+      "status": "passed",
+      "profile": "portable-request-reply",
+      "activationOrder": [
+        "core",
+        "app"
+      ],
+      "factories": {
+        "core": 1,
+        "app": 1,
+        "optional": 0
+      },
+      "handlersConstructed": 1,
+      "handlersDisposed": 1,
+      "dispatches": 1,
+      "modulesDisposed": 2,
+      "response": "hello"
+    }
+  },
+  "finished_utc": "2026-10-28T19:18:34.270707+00:00"
+}
