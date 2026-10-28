@@ -26,7 +26,7 @@ public static class Wire
         if(!MediaTypeHeaderValue.TryParse(request.ContentType,out var media) || !media.MediaType.Equals("application/json",StringComparison.OrdinalIgnoreCase))return false;
         var charset=media.Charset.Value;return (string.IsNullOrEmpty(charset)||charset.Equals("utf-8",StringComparison.OrdinalIgnoreCase))&&request.Headers.ContentEncoding.Count==0;
     }
-    public static async Task<byte[]?> Read(HttpContext http,bool graphql=false)
+    public static async Task<ReadOnlyMemory<byte>?> Read(HttpContext http,bool graphql=false)
     {
         async Task Reject(int status,string code,string message){if(graphql)http.Response.StatusCode=status;else await Error(http,status,code,message);}
         if(!(graphql?http.Request.HasJsonContentType():HttpContent(http.Request))){await Reject(415,"request.content_type","UTF-8 JSON is required.");return null;}
@@ -34,7 +34,7 @@ public static class Wire
         var bytes=new byte[MaximumBytes+1];var length=0;
         while(length<bytes.Length){var n=await http.Request.Body.ReadAsync(bytes.AsMemory(length),http.RequestAborted);if(n==0)break;length+=n;}
         if(length>MaximumBytes){await Reject(413,"request.too_large","Request body exceeds 16384 bytes.");return null;}
-        return bytes[..length];
+        return bytes.AsMemory(0,length);
     }
     public static bool Structural(JsonElement element)
     {
@@ -53,7 +53,7 @@ public static class Wire
             {
                 var bytes=await Read(http);if(bytes is null)return;
                 TRequest request;
-                try{using var document=JsonDocument.Parse(bytes,new JsonDocumentOptions{MaxDepth=32});if(document.RootElement.ValueKind!=JsonValueKind.Object || !Structural(document.RootElement))throw new JsonException();request=document.RootElement.Deserialize<TRequest>(Json)??throw new JsonException();}
+                try{using var document=JsonDocument.Parse(bytes.Value,new JsonDocumentOptions{MaxDepth=32});if(document.RootElement.ValueKind!=JsonValueKind.Object || !Structural(document.RootElement))throw new JsonException();request=document.RootElement.Deserialize<TRequest>(Json)??throw new JsonException();}
                 catch(Exception e)when(e is JsonException or InvalidOperationException){await Error(http,400,"validation.failed","Request validation failed.");return;}
                 if(binding.Validate(request)is not null){await Error(http,400,"validation.failed","Request validation failed.");return;}
                 var ct=http.RequestAborted;ct.ThrowIfCancellationRequested();
@@ -117,16 +117,27 @@ public static class Wire
     public static async Task GuardGraphQL(HttpContext http,RequestDelegate next)
     {
         if(!HttpMethods.IsPost(http.Request.Method)){http.Response.StatusCode=405;return;}
-        var bytes=await Read(http,true);if(bytes is null)return;
+        if(!http.User.Identities.Any(identity=>identity.IsAuthenticated)){http.Response.StatusCode=401;return;}
+        if(!http.Request.HasJsonContentType()){http.Response.StatusCode=415;return;}
+        if(http.Request.ContentLength>MaximumBytes){http.Response.StatusCode=413;return;}
+        using var body=new MemoryStream();var buffer=new byte[4096];
+        while(true)
+        {
+            var read=await http.Request.Body.ReadAsync(buffer.AsMemory(0,Math.Min(buffer.Length,MaximumBytes+1-(int)body.Length)),http.RequestAborted);
+            if(read==0)break;
+            body.Write(buffer,0,read);
+            if(body.Length>MaximumBytes){http.Response.StatusCode=413;return;}
+        }
         try
         {
-            if(!HasValidStringEncoding(bytes))throw new JsonException();
+            var bytes=body.GetBuffer().AsMemory(0,(int)body.Length);
+            if(!HasValidStringEncoding(bytes.Span))throw new JsonException();
             using var document=JsonDocument.Parse(bytes,new JsonDocumentOptions{MaxDepth=32});var root=document.RootElement;
             if(root.ValueKind!=JsonValueKind.Object || !Structural(root)||!root.TryGetProperty("query",out var query)||query.ValueKind!=JsonValueKind.String)throw new JsonException();
             foreach(var p in root.EnumerateObject())if(p.Name!="query" && !(p.Name=="variables" && p.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Null) && !(p.Name=="operationName" && p.Value.ValueKind is JsonValueKind.String or JsonValueKind.Null))throw new JsonException();
         }
         catch(Exception e)when(e is JsonException or InvalidOperationException){http.Response.StatusCode=400;return;}
-        var original=http.Request.Body;await using var body=new MemoryStream(bytes);http.Request.Body=body;http.Request.ContentLength=bytes.Length;
+        var original=http.Request.Body;body.Position=0;http.Request.Body=body;http.Request.ContentLength=body.Length;
         try{await next(http);}finally{http.Request.Body=original;}
     }
 }

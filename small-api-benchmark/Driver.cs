@@ -30,9 +30,16 @@ public static class LoadDriver
         using var root=X509CertificateLoader.LoadCertificateFromFile(Arg("ca-file"));
         var chain=new X509ChainPolicy{TrustMode=X509ChainTrustMode.CustomRootTrust,RevocationMode=X509RevocationMode.NoCheck};chain.CustomTrustStore.Add(root);
         using var sockets=new SocketsHttpHandler{UseProxy=false,MaxConnectionsPerServer=128,SslOptions=new SslClientAuthenticationOptions{EnabledSslProtocols=SslProtocols.Tls13,CertificateChainPolicy=chain}};
+        var tlsConnections=new ConcurrentBag<object>();
+        sockets.PlaintextStreamFilter=(context,ct)=>
+        {
+            if(context.PlaintextStream is not SslStream ssl || ssl.SslProtocol!=SslProtocols.Tls13) throw new InvalidOperationException("Expected an observed TLS1.3 collector connection.");
+            tlsConnections.Add(new{protocol=ssl.SslProtocol.ToString(),cipher=ssl.NegotiatedCipherSuite.ToString(),httpVersion=context.NegotiatedHttpVersion.ToString()});
+            return ValueTask.FromResult(context.PlaintextStream);
+        };
         using var client=new HttpClient(sockets){BaseAddress=new Uri(Arg("url")),Timeout=Timeout.InfiniteTimeSpan};
         var count=checked(rate*seconds);var warmCount=checked(rate*warmSeconds);
-        var workload=Build(Math.Max(count,warmCount),transport);
+        var workload=Build(Math.Max(Math.Max(count,warmCount),checked(rate*2)),transport);
         await using(var file=new FileStream(Path.Combine(output,"offered-manifest.jsonl.gz"),FileMode.CreateNew))
         await using(var gzip=new GZipStream(file,CompressionLevel.Fastest))
         await using(var writer=new StreamWriter(gzip,new UTF8Encoding(false)))
@@ -40,11 +47,51 @@ public static class LoadDriver
         var manifestHash=HashManifest(workload.Take(warmOnly?warmCount:count));
         var logicalManifestHash=HashManifest(workload.Take(warmOnly?warmCount:count),false);
         Console.WriteLine(JsonSerializer.Serialize(new{stage="manifest-frozen",count=warmOnly?warmCount:count,rate,seconds,warmSeconds,transport,manifestHash,logicalManifestHash}));
+        // Establish the collector's HTTP/TLS machinery before imposing an offered schedule.
+        // These read-only preparations and the complete capacity preflight are retained, never scored as warmup.
+        using(var reset=await client.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"))) reset.EnsureSuccessStatusCode();
+        var preparation=new ConcurrentBag<object>();var noWrites=new ConcurrentDictionary<int,int>();
+        async Task Prepare(Offered item)
+        {
+            var started=Stopwatch.GetTimestamp();var status=0;var byteCount=0;string? failure=null;
+            try
+            {
+            using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var request=new HttpRequestMessage(HttpMethod.Post,item.Path){Version=HttpVersion.Version11,VersionPolicy=HttpVersionPolicy.RequestVersionExact,Content=new ByteArrayContent(item.Payload)};
+            request.Content.Headers.ContentType=new MediaTypeHeaderValue("application/json");
+            using var response=await client.SendAsync(request,deadline.Token);var body=await response.Content.ReadAsByteArrayAsync(deadline.Token);
+            status=(int)response.StatusCode;byteCount=body.Length;
+            response.EnsureSuccessStatusCode();using var document=JsonDocument.Parse(body);var value=document.RootElement;
+            if(transport=="graphql")
+            {
+                if(value.TryGetProperty("errors",out _)) throw new InvalidOperationException("GraphQL collector preparation failed.");
+                value=value.GetProperty("data").GetProperty(item.Operation=="get"?"catalogItem":"catalogPage");
+            }
+            if(!Validate(value,item,noWrites)) throw new InvalidOperationException("Collector preparation business validation failed.");
+            }
+            catch(Exception error){failure=error.ToString();throw;}
+            finally {preparation.Add(new{item.Index,item.Operation,startedTicks=started,completedTicks=Stopwatch.GetTimestamp(),status,bytes=byteCount,error=failure});}
+        }
+        try
+        {
+            await Prepare(workload.First(item=>item.Operation=="get"));
+            await Prepare(workload.First(item=>item.Operation=="list"));
+            await Task.WhenAll(workload.Where(item=>item.Operation=="get").Take(128).Select(Prepare));
+        }
+        finally
+        {
+            await File.WriteAllTextAsync(Path.Combine(output,"collector-preparation.json"),JsonSerializer.Serialize(new{requests=preparation.ToArray(),stopwatchFrequency=Stopwatch.Frequency,tlsConnections=tlsConnections.ToArray(),scope="Read-only connection/JIT preparation outside offered schedules"},Json));
+        }
+        var preflight=await Phase("preflight",rate*2,2);
+        var preflightState=ValidateFinal(await State(),workload.Take(rate*2));
+        await File.WriteAllTextAsync(Path.Combine(output,"collector-preflight.json"),JsonSerializer.Serialize(new{preflight,state=preflightState},Json));
+        if(preflight.errors!=0 || preflight.dropped!=0 || preflight.correct!=rate*2 || !preflightState.passed) throw new InvalidOperationException("Collector preflight failed; retain the whole attempt, do not enter timed warmup/load.");
+        using(var reset=await client.PostAsync("/__fixture/reset",new StringContent("{}",Encoding.UTF8,"application/json"))) reset.EnsureSuccessStatusCode();
         var warm=warmCount==0?null:await Phase("warmup",warmCount,warmSeconds);
         if(warmOnly)
         {
             var finalWarm=await State();var validation=ValidateFinal(finalWarm,workload.Take(warmCount));
-            await File.WriteAllTextAsync(Path.Combine(output,"warmup-result.json"),JsonSerializer.Serialize(new{transport,rate,warmSeconds,manifestHash,logicalManifestHash,warmup=warm,state=validation,finalState=finalWarm},new JsonSerializerOptions(Json){WriteIndented=true}));
+            await File.WriteAllTextAsync(Path.Combine(output,"warmup-result.json"),JsonSerializer.Serialize(new{transport,rate,warmSeconds,manifestHash,logicalManifestHash,tlsConnections=tlsConnections.ToArray(),warmup=warm,state=validation,finalState=finalWarm},new JsonSerializerOptions(Json){WriteIndented=true}));
             Console.WriteLine(JsonSerializer.Serialize(new{stage="warmup-completed",transport,warm?.correct,warm?.errors,validation.passed}));
             return 0;
         }
@@ -56,7 +103,7 @@ public static class LoadDriver
         var final=await State();
         var state=ValidateFinal(final,workload.Take(count));
         var initialValidation=ValidateFinal(initial,[]);
-        var report=new{transport,rate,seconds,warmSeconds,manifestHash,logicalManifestHash,stopwatchFrequency=Stopwatch.Frequency,initialState=initial,initialValidation,initialMetrics,finalMetrics,finalState=final,warmup=warm,measured,state,
+        var report=new{transport,rate,seconds,warmSeconds,manifestHash,logicalManifestHash,stopwatchFrequency=Stopwatch.Frequency,tlsConnections=tlsConnections.ToArray(),initialState=initial,initialValidation,initialMetrics,finalMetrics,finalState=final,warmup=warm,measured,state,
             scope="Fixed open-loop localhost observation; environment qualification is determined by orchestrator, never inferred from numeric budgets."};
         await File.WriteAllTextAsync(Path.Combine(output,"load-result.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions(Json){WriteIndented=true}));
         Console.WriteLine(JsonSerializer.Serialize(new{stage="completed",transport,measured.correct,measured.errors,measured.dropped,statePassed=state.passed}));
