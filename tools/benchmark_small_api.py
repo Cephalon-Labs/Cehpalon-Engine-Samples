@@ -20,6 +20,7 @@ import statistics
 import subprocess
 import sys
 import time
+import tempfile
 import traceback
 from urllib.parse import urlsplit
 
@@ -106,8 +107,8 @@ class Runner:
         self.progress = Progress(output)
         self.environment = dict(os.environ, DOTNET_NOLOGO='1', DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_EnableDiagnostics='0', DOTNET_PROCESSOR_COUNT='2')
         self.owned = []
-        self.fixture = output / '.private-fixture'
-        self.ca = self.fixture / 'root-ca.der'
+        self.fixture = None
+        self.ca = None
         self.manifest = {}
 
     def invoke(self, command, name, cwd=ROOT):
@@ -205,15 +206,25 @@ class Runner:
             'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'server_cpus': SERVER_CPUS, 'driver_cpus': DRIVER_CPUS, 'orchestrator_cpus': ORCHESTRATOR_CPUS, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS}, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_ReadyToRun']}},
             'protocol': {'requested_phases': self.args.phases, 'startup_launches_per_variant_transport': 30, 'startup_order': 'BE/EB alternation by index', 'idle_pairs_per_transport': 5, 'load_pairs_per_transport': 5, 'pair_order': ORDER, 'warmup_seconds': 60, 'idle_settle_seconds': 120, 'idle_samples': 60, 'idle_sample_hz': 1, 'measured_load_seconds': 180, 'offered_requests_per_second': 1000, 'maximum_outstanding': 128, 'request_timeout_seconds': 1, 'latency': 'completed minus scheduled; drops/errors retained; no outlier filtering', 'diagnostic_rate_sweeps': 'Not run: 100/500/2000 diagnostic series is separate from acceptance series', 'startup_cache_boundary': 'Fresh processes with OS cache state observed; not machine-cold boots', 'cv_analysis': 'Population standard deviation divided by mean, all five p95 observations per variant/transport'},
             'budgets': {'startup_p95_ms': 1000, 'startup_engine_extra_ms': 150, 'idle_rss_mib': 256, 'idle_engine_extra_mib': 16, 'load_p95_ms': 20, 'load_p99_ms': 50, 'engine_p95_extra': 'max(1ms,15% baseline p95)', 'engine_allocation_extra_bytes_per_request': 1024, 'success_floor': .999, 'unplanned_errors_timeouts_drops': 0, 'p95_coefficient_of_variation': .10},
-            'private_fixture': 'Private .private-fixture/server.pfx must never be copied into published evidence. Only public CA DER/hash may be retained externally.'
+            'private_fixture': 'Private server.pfx stays in task-owned Linux-home .local/share storage with verified0700/0600 modes; never copy it into evidence. Only public CA DER/hash may be retained externally.'
         }
         write_json(self.output / 'manifest.json', self.manifest)
+        private_base = Path.home() / '.local/share/cehpalon-benchmark-fixtures'
+        private_base.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(private_base, 0o700)
+        container = Path(tempfile.mkdtemp(prefix='attempt-', dir=private_base))
+        self.fixture = container / 'fixture'
+        self.ca = self.fixture / 'root-ca.der'
         self.invoke([self.args.dotnet, self.args.assembly, '--create-fixture=' + str(self.fixture)], 'fixture-create')
         os.chmod(self.fixture, 0o700)
         private = self.fixture / 'server.pfx'
         if not private.is_file() or not self.ca.is_file():
             raise InfrastructureFailure('Fixture preparation did not produce the declared certificate files.')
         os.chmod(private, 0o600)
+        if self.fixture.stat().st_mode & 0o777 != 0o700 or private.stat().st_mode & 0o777 != 0o600:
+            raise InfrastructureFailure('Private fixture permissions are not enforced; no timing may start.')
+        self.manifest['private_fixture_path'] = str(self.fixture)
+        self.manifest['private_fixture_modes_verified'] = {'directory': '0700', 'pfx': '0600'}
         self.manifest['public_ca_sha256'] = sha(self.ca)
         write_json(self.output / 'manifest.json', self.manifest)
 
