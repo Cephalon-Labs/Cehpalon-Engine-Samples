@@ -16,6 +16,8 @@ The [CLI-generated portable consumer proof](tooling/README.md) exercises a fresh
 
 The [CLI-generated Small API proof](tooling-small-api/README.md) builds the new protected HTTPS scaffold, exercises cross-tenant denial and disabled modules, then probes caller-configured serving with strict TLS/JWT and graceful shutdown. Its in-memory identity/membership/data fixtures remain separate from real IdP/provider or full lane qualification.
 
+The [offline transport contract proof](tooling-contracts/README.md) exports selected HTTP OpenAPI/JSON shapes and actual GraphQL SDL, compares them with real runtime schemas/HTTPS behavior and checks disabled artifact/service work. Structural schema acceptance remains separate from business validation and tenant authority.
+
 The [tenant/identity consumer](tenant-identity/README.md) adds fresh authoritative fixture checks and a checked data port through a generated Core gateway, including cross-tenant denials. It does not establish real IdP/provider/transport qualification.
 
 [Owned provider qualification fixtures](qualification/README.md) now have component probe and cleanup evidence for five immutable images. These checks are separate from the three consumer scenarios. See the [current SDK/artifact/tracking qualification report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/w0-qualification-and-sync.md) for the supported-Windows and hosted-CI blocker.

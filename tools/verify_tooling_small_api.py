@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_FILES = {'Consumer.csproj', 'Program.cs', 'SelfTest.cs', 'FixtureHost.cs', 'Catalog.cs',
+EXPECTED_FILES = {'Consumer.csproj', 'Program.cs', 'SelfTest.cs', 'FixtureHost.cs', 'Catalog.cs', 'ContractExport.cs',
                   'appsettings.json', 'appsettings.graphql.json', 'appsettings.graphql-only.json',
                   'appsettings.off.json', 'global.json', 'NuGet.Config', 'engine-source.json', 'README.md'}
 CONFIGS = {'appsettings.json': {'host', 'api'}, 'appsettings.graphql.json': {'host', 'api', 'graphql'},
@@ -116,7 +116,7 @@ def main():
         consumer = output / 'generated Small API ไทย & spaces'
         report['new_result'] = json.loads(run(cli + ['new', '--profile', 'small-api', '--name', 'SmallApiProof',
             '--output', consumer, '--engine-root', source_engine], ROOT, 'new.txt'))
-        check({p.name for p in consumer.iterdir()} == EXPECTED_FILES, 'exact thirteen Small API scaffold files, no key/port/fixture state')
+        check({p.name for p in consumer.iterdir()} == EXPECTED_FILES, 'exact fourteen Small API scaffold files, no key/port/fixture state')
         first = {p.name: sha(p) for p in sorted(consumer.iterdir())}
         report['generated_files_sha256'] = first
         twin = output / 'determinism twin'
