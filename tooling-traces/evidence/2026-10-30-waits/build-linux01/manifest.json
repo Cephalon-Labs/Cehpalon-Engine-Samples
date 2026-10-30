@@ -1,0 +1,100 @@
+[
+  {
+    "label": "prepare-driver",
+    "argv": [
+      "/usr/bin/python3",
+      "tools/prepare_tooling_wait_driver.py",
+      "--engine-root",
+      "/mnt/d/Cephalon/Cehpalon-Engine",
+      "--output",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-driver-linux01"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "driver-restore",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "restore",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-driver-linux01/TraceDriver.csproj",
+      "--configfile",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-driver-linux01/NuGet.Config",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/driver-artifacts"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "driver-locked-restore",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "restore",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-driver-linux01/TraceDriver.csproj",
+      "--configfile",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-driver-linux01/NuGet.Config",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/driver-artifacts",
+      "--locked-mode"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "driver-build",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "build",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-driver-linux01/TraceDriver.csproj",
+      "-c",
+      "Release",
+      "--no-restore",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/driver-artifacts",
+      "-p:UseSharedCompilation=false",
+      "-warnaserror"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "conformance-restore",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "restore",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/WaitConformance/WaitConformance.csproj",
+      "--configfile",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/WaitConformance/NuGet.Config",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/conformance-artifacts"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "conformance-locked-restore",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "restore",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/WaitConformance/WaitConformance.csproj",
+      "--configfile",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/WaitConformance/NuGet.Config",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/conformance-artifacts",
+      "--locked-mode"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "conformance-build",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "build",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/WaitConformance/WaitConformance.csproj",
+      "-c",
+      "Release",
+      "--no-restore",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/conformance-artifacts",
+      "-p:UseSharedCompilation=false",
+      "-warnaserror"
+    ],
+    "exit": 0
+  }
+]

@@ -1,0 +1,112 @@
+"""Pure offline algorithm/negative fixtures. No targets or external tools."""
+from pathlib import Path
+from fractions import Fraction
+import json
+import types
+
+BASE = Path(__file__).resolve().parents[1]
+source = BASE/'tools/analyze_tooling_waits.py'
+module = types.ModuleType('offline_waits_test')
+module.__file__ = str(source)
+exec(compile(source.read_bytes(),str(source),'exec'),module.__dict__)
+results = []
+
+
+def test(name, callback):
+    try:
+        callback()
+        results.append({'name':name,'status':'passed'})
+    except Exception as error:
+        results.append({'name':name,'status':'failed','error':repr(error)})
+
+
+def assert_true(value):
+    assert value
+
+
+def event(event_id,t,tid=7,clr=1,pid=3,**payload):
+    return {'provider':module.RUNTIME,'eventId':event_id,'processId':pid,'threadId':tid,'timeMsec':t,
+            'payload':{'ClrInstanceID':clr,**({'WaitSource':0,'AssociatedObjectID':99} if event_id==301 else {}),**payload}}
+
+
+test('unique_wait_pair_stop_has_no_object',lambda:assert_true(len(module.wait_pairs([event(301,1),event(302,2)],3)[0])==1))
+test('independent_native_tids',lambda:assert_true(len(module.wait_pairs([event(301,1),event(301,1.5,tid=8),event(302,2),event(302,3,tid=8)],3)[0])==2))
+test('nested_poison_persists_across_future_starts',lambda:assert_true(not module.wait_pairs([event(301,1),event(301,2),event(302,3),event(301,4),event(302,5)],3)[0]))
+test('orphan_stop_poison_persists',lambda:assert_true(not module.wait_pairs([event(302,1),event(301,2),event(302,3)],3)[0]))
+test('clr_identity_mismatch_no_pair',lambda:assert_true(not module.wait_pairs([event(301,1),event(302,2,clr=2)],3)[0]))
+test('foreign_process_no_pair',lambda:assert_true(not module.wait_pairs([event(301,1,pid=4),event(302,2,pid=4)],3)[0]))
+test('missing_clr_identity_no_pair',lambda:assert_true(not module.wait_pairs([event(301,1,clr=None),event(302,2,clr=None)],3)[0]))
+test('unknown_waitsource_retained_no_monitor_inference',lambda:assert_true(module.wait_pairs([event(301,1,WaitSource=55),event(302,2)],3)[0][0]['waitSource']==55))
+test('out_of_order_wait_clock_poison',lambda:assert_true(not module.wait_pairs([event(301,3),event(302,2)],3)[0]))
+test('unterminated_start_retained',lambda:assert_true(module.wait_pairs([event(301,1)],3)[1][0]['reason']=='start_without_stop'))
+
+span={'startTicks':100,'endTicks':900,'frequency':1_000_000_000,'processId':3}
+anchor1={'id':'start','before':0,'after':10,'utcTicks':module.EPOCH_TICKS,'frequency':1_000_000_000,'pid':3}
+anchor2={'id':'end','before':1000,'after':1010,'utcTicks':module.EPOCH_TICKS+10,'frequency':1_000_000_000,'pid':3}
+test('strict_clock_brackets_support',lambda:assert_true(module.constant_offset(span,[anchor1,anchor2])[1] == (Fraction(-10),Fraction(100))))
+test('missing_following_anchor_unassigned',lambda:assert_true(module.constant_offset(span,[anchor1])[1] is None))
+bad={**anchor1,'id':'step','before':500,'after':510,'utcTicks':module.EPOCH_TICKS+1000}
+test('incompatible_interior_anchor_not_filtered',lambda:assert_true(module.constant_offset(span,[anchor1,bad,anchor2])[0]['status']=='unsupported_constant_offset_native_unassigned'))
+test('foreign_pid_anchor_never_calibrates',lambda:assert_true(module.constant_offset(span,[{**anchor1,'pid':8},{**anchor2,'pid':8}])[1] is None))
+test('utc_100ns_quantization_included',lambda:assert_true(module.constant_offset(span,[anchor1,anchor2])[0]['utc_quantization_ns']==100))
+
+precision={1:{'entry_unit_ns':1000,'duration_unit_ns':1000}}
+def native(outcome='-1 ETIMEDOUT (Connection timed out)',op='FUTEX_WAIT_PRIVATE',retval=-1,name='futex',status='completed'):
+    return {'name':name,'pid_or_tid':3,'entry_line':1,'raw_entry':f'{name}(0x1234, {op}, 0, NULL) = {outcome} <0.080000>',
+            'return_text':outcome,'return_value':retval,'status':status,'printed_entry_epoch_ns':1_000_000_000,'observed_syscall_wall_ns':80_000_000}
+test('controlled_timeout_is_observed_interval_only',lambda:assert_true(module.classify_native(native(),precision)[1] is not None))
+test('eagain_long_duration_not_blocked_interval',lambda:assert_true(module.classify_native(native('-1 EAGAIN (Resource temporarily unavailable)'),precision)[1] is None))
+test('eintr_not_blocked_interval',lambda:assert_true(module.classify_native(native('-1 EINTR (Interrupted system call)'),precision)[1] is None))
+test('erestartsys_not_blocked_interval',lambda:assert_true(module.classify_native(native('? ERESTARTSYS (To be restarted)',retval=None),precision)[1] is None))
+test('wake_not_wait_duration',lambda:assert_true(module.classify_native(native('1',op='FUTEX_WAKE_PRIVATE',retval=1),precision)[1] is None))
+test('numeric_wait_private_operation_mask',lambda:assert_true(module.classify_native(native(op='128'),precision)[1] is not None))
+test('unknown_operation_unassigned',lambda:assert_true(module.classify_native(native(op='999'),precision)[1] is None))
+test('pending_unfinished_unassigned',lambda:assert_true(module.classify_native(native(status='incomplete_at_end'),precision)[1] is None))
+test('restart_wrapper_not_original_wait',lambda:assert_true(module.classify_native(native('0',retval=0,name='restart_syscall'),precision)[1] is None))
+test('sleep_not_futex_wait',lambda:assert_true(module.classify_native(native('0',retval=0,name='clock_nanosleep'),precision)[1] is None))
+test('missing_print_precision_unassigned',lambda:assert_true(module.classify_native(native(),{})[1] is None))
+test('microsecond_precision_budget_preserved',lambda:assert_true(module.classify_native(native(),precision)[1] == (999999000,1000001000,1079998000,1080002000)))
+
+test('overlapping_intervals_union_not_sum',lambda:assert_true(module.union_overlap((0,0),(100,100),[(0,0,80,80),(20,20,100,100)],Fraction(100))['possible_observed_union_ns']==100))
+test('parallel_worker_intervals_physically_capped',lambda:assert_true(module.union_overlap((0,20),(120,140),[(-100,-100,1000,1000)]*5,Fraction(120))['possible_observed_union_ns']==120))
+test('uncertain_interval_guaranteed_subset_possible',lambda:assert_true(module.union_overlap((0,10),(90,100),[(20,30,50,60)],Fraction(90))['guaranteed_observed_union_ns']==20))
+test('disjoint_intervals_zero_observed_overlap',lambda:assert_true(module.union_overlap((0,0),(10,10),[(20,20,30,30)],Fraction(10))['possible_observed_union_ns']==0))
+
+parsed={'events':[{'name':'clone','entry_line':3,'return_value':8,'pid_or_tid':3,'raw_entry':'clone(flags=CLONE_VM|CLONE_THREAD)'}],
+        'lifecycle':[{'pid_or_tid':8,'line':9,'raw':'+++ exited with 0 +++'},{'pid_or_tid':3,'line':10,'raw':'+++ exited with 0 +++'}]}
+member,info=module.native_thread_scope(parsed,3,[])
+test('owned_clone_thread_lineage',lambda:assert_true(member({'pid_or_tid':8,'entry_line':5})))
+test('foreign_collector_tid_excluded',lambda:assert_true(not member({'pid_or_tid':77,'entry_line':5})))
+test('thread_after_recorded_exit_unassigned',lambda:assert_true(not member({'pid_or_tid':8,'entry_line':11})))
+member2,info2=module.native_thread_scope(parsed,3,[{'threads':[{'tid':8,'starttime_ticks':1}]},{'threads':[{'tid':8,'starttime_ticks':2}]}])
+test('native_tid_birth_reuse_unassigned',lambda:assert_true(not member2({'pid_or_tid':8,'entry_line':5})))
+
+def reuse_wait_pair():
+    pair=module.wait_pairs([event(301,1),event(302,2)],3)[0]
+    errors=[]
+    assigned,by_tid=module.attribute_wait_pairs(pair,{7},errors)
+    assert not assigned and not by_tid and len(errors)==1
+    assert pair[0]['identity_attribution_status']=='native_tid_generation_ambiguous_temporal_attribution_excluded'
+test('reused_tid_wait_pair_retained_but_no_temporal_assignment',reuse_wait_pair)
+
+def foreign_span_rejected():
+    try:
+        module.validate_span_identity([{'processId':4,'osThreadId':7,'frequency':1000}],3)
+    except ValueError:
+        return
+    raise AssertionError('Foreign matching marker/sidecar PID must not calibrate target')
+test('matching_foreign_marker_sidecar_pid_rejected',foreign_span_rejected)
+test('valid_span_pid_native_tid_accepted',lambda:module.validate_span_identity([{'processId':3,'osThreadId':7,'frequency':1000}],3))
+
+test('malformed_stop_missing_clr_cannot_extend_active_pair',lambda:assert_true(not module.wait_pairs([
+    event(301,1),event(302,2,clr=None),event(302,3)],3)[0]))
+test('malformed_stop_clr_wildcard_refuses_future_compatible_clr_keys',lambda:assert_true(not module.wait_pairs([
+    event(301,1),event(302,2,clr=None),event(301,3,clr=2),event(302,4,clr=2)],3)[0]))
+test('foreign_pid_identity_error_does_not_poison_unrelated_target_key',lambda:assert_true(len(module.wait_pairs([
+    event(301,1),event(302,2,pid=99),event(302,3)],3)[0])==1))
+
+path=BASE/'.local/wait-analyzer-fixtures04.json'
+report={'status':'passed' if all(r['status']=='passed' for r in results) else 'failed','checks':len(results),'results':results}
+with path.open('x',encoding='utf-8') as stream: json.dump(report,stream,indent=2)
+print(json.dumps({'status':report['status'],'checks':len(results),'output':str(path),'failures':[r for r in results if r['status']=='failed']}))
+raise SystemExit(0 if report['status']=='passed' else 1)

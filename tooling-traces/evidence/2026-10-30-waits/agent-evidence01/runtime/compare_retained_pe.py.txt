@@ -1,0 +1,27 @@
+import json,struct,hashlib
+from pathlib import Path
+root=Path(__file__).parent
+items=json.loads((root/'retained-pe-inspection-attempt03.json').read_text())['cases']
+def sha(b):return hashlib.sha256(b).hexdigest()
+def streams(path):
+ b=Path(path).read_bytes();pe=struct.unpack_from('<I',b,0x3c)[0];opt=pe+24;sizeopt=struct.unpack_from('<H',b,pe+20)[0];nsec=struct.unpack_from('<H',b,pe+6)[0];dd=opt+(112 if struct.unpack_from('<H',b,opt)[0]==0x20b else 96)
+ sections=[struct.unpack_from('<8sIIII',b,opt+sizeopt+40*i) for i in range(nsec)]
+ def offset(rva):
+  for _,size,va,rawsize,raw in sections:
+   if va<=rva<va+max(size,rawsize):return raw+rva-va
+  raise ValueError(rva)
+ clr=offset(struct.unpack_from('<I',b,dd+14*8)[0]);mdrva,mdsize=struct.unpack_from('<II',b,clr+8);resrva,ressize=struct.unpack_from('<II',b,clr+24);md=b[offset(mdrva):offset(mdrva)+mdsize];versionlen=struct.unpack_from('<I',md,12)[0];pos=(16+versionlen+3)&~3;_,n=struct.unpack_from('<HH',md,pos);pos+=4;ss={}
+ for _ in range(n):
+  start,size=struct.unpack_from('<II',md,pos);pos+=8;end=md.index(0,pos);name=md[pos:end].decode();pos=(end+4)&~3;ss[name]=md[start:start+size]
+ return ss,b[offset(resrva):offset(resrva)+ressize] if resrva else b''
+comparisons=[]
+for a,b in zip(items[:5],items[5:]):
+ sa,ra=streams(a['path']);sb,rb=streams(b['path']);docs=[]
+ for x,y in zip(a['pdb']['documents'],b['pdb']['documents']):
+  norm=lambda p:p.replace('tooling-variance-win01-benchmark02','<ATTEMPT>').replace('tooling-trace-final-win01','<ATTEMPT>')
+  docs.append({'prior':x['name'],'final':y['name'],'normalized_name_equal':norm(x['name'])==norm(y['name']),'source_hash_equal':x['hash']==y['hash'],'prior_source_hash':x['hash'],'final_source_hash':y['hash']})
+ comparisons.append({'assembly':a['assembly_name'],'prior_sha256':a['sha256'],'final_sha256':b['sha256'],'method_count':len(a['methods']),'all_method_records_equal':a['methods']==b['methods'],'metadata_streams':{k:{'equal':sa[k]==sb[k],'prior_sha256':sha(sa[k]),'final_sha256':sha(sb[k]),'prior_length':len(sa[k]),'final_length':len(sb[k])} for k in sa},'managed_resources_equal':ra==rb,'prior_resources_sha256':sha(ra),'final_resources_sha256':sha(rb),'pdb_documents':docs,'limits':['Identical IL records do not imply identical complete binary or dynamic runtime behavior.','Debug/source-root/informational-version differences are observed facts, not demonstrated causes of timing variance.','Path normalization here is comparison-only; no binaries/PDBs or build policy modified.']})
+o=root/'retained-pe-comparison01.json'
+if o.exists():raise FileExistsError(o)
+o.write_text(json.dumps(comparisons,indent=2)+'\n')
+for c in comparisons:print(c['assembly'],'methodsequal',c['all_method_records_equal'],'streams',{k:v['equal'] for k,v in c['metadata_streams'].items()},'resourcesequal',c['managed_resources_equal'],'all_normalized_paths',all(d['normalized_name_equal'] for d in c['pdb_documents']))

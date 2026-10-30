@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "status": "completed",
+  "canonical": false,
+  "role": "offline_same_execution_wait_analysis_not_acceptance",
+  "limits": [
+    "Diagnostic execution is perturbed; no benchmark, production or provider qualification.",
+    "WaitHandle start/stop is elapsed runtime observation, not blocked time, CPU time or a proven managed-lock owner.",
+    "Futex intervals are tracer-observed syscall wall intervals, including ptrace/scheduling; EAGAIN/EINTR/restarts are separate outcomes.",
+    "Native epoch joins assume no hidden wall-clock excursion between retained anchors and a constant offset on the selected bracket.",
+    "Agreement at anchors cannot prove absence of an intervening clock step; incompatible offsets remain unassigned.",
+    "Printed strace timestamps/durations carry plus-or-minus one printed unit; integer nanoseconds do not imply nanosecond accuracy.",
+    "Native kernel event loss is unknown even after normal exit; observed omissions and parser failures remain explicit.",
+    "Overlap unions are physically capped and nonexclusive; GC, managed waits and native calls may overlap each other.",
+    "Missing/unpaired GC or wait events are not proof that no GC/wait occurred.",
+    "Proc counters are sampled partial lifetime only; no interpolation/prorating, exact CSwitch or physical-disk latency claim.",
+    "CLI without markers has no precise EventPipe-to-native temporal join; only lifetime counts/distributions and wait pairs.",
+    "Source snapshots/hashes are provenance, not immutable executing-code attestation."
+  ],
+  "query_role": "cli_lifetime_only_no_precise_eventpipe_native_temporal_join",
+  "target_pid": 2393,
+  "rows": 0,
+  "marker_events": 0,
+  "sidecar_spans": 0,
+  "input_runtime_raw_events": 56014,
+  "wait_starts": 11,
+  "wait_stops": 10,
+  "paired_waits": 10,
+  "attributable_wait_pairs": 10,
+  "wait_pairing_errors": 1,
+  "permanently_poisoned_wait_keys": 0,
+  "native_outcomes": [
+    {
+      "category": "sleep_or_yield_separate",
+      "outcome": "returned_nonnegative_observed_elapsed",
+      "count": 3352,
+      "observed_syscall_wall_distribution": {
+        "count": 3352,
+        "sum_observed_elapsed_ns": 14085602000,
+        "minimum_ns": 19000,
+        "maximum_ns": 103688000,
+        "p50_ns": 1218000,
+        "p95_ns": 2070000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "condition_mismatch_not_blocked_duration",
+      "count": 1605,
+      "observed_syscall_wall_distribution": {
+        "count": 1605,
+        "sum_observed_elapsed_ns": 920902000,
+        "minimum_ns": 18000,
+        "maximum_ns": 15160000,
+        "p50_ns": 441000,
+        "p95_ns": 1259000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "incomplete_or_duration_unavailable",
+      "count": 28,
+      "observed_syscall_wall_distribution": {
+        "count": 0,
+        "sum_observed_elapsed_ns": 0,
+        "minimum_ns": null,
+        "maximum_ns": null,
+        "p50_ns": null,
+        "p95_ns": null,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "restart_pending_not_blocked_duration",
+      "count": 238,
+      "observed_syscall_wall_distribution": {
+        "count": 238,
+        "sum_observed_elapsed_ns": 44606000,
+        "minimum_ns": 22000,
+        "maximum_ns": 3578000,
+        "p50_ns": 127000,
+        "p95_ns": 638000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "returned_nonnegative_observed_elapsed",
+      "count": 857,
+      "observed_syscall_wall_distribution": {
+        "count": 857,
+        "sum_observed_elapsed_ns": 43534177000,
+        "minimum_ns": 454000,
+        "maximum_ns": 8779162000,
+        "p50_ns": 1252000,
+        "p95_ns": 50939000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "returned_timeout_observed_elapsed",
+      "count": 139,
+      "observed_syscall_wall_distribution": {
+        "count": 139,
+        "sum_observed_elapsed_ns": 22734617000,
+        "minimum_ns": 97616000,
+        "maximum_ns": 1999722000,
+        "p50_ns": 99584000,
+        "p95_ns": 499743000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wake_or_requeue",
+      "outcome": "returned_nonnegative_observed_elapsed",
+      "count": 3815,
+      "observed_syscall_wall_distribution": {
+        "count": 3815,
+        "sum_observed_elapsed_ns": 2189376000,
+        "minimum_ns": 17000,
+        "maximum_ns": 13302000,
+        "p50_ns": 448000,
+        "p95_ns": 1327000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    }
+  ],
+  "native_eligible_observed_wait_intervals": 996,
+  "native_clock_models": {},
+  "eventpipe_reported_loss": 0,
+  "etlx_reported_loss": 0,
+  "runtime_payload_errors": 0,
+  "gc_pairing_errors": 5,
+  "gc_correlation_scope": "observed_paired_episodes_only_no_absence_proof",
+  "native_kernel_event_loss_count": null,
+  "native_incomplete_events": 0,
+  "native_unparsed_lines": 0,
+  "native_utf8_replacements": 0,
+  "native_thread_scope": {
+    "thread_ids_from_lifecycle": [
+      2393,
+      2405,
+      2411,
+      2413,
+      2414,
+      2416,
+      2417,
+      2418,
+      2419,
+      2420,
+      2421,
+      2422,
+      2423,
+      2424,
+      2425,
+      2426,
+      2427,
+      2428,
+      2429,
+      2431,
+      2432,
+      2433,
+      2434,
+      2435,
+      2436,
+      2438,
+      2439,
+      2440,
+      2463,
+      2464,
+      2465,
+      2496,
+      2498,
+      2502
+    ],
+    "ambiguous_or_reused_tid_numbers": [],
+    "proc_observed_births": {
+      "2393": [
+        46558
+      ],
+      "2405": [
+        46597
+      ],
+      "2411": [
+        46600
+      ],
+      "2413": [
+        46610
+      ],
+      "2414": [
+        46611
+      ],
+      "2416": [
+        46619
+      ],
+      "2417": [
+        46621
+      ],
+      "2418": [
+        46623
+      ],
+      "2419": [
+        46625
+      ],
+      "2420": [
+        46627
+      ],
+      "2421": [
+        46629
+      ],
+      "2422": [
+        46631
+      ],
+      "2423": [
+        46632
+      ],
+      "2424": [
+        46634
+      ],
+      "2425": [
+        46636
+      ],
+      "2426": [
+        46637
+      ],
+      "2427": [
+        46639
+      ],
+      "2428": [
+        46641
+      ],
+      "2429": [
+        46643
+      ],
+      "2431": [
+        46645
+      ],
+      "2432": [
+        46646
+      ],
+      "2433": [
+        46648
+      ],
+      "2434": [
+        46650
+      ],
+      "2435": [
+        46652
+      ],
+      "2436": [
+        46654
+      ],
+      "2438": [
+        46679
+      ],
+      "2439": [
+        46681
+      ],
+      "2440": [
+        46691
+      ],
+      "2463": [
+        47213
+      ],
+      "2464": [
+        47216
+      ],
+      "2465": [
+        47218
+      ],
+      "2496": [
+        47979
+      ],
+      "2498": [
+        47993
+      ],
+      "2502": [
+        48065
+      ]
+    },
+    "scope": "owned main plus successful CLONE_THREAD lineage; unknown/reused TIDs unassigned; proc observations partial"
+  },
+  "proc_scope": {
+    "samples": 1594,
+    "status": "completed_exit_observed",
+    "counter_attribution": "not assigned to phases; cumulative samples and endpoint windows retained in source",
+    "no_linear_prorating": true
+  },
+  "source_inputs_sha256": {
+    "capture.json": "98b6b281e3571bcc0b1d94fbad2b13bf6fd0a33fc1de0c587f036cfaedea3e69",
+    "runtime.nettrace": "345848f0e4f1adbb4eee5a31f63dd72209c65772e3569d38b755266d86ead76c",
+    "analysis/events.jsonl": "90d73e8af5ba1f234bf003c6ec76dae75e56af0bca4c8310f048871168c242fe",
+    "analysis/summary.json": "9b76fb28503b70a65832833dee566199c38edb952760dee6ac9e88ad51b5f3ef",
+    "native.raw.log": "6553f4fe7aba8934cf83e87b205ca649b21ebe1ddbb8ede715ddb64a64684eab",
+    "parsed.json": "e3560f437315cfa691402078833d79f1083fff5ceb710284942792cb95529c96",
+    "os.jsonl": "9437b7b18302cad6274ee8e374e549155fe222b7ba74a548bc0d8f69fc895e6b",
+    "source-snapshots/tooling_os_observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203",
+    "source-snapshots/trace_tooling_native.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff"
+  },
+  "analyzer_source_sha256": "2ba6d3918de520b19e22d85c5ca09b4dec2db05b6b2ba54dd0b235e5b2c2af94",
+  "quality": "observed_with_explicit_partial_dimensions",
+  "output_sha256": {
+    "native-waits.jsonl": "f226b1bdf88801e8d2e4f8b6c48046059c259ec71a3e27b4a6e5ad5f993047cf",
+    "rows.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wait-pairing-errors.jsonl": "a78cfaf63dff8d51dad721bd66389b2c1bf093e9d843dad4815b63183985a632",
+    "wait-pairs.jsonl": "9b03b65b48013c584d2cd98651c3b2e678ce85475a7e4ff56fd2048e5ef1427c"
+  }
+}

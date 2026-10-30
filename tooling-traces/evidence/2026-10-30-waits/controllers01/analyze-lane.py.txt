@@ -1,0 +1,10 @@
+from pathlib import Path
+import subprocess,json,sys,hashlib,time
+root=Path(__file__).resolve().parents[3]/'Cehpalon-Engine-Samples';lane=root/'.local/tooling-wait-combined-linux02';m=json.loads((lane/'manifest.json').read_text(encoding='utf-8'));assert m['status']=='completed' and len(m['cases'])==25
+records=[]
+for row in m['cases']:
+ folder=lane/row['name'];argv=[sys.executable,str(root/'tools/analyze_tooling_waits.py'),'--folder',str(folder),'--output',str(folder/'wait-analysis')]
+ p=subprocess.run(argv,cwd=root,capture_output=True);(folder/'wait-analyze.stdout.txt').write_bytes(p.stdout);(folder/'wait-analyze.stderr.txt').write_bytes(p.stderr)
+ result=json.loads((folder/'wait-analysis/summary.json').read_text(encoding='utf-8'));records.append({'name':row['name'],'exit':p.returncode,'summary':result});assert p.returncode==0,(row['name'],p.stderr.decode())
+ print('analyzed',row['name'],result.get('rows'),flush=True)
+(lane/'wait-analysis-manifest.json').write_text(json.dumps({'status':'completed','cases':records,'analyzer_sha256':hashlib.sha256((root/'tools/analyze_tooling_waits.py').read_bytes()).hexdigest()},indent=2)+'\n',encoding='utf-8',newline='\n')

@@ -1,0 +1,23 @@
+"""Import-only proof for trace_tooling both as launcher and imported module."""
+import ast
+import json
+from pathlib import Path
+import sys
+import types
+
+root=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(root/'tools'))
+path=root/'tools/trace_tooling.py'
+tree=ast.parse(path.read_bytes(),filename=str(path))
+assert isinstance(tree.body[-1],ast.If) and '__name__' in ast.dump(tree.body[-1].test)
+# Keep every original function/method/code location; suppress only the CLI call.
+tree.body.pop()
+launcher=types.ModuleType('__main__');launcher.__file__=str(path)
+exec(compile(tree,str(path),'exec'),launcher.__dict__)
+sys.modules['__main__']=launcher
+import tooling_wait_capture as capture
+state=capture._source_state()
+assert '__main__' in state and 'trace_tooling' in state
+assert len(state['__main__']['loaded_function_code_sha256'])==len(state['trace_tooling']['loaded_function_code_sha256'])
+print(json.dumps({'status':'passed_import_only_no_capture','python':sys.version,'modules':list(state),
+                  'functions':{k:len(v['loaded_function_code_sha256']) for k,v in state.items()}}))

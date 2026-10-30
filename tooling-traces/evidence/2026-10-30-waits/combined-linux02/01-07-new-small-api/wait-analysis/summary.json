@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "status": "completed",
+  "canonical": false,
+  "role": "offline_same_execution_wait_analysis_not_acceptance",
+  "limits": [
+    "Diagnostic execution is perturbed; no benchmark, production or provider qualification.",
+    "WaitHandle start/stop is elapsed runtime observation, not blocked time, CPU time or a proven managed-lock owner.",
+    "Futex intervals are tracer-observed syscall wall intervals, including ptrace/scheduling; EAGAIN/EINTR/restarts are separate outcomes.",
+    "Native epoch joins assume no hidden wall-clock excursion between retained anchors and a constant offset on the selected bracket.",
+    "Agreement at anchors cannot prove absence of an intervening clock step; incompatible offsets remain unassigned.",
+    "Printed strace timestamps/durations carry plus-or-minus one printed unit; integer nanoseconds do not imply nanosecond accuracy.",
+    "Native kernel event loss is unknown even after normal exit; observed omissions and parser failures remain explicit.",
+    "Overlap unions are physically capped and nonexclusive; GC, managed waits and native calls may overlap each other.",
+    "Missing/unpaired GC or wait events are not proof that no GC/wait occurred.",
+    "Proc counters are sampled partial lifetime only; no interpolation/prorating, exact CSwitch or physical-disk latency claim.",
+    "CLI without markers has no precise EventPipe-to-native temporal join; only lifetime counts/distributions and wait pairs.",
+    "Source snapshots/hashes are provenance, not immutable executing-code attestation."
+  ],
+  "query_role": "cli_lifetime_only_no_precise_eventpipe_native_temporal_join",
+  "target_pid": 3491,
+  "rows": 0,
+  "marker_events": 0,
+  "sidecar_spans": 0,
+  "input_runtime_raw_events": 10234,
+  "wait_starts": 0,
+  "wait_stops": 0,
+  "paired_waits": 0,
+  "attributable_wait_pairs": 0,
+  "wait_pairing_errors": 0,
+  "permanently_poisoned_wait_keys": 0,
+  "native_outcomes": [
+    {
+      "category": "sleep_or_yield_separate",
+      "outcome": "returned_nonnegative_observed_elapsed",
+      "count": 1124,
+      "observed_syscall_wall_distribution": {
+        "count": 1124,
+        "sum_observed_elapsed_ns": 4713260000,
+        "minimum_ns": 20000,
+        "maximum_ns": 101524000,
+        "p50_ns": 1150000,
+        "p95_ns": 1929000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "condition_mismatch_not_blocked_duration",
+      "count": 437,
+      "observed_syscall_wall_distribution": {
+        "count": 437,
+        "sum_observed_elapsed_ns": 235217000,
+        "minimum_ns": 22000,
+        "maximum_ns": 2082000,
+        "p50_ns": 463000,
+        "p95_ns": 1256000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "incomplete_or_duration_unavailable",
+      "count": 3,
+      "observed_syscall_wall_distribution": {
+        "count": 0,
+        "sum_observed_elapsed_ns": 0,
+        "minimum_ns": null,
+        "maximum_ns": null,
+        "p50_ns": null,
+        "p95_ns": null,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "restart_pending_not_blocked_duration",
+      "count": 27,
+      "observed_syscall_wall_distribution": {
+        "count": 27,
+        "sum_observed_elapsed_ns": 3703000,
+        "minimum_ns": 24000,
+        "maximum_ns": 261000,
+        "p50_ns": 133000,
+        "p95_ns": 243000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "returned_nonnegative_observed_elapsed",
+      "count": 332,
+      "observed_syscall_wall_distribution": {
+        "count": 332,
+        "sum_observed_elapsed_ns": 3434043000,
+        "minimum_ns": 454000,
+        "maximum_ns": 2048309000,
+        "p50_ns": 733000,
+        "p95_ns": 10940000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wait_capable",
+      "outcome": "returned_timeout_observed_elapsed",
+      "count": 34,
+      "observed_syscall_wall_distribution": {
+        "count": 34,
+        "sum_observed_elapsed_ns": 5286207000,
+        "minimum_ns": 98382000,
+        "maximum_ns": 2000246000,
+        "p50_ns": 99629000,
+        "p95_ns": 100999000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    },
+    {
+      "category": "wake_or_requeue",
+      "outcome": "returned_nonnegative_observed_elapsed",
+      "count": 1188,
+      "observed_syscall_wall_distribution": {
+        "count": 1188,
+        "sum_observed_elapsed_ns": 636241000,
+        "minimum_ns": 18000,
+        "maximum_ns": 3081000,
+        "p50_ns": 468000,
+        "p95_ns": 1253000,
+        "scope": "observed syscall wall only; parallel sums may exceed process wall; never blocked or CPU duration"
+      }
+    }
+  ],
+  "native_eligible_observed_wait_intervals": 366,
+  "native_clock_models": {},
+  "eventpipe_reported_loss": 0,
+  "etlx_reported_loss": 0,
+  "runtime_payload_errors": 0,
+  "gc_pairing_errors": 0,
+  "gc_correlation_scope": "observed_paired_episodes_only_no_absence_proof",
+  "native_kernel_event_loss_count": null,
+  "native_incomplete_events": 0,
+  "native_unparsed_lines": 0,
+  "native_utf8_replacements": 0,
+  "native_thread_scope": {
+    "thread_ids_from_lifecycle": [
+      3491,
+      3502,
+      3508,
+      3511,
+      3512,
+      3513,
+      3514,
+      3515,
+      3535
+    ],
+    "ambiguous_or_reused_tid_numbers": [],
+    "proc_observed_births": {
+      "3491": [
+        61342
+      ],
+      "3502": [
+        61380
+      ],
+      "3508": [
+        61385
+      ],
+      "3511": [
+        61391
+      ],
+      "3512": [
+        61393
+      ],
+      "3513": [
+        61404
+      ],
+      "3514": [
+        61406
+      ],
+      "3515": [
+        61414
+      ],
+      "3535": [
+        61854
+      ]
+    },
+    "scope": "owned main plus successful CLONE_THREAD lineage; unknown/reused TIDs unassigned; proc observations partial"
+  },
+  "proc_scope": {
+    "samples": 528,
+    "status": "completed_exit_observed",
+    "counter_attribution": "not assigned to phases; cumulative samples and endpoint windows retained in source",
+    "no_linear_prorating": true
+  },
+  "source_inputs_sha256": {
+    "capture.json": "418cc0945c7ce3c0f34e0548d0a1a1608d8024c4790ce553e7db9f679f7ce9b2",
+    "runtime.nettrace": "4013d4ef885ecfc50b25dcc58cc0c1f5fe588e5d3727733b1895a588c7cf60bf",
+    "analysis/events.jsonl": "c494f86fef8a24e79c3eb58c0e6dd8ec9aaf1c731bb1d833511d2cf659fc426e",
+    "analysis/summary.json": "2d6516a2bcd74895721a2a23f24ab478f9628307abb80c13ac5a8854cb299217",
+    "native.raw.log": "e6afe7e552ffa45029dc94d4aa0da2a8c964790a668be9e48890d7bf19b06fbd",
+    "parsed.json": "faedb015281c0dc64b588681305b1805fc78516c9ed9b960de000979cfca43a8",
+    "os.jsonl": "49c7ac7cf086a575552edf89b5cdc970b9ffa0a918b81ffe10030f18c93a2fa9",
+    "source-snapshots/tooling_os_observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203",
+    "source-snapshots/trace_tooling_native.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff"
+  },
+  "analyzer_source_sha256": "2ba6d3918de520b19e22d85c5ca09b4dec2db05b6b2ba54dd0b235e5b2c2af94",
+  "quality": "observed_under_declared_clock_assumptions_not_qualified",
+  "output_sha256": {
+    "native-waits.jsonl": "3254714c4d3b97faac0bd633232b9b99e3fcd4b16dc9ed29b70983ad276464f6",
+    "rows.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wait-pairing-errors.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wait-pairs.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

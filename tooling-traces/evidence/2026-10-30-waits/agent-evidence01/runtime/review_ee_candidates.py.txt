@@ -1,0 +1,24 @@
+"""Unvalidated candidate pairing study only; preserves original analyzer outputs."""
+import json,collections
+from pathlib import Path
+base=Path('D:/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-runtime-linux01/generator/analysis')
+summary=json.loads((base/'summary.json').read_text());open_={};pairs=[];errors=[];counts=collections.Counter()
+for line in (base/'events.jsonl').open():
+ e=json.loads(line)
+ if e['provider']!='Microsoft-Windows-DotNETRuntime' or e['name'] not in ('GC/SuspendEEStart','GC/SuspendEEStop','GC/RestartEEStart','GC/RestartEEStop'):continue
+ key=(e['processId'],e['payload']['ClrInstanceID'],e['threadId']);counts[e['name']]+=1
+ if e['name']=='GC/SuspendEEStart':
+  if key in open_:errors.append({'reason':'duplicate_same_tid_start','frames':open_.pop(key)+[e]})
+  else:open_[key]=[e]
+ elif key not in open_:errors.append({'reason':'no_same_tid_start','frame':e})
+ else:
+  frames=open_[key];expected=('GC/SuspendEEStop','GC/RestartEEStart','GC/RestartEEStop')[len(frames)-1]
+  if e['name']!=expected:errors.append({'reason':'phase_order','frames':open_.pop(key)+[e]})
+  else:
+   frames.append(e)
+   if len(frames)==4:pairs.append({'candidate_only_not_accepted':True,'gcRelated':frames[0]['payload']['Reason'] in (1,6),'frames':open_.pop(key)})
+for frames in open_.values():errors.append({'reason':'unfinished','frames':frames})
+o=Path(__file__).parent/'ee-same-tid-candidate-study01.json'
+if o.exists():raise FileExistsError(o)
+o.write_text(json.dumps({'status':'hypothesis_only_no_promotion','exact_runtime_source_available':False,'original_pairing_status':summary['correlationStatus'],'counts':dict(counts),'candidate_pairs':pairs,'candidate_errors':errors,'limits':['Per-TID pairing is structurally supported by retained headers but is not declared the exact runtime contract.','Exact installed runtime source commit was not retrievable; current official main shows suspension-start emitted before acquiring ThreadStore lock, which can explain overlapping starts but is not binary-specific proof.','No original report or analyzer changes; do not replace conservative uncertainty with complete-pause claims.']},indent=2)+'\n')
+print('Candidate total',len(pairs),'GC',sum(p['gcRelated'] for p in pairs),'errors',len(errors),'original GC',summary['gcRelatedEnvelopes'])

@@ -1,0 +1,42 @@
+param([Parameter(Mandatory)][string]$Output)
+$ErrorActionPreference='Stop'
+if(Test-Path -LiteralPath $Output){throw 'Output already exists'}
+function Sha([byte[]]$Bytes){[Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()}
+function Token($Handle){$method=[System.Reflection.Metadata.Ecma335.MetadataTokens].GetMethod('GetToken',[type[]]@([System.Reflection.Metadata.EntityHandle]));$method.Invoke($null,@([System.Reflection.Metadata.EntityHandle]$Handle))}
+function Inspect([string]$Path){
+ $bytes=[IO.File]::ReadAllBytes($Path)
+ $stream=[IO.MemoryStream]::new($bytes,$false)
+ $pe=[System.Reflection.PortableExecutable.PEReader]::new($stream)
+ try {
+  $reader=[System.Reflection.Metadata.PEReaderExtensions]::GetMetadataReader($pe)
+  $module=$reader.GetModuleDefinition()
+  $methods=@(foreach($handle in $reader.MethodDefinitions){
+   $method=$reader.GetMethodDefinition($handle)
+   $body=$null
+   if($method.RelativeVirtualAddress -ne 0){
+    $block=[System.Reflection.Metadata.PEReaderExtensions]::GetMethodBody($pe,$method.RelativeVirtualAddress)
+    $il=$block.GetILBytes()
+    $body=[ordered]@{il_sha256=(Sha $il);il_base64=[Convert]::ToBase64String($il);max_stack=$block.MaxStack;local_variables_initialized=$block.LocalVariablesInitialized;local_signature_token=(Token $block.LocalSignature);exception_regions=@(foreach($region in $block.ExceptionRegions){[ordered]@{kind=$region.Kind.ToString();try_offset=$region.TryOffset;try_length=$region.TryLength;handler_offset=$region.HandlerOffset;handler_length=$region.HandlerLength;filter_offset=$region.FilterOffset;catch_type_token=(Token $region.CatchType)}})}
+   }
+   [ordered]@{token=(Token $handle);name=$reader.GetString($method.Name);attributes=[int]$method.Attributes;impl_attributes=[int]$method.ImplAttributes;signature=[Convert]::ToHexString($reader.GetBlobBytes($method.Signature));body=$body}
+  })
+  $debug=@(foreach($entry in $pe.ReadDebugDirectory()){
+   $item=[ordered]@{type=$entry.Type.ToString();stamp=$entry.Stamp;version="$($entry.MajorVersion).$($entry.MinorVersion)";size=$entry.DataSize}
+   if($entry.Type -eq [System.Reflection.PortableExecutable.DebugDirectoryEntryType]::CodeView){$cv=$pe.ReadCodeViewDebugDirectoryData($entry);$item.guid=$cv.Guid.ToString();$item.age=$cv.Age;$item.path=$cv.Path}
+   if($entry.Type -eq [System.Reflection.PortableExecutable.DebugDirectoryEntryType]::PdbChecksum){$cs=$pe.ReadPdbChecksumDebugDirectoryData($entry);$item.algorithm=$cs.AlgorithmName;$item.checksum=[Convert]::ToHexString([byte[]]$cs.Checksum)}
+   $item
+  })
+  $pdbPath=[IO.Path]::ChangeExtension($Path,'.pdb');$pdb=$null
+  if(Test-Path -LiteralPath $pdbPath){
+   $pdbStream=[IO.File]::OpenRead($pdbPath);$provider=[System.Reflection.Metadata.MetadataReaderProvider]::FromPortablePdbStream($pdbStream)
+   try{$pdbReader=$provider.GetMetadataReader();$pdb=[ordered]@{path=$pdbPath;sha256=(Sha ([IO.File]::ReadAllBytes($pdbPath)));documents=@(foreach($handle in $pdbReader.Documents){$doc=$pdbReader.GetDocument($handle);[ordered]@{name=$pdbReader.GetString($doc.Name);hash_algorithm=$pdbReader.GetGuid($doc.HashAlgorithm).ToString();hash=[Convert]::ToHexString($pdbReader.GetBlobBytes($doc.Hash));language=$pdbReader.GetGuid($doc.Language).ToString()}})}}finally{$provider.Dispose();$pdbStream.Dispose()}
+  }
+  $assembly=$reader.GetAssemblyDefinition()
+  [ordered]@{path=$Path;sha256=(Sha $bytes);length=$bytes.Length;pe_timestamp=$pe.PEHeaders.CoffHeader.TimeDateStamp;machine=$pe.PEHeaders.CoffHeader.Machine.ToString();coff_characteristics=$pe.PEHeaders.CoffHeader.Characteristics.ToString();cor_flags=$pe.PEHeaders.CorHeader.Flags.ToString();mvid=$reader.GetGuid($module.Mvid).ToString();module_name=$reader.GetString($module.Name);assembly_name=$reader.GetString($assembly.Name);assembly_version=$assembly.Version.ToString();debug=$debug;metadata_sha256=(Sha ([byte[]]$pe.GetMetadata().GetContent()));method_count=$methods.Count;methods=$methods;pdb=$pdb}
+ }finally{$pe.Dispose();$stream.Dispose()}
+}
+$root='D:/Cephalon/Cehpalon-Engine-Samples/.local'
+$paths=@('engine-artifacts/bin/Tooling.Components/release/Tooling.Components.dll','engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll','consumer-artifacts/bin/Consumer/release/PortableConsumer.BenchmarkSample.dll','engine-artifacts/bin/Tooling.Components/release/Cehpalon.Engine.CodeGeneration.dll','engine-artifacts/bin/Tooling.Components/release/Cehpalon.Engine.Core.dll')
+$result=[ordered]@{scope='offline_metadata_only_no_target_execution';reader_runtime=[Environment]::Version.ToString();cases=@(foreach($lane in @('tooling-variance-win01-benchmark02','tooling-trace-final-win01')){foreach($relative in $paths){Inspect "$root/$lane/$relative"}})}
+$result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $Output -Encoding utf8NoBOM
+Write-Output "Inspected $($result.cases.Count) retained assemblies"

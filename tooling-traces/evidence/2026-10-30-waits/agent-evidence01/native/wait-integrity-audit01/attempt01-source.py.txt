@@ -1,0 +1,318 @@
+"""Independent offline integrity audit. Never launch targets, profilers or builds.
+
+Run only after the root confirms the complete capture has stopped. Source trust
+comes from an explicitly supplied Samples Git revision, not capture self-claims.
+"""
+import argparse
+import ast
+from collections import Counter, defaultdict
+import hashlib
+import json
+import math
+from pathlib import Path
+import re
+import subprocess
+import sys
+import types
+
+ENGINE='55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7'
+SAMPLES='45cb27bfcebd7a3fde1b2465a5be72cd82304440'
+SCENARIOS=('new-portable','new-small-api','validate-portable','validate-small-api',
+           'export-api','export-both','export-graphql','export-off')
+MODULES={'tooling_wait_capture':'tools/tooling_wait_capture.py','trace_tooling':'tools/trace_tooling.py',
+         '__main__':'tools/trace_tooling.py','trace_tooling_native':'tools/trace_tooling_native.py',
+         'tooling_os_observer':'tools/tooling_os_observer.py','benchmark_tooling':'tools/benchmark_tooling.py'}
+STAGES={'execute.setup':330,'generator.run':168,'pe.emit':330,'compiler.wall':330,
+        'journal.persistence':306,'ast.verify':348,'runtime.verify':42,'fixture.setup':60,'fixture.edit':54,'hash':988}
+MARKER_FIELDS=('sequence','stage','startTicks','endTicks','frequency','processId','osThreadId',
+               'caseIndex','size','state','variant','pairSequence','phase','markerBeforeTicks',
+               'anchorBeforeTicks','anchorAfterTicks','utcAnchorTicks')
+PORTABLE={'Consumer.csproj','Program.cs','Catalog.cs','appsettings.json','appsettings.off.json',
+          'global.json','NuGet.Config','engine-source.json','README.md'}
+SMALL=PORTABLE|{'SelfTest.cs','FixtureHost.cs','ContractExport.cs','appsettings.graphql.json','appsettings.graphql-only.json'}
+OPS=['catalog.get','catalog.list','catalog.set']
+
+
+def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
+def records(p):
+    with Path(p).open(encoding='utf-8-sig') as f:
+        for line in f:yield json.loads(line)
+def sha_bytes(b):return hashlib.sha256(b).hexdigest()
+def sha(p):
+    h=hashlib.sha256()
+    with Path(p).open('rb') as f:
+        for chunk in iter(lambda:f.read(1048576),b''):h.update(chunk)
+    return h.hexdigest()
+def save(p,x):Path(p).write_text(json.dumps(x,indent=2,allow_nan=False)+'\n',encoding='utf-8')
+
+
+class Audit:
+    def __init__(self):self.count=0
+    def check(self,ok,message):
+        self.count+=1
+        if not ok:raise AssertionError(message)
+
+
+def constant(value):
+    if isinstance(value,types.CodeType):return {'code':code_info(value)}
+    if isinstance(value,bytes):return {'bytes':value.hex()}
+    if isinstance(value,tuple):return {'tuple':[constant(v) for v in value]}
+    if isinstance(value,frozenset):return {'frozenset':sorted((constant(v) for v in value),key=lambda v:json.dumps(v,sort_keys=True))}
+    if value is Ellipsis:return {'ellipsis':True}
+    if isinstance(value,complex):return {'complex':[value.real,value.imag]}
+    return value
+
+
+def code_info(code):
+    names=('co_name','co_filename','co_firstlineno','co_argcount','co_posonlyargcount',
+           'co_kwonlyargcount','co_nlocals','co_stacksize','co_flags','co_names','co_varnames','co_freevars','co_cellvars')
+    return {name:getattr(code,name) for name in names}|{
+        'co_code':code.co_code.hex(),'co_linetable':code.co_linetable.hex(),
+        'co_qualname_if_available':getattr(code,'co_qualname',None),
+        'co_exceptiontable_if_available':getattr(code,'co_exceptiontable',b'').hex(),
+        'co_consts':[constant(v) for v in code.co_consts]}
+
+
+def lexical_codes(code,path=''):
+    result={path or '<module>':code}
+    for value in code.co_consts:
+        if isinstance(value,types.CodeType):
+            prefix=path+('.<locals>' if path and code.co_flags&2 else '')
+            result.update(lexical_codes(value,(prefix+'.' if prefix else '')+value.co_name))
+    return result
+
+
+def expected_names(source):
+    result=set()
+    for node in ast.parse(source).body:
+        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)):result.add(node.name)
+        elif isinstance(node,ast.ClassDef):
+            for member in node.body:
+                if isinstance(member,(ast.FunctionDef,ast.AsyncFunctionDef)):
+                    if not any(isinstance(d,ast.Name) and d.id=='property' for d in member.decorator_list):
+                        result.add(node.name+'.'+member.name)
+    return result
+
+
+def source_proof(folder,c,approved,audit):
+    before,after=c['source_provenance_before'],c['source_provenance_after']
+    audit.check(before==after and set(before)==set(MODULES),'Complete six-module before/after provenance')
+    result={}
+    for name,rel in MODULES.items():
+        record=before[name];source=(folder/'source-snapshots'/f'{name}.py.txt').read_bytes()
+        audit.check(source==approved[rel] and sha_bytes(source)==record['source_sha256'],f'Approved Git source bytes for {name}')
+        codes=lexical_codes(compile(source,record['absolute_path'],'exec',dont_inherit=True,optimize=sys.flags.optimize))
+        wanted=expected_names(source)
+        actual=record['loaded_function_code_sha256']
+        audit.check(set(actual)==wanted,f'Independent source function/method inventory {name}')
+        expected={key:sha_bytes(json.dumps(code_info(codes[key]),sort_keys=True).encode('utf-8')) for key in wanted}
+        audit.check(actual==expected,f'Independent compile fingerprint map {name}')
+        result[name]={'source_sha256':sha_bytes(source),'functions':len(wanted)}
+    return result
+
+
+def proc_proof(folder,c,audit):
+    identity=c['target_owned_identity'];pid=c['target_pid'];tracer=c['tracer_pid']
+    audit.check(identity['pid']==pid and type(identity['starttime_ticks']) is int,'Actual owned target PID/birth')
+    samples=0;first=last=summary=None;births=defaultdict(set);races=0;ready=[];previous=None
+    for row in records(folder/'os.jsonl'):
+        if row['kind']=='observer_summary':summary=row['data']
+        if row['kind']=='observer_ready':ready.append(row)
+        if row['kind']!='sample':continue
+        samples+=1;first=first or row;last=row;s=row['process_stat']
+        audit.check(row['target_identity']==identity and s['id']==pid and s['starttime_ticks']==identity['starttime_ticks']
+                    and s['parent_pid']==s['process_group_id']==s['session_id']==tracer,'Every sampled PID/birth/parent/session/group')
+        begin,end=row['begin']['perf_counter_ns'],row['end']['perf_counter_ns']
+        audit.check(begin<=end and row['read_duration_ns']==end-begin and (previous is None or begin>=previous),'Monotonic sample/read bounds')
+        previous=end;races+=len(row['races'])
+        for t in row['threads']:
+            audit.check(t['tid']==t['stat']['id'] and t['starttime_ticks']==t['stat']['starttime_ticks'],'Native TID birth stat identity')
+            births[t['tid']].add(t['starttime_ticks'])
+    audit.check(samples>0 and summary==c['observer']['summary'] and summary['samples']==samples,'Retained observer summary equals capture summary/count')
+    audit.check(len(ready)==1 and ready[0]['verified_live_native_thread'] and ready[0]['target_identity']==identity,'Verified flushed observer readiness')
+    audit.check(ready[0]['perf_counter_ns']<=c['observer_ready_perf_counter_ns']<=c['collector_launch_perf_counter_ns'],'Observer precedes collector/resume')
+    return {'samples':samples,'status':summary['status'],'races':races,'births':{str(k):sorted(v) for k,v in births.items()},
+            'first_sample':first['begin'],'last_sample':last['end'],'tail_ns':summary['tail_since_last_sample_ns'],
+            'observer_thread_cpu_ns':summary['observer_thread_cpu_ns'],'read_failures':summary['read_failures']}
+
+
+def ep_proof(folder,c,audit,generator):
+    a=read(folder/'analysis/summary.json');pid=c['target_pid'];counts=Counter();pids=defaultdict(set);markers={};n=0
+    for event in records(folder/'analysis/events.jsonl'):
+        n+=1;counts[event['provider']+'/'+event['name']]+=1;pids[event['provider']].add(event['processId'])
+        if event['provider']=='Cehpalon-Tooling-Diagnostic':
+            seq=event['payload']['sequence'];audit.check(seq not in markers,'Unique raw marker sequence');markers[seq]=event
+    audit.check(dict(counts)==a['eventCounts'] and n==a['events'],'Unfiltered raw EventPipe event/count replay')
+    for provider in ('Microsoft-Windows-DotNETRuntime','Microsoft-DotNETCore-SampleProfiler'):
+        audit.check(pids[provider]=={pid},'Actual target-only runtime/sample PID '+provider)
+    trace_hash=sha(folder/'runtime.nettrace')
+    audit.check(trace_hash==c['trace_sha256']==a['inputSha256'] and (folder/'runtime.nettrace').stat().st_size==c['trace_bytes'],'Raw trace byte/hash pins')
+    audit.check(a['status']=='completed' and a['eventsLost']==a['etlxEventsLost']==a['payloadReadErrors']==0,'Runtime parser/loss/payload checks')
+    if generator:
+        spans=list(records(folder/'generator.json.spans.jsonl'))
+        audit.check(len(spans)==len(markers)==2956 and Counter(s['stage'] for s in spans)==Counter(STAGES),'Full marker/span stage counts')
+        audit.check([s['sequence'] for s in spans]==list(range(1,2957)),'Exact marker order')
+        for span in spans:
+            event=markers[span['sequence']]
+            audit.check(span['processId']==event['processId']==pid and span['osThreadId']==event['threadId']>0,'Actual marker PID/native TID')
+            audit.check(all(event['payload'].get(key)==span.get(key) for key in MARKER_FIELDS),'Every declared EventPipe payload/sidecar marker field')
+            audit.check(span['startTicks']<=span['endTicks']<=span['markerBeforeTicks']<=span['markerAfterTicks'],'Stage/body/logger bracket order')
+    else:audit.check(not markers,'CLI has no marker-based exact temporal join')
+    return {'events':n,'eventsLost':a['eventsLost'],'ee_pairing_errors':a['eePairingErrors'],
+            'jit_pairing_errors':a['jitPairingErrors'],'marker_count':len(markers),'trace_sha256':trace_hash}
+
+
+def raw_native_proof(folder,c,audit):
+    ids=set();edges=[];pending={};exit_zero=0;exec_ok=False;unknown=[]
+    prefix=re.compile(r'^\s*(?:\[pid\s+)?(\d+)\]?\s+\d+\.\d+\s+(.*)$')
+    for number,line in enumerate((folder/'native.raw.log').open(encoding='utf-8',errors='strict'),1):
+        match=prefix.match(line)
+        if not match:unknown.append(number);continue
+        tid,body=int(match[1]),match[2];ids.add(tid)
+        if tid==c['target_pid'] and body.startswith('execve(') and re.search(r'\)\s+=\s+0\s+<',body):exec_ok=True
+        if tid==c['target_pid'] and body.strip()=='+++ exited with 0 +++':exit_zero+=1
+        if body.startswith(('clone(', 'clone3(')):
+            if '<unfinished ...>' in body:pending[tid]=body;continue
+            text=body
+        elif body.startswith(('<... clone resumed>', '<... clone3 resumed>')):text=pending.pop(tid,'')+' '+body
+        else:continue
+        value=re.search(r'=\s+(\d+)\s+<',text)
+        if value and 'CLONE_THREAD' in text:edges.append((tid,int(value[1])))
+    audit.check(not unknown,'All native lines retain PID/epoch prefix')
+    audit.check(c['tracer_pid'] not in ids and c['collector_pid'] not in ids,'Tracer and collector excluded from target native scope')
+    members={c['target_pid']}
+    for _ in edges:
+        for parent,child in edges:
+            if parent in members:members.add(child)
+    audit.check(ids<=members and exec_ok and exit_zero==1,'Owned main exec/normal exit and CLONE_THREAD-only lineage')
+    return {'native_tids':sorted(ids),'clone_thread_edges':len(edges),'kernel_event_loss_count':None,
+            'capture_native_quality':{k:c['native_summary'][k] for k in ('incomplete_events','unparsed_lines','utf8_replacement_line_numbers')}}
+
+
+def generator_proof(folder,priors,audit):
+    r=read(folder/'generator.json')
+    audit.check(r['status']=='completed' and r['correctnessPassed'] and r['canonical'] is False and r['diagnosticPerturbed'] is True,'Diagnostic semantics/canonical boundary')
+    for prior in priors:audit.check(r['parameters']==prior['parameters'],'Exact unchanged generator parameters vs prior corpus')
+    keys=('size','state','variant','caseIndex','pairSequence','pairOrder','orderInPair','version','actualIds','sourceHash','registryHash')
+    for phase,count in (('primers',36),('measurements',270)):
+        rows=r[phase];audit.check(len(rows)==count,'Complete '+phase)
+        audit.check([(x['caseIndex'],x['pairSequence'],x['orderInPair']) for x in rows]==sorted((x['caseIndex'],x['pairSequence'],x['orderInPair']) for x in rows),'Predeclared paired order '+phase)
+        for prior in priors:
+            audit.check(len(prior[phase])==count,'Prior complete '+phase)
+            for now,old in zip(rows,prior[phase]):audit.check(all(now[k]==old[k] for k in keys),'Exact business/source/registry/order parity '+phase)
+        for row in rows:
+            size,state,seq=row['size'],row['state'],row['pairSequence']
+            case=[1,3,32].index(size)*3+['fresh','noop','edit'].index(state)
+            order=['generator','manual'] if (case+seq)%2==0 else ['manual','generator']
+            version=1 if state=='edit' and seq%2==0 else 0
+            ids=['bench.changed000' if i==0 and version else f'bench.op{i:03d}' for i in range(size)]
+            audit.check(row['caseIndex']==case and row['pairOrder']==order and row['version']==version and row['actualIds']==ids,'Independently derived IDs/version/order')
+            audit.check(row['emitSuccess'] is True and row['diagnostics']==[] and row['peBytes']>0,'Actual error-free emitted row')
+        audit.check(len({(x['caseIndex'],x['pairSequence'],x['variant']) for x in rows})==count,'No duplicated row identities')
+    for phase,count in (('stateSeeds',12),('preflight',3),('postflight',18)):
+        audit.check(len(r[phase])==count and all(x['passed'] for x in r[phase]),'Complete passed semantic '+phase)
+    return {'primers':36,'measurements':270,'prior_corpora':len(priors),'source_registry_ids_version_order_equal':True,
+            'pe_timing_counter_equality':'not asserted; diagnostic runtimes/PE bytes may differ'}
+
+
+def hashes(folder):return {p.name:sha(p) for p in folder.iterdir() if p.is_file()}
+
+
+def cli_proof(folder,scenario,fixture,f,engine,audit):
+    value=read(folder/'target.stdout.txt');generated=folder/'generated-output'
+    if scenario.startswith('validate-'):
+        short=scenario[len('validate-'):];audit.check(value==f['frozen_validation'][short],'Exact complete pure validation output')
+    elif scenario.startswith('new-'):
+        short=scenario[len('new-'):];profile='portable-request-reply' if short=='portable' else 'small-api'
+        wanted=PORTABLE if short=='portable' else SMALL
+        audit.check(set(p.name for p in generated.iterdir())==wanted,'Exact scaffold artifact set')
+        audit.check(hashes(generated)==f['fixtures'][short]['files_sha256'],'Complete frozen scaffold byte parity')
+        audit.check(value['success'] is True and value['status']=='passed' and value['profile']==profile
+                    and value['name']=='BenchmarkSample' and Path(value['output']).resolve()==generated.resolve()
+                    and set(value['files'])==wanted,'Scaffold stdout identity/path/files')
+        manifest=read(generated/'engine-source.json');audit.check(Path(manifest['sourceRoot']).resolve()==engine.resolve(),'Actual observed Engine root')
+        audit.check(len(manifest['inputs'])==value['sourceInputs']==(17 if short=='portable' else 32),'Complete source-input count')
+        for entry in manifest['inputs']:
+            path=(engine/entry['path']).resolve();audit.check(path.is_relative_to(engine.resolve()) and sha(path)==entry['sha256'] and path.stat().st_size==entry['bytes'],'Actual scaffold Core/Composition/Codegenerate source bytes')
+    else:
+        kind=scenario[len('export-'):];api=kind in ('api','both');gql=kind in ('graphql','both')
+        wanted={'manifest.json'}|({'openapi.json'} if api else set())|({'schema.graphql'} if gql else set())
+        audit.check(set(p.name for p in generated.iterdir())==wanted and hashes(generated)==f['frozen_exports'][kind]['files_sha256'],'Complete frozen selected export artifact bytes')
+        manifest=read(generated/'manifest.json');counters=manifest['counters']
+        audit.check(value['status']=='passed' and set(value['files'])==wanted and value['counters']==counters,'Export stdout/counter/artifact parity')
+        audit.check(manifest['generatedOperationIds']==OPS and manifest['httpOperationIds']==(OPS if api else []),'Typed operation selection')
+        for metric in ('HandlerFactoryCalls','DispatchCalls','HostFactories','TlsReads','AuthorityCalls'):audit.check(counters[metric]==0,'No offline authority/business/host work '+metric)
+        for metric in ('GraphQLRegistrations','GraphQLSchemaBuilds','GraphQLProvidersCreated','GraphQLProvidersDisposed'):audit.check(counters[metric]==int(gql),'Selected GraphQL lifecycle '+metric)
+        audit.check(counters['HttpSchemaOperations']==(3 if api else 0) and (counters['GraphQLServices']>0 if gql else counters['GraphQLServices']==0),'Selected schemas/disabled module counters')
+    return {'scenario':scenario,'status':'passed','stdout_sha256':sha(folder/'target.stdout.txt'),
+            'file_hashes':hashes(generated) if generated.exists() else None}
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    for name in ('lane','fixture','samples-root','engine-root','driver-source','output'):parser.add_argument('--'+name,required=True)
+    parser.add_argument('--samples-revision',default=SAMPLES)
+    parser.add_argument('--prior-generator',action='append',required=True)
+    args=parser.parse_args();audit=Audit();out=Path(args.output);out.mkdir(parents=True,exist_ok=False)
+    report={'status':'started','role':'independent_offline_integrity_not_performance_acceptance','checks':0,'cases':[],
+            'limits':['Conditional native/runtime joins belong to the separate bounded analyzer; this audit does not manufacture CLI temporal joins.',
+                      'Known EE/JIT/WaitHandle pairing errors, native omissions/races and unknown native loss remain explicit.',
+                      'Compiled source fingerprints are checked provenance, not globals/defaults/imported-binding immutable attestation.',
+                      'Semantic/source/registry parity does not assert identical PE binaries, timing or process counters.',
+                      '#3 remains Blocked; no provider/production/reference qualification.']}
+    try:
+        lane,fixture,samples,engine,driver=map(Path,(args.lane,args.fixture,args.samples_root,args.engine_root,args.driver_source))
+        m=read(lane/'manifest.json');f=read(fixture/'manifest.json')
+        audit.check(m['status']=='completed' and m['mode']=='combined' and m['canonical'] is False and len(m['cases'])==25,'Only complete fixed same-execution lane')
+        audit.check(m['engine_revision']==f['engine_revision']==ENGINE,'Unchanged Engine55 revision identity')
+        approved={rel:subprocess.check_output(['git','show',args.samples_revision+':'+rel],cwd=samples) for rel in set(MODULES.values())}
+        for path,digest in m['frozen_inputs_sha256'].items():
+            actual=Path(path);audit.check(sha(actual)==digest,'Actual final lane frozen input '+path)
+            if actual.resolve().is_relative_to(samples.resolve()):
+                relative=str(actual.resolve().relative_to(samples.resolve()))
+                if not relative.startswith('.local/'):
+                    blob=subprocess.check_output(['git','show',args.samples_revision+':'+relative],cwd=samples)
+                    audit.check(sha_bytes(blob)==digest,'Approved Git lane source '+relative)
+        for name,digest in f['binary_sha256'].items():audit.check(sha(fixture/name)==digest,'Unrebuilt original fixture binary '+name)
+        for name,digest in f['engine_source_sha256'].items():audit.check(sha(engine/name)==digest,'Unchanged complete Engine input '+name)
+        original=Path(args.prior_generator[0]).parent
+        prior_driver=samples/'.local/tooling-trace-driver-linux01/Program.cs'
+        if not prior_driver.is_file():prior_driver=samples/'.local/tooling-trace-driver01/Program.cs'
+        audit.check(prior_driver.is_file() and (driver/'Program.cs').read_bytes()==prior_driver.read_bytes(),'Instrumented driver body remains byte-identical to ADR0018')
+        wd=read(driver/'wait-diagnostic-manifest.json')
+        for name,digest in wd['final_files_sha256'].items():audit.check(sha(driver/name)==digest,'Prepared support/driver byte pin '+name)
+        expected=['generator']
+        for round_number in range(3):
+            order=list(SCENARIOS[round_number%8:]+SCENARIOS[:round_number%8])
+            if round_number%2:order.reverse()
+            expected.extend(f'{round_number:02d}-{i:02d}-{name}' for i,name in enumerate(order))
+        audit.check([x['name'] for x in m['cases']]==expected,'Exact predeclared 25-target order')
+        priors=[read(Path(p)) for p in args.prior_generator]
+        for index,item in enumerate(m['cases']):
+            folder=lane/item['name'];c=read(folder/'capture.json');pid=c['target_pid']
+            audit.check(c==item['capture'],'Lane case embeds actual final capture bytes/metadata')
+            audit.check(c['status']=='completed' and c['mode']=='combined_wait_diagnostic_not_benchmark'
+                        and c['target_exit']==c['tracer_exit']==c['collector_exit']==0 and c['observer_joined'],'Complete capture/exit/join')
+            audit.check(len({pid,c['tracer_pid'],c['collector_pid']})==3,'Distinct own target/tracer/collector roles')
+            audit.check(len(c['owned_process_cleanup'])==2 and all(x['joined'] and not x['kill_requested'] for x in c['owned_process_cleanup'])
+                        and not c.get('cleanup_failure') and not c.get('cleanup_group_signals'),'Normal unsignaled owned cleanup')
+            audit.check(c['binary_sha256']==c['binary_sha256_after'],'Every binary pre/post pin')
+            for path,digest in c['binary_sha256'].items():audit.check(sha(Path(path))==digest,'Actual pinned capture binary '+path)
+            row={'name':item['name'],'target_pid':pid,'source':source_proof(folder,c,approved,audit),
+                 'proc':proc_proof(folder,c,audit),'eventpipe':ep_proof(folder,c,audit,index==0),
+                 'native':raw_native_proof(folder,c,audit)}
+            if index==0:row['semantics']=generator_proof(folder,priors,audit)
+            else:row['semantics']=cli_proof(folder,item['scenario'],fixture,f,engine,audit)
+            report['cases'].append(row);print('Audited',item['name'],flush=True)
+        report.update(status='passed',samples_revision=args.samples_revision,engine_revision=ENGINE,
+                      prior_generator_sha256={p:sha(Path(p)) for p in args.prior_generator},
+                      lane_manifest_sha256=sha(lane/'manifest.json'),audit_source_sha256=sha(Path(__file__)))
+    except Exception:
+        import traceback
+        report.update(status='failed',failure=traceback.format_exc())
+    report['checks']=audit.count;save(out/'audit.json',report)
+    print(json.dumps({'status':report['status'],'checks':audit.count,'cases':len(report['cases'])}))
+    return 0 if report['status']=='passed' else 1
+
+
+if __name__=='__main__':raise SystemExit(main())

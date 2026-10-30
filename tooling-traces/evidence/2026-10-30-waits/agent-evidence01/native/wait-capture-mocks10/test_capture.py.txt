@@ -1,0 +1,224 @@
+"""Offline mocked subprocess/proc tests; synthetic files are NOT actual traces."""
+from contextlib import ExitStack
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import unittest
+from unittest.mock import patch, Mock
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT/'tools'))
+import tooling_wait_capture as capture
+
+STATE = capture._source_state()
+HERE = Path(__file__).resolve().parent
+ARTIFACTS = HERE/'artifacts'
+ARTIFACTS.mkdir(exist_ok=False)
+
+
+class Child:
+    def __init__(self,pid, role, timeout=False):
+        self.pid,self.role,self.returncode,self.stdin = pid,role,None,None
+        self.timeout=timeout
+        self.waits=0
+        self.killed=False
+    def poll(self): return self.returncode
+    def wait(self,timeout=None):
+        self.waits+=1
+        if self.timeout and self.waits==1:
+            raise subprocess.TimeoutExpired([self.role],timeout)
+        self.returncode=0
+        return 0
+    def kill(self): self.killed=True;self.returncode=-9
+
+
+def linux_path(path): return str(path).replace('\\','/')
+
+
+class CaptureTests(unittest.TestCase):
+    def run_capture(self,name,change=None):
+        base=ARTIFACTS/name;base.mkdir()
+        files={name:base/name for name in ('dotnet','trace.dll','analyzer.dll','target.dll','strace')}
+        for p in files.values():p.write_bytes(b'OFFLINE-MOCK-INPUT')
+        target=Child(101,'tracer');collector=Child(303,'collector')
+        identity={'pid':202,'starttime_ticks':88}
+        real_file,real_text,real_open=Path.is_file,Path.read_text,Path.open
+        settings={'launch_error':False,'ready':True,'wrong_birth':False,'post_source_error':False,
+                  'signal_proof':True,'timeout':False,'nonfinite':None,'missing':False,'post_binary_change':False,
+                  'exec_pretransition':False,'close_stdin':False,'close_output':False,'inherited':{}}
+        if change:change(settings)
+        target.timeout=settings['timeout']
+        exe_reads=[]
+        def readlink(path):
+            exe_reads.append(str(path))
+            if settings['exec_pretransition'] and len(exe_reads)==1:return str(files['strace'])
+            return str(files['dotnet'])
+        def is_file(p):return True if linux_path(p)=='/proc/self/stat' else real_file(p)
+        def read_text(p,*args,**kwargs):
+            if linux_path(p)=='/proc/101/stat':return 'OWNED-TRACER'
+            if linux_path(p)=='/proc/202/stat':raise FileNotFoundError('normal exit')
+            return real_text(p,*args,**kwargs)
+        class BadClose:
+            def __init__(self,f):self.f=f
+            def __getattr__(self,name):return getattr(self.f,name)
+            def close(self):self.f.close();raise OSError('mock file close error')
+        def open_file(p,*args,**kwargs):
+            handle=real_open(p,*args,**kwargs)
+            return BadClose(handle) if settings['close_output'] and p.name=='target.stderr.txt' else handle
+        def source_state():
+            if settings['post_source_error'] and target.returncode is not None:raise ValueError('mocked post source change')
+            return STATE
+        def popen(argv,**kwargs):
+            if argv[0]==str(files['strace'].resolve()):
+                assert kwargs['start_new_session'] is True
+                assert ',connect,suspend' in kwargs['env']['DOTNET_DiagnosticPorts']
+                assert 'futex_waitv' in argv[argv.index('-e')+1]
+                assert 'restart_syscall' in argv[argv.index('-e')+1]
+                raw=Path(argv[argv.index('-o')+1])
+                host=str(files['dotnet'].resolve()).replace('\\','/')
+                raw.write_text('202 1793335390.800000 execve("'+host+'", [], 0x0) = 0 <0.001000>\n'
+                               '202 1793335390.816415 +++ exited with 0 +++\n')
+                return target
+            if settings['launch_error']:raise OSError('mock collector launch failure')
+            assert 'DOTNET_DiagnosticPorts' not in kwargs['env']
+            assert kwargs['env']['DOTNET_DefaultDiagnosticPortSuspend']=='0'
+            assert capture.PROVIDERS in argv
+            kwargs['stdout'].write(b'Process : p.sock\nOutput File : runtime.nettrace\n');kwargs['stdout'].flush()
+            Path(argv[argv.index('--output')+1]).write_bytes(b'OFFLINE-MOCK-NOT-EVENTPIPE')
+            if settings['post_binary_change']:files['target.dll'].write_bytes(b'changed')
+            if settings['close_stdin']:collector.stdin=Mock(close=Mock(side_effect=OSError('mock stdin close failure')))
+            return collector
+        def observer(pid,output,stop,interval,expected_identity,ready_event):
+            assert pid==202 and expected_identity==identity
+            Path(output).write_text('{"mock_only":true}\n')
+            if settings['ready']:ready_event.set()
+            return {'status':'mock_only','samples':1}
+        with ExitStack() as stack:
+            for obj,name,replacement in (
+                (capture.sys,'platform','linux'),(capture,'_source_state',source_state),
+                (capture.shutil,'which',lambda _:str(files['strace'].resolve())),
+                (Path,'is_file',is_file),(Path,'read_text',read_text),
+                (Path,'open',open_file),
+                (capture.os,'readlink',readlink),
+                (capture.os_observer,'parse_linux_stat',lambda _:{'starttime_ticks':99}),
+                (capture.native,'_discover_target',lambda *args:(202,'mock_owned',identity)),
+                (capture.native,'_owned_target_identity',lambda *args:None if settings['wrong_birth'] else identity),
+                (capture.native,'_signal_owned_group',Mock(return_value=settings['signal_proof'])),
+                (capture.os_observer,'observe_process',observer),(capture.subprocess,'Popen',popen)):
+                stack.enter_context(patch.object(obj,name,replacement))
+            # Linux env keys are case-sensitive; Windows os._Environ uppercases
+            # keys, so use a plain child-environment mapping in this Linux mock.
+            stack.enter_context(patch.object(capture.os,'environ',dict(os.environ)|settings['inherited']))
+            if settings['missing']:files['trace.dll'].unlink()
+            timeout=settings['nonfinite'] if settings['nonfinite'] is not None else .05 if settings['wrong_birth'] else 5
+            report=capture.capture([files['dotnet'],files['target.dll']],base,base/'capture',
+                                   files['dotnet'],files['trace.dll'],files['analyzer.dll'],timeout)
+        self.assertTrue((base/'capture/capture.json').is_file())
+        self.assertEqual(json.loads((base/'capture/capture.json').read_text())['status'],report['status'])
+        return report,target,collector,exe_reads
+    def test_happy(self):
+        r,*_=self.run_capture('happy');self.assertEqual(r['status'],'completed');self.assertEqual(r['target_exit'],0)
+        self.assertEqual(r['target_pid'],202);self.assertEqual(r['tracer_pid'],101)
+    def test_exec_pretransition(self):
+        r,_,_,reads=self.run_capture('preexec',lambda s:s.update(exec_pretransition=True))
+        self.assertEqual(r['status'],'completed');self.assertEqual(len(reads),2)
+    def test_missing_binary(self):
+        r,*_=self.run_capture('missing',lambda s:s.update(missing=True));self.assertEqual(r['status'],'failed');self.assertNotIn('tracer_pid',r)
+    def test_nonfinite_timeout(self):
+        r,*_=self.run_capture('inf',lambda s:s.update(nonfinite=float('inf')));self.assertEqual(r['status'],'failed');self.assertNotIn('tracer_pid',r)
+    def test_nan_timeout(self):
+        r,*_=self.run_capture('nan',lambda s:s.update(nonfinite=float('nan')));self.assertEqual(r['status'],'failed')
+    def test_wrong_birth(self):
+        r,*_=self.run_capture('birth',lambda s:s.update(wrong_birth=True));self.assertEqual(r['status'],'failed');self.assertNotIn('collector_pid',r)
+    def test_no_ready(self):
+        r,*_=self.run_capture('ready',lambda s:s.update(ready=False));self.assertEqual(r['status'],'failed');self.assertNotIn('collector_pid',r)
+    def test_collector_launch_error(self):
+        r,*_=self.run_capture('launch',lambda s:s.update(launch_error=True));self.assertEqual(r['status'],'failed')
+    def test_source_change(self):
+        r,*_=self.run_capture('source',lambda s:s.update(post_source_error=True));self.assertEqual(r['status'],'failed');self.assertIn('source_freeze_failure',r)
+    def test_binary_change(self):
+        r,*_=self.run_capture('binary',lambda s:s.update(post_binary_change=True));self.assertEqual(r['status'],'failed');self.assertIn('binary_freeze_failure',r)
+    def test_timeout_guarded_cleanup(self):
+        r,*_=self.run_capture('timeout',lambda s:s.update(timeout=True));self.assertEqual(r['status'],'failed')
+    def test_stdin_close_failure_retained(self):
+        r,*_=self.run_capture('stdinclose',lambda s:s.update(close_stdin=True));self.assertEqual(r['status'],'failed');self.assertIn('collector_stdin_close_failure',r)
+    def test_output_close_failure_retained(self):
+        r,*_=self.run_capture('outclose',lambda s:s.update(close_output=True));self.assertEqual(r['status'],'failed');self.assertIn('output_close_failures',r)
+    def test_disabled_ipc_policy_respected(self):
+        r,*_=self.run_capture('disableipc',lambda s:s.update(inherited={'DOTNET_EnableDiagnostics':'0'}));self.assertEqual(r['status'],'failed');self.assertNotIn('tracer_pid',r)
+    def test_complus_auto_eventpipe_refused(self):
+        r,*_=self.run_capture('autopipe',lambda s:s.update(inherited={'COMPlus_EnableEventPipe':'1'}));self.assertEqual(r['status'],'failed');self.assertNotIn('tracer_pid',r)
+    def test_source_functions_match(self):
+        self.assertEqual(set(capture._source_state()),set(STATE))
+    def test_source_function_replaced_rejected(self):
+        with patch.object(capture.native,'_discover_target',Mock()):
+            with self.assertRaisesRegex(ValueError,'inventory changed'):capture._source_state()
+    def test_source_function_code_replaced_rejected(self):
+        fn=capture.native._integer_result;original=fn.__code__
+        try:
+            fn.__code__=(lambda text:None).__code__
+            with self.assertRaisesRegex(ValueError,'differs from frozen source'):capture._source_state()
+        finally:fn.__code__=original
+    def test_disk_source_edit_rejected(self):
+        real=Path.read_bytes
+        target=Path(capture.native.__file__).resolve()
+        def changed(p):return real(p)+b'\n' if p.resolve()==target else real(p)
+        with patch.object(Path,'read_bytes',changed):
+            with self.assertRaisesRegex(ValueError,'Source changed since module import'):capture._source_state()
+    def test_restart_and_signal_raw_preserved(self):
+        p=ARTIFACTS/'restart.raw.log'
+        p.write_text('11 100.100000 futex(0x1, FUTEX_WAIT_PRIVATE, 0, NULL) = ? ERESTARTSYS (To be restarted if SA_RESTART is set) <0.010000>\n'
+                     '11 100.111000 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=12, si_uid=1000} ---\n'
+                     '11 100.112000 restart_syscall(<... resuming interrupted futex ...>) = 0 <0.020000>\n')
+        r=capture.native.parse_strace(p)
+        self.assertEqual(r['syscall_counts'],{'futex':1,'restart_syscall':1});self.assertEqual(len(r['lifecycle']),1)
+        self.assertIn('ERESTARTSYS',r['events'][0]['return_text']);self.assertIsNone(r['events'][0]['return_value'])
+    def test_cleanup_refuses_unknown_owned_group(self):
+        child=Child(77,'unknown');child.wait=Mock(side_effect=subprocess.TimeoutExpired([],1))
+        with patch.object(capture.signal,'SIGKILL',9,create=True), patch.object(capture.native,'_signal_owned_group',Mock(return_value=False)) as sig:
+            row=capture._cleanup_tracer(child,None,{})
+        self.assertFalse(row['joined']);self.assertTrue(row['ownership_unavailable']);self.assertFalse(child.killed);self.assertEqual(sig.call_count,1)
+    def test_cleanup_already_reaped_no_signal(self):
+        child=Child(77,'done');child.returncode=0
+        with patch.object(capture.native,'_signal_owned_group',Mock()) as sig:row=capture._cleanup_tracer(child,5,{})
+        self.assertTrue(row['joined']);sig.assert_not_called()
+    def test_native_guard_reused_leader_no_signal(self):
+        child=Child(77,'reused');report={}
+        with patch.object(Path,'read_text',return_value='not-a-real-proc'), \
+             patch.object(capture.native,'parse_linux_stat',return_value={'starttime_ticks':6,'parent_pid':capture.os.getpid(),'process_group_id':77,'session_id':77}), \
+             patch.object(capture.native.os,'killpg',Mock(),create=True) as kill:
+            self.assertFalse(capture.native._signal_owned_group(child,5,15,report))
+        kill.assert_not_called();self.assertEqual(report['cleanup_group_signals'][0]['status'],'not_signaled_identity_mismatch')
+    def test_native_guard_reaped_leader_no_signal(self):
+        child=Child(77,'reaped');child.returncode=0;report={}
+        with patch.object(capture.native.os,'killpg',Mock(),create=True) as kill:
+            self.assertFalse(capture.native._signal_owned_group(child,5,15,report))
+        kill.assert_not_called();self.assertEqual(report['cleanup_group_signals'][0]['status'],'not_signaled_owned_leader_unavailable')
+    def test_cleanup_signals_tracer_only(self):
+        tracer,collector=Child(77,'tracer'),Child(303,'collector');tracer.wait=Mock(side_effect=[subprocess.TimeoutExpired([],1),0])
+        with patch.object(capture.signal,'SIGKILL',9,create=True),patch.object(capture.native,'_signal_owned_group',Mock(return_value=True)) as sig:
+            row=capture._cleanup_tracer(tracer,5,{})
+        self.assertTrue(row['joined']);self.assertIs(sig.call_args[0][0],tracer);self.assertFalse(collector.killed)
+    def test_session_header_delayed_after_tracer_zero(self):
+        tracer,collector=Mock(),Mock();tracer.poll.return_value=0;collector.poll.return_value=None
+        ready=Mock(side_effect=[False,False,True])
+        with patch.object(capture.time,'sleep',Mock()):
+            capture._wait(ready,tracer,capture.time.perf_counter()+1,'header',collector,allow_successful_tracer_exit=True)
+        self.assertEqual(ready.call_count,3)
+    def test_session_header_nonzero_tracer_fails(self):
+        tracer,collector=Mock(),Mock();tracer.poll.return_value=1;collector.poll.return_value=None
+        with self.assertRaisesRegex(ValueError,'Tracer/target exited'):
+            capture._wait(lambda:False,tracer,capture.time.perf_counter()+1,'header',collector,allow_successful_tracer_exit=True)
+    def test_session_header_collector_error_fails(self):
+        tracer,collector=Mock(),Mock();tracer.poll.return_value=0;collector.poll.return_value=2
+        with self.assertRaisesRegex(ValueError,'Collector exited'):
+            capture._wait(lambda:False,tracer,capture.time.perf_counter()+1,'header',collector,allow_successful_tracer_exit=True)
+    def test_observer_wait_tracer_zero_still_fails(self):
+        tracer=Mock();tracer.poll.return_value=0
+        with self.assertRaisesRegex(ValueError,'Tracer/target exited'):
+            capture._wait(lambda:False,tracer,capture.time.perf_counter()+1,'observer')
+
+
+if __name__=='__main__':unittest.main(verbosity=2)

@@ -1,0 +1,12 @@
+from pathlib import Path
+import subprocess,sys,json,os
+root=Path(__file__).resolve().parents[2];out=Path(__file__).resolve().parent
+sdk='/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet';records=[]
+def run(args,label):
+ p=subprocess.run(list(map(str,args)),cwd=root,capture_output=True);(out/(label+'.stdout.txt')).write_bytes(p.stdout);(out/(label+'.stderr.txt')).write_bytes(p.stderr);records.append(dict(label=label,argv=list(map(str,args)),exit=p.returncode));(out/'manifest.json').write_text(json.dumps(records,indent=2)+'\n',encoding='utf-8');assert p.returncode==0,label
+run([sys.executable,'tools/prepare_tooling_wait_driver.py','--engine-root',root.parent/'Cehpalon-Engine','--output',root/'.local/tooling-wait-driver-linux01'],'prepare-driver')
+for name,project in [('driver',root/'.local/tooling-wait-driver-linux01/TraceDriver.csproj'),('conformance',root/'tooling-traces/WaitConformance/WaitConformance.csproj')]:
+ art=out/(name+'-artifacts');args=[sdk,'restore',project,'--configfile',project.parent/'NuGet.Config','--artifacts-path',art]
+ run(args,name+'-restore');run(args+['--locked-mode'],name+'-locked-restore')
+ run([sdk,'build',project,'-c','Release','--no-restore','--artifacts-path',art,'-p:UseSharedCompilation=false','-warnaserror'],name+'-build')
+ print(name,'build passed',flush=True)

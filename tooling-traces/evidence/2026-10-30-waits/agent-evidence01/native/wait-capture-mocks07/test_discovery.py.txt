@@ -1,0 +1,96 @@
+"""Pure mocked proc/raw discovery cases; no target processes or tracing."""
+from contextlib import ExitStack
+import json
+from pathlib import Path
+import sys
+import unittest
+from unittest.mock import Mock,patch
+
+ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/'tools'))
+import tooling_wait_capture as capture
+
+HERE=Path(__file__).resolve().parent
+BASE=HERE/'discovery-artifacts';BASE.mkdir(exist_ok=False)
+IDENTITY={'pid':202,'starttime_ticks':88}
+
+
+class Discovery(unittest.TestCase):
+    def attempt(self,name,kind):
+        folder=BASE/name;folder.mkdir();host=folder/'dotnet';host.write_bytes(b'HOST')
+        foreign=folder/'foreign';foreign.write_bytes(b'FOREIGN')
+        raw=folder/'raw.log';host_text=str(host.resolve()).replace('\\','/')
+        line='202 100.000001 execve("'+host_text+'", [], 0x0) = 0 <0.000001>\n'
+        raw.write_text('' if kind=='transient' else line)
+        if kind=='foreign':raw.write_text(line.replace(host_text,str(foreign.resolve()).replace('\\','/')))
+        if kind=='failed':raw.write_text(line.replace('= 0 <','= -1 ENOENT (No such file or directory) <'))
+        if kind=='escaped':raw.write_text(line.replace(host_text,'/tmp/unsupported\\040host'))
+        if kind=='unfinished':raw.write_text('202 100.000001 execve("'+host_text+'", [], 0x0 <unfinished ...>\n202 100.000002 <... execve resumed>) = 0 <0.000001>\n')
+        if kind=='overlong':raw.write_bytes(b'x'*(1024*1024+1))
+        state={'clock':0,'sleeps':0}
+        def clock():state['clock']+=.001;return state['clock']
+        def sleep(_):
+            state['sleeps']+=1
+            if kind=='transient' and state['sleeps']==1:raw.write_text(line)
+        real_text=Path.read_text;real_open=Path.open
+        def text(p,*a,**kw):
+            if str(p).replace('\\','/')=='/proc/101/task/101/children':
+                return '3129' if kind=='transient' and not state['sleeps'] else '202'
+            return real_text(p,*a,**kw)
+        def open_file(p,*a,**kw):
+            if kind=='rawerror' and p==raw:raise PermissionError('mock raw permission')
+            return real_open(p,*a,**kw)
+        calls=[]
+        def owned(tracer,pid):
+            calls.append(pid)
+            if kind=='gone':return None
+            if kind=='reuse' and len(calls)>1:return {'pid':202,'starttime_ticks':89}
+            return IDENTITY
+        def readlink(p):
+            if kind=='exeerror':raise PermissionError('mock exe permission')
+            return str(host)
+        tracer=Mock(pid=101,returncode=None);tracer.poll.return_value=0 if kind=='exited' else None
+        report={};result=None;error=None
+        with ExitStack() as stack:
+            for obj,key,value in ((capture.time,'perf_counter',clock),(capture.time,'sleep',sleep),
+                                  (Path,'read_text',text),(Path,'open',open_file),
+                                  (capture.native,'_owned_target_identity',owned),(capture.os,'readlink',readlink)):
+                stack.enter_context(patch.object(obj,key,value))
+            try:result=capture._discover_managed_target(tracer,raw,host,.012,report)
+            except (TimeoutError,ValueError) as exc:error=type(exc).__name__+': '+str(exc)
+        (folder/'result.json').write_text(json.dumps({'result':result,'error':error,'report':report,'ownership_query_pids':calls},indent=2)+'\n')
+        return result,error,report,calls
+    def test_transient_helper_never_leased(self):
+        result,error,report,calls=self.attempt('transient','transient')
+        self.assertIsNone(error);self.assertEqual(result[0],202);self.assertNotIn(3129,calls)
+        self.assertEqual(report['target_discovery_diagnostics']['proc_child_candidate_ids'],[202,3129])
+    def test_successful_exact_exec(self):
+        result,error,_,_=self.attempt('exact','exact');self.assertIsNone(error);self.assertEqual(result[2],IDENTITY)
+    def test_successful_exec_then_gone(self):
+        result,error,report,_=self.attempt('gone','gone');self.assertIsNone(result);self.assertIn('TimeoutError',error);self.assertNotIn('target_pid',report)
+    def test_foreign_exec_never_queried_as_target(self):
+        result,error,report,calls=self.attempt('foreign','foreign');self.assertIsNone(result);self.assertFalse(calls);self.assertIn('TimeoutError',error)
+        self.assertEqual(report['target_discovery_diagnostics']['execve_records'][0]['status'],'foreign_execve_path_not_target')
+    def test_pid_birth_reuse_rejected(self):
+        result,error,report,_=self.attempt('reuse','reuse');self.assertIsNone(result);self.assertIn('TimeoutError',error)
+        self.assertTrue(report['target_discovery_diagnostics']['execve_records'][0]['permanently_rejected'])
+    def test_executable_permission_error_never_leases(self):
+        result,error,report,_=self.attempt('exeerror','exeerror');self.assertIsNone(result);self.assertIn('TimeoutError',error)
+        self.assertEqual(report['target_discovery_diagnostics']['execve_records'][0]['reason'],'PermissionError')
+    def test_raw_permission_error_retained(self):
+        result,error,report,_=self.attempt('rawerror','rawerror');self.assertIsNone(result);self.assertIn('TimeoutError',error)
+        self.assertEqual(report['target_discovery_diagnostics']['raw_error'],'PermissionError')
+    def test_failed_exec_not_leased(self):
+        result,error,_,calls=self.attempt('failed','failed');self.assertIsNone(result);self.assertFalse(calls);self.assertIn('TimeoutError',error)
+    def test_unsupported_escaping_not_leased(self):
+        result,error,report,calls=self.attempt('escaped','escaped');self.assertIsNone(result);self.assertFalse(calls);self.assertIn('TimeoutError',error)
+        self.assertEqual(report['target_discovery_diagnostics']['execve_records'][0]['path_parse_status'],'escaped_or_nonascii_path_unsupported')
+    def test_unfinished_resumed_exec_join(self):
+        result,error,_,_=self.attempt('unfinished','unfinished');self.assertIsNone(error);self.assertEqual(result[3]['target_execve_entry_line'],1);self.assertEqual(result[3]['target_execve_resume_line'],2)
+    def test_tracer_exit_before_owned_join(self):
+        result,error,_,_=self.attempt('exited','exited');self.assertIsNone(result);self.assertIn('Owned tracer exited',error)
+    def test_bounded_partial_line(self):
+        result,error,_,_=self.attempt('overlong','overlong');self.assertIsNone(result);self.assertIn('bounded discovery buffer',error)
+
+
+if __name__=='__main__':unittest.main(verbosity=2)

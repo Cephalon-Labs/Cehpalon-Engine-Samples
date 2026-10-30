@@ -1,0 +1,178 @@
+"""Offline interpretation of a COMPLETE frozen 25-target wait lane.
+
+No subprocesses, SDK builds, targets, network calls, or collection. Output must
+be new. Every compiler row, group and CLI round remains in the JSON artifact.
+"""
+import argparse
+import collections
+from fractions import Fraction
+import hashlib
+import json
+import math
+from pathlib import Path
+import statistics
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def records(path):
+    with Path(path).open(encoding='utf-8-sig') as stream:
+        for line in stream:
+            yield json.loads(line)
+
+
+def sha(path):
+    h = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def distribution(values):
+    values = sorted(values)
+    return {'count': len(values), 'minimum': min(values) if values else None,
+            'maximum': max(values) if values else None,
+            'median': statistics.median(values) if values else None,
+            'sum_nonexclusive_observed_bounds': sum(values)}
+
+
+METRICS = ('native_overlap', 'managed_wait_overlap', 'gc_envelope_overlap',
+           'caller_native_overlap', 'caller_native_timeout_overlap',
+           'caller_managed_wait_overlap', 'same_tid_managed_wait_native_observed_overlap')
+
+
+def row_metric_summary(rows):
+    result = {}
+    for metric in METRICS:
+        assigned = [r[metric] for r in rows if r.get(metric) is not None]
+        result[metric] = {
+            'assigned_rows': len(assigned), 'unassigned_rows': len(rows) - len(assigned),
+            'rows_with_positive_guaranteed_observed_bound': sum(x['guaranteed_observed_union_ns'] > 0 for x in assigned),
+            'rows_with_positive_possible_observed_bound': sum(x['possible_observed_union_ns'] > 0 for x in assigned),
+            'guaranteed_bounds_ns': distribution([x['guaranteed_observed_union_ns'] for x in assigned]),
+            'possible_bounds_ns': distribution([x['possible_observed_union_ns'] for x in assigned])}
+    return result
+
+
+def native_row_counts(folder, rows, spans):
+    """Count same/other-TID eligible calls with outward-rounded saved offsets.
+
+    These count associations, not exclusive causes. Native ownership and eligibility
+    are inherited from the frozen reviewed wait analyzer, never inferred here.
+    """
+    parsed = read(folder / 'parsed.json')
+    by_line = {e.get('entry_line'): e for e in parsed['events']}
+    eligible = []
+    for item in records(folder / 'wait-analysis/native-waits.jsonl'):
+        if not item.get('eligible_observed_wait_interval') or not item.get('owned_target_thread_lifecycle'):
+            continue
+        event = by_line[item['entry_line']]
+        t, elapsed = event['printed_entry_epoch_ns'], item['observed_syscall_wall_ns']
+        q, d = item['entry_print_unit_ns'], item['duration_print_unit_ns']
+        assert all(type(v) is int for v in (t, elapsed, q, d)) and elapsed >= 0
+        eligible.append((item['native_tid'], t-q, t+q, t-q+max(0, elapsed-d), t+q+elapsed+d, item['entry_line']))
+    for row in rows:
+        model = row['native_clock_model']
+        if model['status'] != 'supported_conditional_constant_offset':
+            row['native_same_other_tid_call_associations'] = None
+            continue
+        span = spans[row['sequence']]
+        start = Fraction(span['startTicks'] * 1_000_000_000, span['frequency'])
+        end = Fraction(span['endTicks'] * 1_000_000_000, span['frequency'])
+        slo, shi = start+model['offset_lower_ns'], start+model['offset_upper_ns']
+        elo, ehi = end+model['offset_lower_ns'], end+model['offset_upper_ns']
+        result = {kind: {'possible_count': 0, 'guaranteed_count': 0, 'possible_native_lines': []}
+                  for kind in ('same_tid', 'other_tid')}
+        for tid, a, b, c, d, line in eligible:
+            if a < ehi and d > slo:
+                item = result['same_tid' if tid == row['osThreadId'] else 'other_tid']
+                item['possible_count'] += 1
+                item['possible_native_lines'].append(line)
+                item['guaranteed_count'] += min(elo, c) > max(shi, b)
+        result['rounding_scope'] = 'saved integer offset bounds are outward-rounded; may be wider than original rational analysis'
+        row['native_same_other_tid_call_associations'] = result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--lane', required=True)
+    parser.add_argument('--output', required=True)
+    args = parser.parse_args()
+    lane, output = Path(args.lane).resolve(), Path(args.output).resolve()
+    if output.exists():
+        raise FileExistsError(output)
+    folders = [p for p in lane.iterdir() if p.is_dir() and (p / 'wait-analysis/summary.json').is_file()]
+    assert len(folders) == 25 and any(p.name == 'generator' for p in folders), 'Completed exact25 targets required'
+    generator = lane / 'generator'
+    summary = read(generator / 'wait-analysis/summary.json')
+    assert summary['status'] == 'completed' and summary['rows'] == 306
+    rows = list(records(generator / 'wait-analysis/rows.jsonl'))
+    assert len(rows) == 306 and len({r['sequence'] for r in rows}) == 306
+    sidecars = list(generator.glob('*.spans.jsonl'))
+    assert len(sidecars) == 1
+    spans = {s['sequence']: s for s in records(sidecars[0])}
+    native_row_counts(generator, rows, spans)
+    groups = []
+    for size, state, variant in sorted({(r['size'], r['state'], r['variant']) for r in rows}):
+        selected = [r for r in rows if (r['size'], r['state'], r['variant']) == (size, state, variant)]
+        measured = [r for r in selected if r['phase'] == 'measurement']
+        primers = [r for r in selected if r['phase'] == 'primer']
+        assert len(measured) == 15 and len(primers) == 2
+        means = [statistics.mean((r['duration_ns_lower']+r['duration_ns_upper'])/2
+                                for r in measured if (r['pairSequence']-2)//3 == rep) for rep in range(5)]
+        associations = [r['native_same_other_tid_call_associations'] for r in measured
+                        if r['native_same_other_tid_call_associations'] is not None]
+        groups.append({'size': size, 'state': state, 'variant': variant,
+                       'measurement_rows': 15, 'primer_rows': 2,
+                       'diagnostic_repetition_means_ns': means,
+                       'diagnostic_cv_percent_not_acceptance': statistics.stdev(means)/statistics.mean(means)*100,
+                       'measurement_metrics': row_metric_summary(measured),
+                       'native_call_associations': {kind: {bound: sum(x[kind][bound] for x in associations)
+                                                          for bound in ('possible_count', 'guaranteed_count')}
+                                                    for kind in ('same_tid', 'other_tid')},
+                       'slowest_three_for_inspection_only': sorted(measured, key=lambda r:r['duration_ns_upper'], reverse=True)[:3]})
+    assert len(groups) == 18
+    cli = []
+    for folder in sorted(p for p in folders if p.name != 'generator'):
+        s = read(folder / 'wait-analysis/summary.json')
+        assert s['status'] == 'completed' and s['rows'] == 0
+        pairs = list(records(folder / 'wait-analysis/wait-pairs.jsonl'))
+        native = list(records(folder / 'wait-analysis/native-waits.jsonl'))
+        caller = [x for x in native if x['native_tid'] == s['target_pid']]
+        other = [x for x in native if x['native_tid'] != s['target_pid']]
+        cli.append({'case': folder.name, 'round': int(folder.name[:2]), 'scenario': folder.name[6:],
+                    'source_summary': s,
+                    'wait_sources': dict(collections.Counter(str(p['waitSource']) for p in pairs)),
+                    'main_tid_wait_pairs': sum(p['osThreadId'] == s['target_pid'] for p in pairs),
+                    'other_tid_wait_pairs': sum(p['osThreadId'] != s['target_pid'] for p in pairs),
+                    'main_tid_native_outcomes': dict(collections.Counter(x['category']+'/'+x['outcome'] for x in caller)),
+                    'other_tid_native_outcomes': dict(collections.Counter(x['category']+'/'+x['outcome'] for x in other)),
+                    'scope': 'lifetime observations only; no precise CLI EventPipe-to-native join or startup performance comparison'})
+    assert len(cli) == 24
+    assert collections.Counter((c['round'], c['scenario']) for c in cli) == collections.Counter(
+        (r, scenario) for r in range(3) for scenario in ('new-portable', 'new-small-api', 'validate-portable',
+         'validate-small-api', 'export-api', 'export-both', 'export-graphql', 'export-off'))
+    result = {'canonical': False, 'status': 'offline_interpretation_complete',
+              'performance_status': 'diagnostic_only_not_acceptance', 'lane': str(lane),
+              'generator_source_summary': summary, 'all306_rows': rows, 'all18_groups': groups,
+              'generator_measurement_metrics': row_metric_summary([r for r in rows if r['phase'] == 'measurement']),
+              'all24_cli_cases': cli, 'interpretation_source_sha256': sha(__file__),
+              'limits': ['All rows, groups, scenarios and three rounds retained; slowest3 display is inspection only.',
+                         'GC metric is a paired suspension envelope, not guaranteed all-threads-stop duration; missing/ambiguous GC is not absence.',
+                         'Runtime wait, native syscall and GC overlaps are nonexclusive elapsed observations; do not sum or subtract as CPU/causal attribution.',
+                         'Same-TID co-observation is not proof that a futex implements a specific managed wait or that a lock owner caused delay.',
+                         'Other-TID counts include background/idle activity and cannot establish caller stall.',
+                         'Native associations use conditional retained clock bounds and observed lifetime scope, including printed quantization.',
+                         'CLI has lifetime-only observations, not a precise cross-stream startup timeline.',
+                         'No production patch or qualification follows from these descriptive observations alone.']}
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=2, allow_nan=False)+'\n', encoding='utf-8')
+    print(json.dumps({'output': str(output), 'rows': len(rows), 'groups': len(groups), 'cli_cases': len(cli),
+                      'generator_quality': summary['quality'], 'product_patch_verdict': 'requires_separate_source_evidence'}))
+
+
+if __name__ == '__main__':
+    main()

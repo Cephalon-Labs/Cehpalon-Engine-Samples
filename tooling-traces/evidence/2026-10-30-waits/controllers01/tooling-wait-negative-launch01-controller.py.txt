@@ -1,0 +1,7 @@
+from pathlib import Path
+import subprocess,json,sys
+root=Path(__file__).resolve().parent.parent
+argv=[sys.executable,'tools/trace_tooling.py','--mode','combined-conformance','--dotnet','/missing/dotnet','--trace-tool','/missing/trace.dll','--analyzer','/missing/analyzer.dll','--conformance-target','/missing/fixture.dll','--output','.local/tooling-wait-negative-launch01']
+p=subprocess.run(argv,cwd=root,capture_output=True);out=root/'.local/tooling-wait-negative-launch01';(out/'controller.stdout.txt').write_bytes(p.stdout);(out/'controller.stderr.txt').write_bytes(p.stderr)
+c=json.loads((out/'known-target/capture.json').read_text(encoding='utf-8'));assert c['status']=='failed' and not c['owned_process_cleanup'] and 'target_pid' not in c and c.get('source_provenance_before')
+r={'status':'passed','expected_rejected_exit':p.returncode,'target_children_spawned':0,'source_modules':list(c['source_provenance_before']),'argv':argv};(out/'negative-gate.json').write_text(json.dumps(r,indent=2)+'\n',encoding='utf-8');print(json.dumps(r))

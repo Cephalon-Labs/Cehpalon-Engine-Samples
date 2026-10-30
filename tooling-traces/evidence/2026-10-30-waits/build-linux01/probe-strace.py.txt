@@ -1,0 +1,6 @@
+from pathlib import Path
+import subprocess,json
+out=Path(__file__).resolve().parent
+argv=['strace','-e','trace=futex,futex_waitv,restart_syscall,clock_nanosleep,sched_yield','-V']
+p=subprocess.run(argv,capture_output=True);(out/'strace-filter-probe.stdout.txt').write_bytes(p.stdout);(out/'strace-filter-probe.stderr.txt').write_bytes(p.stderr);(out/'strace-filter-probe.json').write_text(json.dumps({'argv':argv,'exit':p.returncode,'role':'version/filter parsing only; no target'},indent=2)+'\n',encoding='utf-8');assert p.returncode==0
+print('strace new syscall filter accepted; no target spawned')

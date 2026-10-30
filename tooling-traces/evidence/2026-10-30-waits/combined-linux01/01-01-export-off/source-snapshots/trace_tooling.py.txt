@@ -1,0 +1,436 @@
+"""Fixed process-scoped diagnostic lanes; traced timing is never benchmark acceptance."""
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import traceback
+import uuid
+from pathlib import Path
+
+import benchmark_tooling as benchmark
+from tooling_os_observer import observe_process
+from validate_native_conformance import validate_native_conformance
+
+ROOT = Path(__file__).resolve().parents[1]
+PROVIDERS = 'Microsoft-Windows-DotNETRuntime:0x11C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4'
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def save(path, value):
+    Path(path).write_text(json.dumps(value, indent=2, allow_nan=False) + '\n', encoding='utf-8', newline='\n')
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def diagnostics_environment(source, windows):
+    """Child-only port isolation, respecting Windows environment name semantics."""
+    normalize = str.casefold if windows else lambda value: value
+    disabled = {normalize(prefix + key) for prefix in ('DOTNET_', 'COMPlus_')
+                for key in ('EnableDiagnostics', 'EnableDiagnostics_IPC')}
+    aliases = {normalize(prefix + key) for prefix in ('DOTNET_', 'COMPlus_')
+               for key in ('DiagnosticPorts', 'DefaultDiagnosticPortSuspend')}
+    require(not any(normalize(key) in disabled and value.lower() in ('0', 'false')
+                    for key, value in source.items()), 'Inherited diagnostics policy disables IPC; do not silently override')
+    removed = [key for key in source if normalize(key) in aliases]
+    result = {key: value for key, value in source.items() if normalize(key) not in aliases}
+    result.update(DOTNET_DefaultDiagnosticPortSuspend='0', DOTNET_NOLOGO='1', DOTNET_CLI_TELEMETRY_OPTOUT='1')
+    return result, removed
+
+
+def process(command, cwd, prefix, timeout=240, environment=None):
+    command = list(map(str, command))
+    save(str(prefix) + '.command.json', {'argv': command, 'cwd': str(cwd), 'timeout_seconds': timeout})
+    try:
+        result = subprocess.run(command, cwd=cwd, env=environment, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        Path(str(prefix) + '.stdout.txt').write_bytes(error.stdout or b'')
+        Path(str(prefix) + '.stderr.txt').write_bytes(error.stderr or b'')
+        save(str(prefix) + '.failure.json', {'timed_out': True, 'failure': str(error)})
+        raise
+    except OSError as error:
+        Path(str(prefix) + '.stdout.txt').write_bytes(b'')
+        Path(str(prefix) + '.stderr.txt').write_bytes(str(error).encode('utf-8'))
+        save(str(prefix) + '.failure.json', {'launch_failed': True, 'failure': str(error)})
+        raise
+    Path(str(prefix) + '.stdout.txt').write_bytes(result.stdout)
+    Path(str(prefix) + '.stderr.txt').write_bytes(result.stderr)
+    require(result.returncode == 0, 'Process failed; retained ' + str(prefix))
+    return result.stdout
+
+
+def wait_until(predicate, proc, description, timeout=30):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        require(proc.poll() is None, 'Collector exited before ' + description)
+        time.sleep(.025)
+    raise TimeoutError('Timed out waiting for ' + description)
+
+
+def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
+    """Suspended target -> observer -> collector starts session and resumes its port."""
+    folder.mkdir(parents=True, exist_ok=False)
+    trace = folder / 'runtime.nettrace'
+    report = {'role': 'diagnostic_perturbed', 'canonical': False, 'status': 'started',
+              'target_argv': list(map(str, command)), 'cwd': str(cwd), 'providers': PROVIDERS,
+              'profile': 'dotnet-sampled-thread-time', 'buffer_mb': 256, 'buffer_mode': 'Drop',
+              'observer_interval_seconds': .010,
+              'startup_coordination': 'one suspended reverse port; observer before collector; collector resumes its own endpoint after session start',
+              'limits': ['Tracing, startup coordination, observer and rundown perturb execution.',
+                         'Managed sampled thread stacks are not kernel CPU/context-switch samples.',
+                         'Process I/O counters include tracing/IPC; native lane is separate.']}
+    report['binary_sha256'] = {str(path): sha(path) for path in (Path(dotnet), Path(tool), Path(analyzer)) if path.is_file()}
+    if len(command) > 1 and Path(command[1]).is_file():
+        report['binary_sha256'][str(command[1])] = sha(command[1])
+    report['prelaunch_hashing_scope'] = 'Executable hashing and fixture preparation prime filesystem caches; not cold disk'
+    snapshots = folder / 'source-snapshots'
+    snapshots.mkdir()
+    for name in ('tools/trace_tooling.py', 'tools/tooling_os_observer.py', 'tools/prepare_tooling_trace_driver.py',
+                 'tooling-traces/TraceAnalysis/Program.cs', 'tooling-traces/TraceAnalysis/TraceAnalysis.csproj',
+                 'tooling-traces/TraceAnalysis/packages.lock.json'):
+        source = ROOT / name
+        (snapshots / (name.replace('/', '__') + '.txt')).write_bytes(source.read_bytes())
+    save(folder / 'capture.json', report)
+    ipc_dir = None
+    if os.name == 'nt':
+        # Runtime DiagnosticPorts expects the bare name printed by this tool.
+        port = 'Cehpalon-Tooling-' + uuid.uuid4().hex
+    else:
+        ipc_dir = Path(tempfile.mkdtemp(prefix='cehpalon-trace-'))
+        ipc_dir.chmod(0o700)
+        port = str(ipc_dir / 'p.sock')
+    collector = target = observer = None
+    stop = threading.Event()
+    ready = threading.Event()
+    observed = {}
+    handles = []
+    try:
+        require(all(Path(binary).is_file() for binary in (dotnet, tool, analyzer)), 'Diagnostic binaries exist before spawning any child')
+        for name in ('collector.stdout.txt', 'collector.stderr.txt', 'target.stdout.txt', 'target.stderr.txt'):
+            handles.append((folder / name).open('wb'))
+        collect = [dotnet, 'exec', '--roll-forward', 'Major', tool, 'collect', '--output', trace,
+                   '--profile', 'dotnet-sampled-thread-time', '--providers', PROVIDERS,
+                   '--diagnostic-port', port, '--resume-runtime:true', '--buffersize', '256', '--buffering-mode', 'Drop']
+        report['collector_argv'] = list(map(str, collect))
+        log = folder / 'collector.stdout.txt'
+        text = lambda: log.read_text(encoding='utf-8', errors='replace')
+        collector_environment, removed = diagnostics_environment(dict(os.environ), os.name == 'nt')
+        environment = dict(collector_environment, DOTNET_DiagnosticPorts=port + ',connect,suspend')
+        report['child_removed_diagnostic_aliases'] = removed
+        report['target_launch_perf_counter_ns'] = time.perf_counter_ns()
+        report['target_launch_utc_ns'] = time.time_ns()
+        target = subprocess.Popen(list(map(str, command)), cwd=cwd, env=environment,
+                                  stdout=handles[2], stderr=handles[3], stdin=subprocess.DEVNULL)
+        report['target_pid'] = target.pid
+        save(folder / 'capture.json', report)
+
+        def observe():
+            try:
+                observed['summary'] = observe_process(target.pid, folder / 'os.jsonl', stop, interval=.010, ready_event=ready)
+            except Exception:
+                observed['failure'] = traceback.format_exc()
+
+        observer = threading.Thread(target=observe, name='owned-target-os-observer')
+        observer.start()
+        wait_until(lambda: ready.is_set() or 'failure' in observed, target, 'observer live identity sample')
+        require(ready.is_set() and 'failure' not in observed, 'Observer established before collector can resume managed startup')
+        require(target.poll() is None and (folder / 'target.stdout.txt').stat().st_size == 0,
+                'Suspended owned target is alive and has no application stdout before collector')
+        report['observer_ready_perf_counter_ns'] = time.perf_counter_ns()
+        report['collector_launch_perf_counter_ns'] = time.perf_counter_ns()
+        collector = subprocess.Popen(list(map(str, collect)), cwd=cwd, env=collector_environment,
+                                     stdout=handles[0], stderr=handles[1], stdin=subprocess.PIPE)
+        report['collector_pid'] = collector.pid
+        save(folder / 'capture.json', report)
+        wait_until(lambda: 'Process' in text() and 'Output File' in text(), collector, 'EventPipe session')
+        report['session_and_reverse_resume_header_observed_perf_counter_ns'] = time.perf_counter_ns()
+        report['header_timing_scope'] = 'post-resume acknowledgment upper bound; target can run or exit before header is observed'
+        save(folder / 'capture.json', report)
+        report['target_exit'] = target.wait(timeout=timeout)
+        report['target_exit_perf_counter_ns'] = time.perf_counter_ns()
+        stop.set()
+        observer.join(timeout=15)
+        require(not observer.is_alive(), 'Observer stopped and joined')
+        report['observer'] = observed
+        require('failure' not in observed, 'OS observer failed; explicit diagnostic coverage failure')
+        report['collector_exit'] = collector.wait(timeout=120)
+        require(report['target_exit'] == 0 and report['collector_exit'] == 0, 'Target and collector success')
+        require(trace.is_file() and trace.stat().st_size > 0, 'Nonempty complete trace')
+        report.update(status='completed', trace_bytes=trace.stat().st_size, trace_sha256=sha(trace))
+    except Exception:
+        report.update(status='failed', failure=traceback.format_exc())
+        raise
+    finally:
+        stop.set()
+        # Only directly owned Popen children; no global profiler/server cancellation.
+        cleanup = []
+        for role, proc in (('target', target), ('collector', collector)):
+            if proc is not None:
+                item = {'role': role, 'pid': proc.pid, 'kill_requested': False}
+                try:
+                    if proc.poll() is None:
+                        proc.kill()
+                        item['kill_requested'] = True
+                    item['returncode'] = proc.wait(timeout=15)
+                    item['joined'] = True
+                except Exception:
+                    item.update(joined=False, failure=traceback.format_exc())
+                    report.update(status='failed', cleanup_failure=True)
+                cleanup.append(item)
+        report['owned_process_cleanup'] = cleanup
+        if observer is not None:
+            observer.join(timeout=15)
+            report['observer_joined'] = not observer.is_alive()
+        report['observer'] = observed
+        for handle in handles:
+            handle.close()
+        if collector is not None and collector.stdin is not None:
+            collector.stdin.close()
+        if ipc_dir is not None:
+            socket = ipc_dir / 'p.sock'
+            if socket.exists():
+                socket.unlink()
+            try:
+                ipc_dir.rmdir()
+            except OSError:
+                report['retained_ipc_directory'] = str(ipc_dir)
+        save(folder / 'capture.json', report)
+    require(report['status'] == 'completed' and all(row.get('joined') for row in report['owned_process_cleanup']),
+            'Successful capture and joined owned children required')
+    return report
+
+
+def read_json_bytes(data):
+    return json.loads(data.decode('utf-8-sig'))
+
+
+def analyze(folder, dotnet, analyzer, spans=None, expected_markers=None):
+    command = [dotnet, analyzer, '--trace', folder / 'runtime.nettrace', '--output', folder / 'analysis']
+    if spans is not None:
+        command += ['--spans', spans]
+    environment, _ = diagnostics_environment(dict(os.environ), os.name == 'nt')
+    process(command, ROOT, folder / 'analyze', timeout=600, environment=environment)
+    report = read(folder / 'analysis/summary.json')
+    require(report.get('status') == 'completed' and report.get('eventsLost') == 0, 'Parsed trace with zero reported EventPipe loss')
+    require(report.get('payloadReadErrors') == 0 and report.get('etlxEventsLost') == 0
+            and report.get('stackExtractionStatus') == 'completed', 'Payload/managed-stack extraction and loss checked')
+    require(report.get('jitStartToLoadIntervals', 0) > 0 and report.get('sampledThreadEvents', 0) > 0
+            and report.get('stackSamples', 0) > 0, 'Positive actual JIT start/load and managed thread sample evidence')
+    capture = read(folder / 'capture.json')
+    target_pid = capture['target_pid']
+    runtime_pids, sample_pids = set(), set()
+    with (folder / 'analysis/events.jsonl').open(encoding='utf-8') as stream:
+        for line in stream:
+            event = json.loads(line)
+            if event['provider'] == 'Microsoft-Windows-DotNETRuntime':
+                runtime_pids.add(event['processId'])
+            elif event['provider'] == 'Microsoft-DotNETCore-SampleProfiler':
+                sample_pids.add(event['processId'])
+    require(runtime_pids == sample_pids == {target_pid}, 'Runtime and sampled thread events belong to the actual owned target PID')
+    quality = {'target_pid': target_pid, 'runtime_event_pids': sorted(runtime_pids), 'sample_event_pids': sorted(sample_pids),
+               'event_loss_reported': report['eventsLost'], 'etlx_loss_reported': report['etlxEventsLost'],
+               'gc_attribution_scope': 'complete_for_observed_episodes' if report.get('eePairingErrors') == 0 else 'partial; no complete GC attribution',
+               'runtime_correlation_scope': report.get('correlationStatus'),
+               'os_observer_status': capture.get('observer', {}).get('summary', {}).get('status'),
+               'os_coverage_scope': 'sampled only; partial status and first/last lifetime gaps retained in capture',
+               'limits': ['Parser completion is separate from capture/attribution quality.',
+                          'OS dimensions remain sampled or unavailable per observer; no kernel CSwitch/physical disk claim.']}
+    save(folder / 'analysis/root-quality.json', quality)
+    report['root_quality'] = quality
+    if spans is not None:
+        records = [json.loads(line) for line in Path(spans).read_text(encoding='utf-8').splitlines()]
+        require(report.get('markerEvents') == report.get('sidecarSpans') == len(records)
+                and not report.get('markerErrors') and report.get('alignmentStatus') == 'bounded_consistent',
+                'All markers/sidecar records align with declared clock bounds')
+        if expected_markers is not None:
+            require(len(records) == expected_markers, 'Exact predeclared marker count')
+        require([r['sequence'] for r in records] == list(range(1, len(records) + 1)), 'Complete ordered marker sequence')
+        target_pid = read(folder / 'capture.json')['target_pid']
+        require(all(r['processId'] == target_pid and r['osThreadId'] > 0 and r['endTicks'] >= r['startTicks']
+                    for r in records), 'Actual owned PID/TID and monotonic stage intervals')
+    return report
+
+
+def verify_generator(path):
+    r = read(path)
+    require(r.get('correctnessPassed') is True and r.get('status') == 'completed', 'Diagnostic generator semantics pass')
+    require(len(r['measurements']) == 270 and len(r['primers']) == 36 and len(r['stateSeeds']) == 12
+            and len(r['preflight']) == 3 and len(r['postflight']) == 18, 'Complete diagnostic original matrix')
+    require(all(row['emitSuccess'] and not row['diagnostics'] for row in r['measurements'] + r['primers']), 'Every actual emit succeeds')
+    require(r.get('canonical') is False and r.get('diagnosticPerturbed') is True,
+            'Diagnostic data cannot masquerade as canonical acceptance')
+    spans = [json.loads(line) for line in Path(str(path) + '.spans.jsonl').read_text(encoding='utf-8').splitlines()]
+    expected = {'execute.setup': 330, 'generator.run': 168, 'pe.emit': 330, 'compiler.wall': 330,
+                'journal.persistence': 306, 'ast.verify': 348, 'runtime.verify': 42,
+                'fixture.setup': 60, 'fixture.edit': 54, 'hash': 988}
+    counts = {name: sum(row['stage'] == name for row in spans) for name in expected}
+    require(counts == expected and len(spans) == 2956, 'Complete diagnostic phase spans')
+    rows = [row for row in spans if row['stage'] == 'compiler.wall' and row['phase'] in ('primer', 'measurement')]
+    require(len(rows) == 306 and len({(row['caseIndex'], row['pairSequence'], row['variant']) for row in rows}) == 306,
+            'All main row identities separately verified from seed/preflight emits')
+    return {'measurements': 270, 'primers': 36, 'seeds': 12, 'preflight': 3, 'postflight': 18}
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--mode', choices=['runtime', 'native', 'conformance', 'native-conformance', 'combined', 'combined-conformance'], required=True)
+    p.add_argument('--dotnet', required=True)
+    p.add_argument('--trace-tool')
+    p.add_argument('--analyzer')
+    p.add_argument('--driver')
+    p.add_argument('--conformance-target')
+    p.add_argument('--fixture')
+    p.add_argument('--engine-root', default=str(ROOT.parent / 'Cehpalon-Engine'))
+    p.add_argument('--expected-engine-revision', default='55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7')
+    p.add_argument('--output', required=True)
+    a = p.parse_args()
+    if a.mode in ('runtime', 'conformance', 'combined', 'combined-conformance') and not (a.trace_tool and a.analyzer):
+        p.error('Runtime capture requires --trace-tool and --analyzer')
+    # Export commands intentionally run from their fixture directory. Every
+    # executable/configuration argument must survive that child cwd change.
+    for name in ('dotnet', 'trace_tool', 'analyzer', 'driver', 'conformance_target', 'fixture', 'engine_root'):
+        if getattr(a, name):
+            setattr(a, name, str(Path(getattr(a, name)).resolve()))
+    output = (ROOT / a.output).resolve()
+    private = (ROOT / '.local').resolve()
+    require(output != private and output.is_relative_to(private), 'Fresh output beneath ignored Samples .local')
+    output.mkdir(parents=True, exist_ok=False)
+    (output / 'runner.py.txt').write_bytes(Path(__file__).read_bytes())
+    report = {'mode': a.mode, 'role': 'diagnostic_perturbed', 'canonical': False, 'status': 'started', 'cases': [],
+              'started_utc_ns': time.time_ns(), 'harness_sha256': sha(__file__), 'engine_revision': a.expected_engine_revision}
+    save(output / 'manifest.json', report)
+    try:
+        runtime_modes = ('runtime', 'combined')
+        capture_function = capture_runtime
+        if a.mode in ('combined', 'combined-conformance'):
+            from tooling_wait_capture import capture as capture_function
+            report['capture_backend'] = 'same_process_eventpipe_strace_waits'
+            report['capture_backend_sha256'] = sha(ROOT / 'tools/tooling_wait_capture.py')
+        if a.mode in ('conformance', 'native-conformance', 'combined-conformance'):
+            require(a.conformance_target, 'Conformance target required')
+            folder = output / 'known-target'
+            if a.mode in ('conformance', 'combined-conformance'):
+                capture = capture_function([a.dotnet, a.conformance_target, folder / 'known.json'], ROOT, folder,
+                                           a.dotnet, a.trace_tool, a.analyzer,
+                                           **({'timeout': 120} if a.mode == 'combined-conformance' else {}))
+                require(capture['status'] == 'completed', 'Capture completed before analysis')
+                analysis = analyze(folder, a.dotnet, a.analyzer, folder / 'known.json.spans.jsonl',
+                                   expected_markers=7 if a.mode == 'combined-conformance' else 5)
+                require(analysis.get('gcRelatedEnvelopes', 0) > 0 and analysis.get('eePairingErrors') == 0,
+                        'Known conformance collection has positive, complete GC suspension episodes')
+            else:
+                process([sys.executable, ROOT / 'tools/trace_tooling_native.py', '--output', folder, '--',
+                         a.dotnet, a.conformance_target, folder / 'known.json'], ROOT, output / 'native-conformance', timeout=660)
+                capture, analysis = read(folder / 'manifest.json'), read(folder / 'parsed.json')
+                analysis['collector_conformance'] = validate_native_conformance(folder)
+            report['cases'].append({'name': 'known-target', 'capture': capture, 'analysis': analysis})
+            require(read(folder / 'known.json')['status'] == 'passed', 'Known target semantic result')
+        else:
+            require(a.driver and a.fixture, 'Prepared diagnostic driver and fixture required')
+            engine = Path(a.engine_root).resolve()
+            require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=engine, text=True).strip() == a.expected_engine_revision,
+                    'Exact trace source revision')
+            require(not subprocess.check_output(['git', 'status', '--porcelain'], cwd=engine, text=True).strip(), 'Clean Engine source')
+            fixture = Path(a.fixture).resolve()
+            f = read(fixture / 'manifest.json')
+            require(f['status'] == 'completed' and f['engine_revision'] == a.expected_engine_revision, 'Actual prepared current fixture')
+            for name, digest in f['binary_sha256'].items():
+                require(sha(fixture / name) == digest, 'Prepared executable hash')
+            cli = [a.dotnet, fixture / 'engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll']
+            small = fixture / 'fixture-small-api'
+            assembly = fixture / 'consumer-artifacts/bin/Consumer/release/PortableConsumer.BenchmarkSample.dll'
+            pinned = [Path(a.dotnet), Path(a.driver), Path(cli[1]), assembly,
+                      ROOT / 'tools/trace_tooling.py', ROOT / 'tools/tooling_os_observer.py',
+                      ROOT / 'tools/trace_tooling_native.py', ROOT / 'tools/validate_native_conformance.py']
+            if a.mode == 'combined':
+                pinned += [ROOT / 'tools/tooling_wait_capture.py', ROOT / 'tools/analyze_tooling_waits.py',
+                           ROOT / 'tools/prepare_tooling_wait_driver.py']
+            report['frozen_inputs_sha256'] = {str(path): sha(path) for path in pinned}
+            save(output / 'manifest.json', report)
+
+            def capture_case(label, command, cwd, generator=False):
+                folder = output / label
+                if a.mode in runtime_modes:
+                    c = capture_function(command, cwd, folder, a.dotnet, a.trace_tool, a.analyzer)
+                    require(c['status'] == 'completed', 'Capture completed before analysis')
+                    spans = folder / 'generator.json.spans.jsonl' if generator else None
+                    result = analyze(folder, a.dotnet, a.analyzer, spans, expected_markers=2956 if generator else None)
+                else:
+                    process([sys.executable, ROOT / 'tools/trace_tooling_native.py', '--output', folder,
+                             '--timeout-seconds', '600', '--'] + list(command), cwd, output / (label + '-native'), timeout=660)
+                    c, result = read(folder / 'manifest.json'), read(folder / 'parsed.json')
+                    require(c['status'] == 'completed' and c.get('exit') == 0 and not c.get('timed_out')
+                            and not c.get('cleanup_unresolved') and c.get('target_owned_identity'), 'Owned native target completed')
+                stdout = (folder / ('target.stdout.txt' if a.mode in runtime_modes else 'stdout.txt')).read_bytes()
+                item = {'name': label, 'capture': c, 'analysis_file': str((folder / ('analysis/summary.json' if a.mode in runtime_modes else 'parsed.json')).relative_to(output))}
+                if a.mode in runtime_modes:
+                    item['runtime_attribution_quality'] = result['root_quality']
+                report['cases'].append(item)
+                save(output / 'manifest.json', report)
+                return folder, stdout, item
+
+            generator_folder = output / 'generator'
+            folder, stdout, item = capture_case('generator', [a.dotnet, a.driver, '--output=' + str(generator_folder / 'generator.json')], ROOT, True)
+            item['semantics'] = verify_generator(folder / 'generator.json')
+            for round_number in range(3):
+                offset = round_number % 8
+                names = list(benchmark.SCENARIOS[offset:] + benchmark.SCENARIOS[:offset])
+                if round_number % 2:
+                    names.reverse()
+                for position, name in enumerate(names):
+                    label = f'{round_number:02d}-{position:02d}-{name}'
+                    destination = output / label / 'generated-output'
+                    if name.startswith('new-'):
+                        short = name.removeprefix('new-')
+                        profile = 'portable-request-reply' if short == 'portable' else 'small-api'
+                        command = cli + ['new', '--profile', profile, '--name', benchmark.NAME, '--output', destination, '--engine-root', engine]
+                        cwd = ROOT
+                    elif name.startswith('validate-'):
+                        short = name.removeprefix('validate-')
+                        profile = 'portable-request-reply' if short == 'portable' else 'small-api'
+                        command = cli + ['validate', '--profile', profile, '--config', fixture / ('fixture-' + short) / 'appsettings.json']
+                        cwd = ROOT
+                    else:
+                        kind = name.removeprefix('export-')
+                        command = [a.dotnet, assembly, '--export-contracts', '--config', small / benchmark.EXPORTS[kind][0], '--output', destination]
+                        cwd = small
+                    folder, stdout, item = capture_case(label, command, cwd)
+                    value = read_json_bytes(stdout)
+                    if name.startswith('new-'):
+                        item['verified'] = benchmark.verify_new(destination, value, profile, engine, f['fixtures'][short]['files_sha256'])
+                    elif name.startswith('validate-'):
+                        item['verified'] = benchmark.verify_validate(value, profile, f['frozen_validation'][short])
+                    else:
+                        item['verified'] = benchmark.verify_export(destination, value, kind, f['frozen_exports'][kind]['files_sha256'])
+                    item.update(round=round_number, position=position, scenario=name, verification_status='passed')
+                    save(output / 'manifest.json', report)
+            require(len(report['cases']) == 25, 'Complete fixed generator plus 24 diagnostic CLI processes')
+            require(all(sha(Path(path)) == digest for path, digest in report['frozen_inputs_sha256'].items()),
+                    'Pinned executable and orchestration bytes unchanged throughout lane')
+        report.update(status='completed', finished_utc_ns=time.time_ns())
+    except Exception:
+        report.update(status='failed', failure=traceback.format_exc(), finished_utc_ns=time.time_ns())
+        raise
+    finally:
+        save(output / 'manifest.json', report)
+    print(json.dumps({'status': report['status'], 'mode': a.mode, 'cases': len(report['cases']), 'output': str(output)}))
+
+
+if __name__ == '__main__':
+    main()

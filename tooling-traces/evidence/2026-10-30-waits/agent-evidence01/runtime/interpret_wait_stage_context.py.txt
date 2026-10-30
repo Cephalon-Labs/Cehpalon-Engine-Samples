@@ -1,0 +1,31 @@
+"""Offline supporting stage context; managed samples remain residency only."""
+import collections,json
+from pathlib import Path
+base=Path('D:/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-combined-linux02/generator')
+read=lambda p:json.loads(p.read_text())
+records=lambda p:(json.loads(line) for line in p.open())
+s=read(base/'analysis/summary.json');w=read(base/'wait-analysis/summary.json');pid=w['target_pid']
+pairs=[p for p in records(base/'wait-analysis/wait-pairs.jsonl') if p['osThreadId']==pid and p['identity_attribution_status']=='no_native_tid_reuse_observed_in_retained_scope']
+spans=list(records(next(base.glob('*.spans.jsonl'))));lo=s['clockOffsetIntersectionLowerMsec'];hi=s['clockOffsetIntersectionUpperMsec'];stages=[]
+def union(xs,a,b):
+ total=0.;end=None
+ for x,y in sorted((max(a,x),min(b,y)) for x,y in xs if y>a and x<b):
+  if y<=x:continue
+  if end is None or x>end:total+=y-x;end=y
+  elif y>end:total+=y-end;end=y
+ return total
+for x in spans:
+ if x['phase']!='measurement' or x['stage'] not in ('pe.emit','generator.run'):continue
+ start=x['startTicks']*1000/x['frequency'];end=x['endTicks']*1000/x['frequency'];ints=[(p['startMsec'],p['endMsec']) for p in pairs]
+ stages.append({'stage':x['stage'],'identity':{k:x[k] for k in ('caseIndex','size','state','variant','pairSequence')},'start_lower_msec':start+lo,'start_upper_msec':start+hi,'end_lower_msec':end+lo,'end_upper_msec':end+hi,'duration_msec':end-start,'caller_wait_overlap_lower_msec':union(ints,start+hi,end+lo),'caller_wait_overlap_upper_msec':min(end-start,union(ints,start+lo,end+hi))})
+frames=collections.Counter();samplecount=0
+for x in records(base/'analysis/sampled-thread-stacks.jsonl'):
+ if x['osThreadId']!=pid:continue
+ t=x['timeRelativeMsec']
+ if not any(p['startMsec']<=t<=p['endMsec'] for p in pairs):continue
+ if not any(r['start_lower_msec']<=t<=r['end_upper_msec'] for r in stages):continue
+ samplecount+=1;frames.update(set(x['frames']))
+o=Path(__file__).parent/'combined-linux02-wait-stage-context01.json'
+if o.exists():raise FileExistsError(o)
+result={'canonical':False,'scope':'diagnostic_observed_stage_context_not_CPU_or_cause','stage_rows':stages,'totals':{stage:{'rows':len(rs),'stage_duration_msec':sum(r['duration_msec'] for r in rs),'caller_wait_lower_msec':sum(r['caller_wait_overlap_lower_msec'] for r in rs),'caller_wait_upper_msec':sum(r['caller_wait_overlap_upper_msec'] for r in rs)} for stage in ('generator.run','pe.emit') for rs in [[r for r in stages if r['stage']==stage]]},'caller_wait_measured_stage_residency_samples':samplecount,'inclusive_frames':[{'frame':f,'sample_observations':n} for f,n in frames.most_common(45)],'limits':['Wait bounds and stage totals are perturbed elapsed diagnostic observations, not CPU-exclusive work or benchmark acceptance.','Inclusive frames indicate managed residency during measured stages and paired caller waits; no physical lock owner or cause inferred.','Original EventPipe marker offset intersection used; float printed precision retained, not nanosecond accuracy.','Only observed completed caller pairs; missing waits and GC remain partial.']}
+o.write_text(json.dumps(result,indent=2)+'\n');print(result['totals']);print('samples',samplecount);print(result['inclusive_frames'][:18])
