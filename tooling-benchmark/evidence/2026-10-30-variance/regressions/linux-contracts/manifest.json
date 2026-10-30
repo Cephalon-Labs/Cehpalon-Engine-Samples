@@ -1,0 +1,1673 @@
+{
+  "started_utc": "2026-10-30T02:21:28.588403+00:00",
+  "status": "passed",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "engine-head.txt",
+      "sha256": "8478faea0894a6a541c4d9013d590ddcb0a27271739b7079e29d3e79d5bd37d9"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "engine-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "--version"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "sdk-version.txt",
+      "sha256": "8f311fda85131eb472c3f117c2c4e441c86aaeb72740d76f44d89ff1e75ae7ae"
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--local",
+        "--no-hardlinks",
+        "--no-checkout",
+        "/mnt/d/Cephalon/Cehpalon-Engine",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "clone.txt",
+      "sha256": "8dcac5abd0b57f8f9a5f1283c64d6192fecc8152338090dceccc3fa4f80aba9c"
+    },
+    {
+      "argv": [
+        "git",
+        "checkout",
+        "--detach",
+        "1b9d538b4311cf574912596a0f547ae5ae788070"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "checkout.txt",
+      "sha256": "f361d51f6238af440331f3dc2690f92c267c07f66d7a77ff2d6cd1c68c75f292"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-head.txt",
+      "sha256": "8478faea0894a6a541c4d9013d590ddcb0a27271739b7079e29d3e79d5bd37d9"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj",
+        "--locked-mode",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "cli-restore.txt",
+      "sha256": "bb39089d3d2fab54ff8e5c5e332409f59ea69358d9ed2dda2dbfa6f2f7036523"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine",
+      "exit": 0,
+      "log": "cli-build.txt",
+      "sha256": "ddbace247b66fbb814b273f9bcde777a5bc2eb04c1a2a7f8e7017342af04bfa6"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--profile",
+        "small-api",
+        "--name",
+        "System",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new.txt",
+      "sha256": "3524c65c7205a5d91416e7f41c4a23928225e889ad518aae505af87c786ac3a7"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-restore.txt",
+      "sha256": "52045357260d54afdb7911e18b3acf84c4a0279fa077b4765c779e985704ea74"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "--locked-mode",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-locked-restore.txt",
+      "sha256": "3178dc744264032d7dc686cfe4f96785925fad5ce09b6951ffbc85843b455d35"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-build.txt",
+      "sha256": "aac56dd82cf4c18e7f687664105e8bacdc862d27ac0663e399b5ced0e0e7b6e8"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-api"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-api.txt",
+      "sha256": "a6f4fae0e486fa5e42af1ecf67239c58465fb1e99e22854854aa9818d1a75353"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-api-twin"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-api-twin.txt",
+      "sha256": "a6f4fae0e486fa5e42af1ecf67239c58465fb1e99e22854854aa9818d1a75353"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-both"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-both.txt",
+      "sha256": "f48fcbbae2ff43eec9bc769106450e8d0af0a0b555f91c2ca18d26abed9d1b43"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-both-twin"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-both-twin.txt",
+      "sha256": "f48fcbbae2ff43eec9bc769106450e8d0af0a0b555f91c2ca18d26abed9d1b43"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql-only.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-graphql"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-graphql.txt",
+      "sha256": "bd08f81196f6d5f7ab91a13c13c2fa13030ca8ac9373985058e2c5b354a98768"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql-only.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-graphql-twin"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-graphql-twin.txt",
+      "sha256": "bd08f81196f6d5f7ab91a13c13c2fa13030ca8ac9373985058e2c5b354a98768"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.off.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-off"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-off.txt",
+      "sha256": "334975b962518cf2e7c389ae4beb9445530ddc933f0e258682dea59c9a44b65c"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.off.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/export-off-twin"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "export-off-twin.txt",
+      "sha256": "334975b962518cf2e7c389ae4beb9445530ddc933f0e258682dea59c9a44b65c"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/invalid-config.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/rejected-invalid"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "export-invalid.txt",
+      "sha256": "ddf652536a1545b48d5c565c824bbc3a5b302037a07fb13c8e786e710483afe7"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/worker-config.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/rejected-worker"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "export-worker.txt",
+      "sha256": "ddf652536a1545b48d5c565c824bbc3a5b302037a07fb13c8e786e710483afe7"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/existing-directory"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "export-existing-directory.txt",
+      "sha256": "d3ab7da50d5c7e8065665d323d10aafe33cdeea5459bf02a859871b8f1c4797e"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/existing-empty-directory"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "export-existing-empty-directory.txt",
+      "sha256": "d3ab7da50d5c7e8065665d323d10aafe33cdeea5459bf02a859871b8f1c4797e"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.graphql.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/existing-file"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "export-existing-file.txt",
+      "sha256": "d3ab7da50d5c7e8065665d323d10aafe33cdeea5459bf02a859871b8f1c4797e"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/linked-parent/consumer"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "export-link.txt",
+      "sha256": "d3ab7da50d5c7e8065665d323d10aafe33cdeea5459bf02a859871b8f1c4797e"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/dangling-target"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "export-dangling.txt",
+      "sha256": "d3ab7da50d5c7e8065665d323d10aafe33cdeea5459bf02a859871b8f1c4797e"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces/src/ContractExportMustNotCreate-6f8e587196b149be9b67837379b8e63f"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "export-checkout-source.txt",
+      "sha256": "d3ab7da50d5c7e8065665d323d10aafe33cdeea5459bf02a859871b8f1c4797e"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof/SchemaWireProof.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/proof-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof",
+      "exit": 0,
+      "log": "proof-restore.txt",
+      "sha256": "893a9417ab19c2e74e0b6ca231fce4a692391ee8da55d3949b0d3fe814fefc95"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof/SchemaWireProof.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/proof-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof",
+      "exit": 0,
+      "log": "proof-build.txt",
+      "sha256": "3a42a66593d1fbbcab7786c7ec4280dc666a37ae6d92dffae10f8bdf09f44e86"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/proof-artifacts/bin/SchemaWireProof/release/SchemaWireProof.dll",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/generated contracts \u0e44\u0e17\u0e22 & spaces",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof.json",
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/consumer-artifacts/bin/Consumer/release/PortableConsumer.System.dll"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/schema-wire-proof",
+      "exit": 0,
+      "log": "schema-wire-proof.txt",
+      "sha256": "7cfcf521a4398e21dc8ca13ce3b52c6f342686156ca436f4bc1b27711b6e29bb"
+    }
+  ],
+  "checks": [
+    "actual clean Engine revision matches consumer lock",
+    "exact pinned SDK selected",
+    "real clean source clone under escaped path",
+    "actual fourteen-file schema-capable Small API scaffold",
+    "source observation boundary explicit",
+    "unique bounded observed input Directory.Packages.props",
+    "observed bytes match Directory.Packages.props",
+    "unique bounded observed input NuGet.Config",
+    "observed bytes match NuGet.Config",
+    "unique bounded observed input global.json",
+    "observed bytes match global.json",
+    "unique bounded observed input src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "observed bytes match src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "observed bytes match src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "unique bounded observed input src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "observed bytes match src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "unique bounded observed input src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "unique bounded observed input src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "observed bytes match src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "observed bytes match src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Composition/Contracts.cs",
+    "observed bytes match src/Cehpalon.Engine.Composition/Contracts.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "observed bytes match src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Composition/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.Composition/packages.lock.json",
+    "unique bounded observed input src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "observed bytes match src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.Core/Contracts.cs",
+    "observed bytes match src/Cehpalon.Engine.Core/Contracts.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "observed bytes match src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Core/OperationResult.cs",
+    "observed bytes match src/Cehpalon.Engine.Core/OperationResult.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Core/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.Core/packages.lock.json",
+    "unique bounded observed input src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+    "observed bytes match src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+    "observed bytes match src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+    "unique bounded observed input src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+    "observed bytes match src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.Tenancy/Contracts.cs",
+    "observed bytes match src/Cehpalon.Engine.Tenancy/Contracts.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+    "observed bytes match src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Tenancy/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.Tenancy/packages.lock.json",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+    "observed bytes match src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+    "observed bytes match src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+    "observed bytes match src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+    "observed bytes match src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+    "observed bytes match src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+    "observed bytes match src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+    "unique bounded observed input src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+    "observed bytes match src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+    "exact selected thirty-two source inputs",
+    "actual consumer package lock created",
+    "locked consumer restore preserves actual graph",
+    "one actual emitted registry",
+    "three actual typed lazy generated gateways",
+    "compiler/Tooling excluded from consumer runtime",
+    "api exports only enabled artifact filenames",
+    "api artifacts deterministic across two output destinations",
+    "api export declares bounded profile",
+    "api export performs zero HandlerFactoryCalls",
+    "api export performs zero DispatchCalls",
+    "api export performs zero HostFactories",
+    "api export performs zero TlsReads",
+    "api export performs zero AuthorityCalls",
+    "api selected HTTP typed schema operation count",
+    "api honest selected schema-compiler lifetime: GraphQLRegistrations",
+    "api honest selected schema-compiler lifetime: GraphQLSchemaBuilds",
+    "api honest selected schema-compiler lifetime: GraphQLProvidersCreated",
+    "api honest selected schema-compiler lifetime: GraphQLProvidersDisposed",
+    "api disabled GraphQL registers no vendor services",
+    "api generated registry IDs checked without handler factory",
+    "api HTTP metadata matches selected operations",
+    "api manifest identifies actual published bytes: openapi.json",
+    "api declares OpenAPI3.1 schema dialect",
+    "api exports actual three typed HTTP operation routes",
+    "api operation IDs match actual generated registry",
+    "both exports only enabled artifact filenames",
+    "both artifacts deterministic across two output destinations",
+    "both export declares bounded profile",
+    "both export performs zero HandlerFactoryCalls",
+    "both export performs zero DispatchCalls",
+    "both export performs zero HostFactories",
+    "both export performs zero TlsReads",
+    "both export performs zero AuthorityCalls",
+    "both selected HTTP typed schema operation count",
+    "both honest selected schema-compiler lifetime: GraphQLRegistrations",
+    "both honest selected schema-compiler lifetime: GraphQLSchemaBuilds",
+    "both honest selected schema-compiler lifetime: GraphQLProvidersCreated",
+    "both honest selected schema-compiler lifetime: GraphQLProvidersDisposed",
+    "both disabled GraphQL registers no vendor services",
+    "both generated registry IDs checked without handler factory",
+    "both HTTP metadata matches selected operations",
+    "both manifest identifies actual published bytes: openapi.json",
+    "both manifest identifies actual published bytes: schema.graphql",
+    "both declares OpenAPI3.1 schema dialect",
+    "both exports actual three typed HTTP operation routes",
+    "both operation IDs match actual generated registry",
+    "graphql exports only enabled artifact filenames",
+    "graphql artifacts deterministic across two output destinations",
+    "graphql export declares bounded profile",
+    "graphql export performs zero HandlerFactoryCalls",
+    "graphql export performs zero DispatchCalls",
+    "graphql export performs zero HostFactories",
+    "graphql export performs zero TlsReads",
+    "graphql export performs zero AuthorityCalls",
+    "graphql selected HTTP typed schema operation count",
+    "graphql honest selected schema-compiler lifetime: GraphQLRegistrations",
+    "graphql honest selected schema-compiler lifetime: GraphQLSchemaBuilds",
+    "graphql honest selected schema-compiler lifetime: GraphQLProvidersCreated",
+    "graphql honest selected schema-compiler lifetime: GraphQLProvidersDisposed",
+    "graphql disabled GraphQL registers no vendor services",
+    "graphql generated registry IDs checked without handler factory",
+    "graphql HTTP metadata matches selected operations",
+    "graphql manifest identifies actual published bytes: schema.graphql",
+    "off exports only enabled artifact filenames",
+    "off artifacts deterministic across two output destinations",
+    "off export declares bounded profile",
+    "off export performs zero HandlerFactoryCalls",
+    "off export performs zero DispatchCalls",
+    "off export performs zero HostFactories",
+    "off export performs zero TlsReads",
+    "off export performs zero AuthorityCalls",
+    "off selected HTTP typed schema operation count",
+    "off honest selected schema-compiler lifetime: GraphQLRegistrations",
+    "off honest selected schema-compiler lifetime: GraphQLSchemaBuilds",
+    "off honest selected schema-compiler lifetime: GraphQLProvidersCreated",
+    "off honest selected schema-compiler lifetime: GraphQLProvidersDisposed",
+    "off disabled GraphQL registers no vendor services",
+    "off generated registry IDs checked without handler factory",
+    "off HTTP metadata matches selected operations",
+    "invalid configuration rejects before publishing output",
+    "invalid rejection reports zero artifact/service/handler work",
+    "worker configuration rejects before publishing output",
+    "worker rejection reports zero artifact/service/handler work",
+    "existing-directory refused without overwrite",
+    "existing-empty-directory refused without overwrite",
+    "existing-file refused without overwrite",
+    "observed symlink/reparse ancestor rejected without publication",
+    "dangling target remains untouched",
+    "known Engine checkout src is not an export destination",
+    "actual HTTPS/runtime schema differential helper passes"
+  ],
+  "harness_sha256": "cfeafec585ca8e090e1c95a59d02e756e3a1fe25e3a88f7fe3f3535c1a96530c",
+  "scope": "Bounded offline schema and actual localhost fixture differential proof; not arbitrary schemas, validator/tenant authority equivalence, performance, real IdP/provider or production qualification",
+  "engine_revision": "1b9d538b4311cf574912596a0f547ae5ae788070",
+  "source_state": "exact clean committed source",
+  "engine_source_sha256": {
+    "src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj": "13f69019239130e19687496413422b3172d49cbaeff7cccedf1b8d21c864e6ba",
+    "src/Cehpalon.Engine.Tooling/CliApplication.cs": "5896c924aefafb5a78fd44333696d6062ce1f8c238cd6777c95285c1639d9c59",
+    "src/Cehpalon.Engine.Tooling/FileSystem.cs": "d10d2ad39a2a30699b07922594e5a005330eb60a6385e34fd7e46b1119abe5ad",
+    "src/Cehpalon.Engine.Tooling/Program.cs": "959ddd47daa0cb91e700fe6c6476c65c460fb9c101c11ddfdaf340b62ed5b4a8",
+    "src/Cehpalon.Engine.Tooling/README.md": "e3141a12008ab8fab34be9a5ff105620df38e4bd8af3d004f96056eedbb9d00e",
+    "src/Cehpalon.Engine.Tooling/SmallApiTemplateFiles.cs": "ee7fe0ff5da313bc0a83c707de33ef93fc9dfdc2b7924ff63a61d043b656dddf",
+    "src/Cehpalon.Engine.Tooling/TemplateFiles.cs": "6b5109c13e970c7b046835e298c5ad375d779583390ada60c6337cb5ddc7db8b",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/Catalog.cs.txt": "e6afb54efa4fd43872a864550c7453efe68acd0f159857b22d43fa391d6aeb9f",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/ContractExport.cs.txt": "861e160395ba5baf1cab8bff8f1281306c2dcab79d5a6d533a5ed4e084957fe7",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/FixtureHost.cs.txt": "26fa82b78600ea180c849b96a2b27974dd15d44f431301c9450d285838fbf534",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/Program.cs.txt": "4c13c98575a438605473d77a9da9158bbe9b64ed04ef109e689ed80a25b444b6",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/SelfTest.cs.txt": "a58e3a10eb3078023c034edbc27c72d1e9a1592066da1853838821b31f5cac13",
+    "src/Cehpalon.Engine.Tooling/packages.lock.json": "d7b5ee33907d69d24acd9e4d6ad66eb225ea95977b85567732ca5519aad338b4",
+    "src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj": "c8d9378648f446b6b53b92cf067b2760ba90b81a2212fae795e89d6ddf7172ec",
+    "src/Cehpalon.Engine.Transports.Http/Contracts.cs": "e80c39eebeb6ce148e21e66f12c715c64182274031a4481b2bddc6f139b56d9c",
+    "src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs": "f101e81cd9fd0c3431a4338e15552b50975e00b56b01d308c882f325121b4693",
+    "src/Cehpalon.Engine.Transports.Http/README.md": "9b81cd8906e441b35a909091cdcf5737f250b58ebafa5ddc87fc8d20f4f4f0e8",
+    "src/Cehpalon.Engine.Transports.Http/packages.lock.json": "68d39576413d0fdf775ac43dfb0c9d914d64d81a2058140d40d3fb260256c8f7",
+    "src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj": "1fbbec59d3dbac3f928c0f0db1b8d01658e8de34fb015582813966132b3327ed",
+    "src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs": "92090ed339e6a5bd273679ece148df92b5a1ebf07c3f6e6aa02ed7039b408942",
+    "src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs": "3d3b0e744ae69989ca1516b84bbe8ba6bda66d3c53f4c672bc19ad7e07ee99ce",
+    "src/Cehpalon.Engine.Transports.GraphQL/README.md": "c09cc50d1589241757361d03bcb7f7c049ad82119eb34b375973f99efff786c1",
+    "src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json": "a2e7236dce28f3e6884ce4b2d9b4da002b6795ed4a573c12fbfee46827140765"
+  },
+  "sdk": "11.0.100-rc.3.26522.148",
+  "generated_files_sha256": {
+    "Catalog.cs": "e6afb54efa4fd43872a864550c7453efe68acd0f159857b22d43fa391d6aeb9f",
+    "Consumer.csproj": "2ce70f0f9136c075e9a6eaa551fb25a390436a1bafc8f3bb07c3c5e3c4fe7a80",
+    "ContractExport.cs": "6b864f9ef76a2ba8471010e69e58aec0a16d6fbcd1d884a88f272afe6c8b2ed9",
+    "FixtureHost.cs": "26fa82b78600ea180c849b96a2b27974dd15d44f431301c9450d285838fbf534",
+    "NuGet.Config": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+    "Program.cs": "4c13c98575a438605473d77a9da9158bbe9b64ed04ef109e689ed80a25b444b6",
+    "README.md": "f4cf067916e514266353acdc1533e0abd58c809038270e6cfca3452ca001451d",
+    "SelfTest.cs": "a58e3a10eb3078023c034edbc27c72d1e9a1592066da1853838821b31f5cac13",
+    "appsettings.graphql-only.json": "6ee480bcd32a8c113baa8acb0065925bf9a730fe67980a17bc51cb0e45ee6392",
+    "appsettings.graphql.json": "dfc5e9d1449790700a4be90c68cc60353d4cb60f2f0b43a0423ee1e2674b9ee9",
+    "appsettings.json": "47c8a0d3bc87411c5de745f488c855dc3c163e8658c50139faae47b8d93cbb3a",
+    "appsettings.off.json": "2fc99a87f142e3cba1a2f1be85a4d326b331ba0d5f754b5d8bbf230fc4358137",
+    "engine-source.json": "de6dd41699c2fcc2e4e29582b6cd1bb62b7918cca38cb608687afd59818e358d",
+    "global.json": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e"
+  },
+  "observed_source_manifest": {
+    "schemaVersion": 1,
+    "provenance": "observed-source-bytes-not-git-attestation",
+    "sourceRoot": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-variance-linux01-contracts/engine source \u0e44\u0e17\u0e22 & spaces",
+    "inputs": [
+      {
+        "path": "Directory.Packages.props",
+        "sha256": "f6dee39a015915dd9b51eba3b1cdadcc288df400a0fd0b236388fd1165ed00e5",
+        "bytes": 648
+      },
+      {
+        "path": "NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "global.json",
+        "sha256": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+        "bytes": 119
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+        "sha256": "0e1d6b857e0e6381f951c6fc480808603041752e868a3e05c76870b606e3a651",
+        "bytes": 752
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+        "sha256": "43239b3261a12851d8ff20826f044180d030af1da620fb3e94fbc18924c7de17",
+        "bytes": 12447
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+        "sha256": "6187016baba6d3f5319a053ce245d1670c658957bc47718f51ae89fe27e163d8",
+        "bytes": 4904
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+        "sha256": "0c846782b7aab61ec6d05f399ee135f643484727d68c84791869e75e4d7a5f25",
+        "bytes": 369
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+        "sha256": "e0fb34e20e9e15b64efb5068d6090a52834d9781cf4f83835c5954d5a4405ce2",
+        "bytes": 11409
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Contracts.cs",
+        "sha256": "6c38370e3c79e2bf4a374545912a254c74289be7a921d4c933759664c61fa010",
+        "bytes": 2567
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/PlanActivator.cs",
+        "sha256": "77fce0d6a3e80addc0022251b010b72efdd4f3da33d9774b4db907779c8571b2",
+        "bytes": 4445
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+        "sha256": "99c4640d85dbb93e3833d6e3c0ce9c515146aa61bcdbaabdb512332ddbbd74e5",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Contracts.cs",
+        "sha256": "81c4f8e7ef7d3db8a3da66c3a07b47e0db522ab7fee0187974c59b1ccc9954f5",
+        "bytes": 3020
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationRegistry.cs",
+        "sha256": "1913777dae7f0d065d4634665e724ceb436c1fa487bf01efb9d8bf9cd9e46012",
+        "bytes": 4671
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationResult.cs",
+        "sha256": "65b920c5a1befe0d21630146507a9d537e9450a4fc902ba7c8f24075408ab755",
+        "bytes": 1518
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+        "sha256": "d8f58c0cc534918c61b9f248f8954618ab478f3a6382787115c0fb5844a3dd62",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+        "sha256": "d4e1d14baa22c8a39997a7030214754facb747445455bbd072ee835c9ead2eda",
+        "bytes": 5451
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+        "sha256": "fc6e68d0ca576d1209625d770408208e476cd34b938e3b79e8774e67d5aedc3a",
+        "bytes": 635
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/Contracts.cs",
+        "sha256": "d3c6f71fe4b44cffc04d22cd5fada5855f608a1898f1a94d515ac2c2bee67e47",
+        "bytes": 7623
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+        "sha256": "00c60c0fa60f69b98bdb3daee675ff2ab8cfc96c1bd346a5e3612e8b9d72d063",
+        "bytes": 10531
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/packages.lock.json",
+        "sha256": "b40c18ae5e41b9aea8ee31707b4533cbed25e18d9b80d4c34c0c5b3c259d94b4",
+        "bytes": 225
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+        "sha256": "1fbbec59d3dbac3f928c0f0db1b8d01658e8de34fb015582813966132b3327ed",
+        "bytes": 663
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+        "sha256": "92090ed339e6a5bd273679ece148df92b5a1ebf07c3f6e6aa02ed7039b408942",
+        "bytes": 7836
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+        "sha256": "3d3b0e744ae69989ca1516b84bbe8ba6bda66d3c53f4c672bc19ad7e07ee99ce",
+        "bytes": 5567
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+        "sha256": "a2e7236dce28f3e6884ce4b2d9b4da002b6795ed4a573c12fbfee46827140765",
+        "bytes": 20132
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+        "sha256": "c8d9378648f446b6b53b92cf067b2760ba90b81a2212fae795e89d6ddf7172ec",
+        "bytes": 582
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+        "sha256": "e80c39eebeb6ce148e21e66f12c715c64182274031a4481b2bddc6f139b56d9c",
+        "bytes": 1969
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+        "sha256": "f101e81cd9fd0c3431a4338e15552b50975e00b56b01d308c882f325121b4693",
+        "bytes": 11097
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+        "sha256": "68d39576413d0fdf775ac43dfb0c9d914d64d81a2058140d40d3fb260256c8f7",
+        "bytes": 141
+      }
+    ]
+  },
+  "generated_registry_sha256": "5de79901e3c7a2ffe681c0d8b15289b3748b75363d3aef808455327b1c6f2171",
+  "runtime_libraries": [
+    "Cehpalon.Engine.Composition/1.0.0",
+    "Cehpalon.Engine.Core/1.0.0",
+    "Cehpalon.Engine.Identity.Contracts/1.0.0",
+    "Cehpalon.Engine.Tenancy/1.0.0",
+    "Cehpalon.Engine.Transports.GraphQL/1.0.0",
+    "Cehpalon.Engine.Transports.Http/1.0.0",
+    "ChilliCream.Nitro.App/32.0.2",
+    "GreenDonut.Abstractions/16.7.1",
+    "GreenDonut.Data.Abstractions/16.7.1",
+    "GreenDonut.Data.Primitives/16.7.1",
+    "GreenDonut.Data/16.7.1",
+    "GreenDonut/16.7.1",
+    "HotChocolate.Abstractions/16.7.1",
+    "HotChocolate.AspNetCore.Pipeline/16.7.1",
+    "HotChocolate.AspNetCore/16.7.1",
+    "HotChocolate.Authorization/16.7.1",
+    "HotChocolate.Caching.Memory/16.7.1",
+    "HotChocolate.CostAnalysis.Core/16.7.1",
+    "HotChocolate.CostAnalysis/16.7.1",
+    "HotChocolate.Execution.Abstractions/16.7.1",
+    "HotChocolate.Execution.Configuration.Abstractions/16.7.1",
+    "HotChocolate.Execution.Operation.Abstractions/16.7.1",
+    "HotChocolate.Execution.Pipeline/16.7.1",
+    "HotChocolate.Execution.Projections/16.7.1",
+    "HotChocolate.Features/16.7.1",
+    "HotChocolate.Fusion.Language/16.7.1",
+    "HotChocolate.Fusion.Utilities/16.7.1",
+    "HotChocolate.Language.SyntaxTree/16.7.1",
+    "HotChocolate.Language.Utf8.SyntaxTree/16.7.1",
+    "HotChocolate.Language.Utf8/16.7.1",
+    "HotChocolate.Language.Visitors/16.7.1",
+    "HotChocolate.Language.Web/16.7.1",
+    "HotChocolate.Language/16.7.1",
+    "HotChocolate.PersistedOperations.Abstractions/16.7.1",
+    "HotChocolate.PersistedOperations.Pipeline/16.7.1",
+    "HotChocolate.Primitives/16.7.1",
+    "HotChocolate.Subscriptions.InMemory/16.7.1",
+    "HotChocolate.Subscriptions/16.7.1",
+    "HotChocolate.Text.Json/16.7.1",
+    "HotChocolate.Transport.Formatters/16.7.1",
+    "HotChocolate.Transport.Sockets/16.7.1",
+    "HotChocolate.Types.Abstractions/16.7.1",
+    "HotChocolate.Types.CursorPagination.Extensions/16.7.1",
+    "HotChocolate.Types.CursorPagination/16.7.1",
+    "HotChocolate.Types.Errors/16.7.1",
+    "HotChocolate.Types.Mutations/16.7.1",
+    "HotChocolate.Types.Queries/16.7.1",
+    "HotChocolate.Types.Scalars.Upload/16.7.1",
+    "HotChocolate.Types/16.7.1",
+    "HotChocolate.Utilities.Base36/16.7.1",
+    "HotChocolate.Utilities.Buffers/16.7.1",
+    "HotChocolate.Utilities.DependencyInjection/16.7.1",
+    "HotChocolate.Utilities.Tasks/16.7.1",
+    "HotChocolate.Utilities/16.7.1",
+    "HotChocolate.Validation/16.7.1",
+    "HotChocolate/16.7.1",
+    "Microsoft.AspNetCore.Authentication.JwtBearer/11.0.0-rc.3.26522.148",
+    "Microsoft.Bcl.Cryptography/10.0.2",
+    "Microsoft.IdentityModel.Abstractions/8.19.2",
+    "Microsoft.IdentityModel.JsonWebTokens/8.19.2",
+    "Microsoft.IdentityModel.Logging/8.19.2",
+    "Microsoft.IdentityModel.Protocols.OpenIdConnect/8.19.2",
+    "Microsoft.IdentityModel.Protocols/8.19.2",
+    "Microsoft.IdentityModel.Tokens/8.19.2",
+    "PortableConsumer.System/1.0.0",
+    "System.IO.Hashing/8.0.0",
+    "System.IdentityModel.Tokens.Jwt/8.19.2",
+    "Yarp.ReverseProxy/2.3.0"
+  ],
+  "export_observations": {
+    "api": {
+      "schemaVersion": 1,
+      "profile": "small-api",
+      "activationOrder": [
+        "host",
+        "api"
+      ],
+      "generatedOperationIds": [
+        "catalog.get",
+        "catalog.list",
+        "catalog.set"
+      ],
+      "httpOperationIds": [
+        "catalog.get",
+        "catalog.list",
+        "catalog.set"
+      ],
+      "artifacts": [
+        {
+          "name": "openapi.json",
+          "bytes": 48813,
+          "sha256": "e507daa77f9a39b73390c356d1420ba53dabbbaa148424d2d0fbc5dd2ba10414"
+        }
+      ],
+      "counters": {
+        "HttpSchemaOperations": 3,
+        "GraphQLRegistrations": 0,
+        "GraphQLServices": 0,
+        "GraphQLSchemaBuilds": 0,
+        "GraphQLProvidersCreated": 0,
+        "GraphQLProvidersDisposed": 0,
+        "HandlerFactoryCalls": 0,
+        "DispatchCalls": 0,
+        "HostFactories": 0,
+        "TlsReads": 0,
+        "AuthorityCalls": 0
+      },
+      "limits": [
+        "OpenAPI describes the three business POST routes only; anonymous health and the GraphQL HTTP envelope are outside that document. SDL describes selected GraphQL fields.",
+        "Structural wire shapes only; custom validators, CLR numeric bounds, duplicate-name/Unicode/byte checks, tenant policy and fixture data constraints are not fully expressed by JSON Schema.",
+        "GraphQL construction is explicit offline artifact work for the enabled module. No WebApplication, TLS/key read, handler or authority call is performed.",
+        "Artifacts do not enable network introspection/schema endpoints or grant tenant authority. Source/build parents are trusted; path observations do not defend hostile races."
+      ]
+    },
+    "both": {
+      "schemaVersion": 1,
+      "profile": "small-api",
+      "activationOrder": [
+        "host",
+        "api",
+        "graphql"
+      ],
+      "generatedOperationIds": [
+        "catalog.get",
+        "catalog.list",
+        "catalog.set"
+      ],
+      "httpOperationIds": [
+        "catalog.get",
+        "catalog.list",
+        "catalog.set"
+      ],
+      "artifacts": [
+        {
+          "name": "openapi.json",
+          "bytes": 48813,
+          "sha256": "e507daa77f9a39b73390c356d1420ba53dabbbaa148424d2d0fbc5dd2ba10414"
+        },
+        {
+          "name": "schema.graphql",
+          "bytes": 1261,
+          "sha256": "b378ab66b40bab1c5f465390c88a41ed10602c5f03be29c83b65c7642a86ad21"
+        }
+      ],
+      "counters": {
+        "HttpSchemaOperations": 3,
+        "GraphQLRegistrations": 1,
+        "GraphQLServices": 28,
+        "GraphQLSchemaBuilds": 1,
+        "GraphQLProvidersCreated": 1,
+        "GraphQLProvidersDisposed": 1,
+        "HandlerFactoryCalls": 0,
+        "DispatchCalls": 0,
+        "HostFactories": 0,
+        "TlsReads": 0,
+        "AuthorityCalls": 0
+      },
+      "limits": [
+        "OpenAPI describes the three business POST routes only; anonymous health and the GraphQL HTTP envelope are outside that document. SDL describes selected GraphQL fields.",
+        "Structural wire shapes only; custom validators, CLR numeric bounds, duplicate-name/Unicode/byte checks, tenant policy and fixture data constraints are not fully expressed by JSON Schema.",
+        "GraphQL construction is explicit offline artifact work for the enabled module. No WebApplication, TLS/key read, handler or authority call is performed.",
+        "Artifacts do not enable network introspection/schema endpoints or grant tenant authority. Source/build parents are trusted; path observations do not defend hostile races."
+      ]
+    },
+    "graphql": {
+      "schemaVersion": 1,
+      "profile": "small-api",
+      "activationOrder": [
+        "host",
+        "graphql"
+      ],
+      "generatedOperationIds": [
+        "catalog.get",
+        "catalog.list",
+        "catalog.set"
+      ],
+      "httpOperationIds": [],
+      "artifacts": [
+        {
+          "name": "schema.graphql",
+          "bytes": 1261,
+          "sha256": "b378ab66b40bab1c5f465390c88a41ed10602c5f03be29c83b65c7642a86ad21"
+        }
+      ],
+      "counters": {
+        "HttpSchemaOperations": 0,
+        "GraphQLRegistrations": 1,
+        "GraphQLServices": 28,
+        "GraphQLSchemaBuilds": 1,
+        "GraphQLProvidersCreated": 1,
+        "GraphQLProvidersDisposed": 1,
+        "HandlerFactoryCalls": 0,
+        "DispatchCalls": 0,
+        "HostFactories": 0,
+        "TlsReads": 0,
+        "AuthorityCalls": 0
+      },
+      "limits": [
+        "OpenAPI describes the three business POST routes only; anonymous health and the GraphQL HTTP envelope are outside that document. SDL describes selected GraphQL fields.",
+        "Structural wire shapes only; custom validators, CLR numeric bounds, duplicate-name/Unicode/byte checks, tenant policy and fixture data constraints are not fully expressed by JSON Schema.",
+        "GraphQL construction is explicit offline artifact work for the enabled module. No WebApplication, TLS/key read, handler or authority call is performed.",
+        "Artifacts do not enable network introspection/schema endpoints or grant tenant authority. Source/build parents are trusted; path observations do not defend hostile races."
+      ]
+    },
+    "off": {
+      "schemaVersion": 1,
+      "profile": "small-api",
+      "activationOrder": [],
+      "generatedOperationIds": [
+        "catalog.get",
+        "catalog.list",
+        "catalog.set"
+      ],
+      "httpOperationIds": [],
+      "artifacts": [],
+      "counters": {
+        "HttpSchemaOperations": 0,
+        "GraphQLRegistrations": 0,
+        "GraphQLServices": 0,
+        "GraphQLSchemaBuilds": 0,
+        "GraphQLProvidersCreated": 0,
+        "GraphQLProvidersDisposed": 0,
+        "HandlerFactoryCalls": 0,
+        "DispatchCalls": 0,
+        "HostFactories": 0,
+        "TlsReads": 0,
+        "AuthorityCalls": 0
+      },
+      "limits": [
+        "OpenAPI describes the three business POST routes only; anonymous health and the GraphQL HTTP envelope are outside that document. SDL describes selected GraphQL fields.",
+        "Structural wire shapes only; custom validators, CLR numeric bounds, duplicate-name/Unicode/byte checks, tenant policy and fixture data constraints are not fully expressed by JSON Schema.",
+        "GraphQL construction is explicit offline artifact work for the enabled module. No WebApplication, TLS/key read, handler or authority call is performed.",
+        "Artifacts do not enable network introspection/schema endpoints or grant tenant authority. Source/build parents are trusted; path observations do not defend hostile races."
+      ]
+    }
+  },
+  "proof_helper_sha256": "82d6f1f93401c8f6abbf81c933220871de06f5f567688075420216f3b6204a0c",
+  "wire_differential": {
+    "passed": 25,
+    "failed": 0,
+    "scope": "Actual generated runtime HTTPS routes/SDL AST/JSON-shape differential fixture; independent bounded keyword interpreter is not an arbitrary JSON Schema validator or tenant authority.",
+    "checks": [
+      {
+        "name": "api: OpenAPI routes equal actual mapped POST endpoints",
+        "passed": true
+      },
+      {
+        "name": "api: actual authenticated get/list/set requests and successful responses satisfy exported shape",
+        "passed": true
+      },
+      {
+        "name": "api: exported request shapes reject missing/null/unmapped properties and array root, matching actual adapter",
+        "passed": true
+      },
+      {
+        "name": "api: shape-valid id0 still fails custom validation before business",
+        "passed": true
+      },
+      {
+        "name": "api: schema-valid cross-tenant requests deny both directions before business",
+        "passed": true
+      },
+      {
+        "name": "api: OpenAPI documents unauthenticated response without invented body schema",
+        "passed": true
+      },
+      {
+        "name": "api: API-only GraphQL remains absent with no vendor registration",
+        "passed": true
+      },
+      {
+        "name": "api: actual enabled host closes listener and balances handler disposal",
+        "passed": true
+      },
+      {
+        "name": "both: OpenAPI routes equal actual mapped POST endpoints",
+        "passed": true
+      },
+      {
+        "name": "both: actual authenticated get/list/set requests and successful responses satisfy exported shape",
+        "passed": true
+      },
+      {
+        "name": "both: exported request shapes reject missing/null/unmapped properties and array root, matching actual adapter",
+        "passed": true
+      },
+      {
+        "name": "both: shape-valid id0 still fails custom validation before business",
+        "passed": true
+      },
+      {
+        "name": "both: schema-valid cross-tenant requests deny both directions before business",
+        "passed": true
+      },
+      {
+        "name": "both: OpenAPI documents unauthenticated response without invented body schema",
+        "passed": true
+      },
+      {
+        "name": "both: API-only GraphQL remains absent with no vendor registration",
+        "passed": true
+      },
+      {
+        "name": "both: exported SDL AST equals complete actual enabled runtime schema AST",
+        "passed": true
+      },
+      {
+        "name": "both: actual GraphQL query and cross-tenant error preserve typed schema and authority",
+        "passed": true
+      },
+      {
+        "name": "both: offline schema file does not enable public introspection or schema download",
+        "passed": true
+      },
+      {
+        "name": "both: actual enabled host closes listener and balances handler disposal",
+        "passed": true
+      },
+      {
+        "name": "graphql: exported SDL AST equals complete actual enabled runtime schema AST",
+        "passed": true
+      },
+      {
+        "name": "graphql: actual GraphQL query and cross-tenant error preserve typed schema and authority",
+        "passed": true
+      },
+      {
+        "name": "graphql: offline schema file does not enable public introspection or schema download",
+        "passed": true
+      },
+      {
+        "name": "graphql: GraphQL-only still has no API mapping or handler work on API route",
+        "passed": true
+      },
+      {
+        "name": "graphql: actual enabled host closes listener and balances handler disposal",
+        "passed": true
+      },
+      {
+        "name": "late publication write denial preserves real GraphQL schema/provider cleanup counters",
+        "passed": true
+      }
+    ],
+    "observations": [
+      {
+        "profile": "api",
+        "operation": "get",
+        "Status": 200,
+        "ContentType": "application/json",
+        "body": {
+          "tenant": "tenant-a",
+          "id": 1,
+          "label": "item-00001",
+          "revision": 0,
+          "amountMinorUnits": 17
+        }
+      },
+      {
+        "profile": "api",
+        "operation": "list",
+        "Status": 200,
+        "ContentType": "application/json",
+        "body": {
+          "items": [
+            {
+              "tenant": "tenant-a",
+              "id": 1,
+              "label": "item-00001",
+              "revision": 0,
+              "amountMinorUnits": 17
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 2,
+              "label": "item-00002",
+              "revision": 0,
+              "amountMinorUnits": 34
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 3,
+              "label": "item-00003",
+              "revision": 0,
+              "amountMinorUnits": 51
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 4,
+              "label": "item-00004",
+              "revision": 0,
+              "amountMinorUnits": 68
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 5,
+              "label": "item-00005",
+              "revision": 0,
+              "amountMinorUnits": 85
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 6,
+              "label": "item-00006",
+              "revision": 0,
+              "amountMinorUnits": 102
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 7,
+              "label": "item-00007",
+              "revision": 0,
+              "amountMinorUnits": 119
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 8,
+              "label": "item-00008",
+              "revision": 0,
+              "amountMinorUnits": 136
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 9,
+              "label": "item-00009",
+              "revision": 0,
+              "amountMinorUnits": 153
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 10,
+              "label": "item-00010",
+              "revision": 0,
+              "amountMinorUnits": 170
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 11,
+              "label": "item-00011",
+              "revision": 0,
+              "amountMinorUnits": 187
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 12,
+              "label": "item-00012",
+              "revision": 0,
+              "amountMinorUnits": 204
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 13,
+              "label": "item-00013",
+              "revision": 0,
+              "amountMinorUnits": 221
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 14,
+              "label": "item-00014",
+              "revision": 0,
+              "amountMinorUnits": 238
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 15,
+              "label": "item-00015",
+              "revision": 0,
+              "amountMinorUnits": 255
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 16,
+              "label": "item-00016",
+              "revision": 0,
+              "amountMinorUnits": 272
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 17,
+              "label": "item-00017",
+              "revision": 0,
+              "amountMinorUnits": 289
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 18,
+              "label": "item-00018",
+              "revision": 0,
+              "amountMinorUnits": 306
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 19,
+              "label": "item-00019",
+              "revision": 0,
+              "amountMinorUnits": 323
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 20,
+              "label": "item-00020",
+              "revision": 0,
+              "amountMinorUnits": 340
+            }
+          ]
+        }
+      },
+      {
+        "profile": "api",
+        "operation": "set",
+        "Status": 200,
+        "ContentType": "application/json",
+        "body": {
+          "tenant": "tenant-a",
+          "id": 2,
+          "label": "schema-proof",
+          "revision": 1,
+          "amountMinorUnits": 34
+        }
+      },
+      {
+        "profile": "api",
+        "operation": "schema-valid-custom-invalid",
+        "Status": 400,
+        "body": {
+          "type": "about:blank",
+          "title": "Request validation failed.",
+          "status": 400,
+          "code": "validation.failed"
+        }
+      },
+      {
+        "profile": "api",
+        "operation": "cross-tenant",
+        "tenant": "tenant-b",
+        "subject": "alice",
+        "Status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "profile": "api",
+        "operation": "cross-tenant",
+        "tenant": "tenant-a",
+        "subject": "bob",
+        "Status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "profile": "both",
+        "operation": "get",
+        "Status": 200,
+        "ContentType": "application/json",
+        "body": {
+          "tenant": "tenant-a",
+          "id": 1,
+          "label": "item-00001",
+          "revision": 0,
+          "amountMinorUnits": 17
+        }
+      },
+      {
+        "profile": "both",
+        "operation": "list",
+        "Status": 200,
+        "ContentType": "application/json",
+        "body": {
+          "items": [
+            {
+              "tenant": "tenant-a",
+              "id": 1,
+              "label": "item-00001",
+              "revision": 0,
+              "amountMinorUnits": 17
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 2,
+              "label": "item-00002",
+              "revision": 0,
+              "amountMinorUnits": 34
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 3,
+              "label": "item-00003",
+              "revision": 0,
+              "amountMinorUnits": 51
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 4,
+              "label": "item-00004",
+              "revision": 0,
+              "amountMinorUnits": 68
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 5,
+              "label": "item-00005",
+              "revision": 0,
+              "amountMinorUnits": 85
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 6,
+              "label": "item-00006",
+              "revision": 0,
+              "amountMinorUnits": 102
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 7,
+              "label": "item-00007",
+              "revision": 0,
+              "amountMinorUnits": 119
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 8,
+              "label": "item-00008",
+              "revision": 0,
+              "amountMinorUnits": 136
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 9,
+              "label": "item-00009",
+              "revision": 0,
+              "amountMinorUnits": 153
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 10,
+              "label": "item-00010",
+              "revision": 0,
+              "amountMinorUnits": 170
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 11,
+              "label": "item-00011",
+              "revision": 0,
+              "amountMinorUnits": 187
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 12,
+              "label": "item-00012",
+              "revision": 0,
+              "amountMinorUnits": 204
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 13,
+              "label": "item-00013",
+              "revision": 0,
+              "amountMinorUnits": 221
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 14,
+              "label": "item-00014",
+              "revision": 0,
+              "amountMinorUnits": 238
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 15,
+              "label": "item-00015",
+              "revision": 0,
+              "amountMinorUnits": 255
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 16,
+              "label": "item-00016",
+              "revision": 0,
+              "amountMinorUnits": 272
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 17,
+              "label": "item-00017",
+              "revision": 0,
+              "amountMinorUnits": 289
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 18,
+              "label": "item-00018",
+              "revision": 0,
+              "amountMinorUnits": 306
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 19,
+              "label": "item-00019",
+              "revision": 0,
+              "amountMinorUnits": 323
+            },
+            {
+              "tenant": "tenant-a",
+              "id": 20,
+              "label": "item-00020",
+              "revision": 0,
+              "amountMinorUnits": 340
+            }
+          ]
+        }
+      },
+      {
+        "profile": "both",
+        "operation": "set",
+        "Status": 200,
+        "ContentType": "application/json",
+        "body": {
+          "tenant": "tenant-a",
+          "id": 2,
+          "label": "schema-proof",
+          "revision": 1,
+          "amountMinorUnits": 34
+        }
+      },
+      {
+        "profile": "both",
+        "operation": "schema-valid-custom-invalid",
+        "Status": 400,
+        "body": {
+          "type": "about:blank",
+          "title": "Request validation failed.",
+          "status": 400,
+          "code": "validation.failed"
+        }
+      },
+      {
+        "profile": "both",
+        "operation": "cross-tenant",
+        "tenant": "tenant-b",
+        "subject": "alice",
+        "Status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "profile": "both",
+        "operation": "cross-tenant",
+        "tenant": "tenant-a",
+        "subject": "bob",
+        "Status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "profile": "both",
+        "actualSchema": "schema {\n  query: Query\n  mutation: Mutation\n}\n\ntype Query {\n  catalogItem(input: GetItemInput!): Item @cost(weight: \"10\")\n  catalogPage(input: ListItemsInput!): ItemPage @cost(weight: \"10\")\n}\n\ntype Mutation {\n  setLabel(input: SetLabelInput!): Item @cost(weight: \"10\")\n}\n\ntype Item {\n  tenant: String!\n  id: Int!\n  label: String!\n  revision: Int!\n  amountMinorUnits: Long!\n}\n\ntype ItemPage {\n  items: [Item!]!\n}\n\ninput GetItemInput {\n  tenant: String!\n  id: Int!\n}\n\ninput ListItemsInput {\n  tenant: String!\n  page: Int!\n}\n\ninput SetLabelInput {\n  tenant: String!\n  id: Int!\n  expectedRevision: Int!\n  label: String!\n}\n\n\"The `Long` scalar type represents a signed 64-bit integer.\"\nscalar Long\n  @specifiedBy(url: \"https://scalars.graphql.org/chillicream/long.html\")\n\n\"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response.\"\ndirective @cost(\n  \"The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc.\"\n  weight: String!\n) on\n  | SCALAR\n  | OBJECT\n  | FIELD_DEFINITION\n  | ARGUMENT_DEFINITION\n  | ENUM\n  | INPUT_FIELD_DEFINITION",
+        "astIdentical": true
+      },
+      {
+        "profile": "graphql",
+        "actualSchema": "schema {\n  query: Query\n  mutation: Mutation\n}\n\ntype Query {\n  catalogItem(input: GetItemInput!): Item @cost(weight: \"10\")\n  catalogPage(input: ListItemsInput!): ItemPage @cost(weight: \"10\")\n}\n\ntype Mutation {\n  setLabel(input: SetLabelInput!): Item @cost(weight: \"10\")\n}\n\ntype Item {\n  tenant: String!\n  id: Int!\n  label: String!\n  revision: Int!\n  amountMinorUnits: Long!\n}\n\ntype ItemPage {\n  items: [Item!]!\n}\n\ninput GetItemInput {\n  tenant: String!\n  id: Int!\n}\n\ninput ListItemsInput {\n  tenant: String!\n  page: Int!\n}\n\ninput SetLabelInput {\n  tenant: String!\n  id: Int!\n  expectedRevision: Int!\n  label: String!\n}\n\n\"The `Long` scalar type represents a signed 64-bit integer.\"\nscalar Long\n  @specifiedBy(url: \"https://scalars.graphql.org/chillicream/long.html\")\n\n\"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response.\"\ndirective @cost(\n  \"The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc.\"\n  weight: String!\n) on\n  | SCALAR\n  | OBJECT\n  | FIELD_DEFINITION\n  | ARGUMENT_DEFINITION\n  | ENUM\n  | INPUT_FIELD_DEFINITION",
+        "astIdentical": true
+      },
+      {
+        "phase": "late-publication-denied",
+        "expectedExit": 3,
+        "stdout": "",
+        "stderr": {
+          "status": "failed",
+          "code": "export.failure",
+          "message": "Contract export rejected; no input, path, credential or vendor exception details are included.",
+          "counters": {
+            "HttpSchemaOperations": 3,
+            "GraphQLRegistrations": 1,
+            "GraphQLServices": 28,
+            "GraphQLSchemaBuilds": 1,
+            "GraphQLProvidersCreated": 1,
+            "GraphQLProvidersDisposed": 1,
+            "HandlerFactoryCalls": 0,
+            "DispatchCalls": 0,
+            "HostFactories": 0,
+            "TlsReads": 0,
+            "AuthorityCalls": 0
+          }
+        },
+        "permissionPolicy": "native Unix0500 parent",
+        "outputAbsent": true,
+        "secrets": false
+      }
+    ],
+    "schemaKeywords": [
+      "$id",
+      "additionalProperties",
+      "allOf",
+      "items",
+      "properties",
+      "required",
+      "type"
+    ]
+  },
+  "finished_utc": "2026-10-30T02:22:35.464932+00:00",
+  "consumer_lock_sha256": "b4196a00d92c96fb74de4eae1b2004519d6f4054090df0de9aa3e0dad8575b69"
+}

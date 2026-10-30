@@ -1,0 +1,24 @@
+from pathlib import Path
+import subprocess,json,os,sys
+from datetime import datetime,timezone
+root=Path(__file__).resolve().parents[2]
+out=Path(__file__).resolve().parent
+win='D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe'
+linux='/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet'
+tasks=[]
+for tag,script in [('small-api','verify_tooling_small_api.py'),('contracts','verify_tooling_contracts.py'),('portable','verify_tooling.py')]:
+ tasks.append(('windows-'+tag,[sys.executable,'tools/'+script,'--dotnet',win,'--output','.local/tooling-variance-win01-'+tag],root))
+tasks.append(('linux-components',['wsl','-d','Ubuntu','--cd','/mnt/d/Cephalon/Cehpalon-Engine','python3','tools/verify_w1.py','--dotnet',linux,'--output','.local/tooling-variance-linux01-contracts'],root))
+for tag,script in [('small-api','verify_tooling_small_api.py'),('contracts','verify_tooling_contracts.py'),('portable','verify_tooling.py')]:
+ tasks.append(('linux-'+tag,['wsl','-d','Ubuntu','--cd','/mnt/d/Cephalon/Cehpalon-Engine-Samples','python3','tools/'+script,'--dotnet',linux,'--output','.local/tooling-variance-linux01-'+tag],root))
+r={'started_utc':datetime.now(timezone.utc).isoformat(),'status':'running','commands':[]}
+def save():(out/'manifest.json').write_text(json.dumps(r,indent=2)+'\n',encoding='utf-8',newline='\n')
+save()
+for label,argv,cwd in tasks:
+ r['active']=label;save()
+ result=subprocess.run(argv,cwd=cwd,env=dict(os.environ,PYTHONIOENCODING='utf-8'),capture_output=True)
+ (out/(label+'.stdout.txt')).write_bytes(result.stdout);(out/(label+'.stderr.txt')).write_bytes(result.stderr)
+ r['commands'].append({'label':label,'argv':list(map(str,argv)),'exit':result.returncode,'stdout':label+'.stdout.txt','stderr':label+'.stderr.txt'});save()
+ print(label,result.returncode,result.stdout.decode('utf-8',errors='replace').strip()[-500:],flush=True)
+ if result.returncode:r.update(status='failed',finished_utc=datetime.now(timezone.utc).isoformat());save();sys.exit(result.returncode)
+r.update(status='passed',active=None,finished_utc=datetime.now(timezone.utc).isoformat());save()

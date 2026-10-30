@@ -1,0 +1,63 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+var inputPath = args[0];
+var outputPath = args[1];
+using var source = JsonDocument.Parse(File.ReadAllBytes(inputPath));
+var selected = source.RootElement.GetProperty("measurements").EnumerateArray().First(row =>
+    row.GetProperty("size").GetInt32() == 32 && row.GetProperty("state").GetString() == "edit" &&
+    row.GetProperty("variant").GetString() == "generator");
+File.WriteAllText(Path.Combine(Path.GetDirectoryName(outputPath)!, "selected-row.json"), selected.GetRawText() + "\n", new UTF8Encoding(false));
+var readOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+var row = JsonSerializer.Deserialize<Measurement>(selected.GetRawText(), readOptions)!;
+if (row.Size != 32 || row.State != "edit" || row.Variant != "generator" || row.Repetition != 0 || row.Iteration != 0)
+    throw new InvalidOperationException("Unexpected first actual size32/edit/generator row");
+var shared = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+// Exactly one declared primer per path, in fixed fresh-options then shared-options order.
+var expected = JsonSerializer.Serialize(new { phase = "measurement", row }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+var reusedPrimer = JsonSerializer.Serialize(new { phase = "measurement", row }, shared);
+if (!string.Equals(expected, reusedPrimer, StringComparison.Ordinal)) throw new InvalidOperationException("Primer strings differ");
+Result Run(bool reuse)
+{
+    var gc0 = GC.CollectionCount(0); var gc1 = GC.CollectionCount(1); var gc2 = GC.CollectionCount(2);
+    var processBefore = GC.GetTotalAllocatedBytes(precise: true);
+    var threadBefore = GC.GetAllocatedBytesForCurrentThread();
+    var allEqual = true;
+    var totalCharacters = 0;
+    string last = "";
+    for (var i = 0; i < 100; i++)
+    {
+        last = JsonSerializer.Serialize(new { phase = "measurement", row }, reuse ? shared :
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        allEqual &= string.Equals(expected, last, StringComparison.Ordinal);
+        totalCharacters += last.Length;
+    }
+    var threadBytes = GC.GetAllocatedBytesForCurrentThread() - threadBefore;
+    var processBytes = GC.GetTotalAllocatedBytes(precise: true) - processBefore;
+    return new(reuse ? "reused_compact_options" : "fresh_compact_options", 100, allEqual, threadBytes, processBytes,
+        GC.CollectionCount(0) - gc0, GC.CollectionCount(1) - gc1, GC.CollectionCount(2) - gc2,
+        totalCharacters, Encoding.UTF8.GetByteCount(last), Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(last))));
+}
+// Fixed order, one pass; no GC forcing, timings, retries or result filtering.
+var fresh = Run(false);
+var reused = Run(true);
+var passed = fresh.AllStringsEqual && reused.AllStringsEqual && fresh.LastUtf8Sha256 == reused.LastUtf8Sha256;
+var report = new { status = passed ? "passed" : "failed", purpose = "Auxiliary allocation-only diagnostic, not a tooling benchmark or variability qualification",
+    sdkPin = "11.0.100-rc.3.26522.148", framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+    runtime = Environment.Version.ToString(), measurementSchema = "Exact Measurement record extracted from frozen driver source",
+    input = new { row.Size, row.State, row.Variant, row.Repetition, row.Iteration, row.CaseIndex, row.PairSequence },
+    schedule = "one primer per path, then exactly100fresh-options followed by100reused-options serializations; no timing",
+    measuredScope = "Each actual wrapper+DTO Serialize, options construction for fresh path, ordinal equality and character counting. Shared instance construction, primers, input parse, hashing and reporting excluded",
+    noForcedGc = true, metadataLimit = "Equivalent options may share runtime metadata caches; this does not establish per-row full metadata rebuilding",
+    fresh, reused, savedThreadBytes = fresh.ThreadAllocatedBytes - reused.ThreadAllocatedBytes,
+    savedProcessBytes = fresh.ProcessAllocatedBytes - reused.ProcessAllocatedBytes };
+File.WriteAllText(outputPath, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n", new UTF8Encoding(false));
+Console.WriteLine(JsonSerializer.Serialize(report));
+return passed ? 0 : 1;
+
+sealed record Result(string Variant, int Iterations, bool AllStringsEqual, long ThreadAllocatedBytes, long ProcessAllocatedBytes,
+    int Gc0, int Gc1, int Gc2, int TotalCharacters, int LastUtf8Bytes, string LastUtf8Sha256);
+sealed record Measurement(int Size, string State, string Variant, int CaseIndex, int PairSequence, int Repetition, int Iteration,
+    string[] PairOrder, int OrderInPair, int Version, string[] ActualIds, long WallTicks, double WallNanoseconds, long CpuTicks,
+    long AllocatedBytes, int Gc0, int Gc1, int Gc2, bool EmitSuccess, string SourceHash, string RegistryHash, string PeHash, int PeBytes, string[] Diagnostics);

@@ -1,0 +1,353 @@
+using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Cehpalon.Engine.CodeGeneration;
+using Cehpalon.Engine.Core;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+return Runner.MainRun(args);
+
+static class Runner
+{
+    internal static readonly CSharpParseOptions Parse = new(LanguageVersion.Preview);
+    internal static readonly MetadataReference[] References = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+        .Split(Path.PathSeparator).Append(typeof(OperationAttribute).Assembly.Location).Distinct(StringComparer.Ordinal)
+        .Select(path => MetadataReference.CreateFromFile(path)).ToArray();
+    static readonly JsonSerializerOptions Json = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    static readonly int[] Sizes = [1, 3, 32];
+    static readonly string[] States = ["fresh", "noop", "edit"];
+
+    internal static int MainRun(string[] args)
+    {
+        if (args.Length != 1 || !args[0].StartsWith("--output=", StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine("Usage: Tooling.Components --output=<new-json-path>");
+            return 2;
+        }
+        var output = Path.GetFullPath(args[0][9..]);
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+        var journal = output + ".rows.jsonl";
+        if (File.Exists(output) || File.Exists(journal)) throw new IOException("Attempt outputs must be new paths.");
+        using var raw = new StreamWriter(new FileStream(journal, FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false)) { AutoFlush = true };
+        var report = new Report();
+        try
+        {
+            foreach (var size in Sizes) report.Preflight.Add(CachePreflight(size));
+            var caseIndex = 0;
+            foreach (var size in Sizes)
+            foreach (var state in States)
+            {
+                Context? context = state == "fresh" ? null : new Context(size);
+                if (context is not null)
+                {
+                    foreach (var variant in new[] { "generator", "manual" })
+                    {
+                        var seed = Execute(context, variant, false);
+                        var semantic = Verify(context, seed);
+                        report.StateSeeds.Add(new { size, state, variant, version = 0, actualIds = context.Ids,
+                            sourceHash = context.SourceHash, registryHash = Hash(seed.Registry), seed.PeHash, seed.EmitSuccess, semantic, passed = true });
+                    }
+                }
+                Artifact? lastGenerator = null, lastManual = null;
+                for (var pair = 0; pair < 17; pair++)
+                {
+                    context = state == "fresh" ? new Context(size) : context!;
+                    if (state == "edit") context.SetVersion(pair % 2 == 0 ? 1 : 0);
+                    var order = (caseIndex + pair) % 2 == 0 ? new[] { "generator", "manual" } : new[] { "manual", "generator" };
+                    for (var index = 0; index < 2; index++)
+                    {
+                        Artifact artifact;
+                        try { artifact = Execute(context, order[index], true); }
+                        catch (Exception error)
+                        {
+                            report.FailedAttempt = new { phase = pair < 2 ? "primer" : "measurement", size, state, variant = order[index], caseIndex,
+                                pairSequence = pair, orderInPair = index, context.Version, actualIds = context.Ids, failure = error.ToString() };
+                            raw.WriteLine(JsonSerializer.Serialize(new { failedAttempt = report.FailedAttempt }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                            throw;
+                        }
+                        var row = new Measurement(size, state, order[index], caseIndex, pair, pair < 2 ? -1 : (pair - 2) / 3,
+                            pair < 2 ? pair : (pair - 2) % 3, order, index, context.Version, context.Ids,
+                            artifact.WallTicks, artifact.WallTicks * (1e9 / Stopwatch.Frequency), artifact.CpuTicks,
+                            artifact.AllocatedBytes, artifact.Gc0, artifact.Gc1, artifact.Gc2, artifact.EmitSuccess,
+                            context.SourceHash, Hash(artifact.Registry), artifact.PeHash, artifact.Pe.Length, artifact.Diagnostics);
+                        (pair < 2 ? report.Primers : report.Measurements).Add(row);
+                        raw.WriteLine(JsonSerializer.Serialize(new { phase = pair < 2 ? "primer" : "measurement", row }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                        if (!artifact.EmitSuccess) throw new InvalidOperationException("Emit or generator diagnostics failed: " + string.Join("\n", artifact.Diagnostics));
+                        AssertRegistry(context, artifact.Registry);
+                        if (order[index] == "generator") lastGenerator = artifact; else lastManual = artifact;
+                    }
+                }
+                foreach (var artifact in new[] { lastGenerator!, lastManual! })
+                    report.Postflight.Add(new { size, state, variant = artifact.Variant, version = context!.Version, actualIds = context.Ids,
+                        semantic = Verify(context, artifact), artifact.PeHash, artifact.EmitSuccess, passed = true });
+                caseIndex++;
+            }
+            if (report.Measurements.Count != 270 || report.Primers.Count != 36 || report.StateSeeds.Count != 12 || report.Postflight.Count != 18)
+                throw new InvalidOperationException("Incomplete fixed matrix.");
+            report.Summaries = Summaries(report.Measurements);
+            report.CorrectnessPassed = true;
+            report.CorrectnessStatus = "passed";
+            report.PerformanceStatus = "observed";
+            report.MeasurementStatus = report.Summaries.Any(s => s.CvPercent > 15) ? "unstable-observed" : "observed";
+            report.Status = "completed";
+        }
+        catch (Exception error)
+        {
+            report.Status = "failed";
+            report.Failure = error.ToString();
+        }
+        finally
+        {
+            report.FinishedUtc = DateTimeOffset.UtcNow;
+            using var final = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+            JsonSerializer.Serialize(final, report, Json);
+        }
+        Console.WriteLine($"{report.Status}: {report.Measurements.Count} measured, {report.Primers.Count} primer rows; {output}");
+        return report.CorrectnessPassed ? 0 : 1;
+    }
+
+    static Artifact Execute(Context context, string variant, bool measured)
+    {
+        using var stream = new MemoryStream();
+        using var process = Process.GetCurrentProcess();
+        var cpu = process.TotalProcessorTime.Ticks;
+        var g0 = GC.CollectionCount(0); var g1 = GC.CollectionCount(1); var g2 = GC.CollectionCount(2);
+        var allocation = GC.GetTotalAllocatedBytes(precise: true);
+        var start = Stopwatch.GetTimestamp();
+        Compilation compilation = context.Manual;
+        ImmutableArray<Diagnostic> generatorDiagnostics = [];
+        if (variant == "generator")
+            context.Driver = context.Driver.RunGeneratorsAndUpdateCompilation(context.Input, out compilation, out generatorDiagnostics);
+        var emitted = compilation.Emit(stream);
+        var wall = Stopwatch.GetTimestamp() - start;
+        var allocated = GC.GetTotalAllocatedBytes(precise: true) - allocation;
+        var cpuTicks = process.TotalProcessorTime.Ticks - cpu;
+        var gc0 = GC.CollectionCount(0) - g0; var gc1 = GC.CollectionCount(1) - g1; var gc2 = GC.CollectionCount(2) - g2;
+        var registry = variant == "generator" ? context.Driver.GetRunResult().Results.SelectMany(r => r.GeneratedSources).Select(s => s.SourceText.ToString()).SingleOrDefault() ?? "" : context.ManualRegistry;
+        var diagnostics = generatorDiagnostics.Concat(emitted.Diagnostics).Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString()).ToArray();
+        var bytes = stream.ToArray();
+        return new(variant, bytes, registry, emitted.Success && diagnostics.Length == 0, diagnostics,
+            measured ? wall : 0, measured ? cpuTicks : 0, measured ? allocated : 0, measured ? gc0 : 0, measured ? gc1 : 0, measured ? gc2 : 0);
+    }
+
+    static object CachePreflight(int size)
+    {
+        var context = new Context(size, track: true);
+        var initial = Execute(context, "generator", false); Verify(context, initial);
+        var manual = Execute(context, "manual", false); Verify(context, manual);
+        var noop = Execute(context, "generator", false); Verify(context, noop);
+        var reasons = context.Driver.GetRunResult().Results.Single().TrackedSteps["OperationCandidates"]
+            .SelectMany(step => step.Outputs).Select(output => output.Reason).ToArray();
+        if (reasons.Length != size || reasons.Any(r => r is not (IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged)))
+            throw new InvalidOperationException("No-op candidate cache preflight failed.");
+        context.SetVersion(1);
+        var edited = Execute(context, "generator", false); Verify(context, edited);
+        var editedReasons = context.Driver.GetRunResult().Results.Single().TrackedSteps["OperationCandidates"]
+            .SelectMany(step => step.Outputs).Select(output => output.Reason.ToString()).ToArray();
+        if (editedReasons.All(r => r is "Cached" or "Unchanged")) throw new InvalidOperationException("Edit did not invalidate operation candidates.");
+        return new { size, passed = true, noopReasons = reasons.Select(r => r.ToString()).ToArray(), editReasons = editedReasons,
+            initialPeHash = initial.PeHash, manualPeHash = manual.PeHash, noopPeHash = noop.PeHash, editPeHash = edited.PeHash, trackingTimed = false,
+            compilerDependencySeparationPassed = true };
+    }
+
+    static string Verify(Context context, Artifact artifact)
+    {
+        if (!artifact.EmitSuccess) throw new InvalidOperationException(string.Join("\n", artifact.Diagnostics));
+        AssertRegistry(context, artifact.Registry);
+        var load = new AssemblyLoadContext("tooling-runtime-proof", isCollectible: true);
+        try
+        {
+            using var stream = new MemoryStream(artifact.Pe);
+            var assembly = load.LoadFromStream(stream);
+            if (assembly.GetReferencedAssemblies().Any(reference => reference.Name!.StartsWith("Microsoft.CodeAnalysis", StringComparison.Ordinal)
+                || reference.Name == "Cehpalon.Engine.CodeGeneration"))
+                throw new InvalidOperationException("Emitted runtime consumer references compiler tooling.");
+            var observed = (string)assembly.GetType("Fixture.Entry")!.GetMethod("Execute")!.Invoke(null, [context.Ids])!;
+            var expected = string.Join(",", context.Ids.Order(StringComparer.Ordinal)) + $"|{context.Size * (context.Size - 1)}|{context.Size}|{context.Size}|{context.Size}";
+            if (observed != expected) throw new InvalidOperationException("Runtime lazy factory/dispatch/disposal parity failed.");
+            return observed;
+        }
+        finally { load.Unload(); }
+    }
+
+    static void AssertRegistry(Context context, string source)
+    {
+        static string Canonical(string text) => CSharpSyntaxTree.ParseText(text, Parse).GetRoot()
+            .DescendantNodes().OfType<MethodDeclarationSyntax>().Single().WithoutTrivia().NormalizeWhitespace().ToFullString();
+        if (Canonical(source) != Canonical(context.ManualRegistry)) throw new InvalidOperationException("Independent typed registration AST parity failed.");
+    }
+
+    static List<Summary> Summaries(List<Measurement> rows) => rows.GroupBy(r => (r.Size, r.State, r.Variant)).Select(group =>
+    {
+        var means = group.GroupBy(r => r.Repetition).OrderBy(g => g.Key).Select(g => g.Average(r => r.WallNanoseconds)).ToArray();
+        var all = group.Select(r => r.WallNanoseconds).Order().ToArray();
+        var mean = means.Average();
+        var sd = Math.Sqrt(means.Sum(v => (v - mean) * (v - mean)) / (means.Length - 1));
+        return new Summary(group.Key.Size, group.Key.State, group.Key.Variant, group.Count(), means, mean, sd, mean == 0 ? 0 : 100 * sd / mean,
+            all[0], all[^1], all[(int)Math.Ceiling(0.50 * all.Length) - 1], all[(int)Math.Ceiling(0.95 * all.Length) - 1]);
+    }).ToList();
+
+    internal static SyntaxTree Tree(string text, string path) => CSharpSyntaxTree.ParseText(text, Parse, path, Encoding.UTF8);
+    internal static GeneratorDriver Driver(bool track) => CSharpGeneratorDriver.Create([new OperationRegistryGenerator().AsSourceGenerator()],
+        parseOptions: Parse, driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, track));
+    internal static string Hash(string text) => Hash(Encoding.UTF8.GetBytes(text));
+    internal static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    internal static object EnvironmentInfo()
+    {
+        using var process = Process.GetCurrentProcess();
+        string affinity; try { affinity = OperatingSystem.IsWindows() || OperatingSystem.IsLinux() ? process.ProcessorAffinity.ToString("x") : "unsupported"; } catch (Exception e) { affinity = "unavailable:" + e.GetType().Name; }
+        object AssemblyInfo(Assembly assembly) => new { name = assembly.GetName().Name, version = assembly.GetName().Version?.ToString(), location = assembly.Location, sha256 = Hash(File.ReadAllBytes(assembly.Location)) };
+        return new { os = RuntimeInformation.OSDescription, framework = RuntimeInformation.FrameworkDescription, runtime = System.Environment.Version.ToString(),
+            architecture = RuntimeInformation.ProcessArchitecture.ToString(), processorCount = System.Environment.ProcessorCount,
+            processId = process.Id, affinity, process.WorkingSet64, gcServer = GCSettings.IsServerGC, gcLatencyMode = GCSettings.LatencyMode.ToString(),
+            availableMemoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes, stopwatchFrequency = Stopwatch.Frequency,
+            sdkPin = "11.0.100-rc.3.26522.148", sdkPinIsActualSdkProbe = false, reference = false, reservedResources = false,
+            assemblies = new[] { AssemblyInfo(typeof(Runner).Assembly), AssemblyInfo(typeof(OperationAttribute).Assembly), AssemblyInfo(typeof(OperationRegistryGenerator).Assembly), AssemblyInfo(typeof(CSharpCompilation).Assembly) } };
+    }
+}
+
+sealed class Context
+{
+    internal int Size { get; }
+    internal int Version { get; private set; }
+    internal string[] Ids => Enumerable.Range(0, Size).Select(i => i == 0 && Version == 1 ? "bench.changed000" : $"bench.op{i:000}").ToArray();
+    internal CSharpCompilation Input { get; private set; }
+    internal CSharpCompilation Manual { get; private set; }
+    internal GeneratorDriver Driver { get; set; }
+    internal string ManualRegistry { get; private set; }
+    SyntaxTree firstHandler, manualTree;
+    internal string SourceHash => Runner.Hash(string.Join("\n", Input.SyntaxTrees.Select(t => t.ToString())));
+
+    internal Context(int size, bool track = false)
+    {
+        Size = size;
+        var trees = Enumerable.Range(0, size).Select(i => Runner.Tree(Handler(i, Ids[i]), $"Handler{i:000}.cs")).ToList();
+        firstHandler = trees[0];
+        trees.Add(Runner.Tree(Harness(size), "Harness.cs"));
+        var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, deterministic: true, nullableContextOptions: NullableContextOptions.Enable);
+        Input = CSharpCompilation.Create("ToolingFixture" + size, trees, Runner.References, options);
+        ManualRegistry = Registry();
+        manualTree = Runner.Tree(ManualRegistry, "ManualRegistry.cs");
+        // Separate compilation graph: baseline never receives a generator-produced tree.
+        Manual = CSharpCompilation.Create("ToolingFixture" + size, trees.Append(manualTree), Runner.References, options);
+        Driver = Runner.Driver(track);
+    }
+
+    internal void SetVersion(int version)
+    {
+        if (version == Version) throw new InvalidOperationException("Edit fixture must change one operation ID per pair.");
+        Version = version;
+        var changed = Runner.Tree(Handler(0, Ids[0]), "Handler000.cs");
+        Input = Input.ReplaceSyntaxTree(firstHandler, changed);
+        Manual = Manual.ReplaceSyntaxTree(firstHandler, changed);
+        firstHandler = changed;
+        ManualRegistry = Registry();
+        var next = Runner.Tree(ManualRegistry, "ManualRegistry.cs");
+        Manual = Manual.ReplaceSyntaxTree(manualTree, next); manualTree = next;
+    }
+
+    string Registry()
+    {
+        var registrations = Enumerable.Range(0, Size).OrderBy(i => Ids[i], StringComparer.Ordinal)
+            .Select(i => $"builder.Register<int, int>(\"{Ids[i]}\", () => factory.Create<global::Fixture.Handler{i:000}>());");
+        return "#nullable enable\nnamespace Cehpalon.Engine.Generated { internal static class OperationRegistrations { internal static void RegisterAll(global::Cehpalon.Engine.Core.OperationRegistryBuilder builder, global::Cehpalon.Engine.Core.IOperationHandlerFactory factory) { if (builder is null) throw new global::System.ArgumentNullException(nameof(builder)); if (factory is null) throw new global::System.ArgumentNullException(nameof(factory));\n" + string.Join("\n", registrations) + "\n} } }";
+    }
+
+    static string Handler(int index, string id) => $$"""
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Cehpalon.Engine.Core;
+        namespace Fixture;
+        [Operation("{{id}}")]
+        internal sealed class Handler{{index:000}} : IOperationHandler<int, int>, IDisposable
+        {
+            public ValueTask<OperationResult<int>> HandleAsync(int request, OperationContext context, CancellationToken token)
+            { Counts.Handled++; return ValueTask.FromResult(OperationResult<int>.Success(request + {{index}})); }
+            public void Dispose() => Counts.Disposed++;
+        }
+        """;
+
+    static string Harness(int size) => $$"""
+        using System;
+        using System.Linq;
+        using Cehpalon.Engine.Core;
+        namespace Fixture;
+        internal static class Counts { internal static int Factories, Handled, Disposed; }
+        internal sealed class Factory : IOperationHandlerFactory
+        {
+            public THandler Create<THandler>() where THandler : class
+            {
+                Counts.Factories++;
+                {{string.Join("\n", Enumerable.Range(0, size).Select(i => $"if (typeof(THandler) == typeof(Handler{i:000})) return (THandler)(object)new Handler{i:000}();"))}}
+                throw new InvalidOperationException("Unknown handler");
+            }
+        }
+        public static class Entry
+        {
+            public static string Execute(string[] ids)
+            {
+                Counts.Factories = Counts.Handled = Counts.Disposed = 0;
+                var builder = new OperationRegistryBuilder();
+                Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(builder, new Factory());
+                if (Counts.Factories != 0) throw new InvalidOperationException("Factory was eager");
+                var registry = builder.Build();
+                if (!registry.OperationIds.SequenceEqual(ids.Order(StringComparer.Ordinal))) throw new InvalidOperationException("ID mismatch");
+                var dispatcher = new OperationDispatcher(registry);
+                var sum = 0;
+                for (var i = 0; i < ids.Length; i++)
+                {
+                    var result = dispatcher.DispatchAsync<int, int>(ids[i], i, new OperationContext("tooling-benchmark")).GetAwaiter().GetResult();
+                    if (!result.IsSuccess || result.Value != i * 2) throw new InvalidOperationException("Dispatch mismatch");
+                    sum += result.Value;
+                }
+                return string.Join(",", registry.OperationIds) + "|" + sum + "|" + Counts.Factories + "|" + Counts.Handled + "|" + Counts.Disposed;
+            }
+        }
+        """;
+}
+
+sealed class Report
+{
+    public string Protocol { get; } = "cehpalon-tooling-components-v1";
+    public object Parameters { get; } = new { operationCounts = new[] { 1, 3, 32 }, states = new[] { "fresh", "noop", "edit" }, primersPerState = 2, repetitions = 5, iterationsPerRepetition = 3,
+        timedGenerator = "RunGeneratorsAndUpdateCompilation+Emit", timedManual = "already-authored typed registration Emit", trackingTimed = false,
+        cvBasis = "five repetition means; sample standard deviation ddof=1", cvDescriptiveThresholdPercent = 15,
+        percentileMethod = "nearest-rank over all 15 measured rows; index=ceil(p*n)-1" };
+    public object Environment { get; } = Runner.EnvironmentInfo();
+    public DateTimeOffset StartedUtc { get; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset FinishedUtc { get; set; }
+    public string Status { get; set; } = "running";
+    public bool CorrectnessPassed { get; set; }
+    public string CorrectnessStatus { get; set; } = "failed";
+    public string PerformanceStatus { get; set; } = "incomplete";
+    public string QualificationStatus { get; } = "not_qualified";
+    public string MeasurementStatus { get; set; } = "incomplete";
+    public string? Failure { get; set; }
+    public object? FailedAttempt { get; set; }
+    public List<object> Preflight { get; } = [];
+    public List<object> StateSeeds { get; } = [];
+    public List<object> Postflight { get; } = [];
+    public List<Measurement> Primers { get; } = [];
+    public List<Measurement> Measurements { get; } = [];
+    public List<Summary> Summaries { get; set; } = [];
+}
+
+sealed record Artifact(string Variant, byte[] Pe, string Registry, bool EmitSuccess, string[] Diagnostics,
+    long WallTicks, long CpuTicks, long AllocatedBytes, int Gc0, int Gc1, int Gc2)
+{ internal string PeHash => Runner.Hash(Pe); }
+sealed record Measurement(int Size, string State, string Variant, int CaseIndex, int PairSequence, int Repetition, int Iteration,
+    string[] PairOrder, int OrderInPair, int Version, string[] ActualIds, long WallTicks, double WallNanoseconds, long CpuTicks,
+    long AllocatedBytes, int Gc0, int Gc1, int Gc2, bool EmitSuccess, string SourceHash, string RegistryHash, string PeHash, int PeBytes, string[] Diagnostics);
+sealed record Summary(int Size, string State, string Variant, int Count, double[] RepetitionMeansNanoseconds,
+    double MeanNanoseconds, double SampleStandardDeviationNanoseconds, double CvPercent,
+    double MinNanoseconds, double MaxNanoseconds, double P50Nanoseconds, double P95Nanoseconds);

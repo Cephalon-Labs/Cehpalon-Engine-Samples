@@ -1,0 +1,1514 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Experimental generated Small API",
+    "version": "1",
+    "description": "The three business POST routes only. Health and the GraphQL HTTP envelope are outside this OpenAPI document. Structural schemas do not fully model CLR numeric bounds, parser/body restrictions, custom validators or tenant authority."
+  },
+  "paths": {
+    "/api/catalog/get": {
+      "post": {
+        "operationId": "catalog.get",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "tenant": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "tenant",
+                      "id"
+                    ],
+                    "additionalProperties": false,
+                    "$id": "urn:cehpalon:small-api:request:catalog.get"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "tenant": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "integer"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "type": "integer"
+                    },
+                    "amountMinorUnits": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "tenant",
+                    "id",
+                    "label",
+                    "revision",
+                    "amountMinorUnits"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "urn:cehpalon:small-api:response:catalog.get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT authentication required; middleware response may have no body"
+          },
+          "400": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:400"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:403"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:404"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:409"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:413"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:415"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:422"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.get:500"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-cehpalon-maximum-body-bytes": 16384,
+        "x-cehpalon-shape-only": true
+      }
+    },
+    "/api/catalog/list": {
+      "post": {
+        "operationId": "catalog.list",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "tenant": {
+                        "type": "string"
+                      },
+                      "page": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "tenant",
+                      "page"
+                    ],
+                    "additionalProperties": false,
+                    "$id": "urn:cehpalon:small-api:request:catalog.list"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "tenant": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "revision": {
+                            "type": "integer"
+                          },
+                          "amountMinorUnits": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "tenant",
+                          "id",
+                          "label",
+                          "revision",
+                          "amountMinorUnits"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "urn:cehpalon:small-api:response:catalog.list"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT authentication required; middleware response may have no body"
+          },
+          "400": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:400"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:403"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:404"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:409"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:413"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:415"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:422"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.list:500"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-cehpalon-maximum-body-bytes": 16384,
+        "x-cehpalon-shape-only": true
+      }
+    },
+    "/api/catalog/set": {
+      "post": {
+        "operationId": "catalog.set",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "tenant": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "expectedRevision": {
+                        "type": "integer"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "tenant",
+                      "id",
+                      "expectedRevision",
+                      "label"
+                    ],
+                    "additionalProperties": false,
+                    "$id": "urn:cehpalon:small-api:request:catalog.set"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "tenant": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "integer"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "type": "integer"
+                    },
+                    "amountMinorUnits": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "tenant",
+                    "id",
+                    "label",
+                    "revision",
+                    "amountMinorUnits"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "urn:cehpalon:small-api:response:catalog.set"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT authentication required; middleware response may have no body"
+          },
+          "400": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:400"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:403"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:404"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:409"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:413"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:415"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:422"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:small-api:error:catalog.set:500"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-cehpalon-maximum-body-bytes": 16384,
+        "x-cehpalon-shape-only": true
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "RS256 at\u002Bjwt with exact configured fixture issuer/audience/lifetime; authenticated JWT does not replace fresh tenant authority checks."
+      }
+    }
+  }
+}

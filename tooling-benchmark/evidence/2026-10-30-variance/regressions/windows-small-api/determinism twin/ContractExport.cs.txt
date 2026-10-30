@@ -1,0 +1,252 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Cehpalon.Engine.Core;
+using Cehpalon.Engine.Transports.Http;
+using Cehpalon.Engine.Transports.GraphQL;
+using HotChocolate.Execution;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace PortableConsumers.Generated;
+
+// One typed catalog drives runtime routes, vendor schema and offline artifacts.
+public static class TransportCatalog
+{
+    internal static readonly Exposure[] Operations =
+    [
+        new Exposure<GetItem,Item>("/api/catalog/get", "catalogItem", false, Bindings.Get),
+        new Exposure<ListItems,ItemPage>("/api/catalog/list", "catalogPage", false, Bindings.List),
+        new Exposure<SetLabel,Item>("/api/catalog/set", "setLabel", true, Bindings.Set)
+    ];
+    public static void MapHttp(IEndpointRouteBuilder endpoints)
+    { foreach (var operation in Operations) operation.MapHttp(endpoints); }
+    public static GraphQLOperationCatalog GraphQL()
+    {
+        var builder = new GraphQLOperationCatalog.Builder();
+        foreach (var operation in Operations) operation.AddGraphQL(builder);
+        return builder.Build();
+    }
+    internal abstract record Exposure(string Path, string Field, bool Mutation, string OperationId)
+    {
+        internal abstract void MapHttp(IEndpointRouteBuilder endpoints);
+        internal abstract void AddGraphQL(GraphQLOperationCatalog.Builder builder);
+        internal abstract JsonNode RequestSchema();
+        internal abstract JsonNode ResponseSchema();
+    }
+    private sealed record Exposure<TRequest,TResponse>(string Route, string FieldName, bool IsMutation, OperationBinding<TRequest,TResponse> Binding)
+        : Exposure(Route, FieldName, IsMutation, Binding.OperationId) where TRequest:class where TResponse:class
+    {
+        internal override void MapHttp(IEndpointRouteBuilder endpoints) => endpoints.MapOperation(Path, Binding);
+        internal override void AddGraphQL(GraphQLOperationCatalog.Builder builder)
+        { if (Mutation) builder.AddMutation(Field, Binding); else builder.AddQuery(Field, Binding); }
+        internal override JsonNode RequestSchema() => OperationHttpAdapter.ExportJsonSchema<TRequest>();
+        internal override JsonNode ResponseSchema() => OperationHttpAdapter.ExportJsonSchema<TResponse>();
+    }
+}
+
+public sealed class ExportCounters
+{
+    public int HttpSchemaOperations, GraphQLRegistrations, GraphQLServices, GraphQLSchemaBuilds;
+    public int GraphQLProvidersCreated, GraphQLProvidersDisposed, HandlerFactoryCalls, DispatchCalls;
+    public int HostFactories, TlsReads, AuthorityCalls;
+}
+
+internal static class ContractExport
+{
+    private const string SourceRoot = "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-variance-win01-small-api\\engine source \u0E44\u0E17\u0E22 \u0026 spaces";
+    private static readonly JsonSerializerOptions Json = new() { IncludeFields = true, WriteIndented = true };
+    private static readonly UTF8Encoding Utf8 = new(false, true);
+    private static readonly StringComparison Paths = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    public static async Task<int> Run(string configurationPath, string outputPath)
+    {
+        var counters = new ExportCounters();
+        try
+        {
+            string configuration;
+            try { configuration = Program.ReadConfiguration(configurationPath); }
+            catch (Exception error) when (error is DecoderFallbackException or InvalidDataException)
+            { return Failure("config.invalid", 2, counters); }
+            Cehpalon.Engine.Composition.ActivationPlan plan;
+            try { plan = FixtureHost.Compile(configuration); }
+            catch (ArgumentException) { return Failure("config.invalid", 2, counters); }
+            var destination = ValidateDestination(outputPath);
+            var enabled = plan.ActivationOrder.ToHashSet(StringComparer.Ordinal);
+            var builder = new OperationRegistryBuilder();
+            Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(builder, new ForbiddenFactory(counters));
+            var ids = builder.Build().OperationIds;
+            var declared = TransportCatalog.Operations.Select(x => x.OperationId).Order(StringComparer.Ordinal).ToArray();
+            if (!ids.SequenceEqual(declared, StringComparer.Ordinal)) throw new InvalidOperationException("Generated registry and typed catalog disagree.");
+            var files = new SortedDictionary<string,byte[]>(StringComparer.Ordinal);
+            if (enabled.Contains("api")) files.Add("openapi.json", Utf8.GetBytes(OpenApi(counters).ToJsonString(Json) + "\n"));
+            if (enabled.Contains("graphql"))
+                files.Add("schema.graphql", await GraphQLSchema(counters));
+            var artifacts = files.Select(pair => new { name = pair.Key, bytes = pair.Value.LongLength,
+                sha256 = Convert.ToHexStringLower(SHA256.HashData(pair.Value)) }).ToArray();
+            files.Add("manifest.json", Utf8.GetBytes(JsonSerializer.Serialize(new
+            {
+                schemaVersion = 1, profile = "small-api", activationOrder = plan.ActivationOrder,
+                generatedOperationIds = ids, httpOperationIds = enabled.Contains("api") ? declared : [],
+                artifacts, counters,
+                limits = new[] { "OpenAPI describes the three business POST routes only; anonymous health and the GraphQL HTTP envelope are outside that document. SDL describes selected GraphQL fields.",
+                    "Structural wire shapes only; custom validators, CLR numeric bounds, duplicate-name/Unicode/byte checks, tenant policy and fixture data constraints are not fully expressed by JSON Schema.",
+                    "GraphQL construction is explicit offline artifact work for the enabled module. No WebApplication, TLS/key read, handler or authority call is performed.",
+                    "Artifacts do not enable network introspection/schema endpoints or grant tenant authority. Source/build parents are trusted; path observations do not defend hostile races." }
+            }, Json) + "\n"));
+            Publish(destination, files);
+            Console.WriteLine(JsonSerializer.Serialize(new { status = "passed", files = files.Keys.ToArray(), counters }, Json));
+            return 0;
+        }
+        catch { return Failure("export.failure", 3, counters); }
+    }
+
+    // Resolve the vendor executor only in the selected GraphQL mode, inside the
+    // original process clock. The same counters survive failures and publication.
+    private static async Task<byte[]> GraphQLSchema(ExportCounters counters)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<ITransportOperationDispatcher>(new ForbiddenDispatcher(counters));
+        counters.GraphQLRegistrations++;
+        services.AddCehpalonGraphQL(TransportCatalog.GraphQL());
+        counters.GraphQLServices = services.Count(x => (x.ServiceType.FullName ?? "").StartsWith("HotChocolate.", StringComparison.Ordinal));
+        var provider = services.BuildServiceProvider(); counters.GraphQLProvidersCreated++;
+        try
+        {
+            var executor = await provider.GetRequiredService<IRequestExecutorProvider>().GetExecutorAsync();
+            counters.GraphQLSchemaBuilds++;
+            return Utf8.GetBytes(executor.Schema.ToString().Replace("\r\n", "\n").TrimEnd() + "\n");
+        }
+        finally { await provider.DisposeAsync(); counters.GraphQLProvidersDisposed++; }
+    }
+
+    private static JsonObject OpenApi(ExportCounters counters)
+    {
+        var paths = new JsonObject();
+        foreach (var exposure in TransportCatalog.Operations)
+        {
+            counters.HttpSchemaOperations++;
+            var responses = new JsonObject
+            {
+                ["200"] = new JsonObject { ["description"] = "Successful operation result", ["content"] = Content("application/json", Resource(exposure.ResponseSchema(), "response:" + exposure.OperationId)) },
+                ["401"] = new JsonObject { ["description"] = "JWT authentication required; middleware response may have no body" }
+            };
+            foreach (var code in new[] { 400, 403, 404, 409, 413, 415, 422, 500 })
+                responses[code.ToString(System.Globalization.CultureInfo.InvariantCulture)] = new JsonObject
+                {
+                    ["description"] = "Adapter error envelope; status may arise from protocol, validation, authority or business handling",
+                    ["content"] = Content("application/problem+json", ObjectEnvelope(Resource(OperationHttpAdapter.ExportErrorJsonSchema(), "error:" + exposure.OperationId + ":" + code)))
+                };
+            paths[exposure.Path] = new JsonObject { ["post"] = new JsonObject
+            {
+                ["operationId"] = exposure.OperationId,
+                ["security"] = new JsonArray(new JsonObject { ["Bearer"] = new JsonArray() }),
+                ["requestBody"] = new JsonObject { ["required"] = true, ["content"] = Content("application/json", ObjectEnvelope(Resource(exposure.RequestSchema(), "request:" + exposure.OperationId))) },
+                ["responses"] = responses,
+                ["x-cehpalon-maximum-body-bytes"] = OperationHttpAdapter.MaximumBodyBytes,
+                ["x-cehpalon-shape-only"] = true
+            } };
+        }
+        return new JsonObject
+        {
+            ["openapi"] = "3.1.0", ["jsonSchemaDialect"] = "https://json-schema.org/draft/2020-12/schema",
+            ["info"] = new JsonObject { ["title"] = "Experimental generated Small API", ["version"] = "1",
+                ["description"] = "The three business POST routes only. Health and the GraphQL HTTP envelope are outside this OpenAPI document. Structural schemas do not fully model CLR numeric bounds, parser/body restrictions, custom validators or tenant authority." },
+            ["paths"] = paths,
+            ["components"] = new JsonObject { ["securitySchemes"] = new JsonObject { ["Bearer"] = new JsonObject
+            {
+                ["type"] = "http", ["scheme"] = "bearer", ["bearerFormat"] = "JWT",
+                ["description"] = "RS256 at+jwt with exact configured fixture issuer/audience/lifetime; authenticated JWT does not replace fresh tenant authority checks."
+            } } }
+        };
+    }
+    private static JsonObject Content(string mediaType, JsonNode schema) => new() { [mediaType] = new JsonObject { ["schema"] = schema } };
+    private static JsonObject ObjectEnvelope(JsonNode schema) => new() { ["allOf"] = new JsonArray(new JsonObject { ["type"] = "object" }, schema) };
+    private static JsonNode Resource(JsonNode schema, string id)
+    {
+        // Each inline schema is a separate JSON Schema resource so local $refs
+        // continue to resolve against its own root when embedded in OpenAPI.
+        if (schema is not JsonObject value) throw new InvalidOperationException("Only object JSON Schema resources are supported by this profile.");
+        value["$id"] = "urn:cehpalon:small-api:" + id;
+        return value;
+    }
+    private static string ValidateDestination(string path)
+    {
+        if (path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.StartsWith(@"\\.\", StringComparison.Ordinal)) throw new IOException();
+        var destination = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        if (destination.StartsWith(@"\\?\", StringComparison.Ordinal) || destination.StartsWith(@"\\.\", StringComparison.Ordinal)) throw new IOException();
+        var parent = Path.GetDirectoryName(destination);
+        if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent)) throw new IOException();
+        PlainAncestors(destination); Absent(destination);
+        var roots = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal) { SourceRoot };
+        foreach (var start in new[] { SourceRoot, Environment.CurrentDirectory, AppContext.BaseDirectory })
+            for (var current = Path.GetFullPath(start); !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
+                foreach (var name in new[] { "Cehpalon-Engine", "Cehpalon-Engine-Docs", "Cehpalon-Engine-Samples" })
+                {
+                    var candidate = Path.Combine(current, name);
+                    if (Directory.Exists(candidate) && (File.Exists(Path.Combine(candidate, ".git")) || Directory.Exists(Path.Combine(candidate, ".git")))) roots.Add(candidate);
+                }
+        foreach (var root in roots)
+        {
+            if (string.Equals(destination, root, Paths)) throw new IOException();
+            var prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+            if (destination.StartsWith(prefix, Paths))
+            {
+                var relative = destination[prefix.Length..];
+                if (!relative.StartsWith(".local" + Path.DirectorySeparatorChar, StringComparison.Ordinal)) throw new IOException();
+            }
+        }
+        return destination;
+    }
+    private static void Publish(string destination, SortedDictionary<string,byte[]> files)
+    {
+        var parent = Path.GetDirectoryName(destination)!;
+        var stage = Path.Combine(parent, ".cehpalon-contracts-" + Guid.NewGuid().ToString("N")); var owned = false;
+        try
+        {
+            PlainAncestors(parent); Absent(stage); Directory.CreateDirectory(stage); owned = true;
+            foreach (var pair in files)
+            {
+                PlainAncestors(stage);
+                using var file = new FileStream(Path.Combine(stage, pair.Key), FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                file.Write(pair.Value); file.Flush(flushToDisk: true);
+            }
+            PlainAncestors(parent); PlainAncestors(stage); Absent(destination); Directory.Move(stage, destination); owned = false;
+        }
+        finally
+        {
+            if (owned)
+            {
+                var absolute = Path.GetFullPath(stage);
+                if (!string.Equals(Path.GetDirectoryName(absolute), Path.GetFullPath(parent), Paths)
+                    || !Path.GetFileName(absolute).StartsWith(".cehpalon-contracts-", StringComparison.Ordinal)) throw new IOException();
+                PlainAncestors(absolute);
+                var entries = Directory.EnumerateFileSystemEntries(absolute).ToArray();
+                foreach (var entry in entries)
+                    if (!files.ContainsKey(Path.GetFileName(entry)) || (File.GetAttributes(entry) & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0) throw new IOException();
+                foreach (var entry in entries) { PlainAncestors(absolute); PlainAncestors(entry); File.Delete(entry); }
+                Directory.Delete(absolute, recursive: false);
+            }
+        }
+    }
+    private static void Absent(string path)
+    { try { _ = File.GetAttributes(path); } catch (FileNotFoundException) { return; } catch (DirectoryNotFoundException) { return; } throw new IOException(); }
+    private static void PlainAncestors(string path)
+    {
+        for (var current = Path.GetFullPath(path); !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
+        { try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new IOException(); } catch (FileNotFoundException) { } catch (DirectoryNotFoundException) { } }
+    }
+    private static int Failure(string code, int exit, ExportCounters counters)
+    {
+        Console.Error.WriteLine(JsonSerializer.Serialize(new { status = "failed", code, message = "Contract export rejected; no input, path, credential or vendor exception details are included.", counters }, Json));
+        return exit;
+    }
+    private sealed class ForbiddenFactory(ExportCounters counters) : IOperationHandlerFactory
+    { public THandler Create<THandler>() where THandler:class { counters.HandlerFactoryCalls++; throw new InvalidOperationException("Schema export must not construct handlers."); } }
+    private sealed class ForbiddenDispatcher(ExportCounters counters) : ITransportOperationDispatcher
+    {
+        public ValueTask<OperationResult<TResponse>> DispatchAsync<TRequest,TResponse>(Microsoft.AspNetCore.Http.HttpContext http, string id, TRequest request, OperationContext context, CancellationToken token)
+        { counters.DispatchCalls++; throw new InvalidOperationException("Schema export must not dispatch."); }
+    }
+}

@@ -18,7 +18,7 @@ The [CLI-generated Small API proof](tooling-small-api/README.md) builds the new 
 
 The [offline transport contract proof](tooling-contracts/README.md) exports selected HTTP OpenAPI/JSON shapes and actual GraphQL SDL, compares them with real runtime schemas/HTTPS behavior and checks disabled artifact/service work. Structural schema acceptance remains separate from business validation and tenant authority.
 
-The [tooling observational benchmark](tooling-benchmark/README.md) measures actual generator/emit and fresh CLI processes with fixed correctness checks, retained raw rows and descriptive variability. [Results](tooling-benchmark/results.md) remain separate from full performance/platform/provider qualification.
+The [tooling observational benchmark](tooling-benchmark/README.md) measures actual generator/emit and fresh CLI processes with fixed correctness checks, retained raw rows and descriptive variability. [Baseline results](tooling-benchmark/results.md) and [variance follow-up](tooling-benchmark/variance-results.md), including negative final outcomes, remain separate from full performance/platform/provider qualification.
 
 The [tenant/identity consumer](tenant-identity/README.md) adds fresh authoritative fixture checks and a checked data port through a generated Core gateway, including cross-tenant denials. It does not establish real IdP/provider/transport qualification.
 

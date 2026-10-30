@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "purpose": "Predeclared auxiliary100vs100serialization allocation diagnostic only; no original benchmark rerun, timing, GC force or qualification",
+  "started_utc": "2026-10-30T02:37:00.939524+00:00",
+  "engine_revision": "1b9d538b4311cf574912596a0f547ae5ae788070",
+  "input_actual_path": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-variance-win01-benchmark\\generator-observations.json",
+  "driver_sha256": "5a9f5fa47f27e8b8e8373aa69f6947f911cd59d4049f3c7dc1b1486bacb616bf",
+  "input_sha256": "5a00bcbed62d50afc26a16e16ef1ff89f51107771e04e3ad268bbbf94edfaa1b",
+  "diagnostic_sha256": "112d4a2800aa5e366bda91a87c45100a78f620155f2fef9e4d3053c1d10e9046",
+  "commands": [
+    {
+      "label": "sdk-version",
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "--version"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "sdk-info",
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "--info"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "initial-restore",
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\AllocationDiagnostic.csproj",
+        "--configfile",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\artifacts"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "locked-restore",
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\AllocationDiagnostic.csproj",
+        "--locked-mode",
+        "--configfile",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\artifacts"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "build",
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\AllocationDiagnostic.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "diagnostic",
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\artifacts\\bin\\AllocationDiagnostic\\release\\AllocationDiagnostic.dll",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\input-generator-observations.json",
+        "D:\\Cephalon\\.worktrees\\tooling-variance-recorder\\.local\\recorder-options-diagnostic01\\allocation-result.json"
+      ],
+      "exit": 0
+    }
+  ],
+  "sdk": "11.0.100-rc.3.26522.148",
+  "finished_utc": "2026-10-30T02:37:04.657842+00:00"
+}
