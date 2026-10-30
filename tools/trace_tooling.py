@@ -289,7 +289,7 @@ def verify_generator(path):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--mode', choices=['runtime', 'native', 'conformance', 'native-conformance'], required=True)
+    p.add_argument('--mode', choices=['runtime', 'native', 'conformance', 'native-conformance', 'combined', 'combined-conformance'], required=True)
     p.add_argument('--dotnet', required=True)
     p.add_argument('--trace-tool')
     p.add_argument('--analyzer')
@@ -300,7 +300,7 @@ def main():
     p.add_argument('--expected-engine-revision', default='55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7')
     p.add_argument('--output', required=True)
     a = p.parse_args()
-    if a.mode in ('runtime', 'conformance') and not (a.trace_tool and a.analyzer):
+    if a.mode in ('runtime', 'conformance', 'combined', 'combined-conformance') and not (a.trace_tool and a.analyzer):
         p.error('Runtime capture requires --trace-tool and --analyzer')
     # Export commands intentionally run from their fixture directory. Every
     # executable/configuration argument must survive that child cwd change.
@@ -316,13 +316,22 @@ def main():
               'started_utc_ns': time.time_ns(), 'harness_sha256': sha(__file__), 'engine_revision': a.expected_engine_revision}
     save(output / 'manifest.json', report)
     try:
-        if a.mode in ('conformance', 'native-conformance'):
+        runtime_modes = ('runtime', 'combined')
+        capture_function = capture_runtime
+        if a.mode in ('combined', 'combined-conformance'):
+            from tooling_wait_capture import capture as capture_function
+            report['capture_backend'] = 'same_process_eventpipe_strace_waits'
+            report['capture_backend_sha256'] = sha(ROOT / 'tools/tooling_wait_capture.py')
+        if a.mode in ('conformance', 'native-conformance', 'combined-conformance'):
             require(a.conformance_target, 'Conformance target required')
             folder = output / 'known-target'
-            if a.mode == 'conformance':
-                capture = capture_runtime([a.dotnet, a.conformance_target, folder / 'known.json'], ROOT, folder,
-                                          a.dotnet, a.trace_tool, a.analyzer)
-                analysis = analyze(folder, a.dotnet, a.analyzer, folder / 'known.json.spans.jsonl', expected_markers=5)
+            if a.mode in ('conformance', 'combined-conformance'):
+                capture = capture_function([a.dotnet, a.conformance_target, folder / 'known.json'], ROOT, folder,
+                                           a.dotnet, a.trace_tool, a.analyzer,
+                                           **({'timeout': 120} if a.mode == 'combined-conformance' else {}))
+                require(capture['status'] == 'completed', 'Capture completed before analysis')
+                analysis = analyze(folder, a.dotnet, a.analyzer, folder / 'known.json.spans.jsonl',
+                                   expected_markers=7 if a.mode == 'combined-conformance' else 5)
                 require(analysis.get('gcRelatedEnvelopes', 0) > 0 and analysis.get('eePairingErrors') == 0,
                         'Known conformance collection has positive, complete GC suspension episodes')
             else:
@@ -349,13 +358,17 @@ def main():
             pinned = [Path(a.dotnet), Path(a.driver), Path(cli[1]), assembly,
                       ROOT / 'tools/trace_tooling.py', ROOT / 'tools/tooling_os_observer.py',
                       ROOT / 'tools/trace_tooling_native.py', ROOT / 'tools/validate_native_conformance.py']
+            if a.mode == 'combined':
+                pinned += [ROOT / 'tools/tooling_wait_capture.py', ROOT / 'tools/analyze_tooling_waits.py',
+                           ROOT / 'tools/prepare_tooling_wait_driver.py']
             report['frozen_inputs_sha256'] = {str(path): sha(path) for path in pinned}
             save(output / 'manifest.json', report)
 
             def capture_case(label, command, cwd, generator=False):
                 folder = output / label
-                if a.mode == 'runtime':
-                    c = capture_runtime(command, cwd, folder, a.dotnet, a.trace_tool, a.analyzer)
+                if a.mode in runtime_modes:
+                    c = capture_function(command, cwd, folder, a.dotnet, a.trace_tool, a.analyzer)
+                    require(c['status'] == 'completed', 'Capture completed before analysis')
                     spans = folder / 'generator.json.spans.jsonl' if generator else None
                     result = analyze(folder, a.dotnet, a.analyzer, spans, expected_markers=2956 if generator else None)
                 else:
@@ -364,9 +377,9 @@ def main():
                     c, result = read(folder / 'manifest.json'), read(folder / 'parsed.json')
                     require(c['status'] == 'completed' and c.get('exit') == 0 and not c.get('timed_out')
                             and not c.get('cleanup_unresolved') and c.get('target_owned_identity'), 'Owned native target completed')
-                stdout = (folder / ('target.stdout.txt' if a.mode == 'runtime' else 'stdout.txt')).read_bytes()
-                item = {'name': label, 'capture': c, 'analysis_file': str((folder / ('analysis/summary.json' if a.mode == 'runtime' else 'parsed.json')).relative_to(output))}
-                if a.mode == 'runtime':
+                stdout = (folder / ('target.stdout.txt' if a.mode in runtime_modes else 'stdout.txt')).read_bytes()
+                item = {'name': label, 'capture': c, 'analysis_file': str((folder / ('analysis/summary.json' if a.mode in runtime_modes else 'parsed.json')).relative_to(output))}
+                if a.mode in runtime_modes:
                     item['runtime_attribution_quality'] = result['root_quality']
                 report['cases'].append(item)
                 save(output / 'manifest.json', report)
