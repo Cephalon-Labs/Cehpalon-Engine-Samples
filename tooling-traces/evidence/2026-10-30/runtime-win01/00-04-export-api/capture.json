@@ -1,0 +1,357 @@
+{
+  "role": "diagnostic_perturbed",
+  "canonical": false,
+  "status": "failed",
+  "target_argv": [
+    "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+    "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-fixture-win01\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.BenchmarkSample.dll",
+    "--export-contracts",
+    "--config",
+    "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-fixture-win01\\fixture-small-api\\appsettings.json",
+    "--output",
+    "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-runtime-win01\\00-04-export-api\\generated-output"
+  ],
+  "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-fixture-win01\\fixture-small-api",
+  "providers": "Microsoft-Windows-DotNETRuntime:0x11C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4",
+  "profile": "dotnet-sampled-thread-time",
+  "buffer_mb": 256,
+  "buffer_mode": "Drop",
+  "observer_interval_seconds": 0.01,
+  "startup_coordination": "one suspended reverse port; observer before collector; collector resumes its own endpoint after session start",
+  "limits": [
+    "Tracing, startup coordination, observer and rundown perturb execution.",
+    "Managed sampled thread stacks are not kernel CPU/context-switch samples.",
+    "Process I/O counters include tracing/IPC; native lane is separate."
+  ],
+  "binary_sha256": {
+    "D:\\Cephalon\\.tools\\dotnet11\\win-x64\\dotnet.exe": "d443bda8c97450ab5d90ba48376414170068dc7da82ce2b3dfa0b32ef2dd3476",
+    ".local\\tooling-trace-preparation01\\tools\\.store\\dotnet-trace\\10.0.750501\\dotnet-trace\\10.0.750501\\tools\\net8.0\\any\\dotnet-trace.dll": "33c4e4de008b8fe347b1d9dcaec6f33f79efeb0281a501eee1fcabc1fe8ef7df",
+    ".local\\tooling-trace-analyzer-win03\\artifacts\\bin\\TraceAnalysis\\release\\TraceAnalysis.dll": "8f5f940aaf355a4647d7bac5f4829b7539ee90dd16b7eb797579b1235559c32d",
+    "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-fixture-win01\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.BenchmarkSample.dll": "47408a389b62e1720ef6d2b4cb42911a2d635f3fd1ea21bd911f69b83eb6c5bd"
+  },
+  "prelaunch_hashing_scope": "Executable hashing and fixture preparation prime filesystem caches; not cold disk",
+  "collector_argv": [
+    "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+    "exec",
+    "--roll-forward",
+    "Major",
+    ".local/tooling-trace-preparation01/tools/.store/dotnet-trace/10.0.750501/dotnet-trace/10.0.750501/tools/net8.0/any/dotnet-trace.dll",
+    "collect",
+    "--output",
+    "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-runtime-win01\\00-04-export-api\\runtime.nettrace",
+    "--profile",
+    "dotnet-sampled-thread-time",
+    "--providers",
+    "Microsoft-Windows-DotNETRuntime:0x11C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4",
+    "--diagnostic-port",
+    "Cehpalon-Tooling-06c874f469d44917952b257e4a943e6b",
+    "--resume-runtime:true",
+    "--buffersize",
+    "256",
+    "--buffering-mode",
+    "Drop"
+  ],
+  "child_removed_diagnostic_aliases": [],
+  "target_launch_perf_counter_ns": 337456420012600,
+  "target_launch_utc_ns": 1793335644770361900,
+  "target_pid": 465708,
+  "observer_ready_perf_counter_ns": 337456616616600,
+  "collector_launch_perf_counter_ns": 337456616617600,
+  "collector_pid": 481776,
+  "failure": "Traceback (most recent call last):\n  File \"D:\\Cephalon\\Cehpalon-Engine-Samples\\tools\\trace_tooling.py\", line 160, in capture_runtime\n    wait_until(lambda: 'Process' in text() and 'Output File' in text(), collector, 'EventPipe session')\n  File \"D:\\Cephalon\\Cehpalon-Engine-Samples\\tools\\trace_tooling.py\", line 80, in wait_until\n    require(proc.poll() is None, 'Collector exited before ' + description)\n  File \"D:\\Cephalon\\Cehpalon-Engine-Samples\\tools\\trace_tooling.py\", line 36, in require\n    raise ValueError(message)\nValueError: Collector exited before EventPipe session\n",
+  "owned_process_cleanup": [
+    {
+      "role": "target",
+      "pid": 465708,
+      "kill_requested": true,
+      "returncode": 1,
+      "joined": true
+    },
+    {
+      "role": "collector",
+      "pid": 481776,
+      "kill_requested": false,
+      "returncode": 2147516545,
+      "joined": true
+    }
+  ],
+  "observer_joined": true,
+  "observer": {
+    "summary": {
+      "schema_version": 1,
+      "pid": 465708,
+      "observer_pid": 488492,
+      "requested_interval_seconds": 0.01,
+      "status": "completed_stop_requested",
+      "samples": 9,
+      "races": 0,
+      "read_failures": [],
+      "thread_identities_seen": {
+        "488476:134378092447722856": {
+          "tid": 488476,
+          "birth": 134378092447722856,
+          "first_observed_ns": 337456438948200,
+          "first_observed_monotonic_ns": 337456296000000,
+          "first_observed_perf_counter_ns": 337456438948200,
+          "first_counters": {
+            "tid": 488476,
+            "creation_filetime_100ns": 134378092447722856,
+            "exit_filetime_100ns": 0,
+            "kernel_cpu_100ns": 156250,
+            "user_cpu_100ns": 156250,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          },
+          "last_observed_ns": 337456664461500,
+          "last_observed_monotonic_ns": 337456531000000,
+          "last_observed_perf_counter_ns": 337456664461500,
+          "last_counters": {
+            "tid": 488476,
+            "creation_filetime_100ns": 134378092447722856,
+            "exit_filetime_100ns": 0,
+            "kernel_cpu_100ns": 156250,
+            "user_cpu_100ns": 156250,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          }
+        },
+        "472720:134378092447950633": {
+          "tid": 472720,
+          "birth": 134378092447950633,
+          "first_observed_ns": 337456438948200,
+          "first_observed_monotonic_ns": 337456296000000,
+          "first_observed_perf_counter_ns": 337456438948200,
+          "first_counters": {
+            "tid": 472720,
+            "creation_filetime_100ns": 134378092447950633,
+            "exit_filetime_100ns": 0,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          },
+          "last_observed_ns": 337456664461500,
+          "last_observed_monotonic_ns": 337456531000000,
+          "last_observed_perf_counter_ns": 337456664461500,
+          "last_counters": {
+            "tid": 472720,
+            "creation_filetime_100ns": 134378092447950633,
+            "exit_filetime_100ns": 134378092450150894,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          }
+        },
+        "487324:134378092447963285": {
+          "tid": 487324,
+          "birth": 134378092447963285,
+          "first_observed_ns": 337456438948200,
+          "first_observed_monotonic_ns": 337456296000000,
+          "first_observed_perf_counter_ns": 337456438948200,
+          "first_counters": {
+            "tid": 487324,
+            "creation_filetime_100ns": 134378092447963285,
+            "exit_filetime_100ns": 0,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          },
+          "last_observed_ns": 337456664461500,
+          "last_observed_monotonic_ns": 337456531000000,
+          "last_observed_perf_counter_ns": 337456664461500,
+          "last_counters": {
+            "tid": 487324,
+            "creation_filetime_100ns": 134378092447963285,
+            "exit_filetime_100ns": 134378092450150962,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          }
+        },
+        "486776:134378092448026475": {
+          "tid": 486776,
+          "birth": 134378092448026475,
+          "first_observed_ns": 337456438948200,
+          "first_observed_monotonic_ns": 337456296000000,
+          "first_observed_perf_counter_ns": 337456438948200,
+          "first_counters": {
+            "tid": 486776,
+            "creation_filetime_100ns": 134378092448026475,
+            "exit_filetime_100ns": 0,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          },
+          "last_observed_ns": 337456664461500,
+          "last_observed_monotonic_ns": 337456531000000,
+          "last_observed_perf_counter_ns": 337456664461500,
+          "last_counters": {
+            "tid": 486776,
+            "creation_filetime_100ns": 134378092448026475,
+            "exit_filetime_100ns": 134378092450150866,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          }
+        },
+        "489264:134378092448073597": {
+          "tid": 489264,
+          "birth": 134378092448073597,
+          "first_observed_ns": 337456438948200,
+          "first_observed_monotonic_ns": 337456296000000,
+          "first_observed_perf_counter_ns": 337456438948200,
+          "first_counters": {
+            "tid": 489264,
+            "creation_filetime_100ns": 134378092448073597,
+            "exit_filetime_100ns": 0,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          },
+          "last_observed_ns": 337456664461500,
+          "last_observed_monotonic_ns": 337456531000000,
+          "last_observed_perf_counter_ns": 337456664461500,
+          "last_counters": {
+            "tid": 489264,
+            "creation_filetime_100ns": 134378092448073597,
+            "exit_filetime_100ns": 134378092450151040,
+            "kernel_cpu_100ns": 0,
+            "user_cpu_100ns": 0,
+            "base_priority": 8,
+            "base_priority_scope": "initial_snapshot_only",
+            "state": null,
+            "context_switches": null,
+            "faults": null,
+            "scheduler_unavailable": true,
+            "thread_coverage": "initial_snapshot_pinned_handle"
+          }
+        }
+      },
+      "started": {
+        "monotonic_ns": 337456296000000,
+        "perf_counter_ns": 337456438077200,
+        "utc_ns": 1793335644787377600
+      },
+      "target_identity": {
+        "pid": 465708,
+        "creation_filetime_100ns": 134378092447722826
+      },
+      "expected_target_identity": null,
+      "scope": "diagnostic sampled native OS counters only, never exact scheduler events or benchmark evidence",
+      "unseen_short_lived_threads_possible": true,
+      "tail_coverage": "not guaranteed",
+      "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+      "timing_clock": "perf_counter_ns; legacy monotonic_ns is distinct and must not be joined to QPC",
+      "flush_policy": "flush each JSON line; no fsync/power-loss guarantee",
+      "capabilities": {
+        "scheduler": "unavailable_exact_cswitch_or_runqueue_trace",
+        "thread_state": "unavailable_public_win32_observer",
+        "context_switches": "unavailable_public_win32_observer",
+        "faults": "unavailable_requested_public_apis",
+        "io": "GetProcessIoCounters cumulative process accounting",
+        "io_scope": "includes console and diagnostic IPC; not file/physical-disk latency",
+        "thread_enumeration": "one initial Toolhelp snapshot only; owned live thread handles retained and queried thereafter",
+        "thread_coverage": "initial captured threads only; later/background threads are not discovered or attributed",
+        "thread_identity": "owner checked on acquisition; pinned handle and creation time checked on every query",
+        "new_threads_not_covered": true
+      },
+      "last_successful_observation": {
+        "monotonic_ns": 337456531000000,
+        "perf_counter_ns": 337456664461500,
+        "utc_ns": 1793335645015130300
+      },
+      "windows_initial_thread_snapshot": {
+        "calls": 1,
+        "begin": {
+          "monotonic_ns": 337456296000000,
+          "perf_counter_ns": 337456438970100,
+          "utc_ns": 1793335644789449400
+        },
+        "end": {
+          "monotonic_ns": 337456453000000,
+          "perf_counter_ns": 337456591693000,
+          "utc_ns": 1793335644942438500
+        },
+        "duration_perf_counter_ns": 152722900,
+        "thread_cpu_ns": 140625000,
+        "captured_live_tids": [
+          472720,
+          486776,
+          487324,
+          488476,
+          489264
+        ],
+        "status": "completed_initial_snapshot",
+        "races": [],
+        "startup_suspension_verified_by_observer": false,
+        "coverage": "initial snapshot only; new/background threads remain uncovered"
+      },
+      "ready_after_sample": 0,
+      "ready_monotonic_ns": 337456453000000,
+      "ready_perf_counter_ns": 337456591770200,
+      "finished": {
+        "monotonic_ns": 337456531000000,
+        "perf_counter_ns": 337456664571400,
+        "utc_ns": 1793335645015130300
+      },
+      "observer_thread_cpu_ns": 140625000,
+      "controller_process_cpu_ns_during_observation": 156250000,
+      "actual_gap_count": 8,
+      "actual_min_gap_ns": 263400,
+      "actual_max_gap_ns": 153092900,
+      "gap_count_over_twice_requested": 1,
+      "tail_since_last_sample_ns": 109900
+    }
+  }
+}

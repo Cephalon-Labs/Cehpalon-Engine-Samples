@@ -1,0 +1,308 @@
+"""Independent offline replay. Never launch workloads or modify captured evidence.
+
+Run on the capture's OS after the timing owner declares ALL timing complete.
+Pins are supplied independently, not learned from the manifest being audited:
+  engine_revision: exact source SHA
+  runner_sha256: launch runner SHA, separately pinned from later disk snapshots
+  sources: snapshot filename -> SHA256 or explicit approved SHA256 list
+  binaries: absolute executable/assembly path -> SHA256 (every captured binary)
+  verifier: {path: benchmark_tooling.py, sha256: independently pinned hash}
+  fixture_manifest: {path: prepared fixture manifest, sha256: pinned hash}
+The only write is an explicitly requested NEW JSON result path.
+"""
+import argparse
+from collections import Counter
+import hashlib
+import importlib.util
+import json
+import math
+from pathlib import Path
+import statistics
+import traceback
+
+SCENARIOS = ('new-portable', 'new-small-api', 'validate-portable', 'validate-small-api',
+             'export-api', 'export-both', 'export-graphql', 'export-off')
+ENGINE = '55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7'
+STAGES = {'execute.setup': 330, 'generator.run': 168, 'pe.emit': 330,
+          'compiler.wall': 330, 'journal.persistence': 306, 'ast.verify': 348,
+          'runtime.verify': 42, 'fixture.setup': 60, 'fixture.edit': 54, 'hash': 988}
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def lines(path):
+    with Path(path).open(encoding='utf-8-sig') as stream:
+        for line in stream:
+            yield json.loads(line)
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def bound_file(root, relative):
+    path = (root / relative).resolve()
+    require(path.is_relative_to(root.resolve()), 'Artifact path escapes evidence root')
+    return path
+
+
+def absolute(path, cwd):
+    path = Path(path)
+    return path.resolve() if path.is_absolute() else (Path(cwd) / path).resolve()
+
+
+def generator(folder, spans):
+    data = read(folder / 'generator.json')
+    require(data.get('status') == 'completed' and data.get('correctnessPassed') is True
+            and data.get('canonical') is False and data.get('diagnosticPerturbed') is True
+            and data.get('performanceStatus') == 'diagnostic_only_not_acceptance'
+            and data.get('qualificationStatus') == 'not_qualified', 'Diagnostic generator scope/status')
+    p = data['parameters']
+    expected = {'operationCounts': [1, 3, 32], 'states': ['fresh', 'noop', 'edit'],
+                'primersPerState': 2, 'repetitions': 5, 'iterationsPerRepetition': 3,
+                'timedGenerator': 'RunGeneratorsAndUpdateCompilation+Emit',
+                'timedManual': 'already-authored typed registration Emit', 'trackingTimed': False,
+                'cvDescriptiveThresholdPercent': 15,
+                'cvBasis': 'five repetition means; sample standard deviation ddof=1',
+                'percentileMethod': 'nearest-rank over all 15 measured rows; index=ceil(p*n)-1'}
+    require(p == expected, 'Original generator parameter/clock/threshold metadata preserved')
+    identities = set()
+    for phase, count, repetitions, iterations in [('primers', 36, [-1], range(2)),
+                                                  ('measurements', 270, range(5), range(3))]:
+        rows = data[phase]
+        wanted = {(n, state, variant, rep, it) for n in (1, 3, 32)
+                  for state in ('fresh', 'noop', 'edit') for variant in ('manual', 'generator')
+                  for rep in repetitions for it in iterations}
+        actual = {(r['size'], r['state'], r['variant'], r['repetition'], r['iteration']) for r in rows}
+        require(len(rows) == len(actual) == count and actual == wanted, 'Exact generator ' + phase + ' tuple matrix')
+        for r in rows:
+            case = [1, 3, 32].index(r['size']) * 3 + ['fresh', 'noop', 'edit'].index(r['state'])
+            seq = r['iteration'] if phase == 'primers' else 2 + r['repetition'] * 3 + r['iteration']
+            order = ['generator', 'manual'] if (case + seq) % 2 == 0 else ['manual', 'generator']
+            version = int(r['state'] == 'edit' and seq % 2 == 0)
+            ids = ['bench.changed000' if i == 0 and version else f'bench.op{i:03d}' for i in range(r['size'])]
+            require(r['caseIndex'] == case and r['pairSequence'] == seq and r['pairOrder'] == order
+                    and r['version'] == version and r['actualIds'] == ids
+                    and r['orderInPair'] in (0, 1) and order[r['orderInPair']] == r['variant'], 'Generator row order/state/IDs')
+            require(r['emitSuccess'] is True and r['diagnostics'] == [] and r['peBytes'] > 0, 'Executable emit succeeds')
+            for key in ('sourceHash', 'registryHash', 'peHash'):
+                require(len(r[key]) == 64 and all(c in '0123456789abcdef' for c in r[key]), 'Row SHA256 shape')
+            for key in ('wallTicks', 'wallNanoseconds', 'cpuTicks', 'allocatedBytes', 'gc0', 'gc1', 'gc2'):
+                require(type(r[key]) in (int, float) and math.isfinite(r[key]) and r[key] >= 0, 'Finite raw metric: ' + key)
+            identities.add(('primer' if phase == 'primers' else 'measurement', case, seq, r['variant']))
+        require([(r['caseIndex'], r['pairSequence'], r['orderInPair']) for r in rows]
+                == sorted((r['caseIndex'], r['pairSequence'], r['orderInPair']) for r in rows), 'Original row ordering')
+        for first, second in zip(rows[::2], rows[1::2]):
+            require(all(first[k] == second[k] for k in ('caseIndex', 'pairSequence', 'sourceHash', 'version', 'actualIds')),
+                    'Paired variants share identical business input')
+    require(len(data['stateSeeds']) == 12 and len(data['preflight']) == 3 and len(data['postflight']) == 18,
+            'Complete seeds/preflight/postflight counts')
+    for phase, states in [('stateSeeds', ('noop', 'edit')), ('postflight', ('fresh', 'noop', 'edit'))]:
+        require({(r['size'], r['state'], r['variant']) for r in data[phase]}
+                == {(n, s, v) for n in (1, 3, 32) for s in states for v in ('manual', 'generator')}, 'Semantic stage tuples')
+        for r in data[phase]:
+            n = r['size']
+            version = int(phase == 'postflight' and r['state'] == 'edit')
+            ids = ['bench.changed000' if i == 0 and version else f'bench.op{i:03d}' for i in range(n)]
+            semantic = ','.join(sorted(ids)) + f'|{n * (n - 1)}|{n}|{n}|{n}'
+            require(r['passed'] is True and r['emitSuccess'] is True and r['semantic'] == semantic
+                    and r['version'] == version and r['actualIds'] == ids, 'Actual seed/postflight runtime semantics')
+    require({r['size'] for r in data['preflight']} == {1, 3, 32}, 'Exact preflight sizes')
+    for r in data['preflight']:
+        require(r['passed'] is True and r['compilerDependencySeparationPassed'] is True
+                and r['trackingTimed'] is False and len(r['noopReasons']) == r['size']
+                and all(reason in ('Cached', 'Unchanged') for reason in r['noopReasons'])
+                and any(reason not in ('Cached', 'Unchanged') for reason in r['editReasons']), 'Cache/edit preflight semantics')
+    require(len(data['summaries']) == 18 and len({(s['size'], s['state'], s['variant']) for s in data['summaries']}) == 18,
+            'Complete descriptive summary matrix')
+    for s in data['summaries']:
+        rows = [r for r in data['measurements'] if (r['size'], r['state'], r['variant']) == (s['size'], s['state'], s['variant'])]
+        require(len(rows) == s['count'] == 15, 'Every raw measured row retained')
+        values = [r['wallNanoseconds'] for r in rows]
+        means = [statistics.mean(r['wallNanoseconds'] for r in rows if r['repetition'] == rep) for rep in range(5)]
+        mean, sd = statistics.mean(means), statistics.stdev(means)
+        expected_summary = {'meanNanoseconds': mean, 'sampleStandardDeviationNanoseconds': sd,
+                            'cvPercent': sd / mean * 100 if mean else 0,
+                            'minNanoseconds': min(values), 'maxNanoseconds': max(values),
+                            'p50Nanoseconds': sorted(values)[math.ceil(.5 * len(values)) - 1],
+                            'p95Nanoseconds': sorted(values)[math.ceil(.95 * len(values)) - 1]}
+        require(len(s['repetitionMeansNanoseconds']) == 5
+                and all(math.isclose(a, b, rel_tol=1e-10, abs_tol=1e-6) for a, b in zip(means, s['repetitionMeansNanoseconds']))
+                and all(math.isclose(s[k], v, rel_tol=1e-10, abs_tol=1e-6) for k, v in expected_summary.items()),
+                'Independent unfiltered diagnostic summary arithmetic')
+    require(data['measurementStatus'] == ('unstable-observed' if any(s['cvPercent'] > 15 for s in data['summaries']) else 'observed'),
+            'Original descriptive variability threshold')
+    require(Counter(s['stage'] for s in spans) == Counter(STAGES) and len(spans) == 2956, 'Independent 2,956-stage count replay')
+    marked = [(s['phase'], s['caseIndex'], s['pairSequence'], s['variant']) for s in spans
+              if s['stage'] == 'compiler.wall' and s['phase'] in ('primer', 'measurement')]
+    require(len(marked) == len(set(marked)) == 306 and set(marked) == identities, 'Every main row has exactly one compiler span')
+    return {'rows': 306, 'stages': 2956, 'scope': 'diagnostic_only_not_acceptance'}
+
+
+def capture(folder, pins, is_generator):
+    c = read(folder / 'capture.json')
+    require(c.get('status') == 'completed' and c.get('canonical') is False
+            and c.get('role') == 'diagnostic_perturbed' and c.get('target_exit') == c.get('collector_exit') == 0,
+            'Successful diagnostic target/collector')
+    require(c.get('observer_joined') is True and len(c.get('owned_process_cleanup', [])) == 2
+            and {r['role'] for r in c['owned_process_cleanup']} == {'target', 'collector'}
+            and all(r.get('joined') is True and r.get('returncode') == 0 and not r.get('kill_requested')
+                    for r in c['owned_process_cleanup']), 'Normal joined owned-process cleanup')
+    require(c['target_pid'] != c['collector_pid'], 'Distinct target/collector PID')
+    require(c['observer_ready_perf_counter_ns'] <= c['collector_launch_perf_counter_ns']
+            <= c['session_and_reverse_resume_header_observed_perf_counter_ns'], 'Observer precedes collector/session')
+    obs = c['observer']['summary']
+    require(obs['pid'] == c['target_pid'] and obs['target_identity']['pid'] == c['target_pid']
+            and obs['samples'] > 0 and obs.get('ready_after_sample') is not None, 'Observer actual target identity/readiness')
+    require(digest(folder / 'runtime.nettrace') == c['trace_sha256']
+            and (folder / 'runtime.nettrace').stat().st_size == c['trace_bytes'], 'Raw trace bytes/hash')
+    require(set(pins['sources']) == {p.name for p in (folder / 'source-snapshots').iterdir()}, 'All six source snapshot pins')
+    source_hashes = {}
+    for name, wanted in pins['sources'].items():
+        actual = digest(folder / 'source-snapshots' / name)
+        require(actual in (wanted if isinstance(wanted, list) else [wanted]), 'Approved on-disk source snapshot: ' + name)
+        source_hashes[name] = actual
+    for name, wanted in c['binary_sha256'].items():
+        key = str(absolute(name, c['cwd']))
+        require(pins['binaries'].get(key) == wanted and digest(key) == wanted, 'Independent binary pin: ' + key)
+    require(len(c['binary_sha256']) >= 4, 'Dotnet/collector/analyzer/target binaries recorded')
+    a = read(folder / 'analysis/summary.json')
+    require(a['status'] == 'completed' and a['canonical'] is False
+            and a['inputSha256'] == c['trace_sha256']
+            and a['eventsLost'] == a['payloadReadErrors'] == a['etlxEventsLost'] == 0
+            and a['stackExtractionStatus'] == 'completed' and a['stackSamples'] > 0
+            and a['jitStartToLoadIntervals'] > 0, 'Actual parsed positive JIT/stacks, loss and input identity')
+    for name, wanted in a['outputSha256'].items():
+        require(digest(bound_file(folder / 'analysis', name)) == wanted, 'Retained analyzer output hash: ' + name)
+    counts, pids, sample_pids, markers = Counter(), set(), set(), {}
+    for e in lines(folder / 'analysis/events.jsonl'):
+        counts[e['provider'] + '/' + e['name']] += 1
+        if e['provider'] == 'Microsoft-Windows-DotNETRuntime':
+            pids.add(e['processId'])
+        if e['provider'] == 'Microsoft-DotNETCore-SampleProfiler':
+            sample_pids.add(e['processId'])
+        if e['provider'] == 'Cehpalon-Tooling-Diagnostic' and 'sequence' in e['payload']:
+            seq = e['payload']['sequence']
+            require(seq not in markers, 'No duplicate event marker sequence')
+            markers[seq] = e
+    require(dict(counts) == a['eventCounts'] and sum(counts.values()) == a['events'], 'Raw event count replay')
+    require(pids == sample_pids == {c['target_pid']}, 'Runtime/sample events belong to actual target PID')
+    stacks = list(lines(folder / 'analysis/sampled-thread-stacks.jsonl'))
+    require(len(stacks) == a['stackSamples'] and all(s['processId'] == c['target_pid'] for s in stacks), 'Stack target identity/count')
+    spans = list(lines(folder / 'generator.json.spans.jsonl')) if is_generator else []
+    if is_generator:
+        require(a['markerEvents'] == a['sidecarSpans'] == len(markers) == len(spans) == 2956
+                and not a['markerErrors'] and a['alignmentStatus'] == 'bounded_consistent', 'Complete generator marker/sidecar alignment')
+        require([s['sequence'] for s in spans] == list(range(1, 2957)), 'Continuous ordered span sequence')
+        lower, upper = -math.inf, math.inf
+        for s in spans:
+            e = markers[s['sequence']]
+            require(e['processId'] == s['processId'] == c['target_pid']
+                    and e['threadId'] == s['osThreadId'] and s['osThreadId'] > 0, 'Marker native PID/TID')
+            require(all(e['payload'].get(k) == v for k, v in s.items() if k != 'markerAfterTicks'), 'Event/sidecar payload exact match')
+            require(0 < s['frequency'] and s['startTicks'] <= s['endTicks'] <= s['markerBeforeTicks'] <= s['markerAfterTicks'], 'Span clock ordering')
+            lower = max(lower, e['timeMsec'] - s['markerAfterTicks'] * 1000.0 / s['frequency'])
+            upper = min(upper, e['timeMsec'] - s['markerBeforeTicks'] * 1000.0 / s['frequency'])
+        require(lower <= upper, 'Independent nonempty clock-offset intersection')
+        semantic = generator(folder, spans)
+    else:
+        semantic = None
+    quality = read(folder / 'analysis/root-quality.json')
+    require(quality['target_pid'] == c['target_pid'] and quality['runtime_event_pids'] == quality['sample_event_pids'] == [c['target_pid']], 'Root quality target identity')
+    return {'target_pid': c['target_pid'], 'events': a['events'], 'trace_sha256': c['trace_sha256'],
+            'on_disk_source_snapshot_sha256': source_hashes,
+            'gc_pairing_errors': a['eePairingErrors'], 'jit_pairing_errors': a['jitPairingErrors'],
+            'correlation_status': a['correlationStatus'], 'observer_status': obs['status'],
+            'lifetime_scope': 'sampled/partial; no exact scheduler or physical IO claim', 'generator': semantic}
+
+
+def audit(root, pins):
+    root = Path(root).resolve()
+    m = read(root / 'manifest.json')
+    require(m.get('status') == 'completed' and m.get('mode') == 'runtime'
+            and m.get('canonical') is False and m.get('engine_revision') == pins['engine_revision'] == ENGINE,
+            'Complete pinned diagnostic runtime lane')
+    harness_pin = pins['runner_sha256']
+    require(m['harness_sha256'] == digest(root / 'runner.py.txt') == harness_pin, 'Lane runner source pin')
+    for spec in (pins['verifier'], pins['fixture_manifest']):
+        require(digest(spec['path']) == spec['sha256'], 'Independent verifier/fixture pin')
+    spec = importlib.util.spec_from_file_location('independent_frozen_semantic_verifier', pins['verifier']['path'])
+    verifier = importlib.util.module_from_spec(spec)
+    # Compile the pinned source directly: never create __pycache__ in primary.
+    exec(compile(Path(pins['verifier']['path']).read_bytes(), pins['verifier']['path'], 'exec'), verifier.__dict__)
+    fixture = read(pins['fixture_manifest']['path'])
+    expected = [('generator', None, None, None)]
+    for rnd in range(3):
+        order = list(SCENARIOS[rnd % 8:] + SCENARIOS[:rnd % 8])
+        if rnd % 2:
+            order.reverse()
+        expected.extend((f'{rnd:02d}-{pos:02d}-{name}', rnd, pos, name) for pos, name in enumerate(order))
+    require(len(m['cases']) == 25 and [c['name'] for c in m['cases']] == [e[0] for e in expected], 'Exact 25-target lane schedule')
+    cases = []
+    for item, (label, rnd, position, scenario) in zip(m['cases'], expected):
+        folder = root / label
+        require(item['capture'] == read(folder / 'capture.json'), 'Manifest capture equals retained capture JSON')
+        evidence = capture(folder, pins, scenario is None)
+        if scenario is not None:
+            require(item['round'] == rnd and item['position'] == position and item['scenario'] == scenario
+                    and item['verification_status'] == 'passed', 'Scenario schedule/semantic record')
+            value = read(folder / 'target.stdout.txt')
+            if scenario.startswith('new-'):
+                short = scenario.removeprefix('new-')
+                profile = 'portable-request-reply' if short == 'portable' else 'small-api'
+                argv = item['capture']['target_argv']
+                engine = Path(argv[argv.index('--engine-root') + 1]).resolve()
+                result = verifier.verify_new(folder / 'generated-output', value, profile, engine, fixture['fixtures'][short]['files_sha256'])
+            elif scenario.startswith('validate-'):
+                short = scenario.removeprefix('validate-')
+                profile = 'portable-request-reply' if short == 'portable' else 'small-api'
+                result = verifier.verify_validate(value, profile, fixture['frozen_validation'][short])
+            else:
+                kind = scenario.removeprefix('export-')
+                result = verifier.verify_export(folder / 'generated-output', value, kind, fixture['frozen_exports'][kind]['files_sha256'])
+            require(result == item['verified'], 'Independent semantic replay equals manifest record')
+        cases.append({'name': label, **evidence})
+    return {'status': 'passed', 'role': 'independent_offline_diagnostic_audit_not_acceptance',
+            'input_manifest_sha256': digest(root / 'manifest.json'), 'cases': cases,
+            'target_count': len(cases), 'distinct_target_pids': len({c['target_pid'] for c in cases}),
+            'limits': ['Diagnostic tracing perturbs execution; no canonical performance acceptance.',
+                       'Repeated PID values across nonoverlapping processes are not an identity failure.',
+                       'EE/JIT pairing errors and sampled OS coverage remain explicit per case.',
+                       'Launch runner snapshot and later on-disk source snapshots are separate provenance; neither attests every executing byte.',
+                       'Semantic verifiers replay frozen checks; these do not establish provider/production qualification.']}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('folder')
+    parser.add_argument('--pins', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--all-timing-complete', action='store_true')
+    args = parser.parse_args()
+    require(args.all_timing_complete, 'Timing owner must explicitly authorize heavy offline audit after all timing completes')
+    output = Path(args.output)
+    require(not output.exists(), 'Fresh result path required; evidence is never overwritten')
+    try:
+        report = audit(args.folder, read(args.pins))
+    except Exception:
+        report = {'status': 'failed', 'failure': traceback.format_exc(), 'folder': args.folder}
+    with output.open('x', encoding='utf-8', newline='\n') as stream:
+        json.dump(report, stream, indent=2, allow_nan=False)
+        stream.write('\n')
+    print(json.dumps({'status': report['status'], 'output': str(output)}))
+    return 0 if report['status'] == 'passed' else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

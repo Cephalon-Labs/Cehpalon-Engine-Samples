@@ -1,0 +1,60 @@
+from pathlib import Path
+import sys,ctypes,json,threading,os
+from unittest.mock import patch
+root=Path(__file__).resolve().parents[2];sys.path.insert(0,str(root/'tools'))
+import tooling_os_observer as observer
+out=Path(__file__).resolve().parent;checks=[]
+def check(value,name):
+ assert value,name
+ checks.append(name)
+class IO(ctypes.Structure):
+ _fields_=[(n,ctypes.c_ulonglong) for n in ('read_operations','write_operations','other_operations','read_bytes','write_bytes','other_bytes')]
+class Entry(ctypes.Structure):
+ _fields_=[('dwSize',ctypes.c_uint32),('th32ThreadID',ctypes.c_uint32),('th32OwnerProcessID',ctypes.c_uint32),('tpBasePri',ctypes.c_int32)]
+class Kernel:
+ def __init__(self,owner=200):self.snapshot_calls=0;self.open_calls=0;self.closed=[];self.owner=owner;self.thread_exited=False
+ def CreateToolhelp32Snapshot(self,*a):self.snapshot_calls+=1;return 99
+ def Thread32First(self,s,p):p._obj.th32ThreadID=55;p._obj.th32OwnerProcessID=200;p._obj.tpBasePri=8;return True
+ def Thread32Next(self,*a):return False
+ def OpenThread(self,*a):self.open_calls+=1;return 1001
+ def GetProcessIdOfThread(self,h):return self.owner
+ def CloseHandle(self,h):self.closed.append(h);return True
+ def WaitForSingleObject(self,*a):return 258
+ def GetProcessIoCounters(self,h,p):p._obj.read_operations=1;return True
+ def QueryPerformanceCounter(self,p):p._obj.value=123;return True
+ def QueryPerformanceFrequency(self,p):p._obj.value=10000000;return True
+
+def reader(owner=200):
+ r=object.__new__(observer._WindowsReader);r.pid=200;r.handle=777;r.thread_handles={};r.initial_thread_snapshot_done=False;r.initial_thread_snapshot_metadata=None;r.kernel=Kernel(owner);r.IO=IO;r.ThreadEntry=Entry;r.identity={'pid':200,'creation_filetime_100ns':100}
+ def times(h,name):return {'creation_filetime_100ns':100 if name=='GetProcessTimes' else 88,'exit_filetime_100ns':300 if name=='GetThreadTimes' and r.kernel.thread_exited else 0,'kernel_cpu_100ns':1,'user_cpu_100ns':2}
+ r._times=times;return r
+with patch.object(ctypes,'get_last_error',return_value=18,create=True):
+ r=reader();samples=[r.read() for _ in range(100)]
+ check(r.kernel.snapshot_calls==1 and r.kernel.open_calls==1,'100 polls use one global snapshot and one pinned thread acquisition')
+ check(samples[0]['initial_thread_snapshot']['calls']==1 and all(s['initial_thread_snapshot'] is None for s in samples[1:]),'one-time snapshot overhead serialized only once')
+ check(all(s['threads'][0]['creation_filetime_100ns']==88 for s in samples),'cached handle creation identity remains verified')
+ check(all(s['new_threads_not_covered'] for s in samples),'new/background thread coverage never claimed')
+ r.kernel.thread_exited=True;last=r.read();check(last['threads'][0]['exit_filetime_100ns']==300 and not r.thread_handles,'observed exited thread emits final counters then retires handle')
+ check(r.kernel.closed.count(1001)==1,'retired thread handle closed once')
+ r.read();check(r.kernel.snapshot_calls==1,'retired handles do not trigger global re-enumeration')
+ r.close();check(r.kernel.closed.count(777)==1 and r.kernel.closed.count(99)==1,'process and initial snapshot handles closed')
+ r=reader(owner=999);s=r.read();check(not s['threads'] and not r.thread_handles and r.kernel.closed.count(1001)==1,'foreign reused TID owner is rejected and handle closed')
+ r.close()
+class FakeReader:
+ def __init__(self,pid):self.identity={'pid':pid,'creation_filetime_100ns':88};self.capabilities={'scope':'mock'};self.count=0
+ def read(self):
+  self.count+=1
+  return {'threads':[{'tid':200,'creation_filetime_100ns':89,'exit_filetime_100ns':0}],'races':[],'process_exited_observed':self.count==3}
+ def close(self):pass
+log=out/'clock.jsonl';ready=threading.Event()
+with patch.object(observer,'_WindowsReader' if os.name=='nt' else '_LinuxReader',FakeReader),patch.object(observer.time,'monotonic_ns',return_value=0),patch.object(observer.time,'monotonic',return_value=0):
+ summary=observer.observe_process(200,log,threading.Event(),interval=.002,ready_event=ready)
+rows=[json.loads(x) for x in log.read_text(encoding='utf-8').splitlines()];samples=[r for r in rows if r['kind']=='sample']
+check(len(samples)==3 and ready.is_set(),'mock live readiness survives distinct coarse legacy clock')
+check(all(r['begin']['monotonic_ns']==r['end']['monotonic_ns']==0 for r in samples),'legacy clock preserved explicitly distinct')
+check(all(r['read_duration_ns']==r['end']['perf_counter_ns']-r['begin']['perf_counter_ns'] for r in samples),'read durations use perf counter differences')
+check(summary['actual_min_gap_ns']>0 and summary['ready_perf_counter_ns']>0,'cadence/gaps/readiness use advancing perf counter, not frozen legacy clock')
+check(summary['tail_since_last_sample_ns']==summary['finished']['perf_counter_ns']-summary['last_successful_observation']['perf_counter_ns'],'tail uses perf counter')
+check(rows[0]['data']['perf_counter_clock']['implementation'] and rows[0]['data']['clock']['implementation'],'both clock implementations and resolutions disclosed')
+(out/'checks.json').write_text(json.dumps({'scope':'pure mocked OS handles and clock fixture; no target process observed/traced','passed':len(checks),'failed':0,'checks':checks},indent=2)+'\n',encoding='utf-8')
+print('Mock cache/clock checks passed',len(checks),'no live trace')

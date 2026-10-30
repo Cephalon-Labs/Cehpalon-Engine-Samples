@@ -1,0 +1,108 @@
+"""Adapt reviewed prior independent audit; never modify primary audit/evidence."""
+from pathlib import Path
+
+home = Path('D:/Cephalon/.worktrees/tooling-trace-review/.local')
+prior = Path('D:/Cephalon/Cehpalon-Engine-Docs/.local/tooling-variance/review02.py')
+source = prior.read_text(encoding='utf-8-sig')
+source = source.replace("OUT = DOCS / '.local/tooling-variance/review02.json'", "OUT = Path('D:/Cephalon/.worktrees/tooling-trace-review/.local/final-benchmark-review01.json')")
+source = source.replace("f'.local/tooling-variance-{suffix}-benchmark02'", "f'.local/tooling-trace-final-{suffix}'")
+source = source.replace("'.local/tooling-variance-win01-benchmark02/manifest.json'", "'.local/tooling-trace-final-win01/manifest.json'")
+source = source.replace("'candidate01_to_candidate02'", "'candidate01_to_final_same55'" )
+source = source.replace("'independent read-only source/raw/stat/output/provenance replay'", "'independent final source/raw/stat/output replay adapted from prior independent review02; four-series raw comparison'")
+anchor = "    result['status']='passed' if not result['failures'] else 'failed'"
+assert source.count(anchor) == 1
+extra = '''
+    # Independent historical raw arithmetic and all four series, including two
+    # complete observations of the SAME Engine55 source. No favorable selection.
+    for host, suffix in [('windows', 'win01'), ('linux', 'linux01')]:
+        finalroot = SAMPLES / f'.local/tooling-trace-final-{suffix}'
+        m, g = load(finalroot/'manifest.json'), load(finalroot/'generator-observations.json')
+        datasets = [
+            ('baseline29df', SAMPLES / f'tooling-benchmark/evidence/2026-10-30/{host}', OLDREV),
+            ('intermediate1b9', SAMPLES / f'.local/tooling-variance-{suffix}-benchmark', candidate01_revision),
+            ('previous55', SAMPLES / f'.local/tooling-variance-{suffix}-benchmark02', REV),
+            ('final_same55', SAMPLES / f'.local/tooling-trace-final-{suffix}', REV)]
+        replay = []
+        parity = None
+        previous55 = None
+        for series, directory, revision in datasets:
+            manifest = load(directory / 'manifest.json')
+            raw = load(directory / 'generator-observations.json')
+            equal(manifest['engine_revision'], revision, host+' '+series+' actual revision')
+            equal(manifest['harness_sha256'], '32183755ca2db53030698a7e202b851afb0b759fb39142a155d53731469549d9', host+' '+series+' unchanged harness')
+            equal(raw['parameters'], g['parameters'], host+' '+series+' original generator parameters')
+            equal(len(raw['measurements']),270,host+' '+series+' all measured rows')
+            equal(len(raw['primers']),36,host+' '+series+' all primers')
+            equal(len(manifest['launches']),144,host+' '+series+' all CLI launches')
+            rows = raw['primers'] + raw['measurements']
+            business = {(gkey(r), r['sourceHash'], r['registryHash']) for r in rows}
+            if parity is None: parity = business
+            equal(business,parity,host+' '+series+' all306 source/registry business tuples')
+            generator_groups = []
+            for summary in raw['summaries']:
+                key = summary['size'], summary['state'], summary['variant']
+                group = [r for r in raw['measurements'] if (r['size'],r['state'],r['variant']) == key]
+                equal(len(group),15,host+' '+series+' unfiltered generator count')
+                values = [r['wallNanoseconds'] for r in group]
+                means = [statistics.mean(r['wallNanoseconds'] for r in group if r['repetition'] == n) for n in range(5)]
+                mean, sd = statistics.mean(means), statistics.stdev(means)
+                cv = sd/mean*100
+                for field, value in [('meanNanoseconds',mean),('sampleStandardDeviationNanoseconds',sd),('cvPercent',cv),
+                                     ('minNanoseconds',min(values)),('maxNanoseconds',max(values)),
+                                     ('p50Nanoseconds',percentile(values,.5)),('p95Nanoseconds',percentile(values,.95))]:
+                    close(summary[field],value,host+' '+series+' historical raw generator statistic '+field)
+                equal(len(summary['repetitionMeansNanoseconds']),5,host+' '+series+' five raw repetition means')
+                for actual, expected in zip(summary['repetitionMeansNanoseconds'],means):
+                    close(actual,expected,host+' '+series+' historical repetition mean')
+                generator_groups.append({'size':key[0],'state':key[1],'variant':key[2],**stat(group),
+                                         'p95_ms':percentile(values,.95)/1e6,'maximum_ms':max(values)/1e6,
+                                         'unstable_observed':cv>15})
+            equal(len(generator_groups),18,host+' '+series+' all18 generator groups')
+            cli_groups = []
+            for name in SCENARIOS:
+                values = [r['elapsed_ns']/1e6 for r in manifest['launches'] if r['scenario']==name and r['phase']=='measured']
+                equal(len(values),15,host+' '+series+' all15 CLI measured launches')
+                mean, sd = statistics.mean(values), statistics.stdev(values)
+                cv = sd/mean*100
+                summary = manifest['summaries'][name]
+                for field,value in [('mean',mean),('sample_standard_deviation',sd),('cv_percent',cv),
+                                    ('minimum',min(values)),('maximum',max(values)),('p50',percentile(values,.5)),
+                                    ('median',percentile(values,.5)),('p95',percentile(values,.95))]:
+                    close(summary[field],value,host+' '+series+' historical raw CLI statistic '+field)
+                equal(summary['unstable_observation'],cv>15,host+' '+series+' descriptive CLI threshold')
+                cli_groups.append({'scenario':name,'mean_ms':mean,'cv_percent':cv,
+                                   'p95_ms':percentile(values,.95),'maximum_ms':max(values),'unstable_observed':cv>15})
+            for kind in ('api','both','graphql','off'):
+                equal(manifest['frozen_exports'][kind]['files_sha256'],m['frozen_exports'][kind]['files_sha256'],
+                      host+' '+series+' all export byte parity '+kind)
+                equal(manifest['frozen_exports'][kind]['manifest']['counters'],m['frozen_exports'][kind]['manifest']['counters'],
+                      host+' '+series+' all export counter parity '+kind)
+            if series == 'previous55': previous55 = manifest
+            if series == 'final_same55':
+                equal(manifest['engine_source_sha256'],previous55['engine_source_sha256'],host+' identical55 full source hashes')
+                equal(set(manifest['binary_sha256']),set(previous55['binary_sha256']),host+' same55 binary role set')
+                result['hosts'][host]['same55_recorded_binary_differences'] = {
+                    name:{'previous':previous55['binary_sha256'][name],'final':digest}
+                    for name,digest in manifest['binary_sha256'].items()
+                    if previous55['binary_sha256'][name] != digest}
+                equal(manifest['protocol_readme_sha256'],previous55['protocol_readme_sha256'],host+' identical55 protocol')
+                equal(manifest['registry_sha256'],previous55['registry_sha256'],host+' identical55 generated consumer registry')
+            replay.append({'series':series,'revision':revision,'manifest_sha256':sha(directory/'manifest.json'),
+                           'generator_sha256':sha(directory/'generator-observations.json'),
+                           'generator':generator_groups,'cli':cli_groups,
+                           'generator_unstable_groups':sum(g['unstable_observed'] for g in generator_groups),
+                           'cli_unstable_scenarios':sum(c['unstable_observed'] for c in cli_groups)})
+        result['hosts'][host]['four_series_raw_replay'] = replay
+    result['same55_interpretation'] = ('Final and previous55 use identical Engine source, harness, parameters, '
+        'protocol, generated source and bounded exported bytes; fresh-build binary hash differences are listed explicitly, not assumed identical. '
+        'Their timing differences are repeated shared-host observations, '
+        'not evidence of a new product optimization or isolated JIT/GC/scheduler/IO cause. No outliers or failed attempts were filtered.')
+    result['prior_independent_audit_source_sha256'] = sha(DOCS/'.local/tooling-variance/review02.py')
+'''
+source = source.replace(anchor,extra + '\n' + anchor)
+source = source.replace("    OUT.write_text(json.dumps(result,indent=2,allow_nan=False)+'\\n',encoding='utf-8',newline='\\n')",
+                        "    with OUT.open('x',encoding='utf-8',newline='\\n') as stream: stream.write(json.dumps(result,indent=2,allow_nan=False)+'\\n')")
+dest = home / 'final-benchmark-review01.py'
+with dest.open('x', encoding='utf-8', newline='\n') as stream:
+    stream.write(source)
+print(dest)

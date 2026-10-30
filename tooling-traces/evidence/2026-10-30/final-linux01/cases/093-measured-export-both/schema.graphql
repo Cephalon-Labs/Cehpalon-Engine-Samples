@@ -1,0 +1,58 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  catalogItem(input: GetItemInput!): Item @cost(weight: "10")
+  catalogPage(input: ListItemsInput!): ItemPage @cost(weight: "10")
+}
+
+type Mutation {
+  setLabel(input: SetLabelInput!): Item @cost(weight: "10")
+}
+
+type Item {
+  tenant: String!
+  id: Int!
+  label: String!
+  revision: Int!
+  amountMinorUnits: Long!
+}
+
+type ItemPage {
+  items: [Item!]!
+}
+
+input GetItemInput {
+  tenant: String!
+  id: Int!
+}
+
+input ListItemsInput {
+  tenant: String!
+  page: Int!
+}
+
+input SetLabelInput {
+  tenant: String!
+  id: Int!
+  expectedRevision: Int!
+  label: String!
+}
+
+"The `Long` scalar type represents a signed 64-bit integer."
+scalar Long
+  @specifiedBy(url: "https://scalars.graphql.org/chillicream/long.html")
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost(
+  "The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc."
+  weight: String!
+) on
+  | SCALAR
+  | OBJECT
+  | FIELD_DEFINITION
+  | ARGUMENT_DEFINITION
+  | ENUM
+  | INPUT_FIELD_DEFINITION

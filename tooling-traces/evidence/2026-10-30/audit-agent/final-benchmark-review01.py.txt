@@ -1,0 +1,369 @@
+"""Independent read-only replay of frozen #20 tooling observations; writes this audit only."""
+from pathlib import Path
+from datetime import datetime, timezone
+import hashlib, json, math, statistics, subprocess
+
+BASE = Path('D:/Cephalon')
+SAMPLES = BASE / 'Cehpalon-Engine-Samples'
+ENGINE = BASE / 'Cehpalon-Engine'
+DOCS = BASE / 'Cehpalon-Engine-Docs'
+OUT = Path('D:/Cephalon/.worktrees/tooling-trace-review/.local/final-benchmark-review01.json')
+REV = '55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7'
+OLDREV = '29df762cf28d12bd0d587b3c9d99925bcb99b14f'
+SDK = '11.0.100-rc.3.26522.148'
+SCENARIOS = ['new-portable', 'new-small-api', 'validate-portable', 'validate-small-api',
+             'export-api', 'export-both', 'export-graphql', 'export-off']
+OPS = ['catalog.get', 'catalog.list', 'catalog.set']
+PORTABLE = {'Consumer.csproj', 'Program.cs', 'Catalog.cs', 'appsettings.json',
+            'appsettings.off.json', 'global.json', 'NuGet.Config', 'engine-source.json', 'README.md'}
+SMALL = PORTABLE | {'SelfTest.cs', 'FixtureHost.cs', 'ContractExport.cs',
+                    'appsettings.graphql.json', 'appsettings.graphql-only.json'}
+result = {'audit': 'independent final source/raw/stat/output replay adapted from prior independent review02; four-series raw comparison',
+          'observed_utc': datetime.now(timezone.utc).isoformat(), 'engine_revision': REV,
+          'baseline_revision': OLDREV, 'status': 'running', 'checks': 0, 'failures': [], 'hosts': {},
+          'limits': ['No builds, benchmarks or timing reruns performed by reviewer.',
+                    'CV >15% is descriptive instability, not performance acceptance. Qualification remains not_qualified.',
+                    'Before/after shared-host observations do not isolate an Engine-code/JIT/OS cause.',
+                    'Per-row PE bytes are not retained; hashes do not reconstruct PE independently. Runtime semantics rely on reviewed driver and recorded pre/post proofs.',
+                    'Export content checks are bounded artifact checks, not universal parser/validator/provider qualification.']}
+
+def load(path): return json.loads(path.read_text(encoding='utf-8-sig'))
+def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def check(ok, label):
+    result['checks'] += 1
+    if not ok: result['failures'].append(label)
+def equal(a, b, label): check(a == b, label)
+def close(a, b, label): check(math.isclose(a, b, rel_tol=1e-10, abs_tol=1e-6), label)
+def local(path):
+    text = str(path)
+    if text.startswith('/mnt/d/'): text = 'D:/' + text[7:]
+    return Path(text)
+def percentile(values, p): return sorted(values)[math.ceil(p * len(values)) - 1]
+def ids(size, version): return [('bench.changed000' if version and i == 0 else f'bench.op{i:03d}') for i in range(size)]
+def semantic(size, version): return ','.join(sorted(ids(size, version))) + f'|{size*(size-1)}|{size}|{size}|{size}'
+def gkey(row): return row['size'], row['state'], row['variant'], row['caseIndex'], row['pairSequence'], row['orderInPair']
+def stat(rows):
+    means = [statistics.mean(x['wallNanoseconds'] for x in rows if x['repetition'] == r) for r in range(5)]
+    mean = statistics.mean(means); sd = statistics.stdev(means)
+    return {'mean_ms': mean/1e6, 'cv_percent': 100*sd/mean,
+            'mean_allocated_bytes': statistics.mean(x['allocatedBytes'] for x in rows),
+            'mean_cpu_ms': statistics.mean(x['cpuTicks'] for x in rows)/10000,
+            'gc_totals': [sum(x['gc'+str(i)] for x in rows) for i in range(3)]}
+def delta(old, new): return 100*(new/old-1) if old else None
+
+try:
+    for host, suffix in [('windows', 'win01'), ('linux', 'linux01')]:
+        root = SAMPLES / f'.local/tooling-trace-final-{suffix}'
+        oldroot = SAMPLES / f'tooling-benchmark/evidence/2026-10-30/{host}'
+        m, g = load(root/'manifest.json'), load(root/'generator-observations.json')
+        oldm, oldg = load(oldroot/'manifest.json'), load(oldroot/'generator-observations.json')
+        label = host + ': '
+        equal(m['engine_revision'], REV, label+'locked Engine revision')
+        equal(oldm['engine_revision'], OLDREV, label+'baseline revision')
+        equal(m['sdk'], SDK, label+'actual pinned SDK')
+        for key, value in {'status':'completed','correctness_status':'passed','performance_status':'observed',
+                           'qualification_status':'not_qualified','canonical':True,'benchmark_complete':True,
+                           'source_state':'exact clean committed source'}.items():
+            equal(m[key], value, label+key)
+        for key, value in {'status':'completed','correctnessPassed':True,'correctnessStatus':'passed',
+                           'performanceStatus':'observed','qualificationStatus':'not_qualified',
+                           'failure':None,'failedAttempt':None}.items():
+            equal(g[key], value, label+'generator '+key)
+        equal(g['parameters'], oldg['parameters'], label+'entire frozen driver parameters')
+        equal(m['harness_sha256'], oldm['harness_sha256'], label+'unchanged benchmark harness')
+        equal(m['protocol_readme_sha256'], oldm['protocol_readme_sha256'], label+'unchanged harness README')
+        equal(sha(root/'harness.py.txt'), m['harness_sha256'], label+'actual harness snapshot')
+        equal(sha(root/'engine-lock.json'), m['lock_sha256'], label+'actual lock snapshot')
+        equal(sha(root/'protocol-README.md'), m['protocol_readme_sha256'], label+'actual protocol snapshot')
+        equal(load(root/'engine-lock.json')['engine_revision'], REV, label+'snapshotted revision')
+        equal(g['environment']['reference'], False, label+'non-reference disclosed')
+        equal(g['environment']['reservedResources'], False, label+'no resource reservation')
+        for x in g['environment']['assemblies']:
+            equal(sha(local(x['location'])), x['sha256'], label+'actual loaded '+x['name'])
+        for name, digest in m['binary_sha256'].items(): equal(sha(root/name), digest, label+'binary '+name)
+        for name, digest in m['engine_source_sha256'].items(): equal(sha(ENGINE/name), digest, label+'source '+name)
+        for name, digest in m['frozen_configs_sha256'].items(): equal(sha(local(name)), digest, label+'frozen configuration')
+        equal(sha(root/'consumer-packages.lock.json'), m['consumer_package_lock_sha256'], label+'consumer lock')
+        equal(sha(root/'OperationRegistrations.g.cs.txt'), m['registry_sha256'], label+'actual consumer registry')
+        equal(m['registry_sha256'], oldm['registry_sha256'], label+'exact consumer generated source unchanged')
+        for item in m['preparation']:
+            equal(item['exit'], 0, label+'preparation exit')
+            check(not item['timed_out'], label+'preparation timeout')
+            for stream in ('stdout','stderr'):
+                ref=item[stream]; p=root/ref['path']
+                equal(p.stat().st_size,ref['bytes'],label+'preparation stream size')
+                equal(sha(p),ref['sha256'],label+'preparation stream hash')
+
+        expected=[]
+        for case,(size,state) in enumerate((n,s) for n in (1,3,32) for s in ('fresh','noop','edit')):
+            for pair in range(17):
+                order=['generator','manual'] if (case+pair)%2==0 else ['manual','generator']
+                version=1 if state=='edit' and pair%2==0 else 0
+                for index,variant in enumerate(order):
+                    expected.append({'phase':'primer' if pair<2 else 'measurement','size':size,'state':state,
+                        'variant':variant,'caseIndex':case,'pairSequence':pair,'orderInPair':index,'pairOrder':order,
+                        'version':version,'actualIds':ids(size,version),'repetition':-1 if pair<2 else (pair-2)//3,
+                        'iteration':pair if pair<2 else (pair-2)%3})
+        equal(len(g['primers']),36,label+'generator primer count');equal(len(g['measurements']),270,label+'generator measured count')
+        oldrows={gkey(x):x for x in oldg['primers']+oldg['measurements']}
+        journal=[json.loads(line) for line in (root/'generator-observations.json.rows.jsonl').read_text(encoding='utf-8').splitlines()]
+        equal(len(journal),306,label+'generator journal count')
+        equal([x['row'] for x in journal if x['phase']=='primer'],g['primers'],label+'primer journal exact equality')
+        equal([x['row'] for x in journal if x['phase']=='measurement'],g['measurements'],label+'measurement journal exact equality')
+        for e, item in zip(expected,journal):
+            equal(item['phase'],e['phase'],label+'journal phase order');r=item['row']
+            for key,value in e.items():
+                if key!='phase':equal(r[key],value,label+'row schedule '+key)
+            equal(r['emitSuccess'],True,label+'successful actual emit');equal(r['diagnostics'],[],label+'no error diagnostics')
+            check(r['peBytes']>0,label+'real PE bytes')
+            for key in ('wallTicks','wallNanoseconds','cpuTicks','allocatedBytes','gc0','gc1','gc2'):check(r[key]>=0,label+'nonnegative '+key)
+            check(r['wallTicks']>0,label+'positive wall ticks')
+            close(r['wallNanoseconds'],r['wallTicks']*1e9/g['environment']['stopwatchFrequency'],label+'ticks to nanoseconds')
+            for key in ('sourceHash','registryHash'):equal(r[key],oldrows[gkey(r)][key],label+'baseline fixture/registration '+key)
+        equal(len(g['preflight']),3,label+'cache preflight count')
+        equal(len(g['stateSeeds']),12,label+'seed count');equal(len(g['postflight']),18,label+'postflight count')
+        for p,old in zip(g['preflight'],oldg['preflight']):
+            equal(p['passed'],True,label+'cache preflight passed');equal(p['compilerDependencySeparationPassed'],True,label+'compiler separation')
+            equal(p['trackingTimed'],False,label+'tracking outside timing')
+            for key in ('size','noopReasons','editReasons'):equal(p[key],old[key],label+'cache observation unchanged '+key)
+        for group,name in [(g['stateSeeds'],'seed'),(g['postflight'],'postflight')]:
+            equal(len({(x['size'],x['state'],x['variant']) for x in group}),len(group),label+name+' unique states')
+            for x in group:
+                version=1 if name=='postflight' and x['state']=='edit' else 0
+                equal(x['version'],version,label+name+' version');equal(x['actualIds'],ids(x['size'],version),label+name+' IDs')
+                equal(x['semantic'],semantic(x['size'],version),label+name+' real lazy/dispatch/disposal semantic')
+                equal(x['passed'],True,label+name+' passed');equal(x['emitSuccess'],True,label+name+' emit')
+        comparisons=[];unstable=[]
+        for s in g['summaries']:
+            key=(s['size'],s['state'],s['variant']);rows=[r for r in g['measurements'] if (r['size'],r['state'],r['variant'])==key]
+            older=[r for r in oldg['measurements'] if (r['size'],r['state'],r['variant'])==key]
+            equal(len(rows),15,label+'summary count');means=[statistics.mean(r['wallNanoseconds'] for r in rows if r['repetition']==n) for n in range(5)]
+            equal(len(s['repetitionMeansNanoseconds']),5,label+'five means')
+            for x,y in zip(means,s['repetitionMeansNanoseconds']):close(x,y,label+'repetition mean')
+            allvalues=[r['wallNanoseconds'] for r in rows];mean=statistics.mean(means);sd=statistics.stdev(means);cv=sd/mean*100
+            for name,value in [('meanNanoseconds',mean),('sampleStandardDeviationNanoseconds',sd),('cvPercent',cv),
+                               ('minNanoseconds',min(allvalues)),('maxNanoseconds',max(allvalues)),
+                               ('p50Nanoseconds',percentile(allvalues,.5)),('p95Nanoseconds',percentile(allvalues,.95))]:close(s[name],value,label+'generator statistic '+name)
+            before,after=stat(older),stat(rows)
+            comparison={'size':key[0],'state':key[1],'variant':key[2],'before':before,'after':after,
+                        'mean_delta_percent':delta(before['mean_ms'],after['mean_ms']),
+                        'allocation_delta_percent':delta(before['mean_allocated_bytes'],after['mean_allocated_bytes']),
+                        'cv_delta_percentage_points':after['cv_percent']-before['cv_percent'],
+                        'mean_regressed':after['mean_ms']>before['mean_ms'],
+                        'cv_regressed':after['cv_percent']>before['cv_percent']}
+            comparisons.append(comparison)
+            if cv>15:unstable.append({'size':key[0],'state':key[1],'variant':key[2],'cv_percent':cv})
+        equal(len(g['summaries']),18,label+'all generator groups')
+        equal(g['measurementStatus'],'unstable-observed' if unstable else 'observed',label+'generator variability status')
+
+        schedule=[]
+        for rnd in range(18):
+            offset=rnd%8;order=SCENARIOS[offset:]+SCENARIOS[:offset]
+            if rnd%2:order=list(reversed(order))
+            for pos,scenario in enumerate(order):schedule.append({'sequence':len(schedule),'round':rnd,'position':pos,'phase':'primer' if rnd<3 else 'measured','scenario':scenario})
+        equal(m['schedule'],schedule,label+'full CLI schedule');equal(len(m['launches']),144,label+'CLI launch count')
+        for row,planned in zip(m['launches'],schedule):
+            for key,value in planned.items():equal(row[key],value,label+'CLI schedule '+key)
+            equal(row['exit'],0,label+'CLI exit');equal(row['timed_out'],False,label+'CLI no timeout')
+            equal(row['verification_status'],'passed',label+'CLI verification');equal(row['process_cpu_ns'],None,label+'CLI CPU unavailable')
+            equal(row['end_monotonic_ns']-row['start_monotonic_ns'],row['elapsed_ns'],label+'CLI raw monotonic duration');check(row['elapsed_ns']>0,label+'CLI positive duration')
+            for stream in ('stdout','stderr'):
+                ref=row[stream];p=root/ref['path'];equal(p.stat().st_size,ref['bytes'],label+'CLI stream size');equal(sha(p),ref['sha256'],label+'CLI stream hash')
+            output=load(root/row['stdout']['path']);scenario=row['scenario']
+            if scenario.startswith('validate-'):
+                profile=scenario.removeprefix('validate-');equal(output,m['frozen_validation'][profile],label+'actual pure validate plan');equal(row['plan'],output,label+'recorded validate plan')
+                continue
+            folder=local(row['destination']);observed={p.name:sha(p) for p in folder.iterdir() if p.is_file()}
+            equal(observed,row['observed_output_sha256'],label+'actual output files hashes');equal(observed,row['artifacts']['files_sha256'],label+'artifact observation exact')
+            if scenario.startswith('new-'):
+                small=scenario=='new-small-api';expectedfiles=SMALL if small else PORTABLE
+                equal(set(observed),expectedfiles,label+'exact scaffold file set');equal(output['success'],True,label+'actual new success');equal(output['status'],'passed',label+'actual new status')
+                equal(output['profile'],'small-api' if small else 'portable-request-reply',label+'actual profile');equal(output['name'],'BenchmarkSample',label+'actual name')
+                equal(output['sourceInputs'],32 if small else 17,label+'source input count');equal(set(output['files']),expectedfiles,label+'stdout source file set')
+                manifest=load(folder/'engine-source.json');equal(row['artifacts']['source_manifest'],manifest,label+'actual source manifest')
+                equal(len(manifest['inputs']),32 if small else 17,label+'actual source input count')
+                for item in manifest['inputs']:
+                    p=ENGINE/item['path'];equal(p.stat().st_size,item['bytes'],label+'selected input bytes');equal(sha(p),item['sha256'],label+'selected input hash')
+            else:
+                kind=scenario.removeprefix('export-');api=kind in ('api','both');gql=kind in ('graphql','both')
+                expectedfiles={'manifest.json'}|({'openapi.json'} if api else set())|({'schema.graphql'} if gql else set())
+                equal(set(observed),expectedfiles,label+'selected export set');equal(observed,m['frozen_exports'][kind]['files_sha256'],label+'export frozen hashes')
+                equal(observed,oldm['frozen_exports'][kind]['files_sha256'],label+'baseline export bytes unchanged')
+                manifest=load(folder/'manifest.json');equal(manifest,row['artifacts']['manifest'],label+'actual export manifest')
+                equal(manifest['generatedOperationIds'],OPS,label+'actual operation IDs');equal(manifest['httpOperationIds'],OPS if api else [],label+'HTTP selection')
+                expectedcounters={'HttpSchemaOperations':3 if api else 0,'GraphQLRegistrations':int(gql),'GraphQLServices':28 if gql else 0,
+                    'GraphQLSchemaBuilds':int(gql),'GraphQLProvidersCreated':int(gql),'GraphQLProvidersDisposed':int(gql),
+                    'HandlerFactoryCalls':0,'DispatchCalls':0,'HostFactories':0,'TlsReads':0,'AuthorityCalls':0}
+                equal(manifest['counters'],expectedcounters,label+'exact selected work/counter semantics');equal(output['counters'],expectedcounters,label+'stdout selected counters')
+                equal(output['status'],'passed',label+'export stdout success');equal(set(output['files']),expectedfiles,label+'export stdout files')
+                for artifact in manifest['artifacts']:
+                    p=folder/artifact['name'];equal(p.stat().st_size,artifact['bytes'],label+'artifact bytes');equal(sha(p),artifact['sha256'],label+'artifact digest')
+        clistats=[];cliunstable=[]
+        for name in SCENARIOS:
+            values=[r['elapsed_ns']/1e6 for r in m['launches'] if r['scenario']==name and r['phase']=='measured']
+            equal(len(values),15,label+'CLI measured values');s=m['summaries'][name];mean=statistics.mean(values);sd=statistics.stdev(values);cv=100*sd/mean
+            for key,value in [('mean',mean),('minimum',min(values)),('maximum',max(values)),('median',percentile(values,.5)),('p50',percentile(values,.5)),('p95',percentile(values,.95)),('sample_standard_deviation',sd),('cv_percent',cv)]:close(s[key],value,label+'CLI statistic '+key)
+            equal(s['unstable_observation'],cv>15,label+'CLI variability flag')
+            before=oldm['summaries'][name];clistats.append({'scenario':name,'before_mean_ms':before['mean'],'after_mean_ms':mean,'mean_delta_percent':delta(before['mean'],mean),
+                'before_cv_percent':before['cv_percent'],'after_cv_percent':cv,'cv_delta_percentage_points':cv-before['cv_percent'],
+                'mean_regressed':mean>before['mean'],'cv_regressed':cv>before['cv_percent']})
+            if cv>15:cliunstable.append({'scenario':name,'cv_percent':cv})
+        equal(m['unstable_observation'],bool(cliunstable),label+'outer flag is CLI-only')
+        result['hosts'][host]={'manifest_sha256':sha(root/'manifest.json'),'generator_sha256':sha(root/'generator-observations.json'),
+            'generator_rows':306,'cli_launches':144,'generator_comparison':comparisons,'cli_comparison':clistats,
+            'generator_unstable':unstable,'cli_unstable':cliunstable,'any_unstable_observation':bool(unstable or cliunstable),
+            'zero_cpu_measured_rows':sum(r['cpuTicks']==0 for r in g['measurements']),
+            'generator_source_and_registry_parity_rows':306,'all_four_export_artifact_sets_bytes_and_counters_equal_baseline':True,
+            'environment':{'reference':False,'reserved_resources':False,'filesystems':m['environment']['filesystems']},
+            'started_utc':m['started_utc'],'finished_utc':m['finished_utc']}
+    check(result['hosts']['windows']['finished_utc'] < result['hosts']['linux']['started_utc'],'sequential complete Windows before Linux')
+    # Exact Git blob verification is independent of working-tree EOL assumptions.
+    manifest=load(SAMPLES/'.local/tooling-trace-final-win01/manifest.json');names=list(manifest['engine_source_sha256'])
+    output=subprocess.run(['git','cat-file','--batch'],input=''.join(REV+':'+n+'\n' for n in names).encode(),cwd=ENGINE,capture_output=True,check=True).stdout
+    offset=0
+    for name in names:
+        end=output.index(b'\n',offset);size=int(output[offset:end].split()[2]);blob=output[end+1:end+1+size];offset=end+2+size
+        equal(hashlib.sha256(blob).hexdigest(),manifest['engine_source_sha256'][name],'committed Engine blob '+name)
+    result['committed_engine_blobs_checked']=len(names)
+    # Compare the complete intermediate candidate as well; never select only a favorable phase.
+    candidate01_revision = '1b9d538b4311cf574912596a0f547ae5ae788070'
+    old_review = load(DOCS/'.local/tooling-variance/review.json')
+    equal(old_review['status'], 'passed', 'retained candidate01 audit passed')
+    equal(old_review['engine_revision'], candidate01_revision, 'candidate01 audit revision')
+    result['candidate01_audit_sha256'] = sha(DOCS/'.local/tooling-variance/review.json')
+    changed = subprocess.check_output(['git','diff','--name-only',candidate01_revision,REV],cwd=ENGINE,text=True).splitlines()
+    equal(changed, ['Benchmarks/Tooling.Components/Program.cs'], 'candidate02 changes recorder driver only')
+    for host, suffix in [('windows','win01'),('linux','linux01')]:
+        root = SAMPLES/f'.local/tooling-trace-final-{suffix}'
+        previous = SAMPLES/f'.local/tooling-variance-{suffix}-benchmark'
+        m, g = load(root/'manifest.json'), load(root/'generator-observations.json')
+        p, pg = load(previous/'manifest.json'), load(previous/'generator-observations.json')
+        equal(p['engine_revision'],candidate01_revision,host+' candidate01 actual revision')
+        equal(m['harness_sha256'],p['harness_sha256'],host+' unchanged orchestrator 01->02')
+        equal(m['protocol_readme_sha256'],p['protocol_readme_sha256'],host+' unchanged README 01->02')
+        equal(g['parameters'],pg['parameters'],host+' all unchanged measurement parameters 01->02')
+        previous_rows={gkey(r):r for r in pg['primers']+pg['measurements']}
+        for r in g['primers']+g['measurements']:
+            for key in ('sourceHash','registryHash'):
+                equal(r[key],previous_rows[gkey(r)][key],host+' candidate01 fixture parity '+key)
+        for kind in ('api','both','graphql','off'):
+            equal(m['frozen_exports'][kind]['files_sha256'],p['frozen_exports'][kind]['files_sha256'],host+' candidate01 selected artifacts '+kind)
+            equal(m['frozen_exports'][kind]['manifest']['counters'],p['frozen_exports'][kind]['manifest']['counters'],host+' candidate01 counters '+kind)
+        generator=[]
+        for n in (1,3,32):
+            for state in ('fresh','noop','edit'):
+                for variant in ('generator','manual'):
+                    before=stat([r for r in pg['measurements'] if (r['size'],r['state'],r['variant'])==(n,state,variant)])
+                    after=stat([r for r in g['measurements'] if (r['size'],r['state'],r['variant'])==(n,state,variant)])
+                    generator.append({'size':n,'state':state,'variant':variant,'before':before,'after':after,
+                        'mean_delta_percent':delta(before['mean_ms'],after['mean_ms']),
+                        'allocation_delta_percent':delta(before['mean_allocated_bytes'],after['mean_allocated_bytes']),
+                        'cv_delta_percentage_points':after['cv_percent']-before['cv_percent'],
+                        'mean_regressed':after['mean_ms']>before['mean_ms'], 'cv_regressed':after['cv_percent']>before['cv_percent']})
+        cli=[]
+        for name in SCENARIOS:
+            before=p['summaries'][name];after=m['summaries'][name]
+            cli.append({'scenario':name,'before_mean_ms':before['mean'],'after_mean_ms':after['mean'],
+                'mean_delta_percent':delta(before['mean'],after['mean']),
+                'before_cv_percent':before['cv_percent'],'after_cv_percent':after['cv_percent'],
+                'cv_delta_percentage_points':after['cv_percent']-before['cv_percent'],
+                'mean_regressed':after['mean']>before['mean'],'cv_regressed':after['cv_percent']>before['cv_percent']})
+        result['hosts'][host]['candidate01_to_final_same55']={'generator':generator,'cli':cli,
+            'candidate01_generator_unstable':old_review['hosts'][host]['generator_unstable'],
+            'candidate01_cli_unstable':old_review['hosts'][host]['cli_unstable']}
+
+    # Independent historical raw arithmetic and all four series, including two
+    # complete observations of the SAME Engine55 source. No favorable selection.
+    for host, suffix in [('windows', 'win01'), ('linux', 'linux01')]:
+        finalroot = SAMPLES / f'.local/tooling-trace-final-{suffix}'
+        m, g = load(finalroot/'manifest.json'), load(finalroot/'generator-observations.json')
+        datasets = [
+            ('baseline29df', SAMPLES / f'tooling-benchmark/evidence/2026-10-30/{host}', OLDREV),
+            ('intermediate1b9', SAMPLES / f'.local/tooling-variance-{suffix}-benchmark', candidate01_revision),
+            ('previous55', SAMPLES / f'.local/tooling-variance-{suffix}-benchmark02', REV),
+            ('final_same55', SAMPLES / f'.local/tooling-trace-final-{suffix}', REV)]
+        replay = []
+        parity = None
+        previous55 = None
+        for series, directory, revision in datasets:
+            manifest = load(directory / 'manifest.json')
+            raw = load(directory / 'generator-observations.json')
+            equal(manifest['engine_revision'], revision, host+' '+series+' actual revision')
+            equal(manifest['harness_sha256'], '32183755ca2db53030698a7e202b851afb0b759fb39142a155d53731469549d9', host+' '+series+' unchanged harness')
+            equal(raw['parameters'], g['parameters'], host+' '+series+' original generator parameters')
+            equal(len(raw['measurements']),270,host+' '+series+' all measured rows')
+            equal(len(raw['primers']),36,host+' '+series+' all primers')
+            equal(len(manifest['launches']),144,host+' '+series+' all CLI launches')
+            rows = raw['primers'] + raw['measurements']
+            business = {(gkey(r), r['sourceHash'], r['registryHash']) for r in rows}
+            if parity is None: parity = business
+            equal(business,parity,host+' '+series+' all306 source/registry business tuples')
+            generator_groups = []
+            for summary in raw['summaries']:
+                key = summary['size'], summary['state'], summary['variant']
+                group = [r for r in raw['measurements'] if (r['size'],r['state'],r['variant']) == key]
+                equal(len(group),15,host+' '+series+' unfiltered generator count')
+                values = [r['wallNanoseconds'] for r in group]
+                means = [statistics.mean(r['wallNanoseconds'] for r in group if r['repetition'] == n) for n in range(5)]
+                mean, sd = statistics.mean(means), statistics.stdev(means)
+                cv = sd/mean*100
+                for field, value in [('meanNanoseconds',mean),('sampleStandardDeviationNanoseconds',sd),('cvPercent',cv),
+                                     ('minNanoseconds',min(values)),('maxNanoseconds',max(values)),
+                                     ('p50Nanoseconds',percentile(values,.5)),('p95Nanoseconds',percentile(values,.95))]:
+                    close(summary[field],value,host+' '+series+' historical raw generator statistic '+field)
+                equal(len(summary['repetitionMeansNanoseconds']),5,host+' '+series+' five raw repetition means')
+                for actual, expected in zip(summary['repetitionMeansNanoseconds'],means):
+                    close(actual,expected,host+' '+series+' historical repetition mean')
+                generator_groups.append({'size':key[0],'state':key[1],'variant':key[2],**stat(group),
+                                         'p95_ms':percentile(values,.95)/1e6,'maximum_ms':max(values)/1e6,
+                                         'unstable_observed':cv>15})
+            equal(len(generator_groups),18,host+' '+series+' all18 generator groups')
+            cli_groups = []
+            for name in SCENARIOS:
+                values = [r['elapsed_ns']/1e6 for r in manifest['launches'] if r['scenario']==name and r['phase']=='measured']
+                equal(len(values),15,host+' '+series+' all15 CLI measured launches')
+                mean, sd = statistics.mean(values), statistics.stdev(values)
+                cv = sd/mean*100
+                summary = manifest['summaries'][name]
+                for field,value in [('mean',mean),('sample_standard_deviation',sd),('cv_percent',cv),
+                                    ('minimum',min(values)),('maximum',max(values)),('p50',percentile(values,.5)),
+                                    ('median',percentile(values,.5)),('p95',percentile(values,.95))]:
+                    close(summary[field],value,host+' '+series+' historical raw CLI statistic '+field)
+                equal(summary['unstable_observation'],cv>15,host+' '+series+' descriptive CLI threshold')
+                cli_groups.append({'scenario':name,'mean_ms':mean,'cv_percent':cv,
+                                   'p95_ms':percentile(values,.95),'maximum_ms':max(values),'unstable_observed':cv>15})
+            for kind in ('api','both','graphql','off'):
+                equal(manifest['frozen_exports'][kind]['files_sha256'],m['frozen_exports'][kind]['files_sha256'],
+                      host+' '+series+' all export byte parity '+kind)
+                equal(manifest['frozen_exports'][kind]['manifest']['counters'],m['frozen_exports'][kind]['manifest']['counters'],
+                      host+' '+series+' all export counter parity '+kind)
+            if series == 'previous55': previous55 = manifest
+            if series == 'final_same55':
+                equal(manifest['engine_source_sha256'],previous55['engine_source_sha256'],host+' identical55 full source hashes')
+                equal(set(manifest['binary_sha256']),set(previous55['binary_sha256']),host+' same55 binary role set')
+                result['hosts'][host]['same55_recorded_binary_differences'] = {
+                    name:{'previous':previous55['binary_sha256'][name],'final':digest}
+                    for name,digest in manifest['binary_sha256'].items()
+                    if previous55['binary_sha256'][name] != digest}
+                equal(manifest['protocol_readme_sha256'],previous55['protocol_readme_sha256'],host+' identical55 protocol')
+                equal(manifest['registry_sha256'],previous55['registry_sha256'],host+' identical55 generated consumer registry')
+            replay.append({'series':series,'revision':revision,'manifest_sha256':sha(directory/'manifest.json'),
+                           'generator_sha256':sha(directory/'generator-observations.json'),
+                           'generator':generator_groups,'cli':cli_groups,
+                           'generator_unstable_groups':sum(g['unstable_observed'] for g in generator_groups),
+                           'cli_unstable_scenarios':sum(c['unstable_observed'] for c in cli_groups)})
+        result['hosts'][host]['four_series_raw_replay'] = replay
+    result['same55_interpretation'] = ('Final and previous55 use identical Engine source, harness, parameters, '
+        'protocol, generated source and bounded exported bytes; fresh-build binary hash differences are listed explicitly, not assumed identical. '
+        'Their timing differences are repeated shared-host observations, '
+        'not evidence of a new product optimization or isolated JIT/GC/scheduler/IO cause. No outliers or failed attempts were filtered.')
+    result['prior_independent_audit_source_sha256'] = sha(DOCS/'.local/tooling-variance/review02.py')
+
+    result['status']='passed' if not result['failures'] else 'failed'
+except Exception as exc:
+    result['status']='failed';result['failures'].append('Replay exception: '+repr(exc))
+finally:
+    result['audit_source_sha256']=sha(Path(__file__))
+    OUT.parent.mkdir(parents=True,exist_ok=True)
+    with OUT.open('x',encoding='utf-8',newline='\n') as stream: stream.write(json.dumps(result,indent=2,allow_nan=False)+'\n')
+print(json.dumps({'status':result['status'],'checks':result['checks'],'failures':result['failures'],'output':str(OUT)}))

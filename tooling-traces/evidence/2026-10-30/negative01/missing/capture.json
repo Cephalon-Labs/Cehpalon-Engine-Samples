@@ -1,0 +1,25 @@
+{
+  "role": "diagnostic_perturbed",
+  "canonical": false,
+  "status": "failed",
+  "target_argv": [
+    "missing.exe"
+  ],
+  "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+  "providers": "Microsoft-Windows-DotNETRuntime:0x11C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4",
+  "profile": "dotnet-sampled-thread-time",
+  "buffer_mb": 256,
+  "buffer_mode": "Drop",
+  "observer_interval_seconds": 0.01,
+  "startup_coordination": "one suspended reverse port; observer before collector; collector resumes its own endpoint after session start",
+  "limits": [
+    "Tracing, startup coordination, observer and rundown perturb execution.",
+    "Managed sampled thread stacks are not kernel CPU/context-switch samples.",
+    "Process I/O counters include tracing/IPC; native lane is separate."
+  ],
+  "binary_sha256": {},
+  "prelaunch_hashing_scope": "Executable hashing and fixture preparation prime filesystem caches; not cold disk",
+  "failure": "Traceback (most recent call last):\n  File \"D:\\Cephalon\\Cehpalon-Engine-Samples\\tools\\trace_tooling.py\", line 123, in capture_runtime\n    require(all(Path(binary).is_file() for binary in (dotnet, tool, analyzer)), 'Diagnostic binaries exist before spawning any child')\n  File \"D:\\Cephalon\\Cehpalon-Engine-Samples\\tools\\trace_tooling.py\", line 36, in require\n    raise ValueError(message)\nValueError: Diagnostic binaries exist before spawning any child\n",
+  "owned_process_cleanup": [],
+  "observer": {}
+}

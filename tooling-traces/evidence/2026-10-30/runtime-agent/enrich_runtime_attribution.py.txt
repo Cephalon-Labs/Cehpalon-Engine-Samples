@@ -1,0 +1,32 @@
+import json,collections
+from pathlib import Path
+root=Path(__file__).parent
+for host in ('win02','linux01'):
+ p=root/f'runtime-{host}-stage-analysis.json';s=json.loads(p.read_text());stages={};analysis=Path(s['lane'])/'generator/analysis'
+ def key(x):return tuple(x[k] for k in ('caseIndex','size','state','variant','pairSequence','phase'))
+ for line in (analysis/'spans-correlated.jsonl').open():
+  x=json.loads(line)['span']
+  if x['stage'] in ('generator.run','pe.emit') and x['phase'] in ('primer','measurement'):stages.setdefault(key(x),{})[x['stage']]=(x['endTicks']-x['startTicks'])*1000/x['frequency']
+ episodes=[];active=None
+ for u in s['source_summary']['unmatched']:
+  if u['reason']=='ambiguous repeated suspension start':
+   active={'frames':[]};episodes.append(active)
+  if active and ('suspend' in u['reason'] or 'suspension' in u['reason'] or 'restart' in u['reason']):
+   active['frames'].extend(v for v in u.values() if isinstance(v,dict) and 'timeMsec' in v)
+ for e in episodes:
+  e['startMsec']=min(f['timeMsec'] for f in e['frames']);e['endMsec']=max(f['timeMsec'] for f in e['frames']);e['gcReasonPresent']=any(f['payload'].get('Reason') in (1,6) for f in e['frames'])
+  del e['frames']
+ for r in s['all_main_rows']:
+  r['stage_msec']=stages.get(key(r['identity']),{})
+  r['unpaired_suspension_episodes']=[e for e in episodes if e['endMsec']>=r['trace_start_lower_msec'] and e['startMsec']<=r['trace_end_upper_msec']]
+ measured=[r for r in s['all_main_rows'] if r['identity']['phase']=='measurement']
+ s['stage_attribution_measured']={k:sum(r['stage_msec'].get(k,0) for r in measured) for k in ('generator.run','pe.emit')}
+ s['unpaired_suspension_episode_windows']=episodes
+ o=root/f'runtime-{host}-stage-attribution.json'
+ if o.exists():raise FileExistsError(o)
+ o.write_text(json.dumps(s,indent=2)+'\n')
+ print(host,'measured stage totals',s['stage_attribution_measured'],'uncertain episodes',len(episodes),'involving GC reasons',sum(e['gcReasonPresent'] for e in episodes),'measured rows touched',sum(bool(r['unpaired_suspension_episodes']) for r in measured))
+ for g in s['groups']:
+  if not g['diagnostic_unstable']:continue
+  slow=max((r for r in measured if all(r['identity'][k]==g[k] for k in ('size','state','variant'))),key=lambda r:r['wall_msec'])
+  print(g['size'],g['state'],g['variant'],'slowpair',slow['identity']['pairSequence'],'wall',round(slow['wall_msec'],3),'stages',slow['stage_msec'],'uncertainGC',any(e['gcReasonPresent'] for e in slow['unpaired_suspension_episodes']))

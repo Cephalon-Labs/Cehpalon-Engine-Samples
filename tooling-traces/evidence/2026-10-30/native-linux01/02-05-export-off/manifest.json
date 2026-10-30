@@ -1,0 +1,2066 @@
+{
+  "schema_version": 1,
+  "mode": "native_diagnostic_not_benchmark",
+  "status": "completed",
+  "command": [
+    "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-fixture-linux01/consumer-artifacts/bin/Consumer/release/PortableConsumer.BenchmarkSample.dll",
+    "--export-contracts",
+    "--config",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-fixture-linux01/fixture-small-api/appsettings.off.json",
+    "--output",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-native-linux01/02-05-export-off/generated-output"
+  ],
+  "target_executable_resolved": "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+  "started_monotonic_ns": 381359156322,
+  "started_utc_ns": 1793336145586302448,
+  "interval_seconds": 0.01,
+  "timeout_seconds": 600.0,
+  "credentials_policy": "caller must supply credential-free fixtures; helper rejects common credential flags and retains no environment/buffer payloads; arbitrary child stdout/stderr is not scrubbed",
+  "stderr_scope": "target and tracer standard error combined",
+  "performance_qualification": "not_applicable_diagnostic_only",
+  "limits": [
+    "Ptrace and counter polling perturb execution; no benchmark acceptance or direct disk latency.",
+    "Scheduler samples are cumulative observations, not exact CSwitch events.",
+    "strace follows owned target descendants; pid_or_tid is retained until lifecycle/observer identity resolves it.",
+    "Unseen short-lived threads and last-lifetime counters remain possible.",
+    "Separate EventPipe/native executions cannot be fused as exact causal overlaps."
+  ],
+  "tracer_argv": [
+    "/usr/bin/strace",
+    "-f",
+    "-ttt",
+    "-T",
+    "-yy",
+    "-e",
+    "trace=execve,clone,clone3,fork,vfork,exit,exit_group,openat,read,pread64,write,pwrite64,readv,writev,newfstatat,statx,access,close,fsync,fdatasync,rename,renameat,renameat2,mmap,munmap",
+    "-e",
+    "raw=read,pread64,write,pwrite64,readv,writev",
+    "-o",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-native-linux01/02-05-export-off/native.raw.log",
+    "--",
+    "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-fixture-linux01/consumer-artifacts/bin/Consumer/release/PortableConsumer.BenchmarkSample.dll",
+    "--export-contracts",
+    "--config",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-fixture-linux01/fixture-small-api/appsettings.off.json",
+    "--output",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-native-linux01/02-05-export-off/generated-output"
+  ],
+  "tracer_pid": 1786,
+  "target_pid": 1789,
+  "target_discovery": "owned_strace_direct_child_proc",
+  "target_owned_identity": {
+    "pid": 1789,
+    "starttime_ticks": 38137
+  },
+  "target_executable_observed": "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+  "target_executable_matches_requested": true,
+  "target_executable_match_scope": "sample may precede exec transition; raw owned execve record also retained",
+  "exit": 0,
+  "observer": {
+    "schema_version": 1,
+    "pid": 1789,
+    "observer_pid": 1784,
+    "requested_interval_seconds": 0.01,
+    "status": "completed_exit_observed",
+    "samples": 267,
+    "races": 2,
+    "read_failures": [],
+    "thread_identities_seen": {
+      "1789:38137": {
+        "tid": 1789,
+        "birth": 38137,
+        "first_observed_ns": 381390867923,
+        "first_observed_monotonic_ns": 381390867748,
+        "first_observed_perf_counter_ns": 381390867923,
+        "first_counters": {
+          "tid": 1789,
+          "starttime_ticks": 38137,
+          "stat": {
+            "id": 1789,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 38137,
+            "last_cpu": 4
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1227324,
+            "runqueue_wait_ns": 0,
+            "timeslices": 27,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 27,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1789,
+          "starttime_ticks": 38137,
+          "stat": {
+            "id": 1789,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3316,
+            "major_faults": 9,
+            "user_cpu_ticks": 14,
+            "kernel_cpu_ticks": 18,
+            "thread_count": 27,
+            "starttime_ticks": 38137,
+            "last_cpu": 4
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 336092569,
+            "runqueue_wait_ns": 828922,
+            "timeslices": 8089,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 8089,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1794:38191": {
+        "tid": 1794,
+        "birth": 38191,
+        "first_observed_ns": 381921016321,
+        "first_observed_monotonic_ns": 381921014714,
+        "first_observed_perf_counter_ns": 381921016321,
+        "first_counters": {
+          "tid": 1794,
+          "starttime_ticks": 38191,
+          "stat": {
+            "id": 1794,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 2,
+            "starttime_ticks": 38191,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 634896,
+            "runqueue_wait_ns": 0,
+            "timeslices": 19,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 19,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1794,
+          "starttime_ticks": 38191,
+          "stat": {
+            "id": 1794,
+            "comm": ".NET EventPipe",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38191,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1786920,
+            "runqueue_wait_ns": 0,
+            "timeslices": 48,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 48,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1796:38204": {
+        "tid": 1796,
+        "birth": 38204,
+        "first_observed_ns": 382050989885,
+        "first_observed_monotonic_ns": 382050988911,
+        "first_observed_perf_counter_ns": 382050989885,
+        "first_counters": {
+          "tid": 1796,
+          "starttime_ticks": 38204,
+          "stat": {
+            "id": 1796,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 3,
+            "starttime_ticks": 38204,
+            "last_cpu": 4
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 420251,
+            "runqueue_wait_ns": 10559,
+            "timeslices": 17,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 17,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1796,
+          "starttime_ticks": 38204,
+          "stat": {
+            "id": 1796,
+            "comm": ".NET DebugPipe",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38204,
+            "last_cpu": 14
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 2229332,
+            "runqueue_wait_ns": 10559,
+            "timeslices": 76,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 76,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1797:38205": {
+        "tid": 1797,
+        "birth": 38205,
+        "first_observed_ns": 382061035199,
+        "first_observed_monotonic_ns": 382061034120,
+        "first_observed_perf_counter_ns": 382061035199,
+        "first_counters": {
+          "tid": 1797,
+          "starttime_ticks": 38205,
+          "stat": {
+            "id": 1797,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 4,
+            "starttime_ticks": 38205,
+            "last_cpu": 2
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 95290,
+            "runqueue_wait_ns": 0,
+            "timeslices": 3,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 3,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1797,
+          "starttime_ticks": 38205,
+          "stat": {
+            "id": 1797,
+            "comm": ".NET Debugger",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38205,
+            "last_cpu": 2
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1328542,
+            "runqueue_wait_ns": 7154,
+            "timeslices": 53,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 53,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1798:38216": {
+        "tid": 1798,
+        "birth": 38216,
+        "first_observed_ns": 382170996251,
+        "first_observed_monotonic_ns": 382170995170,
+        "first_observed_perf_counter_ns": 382170996251,
+        "first_counters": {
+          "tid": 1798,
+          "starttime_ticks": 38216,
+          "stat": {
+            "id": 1798,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 5,
+            "starttime_ticks": 38216,
+            "last_cpu": 18
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 370846,
+            "runqueue_wait_ns": 0,
+            "timeslices": 12,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 12,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1798,
+          "starttime_ticks": 38216,
+          "stat": {
+            "id": 1798,
+            "comm": ".NET Server GC",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38216,
+            "last_cpu": 0
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1690678,
+            "runqueue_wait_ns": 0,
+            "timeslices": 45,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 45,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1800:38218": {
+        "tid": 1800,
+        "birth": 38218,
+        "first_observed_ns": 382190989030,
+        "first_observed_monotonic_ns": 382190987948,
+        "first_observed_perf_counter_ns": 382190989030,
+        "first_counters": {
+          "tid": 1800,
+          "starttime_ticks": 38218,
+          "stat": {
+            "id": 1800,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 6,
+            "starttime_ticks": 38218,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 188332,
+            "runqueue_wait_ns": 0,
+            "timeslices": 9,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 9,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1800,
+          "starttime_ticks": 38218,
+          "stat": {
+            "id": 1800,
+            "comm": ".NET Server GC",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38218,
+            "last_cpu": 1
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1899600,
+            "runqueue_wait_ns": 0,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1801:38221": {
+        "tid": 1801,
+        "birth": 38221,
+        "first_observed_ns": 382220998149,
+        "first_observed_monotonic_ns": 382220996944,
+        "first_observed_perf_counter_ns": 382220998149,
+        "first_counters": {
+          "tid": 1801,
+          "starttime_ticks": 38221,
+          "stat": {
+            "id": 1801,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 7,
+            "starttime_ticks": 38221,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 949897,
+            "runqueue_wait_ns": 0,
+            "timeslices": 30,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 30,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1801,
+          "starttime_ticks": 38221,
+          "stat": {
+            "id": 1801,
+            "comm": ".NET Server GC",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38221,
+            "last_cpu": 2
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1608105,
+            "runqueue_wait_ns": 304409,
+            "timeslices": 58,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 58,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1802:38223": {
+        "tid": 1802,
+        "birth": 38223,
+        "first_observed_ns": 382230982901,
+        "first_observed_monotonic_ns": 382230981591,
+        "first_observed_perf_counter_ns": 382230982901,
+        "first_counters": {
+          "tid": 1802,
+          "starttime_ticks": 38223,
+          "stat": {
+            "id": 1802,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 8,
+            "starttime_ticks": 38223,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 190325,
+            "runqueue_wait_ns": 0,
+            "timeslices": 9,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 9,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1802,
+          "starttime_ticks": 38223,
+          "stat": {
+            "id": 1802,
+            "comm": ".NET Server GC",
+            "state": "R",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38223,
+            "last_cpu": 3
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1704925,
+            "runqueue_wait_ns": 0,
+            "timeslices": 66,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 66,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1803:38224": {
+        "tid": 1803,
+        "birth": 38224,
+        "first_observed_ns": 382250990542,
+        "first_observed_monotonic_ns": 382250989289,
+        "first_observed_perf_counter_ns": 382250990542,
+        "first_counters": {
+          "tid": 1803,
+          "starttime_ticks": 38224,
+          "stat": {
+            "id": 1803,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 9,
+            "starttime_ticks": 38224,
+            "last_cpu": 9
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 229751,
+            "runqueue_wait_ns": 0,
+            "timeslices": 8,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 8,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1803,
+          "starttime_ticks": 38224,
+          "stat": {
+            "id": 1803,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38224,
+            "last_cpu": 4
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1387080,
+            "runqueue_wait_ns": 365067,
+            "timeslices": 63,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 63,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1804:38226": {
+        "tid": 1804,
+        "birth": 38226,
+        "first_observed_ns": 382270982949,
+        "first_observed_monotonic_ns": 382270981902,
+        "first_observed_perf_counter_ns": 382270982949,
+        "first_counters": {
+          "tid": 1804,
+          "starttime_ticks": 38226,
+          "stat": {
+            "id": 1804,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 10,
+            "starttime_ticks": 38226,
+            "last_cpu": 9
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 192553,
+            "runqueue_wait_ns": 0,
+            "timeslices": 9,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 9,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1804,
+          "starttime_ticks": 38226,
+          "stat": {
+            "id": 1804,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38226,
+            "last_cpu": 5
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1955338,
+            "runqueue_wait_ns": 3462,
+            "timeslices": 72,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 72,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1805:38229": {
+        "tid": 1805,
+        "birth": 38229,
+        "first_observed_ns": 382300988514,
+        "first_observed_monotonic_ns": 382300987379,
+        "first_observed_perf_counter_ns": 382300988514,
+        "first_counters": {
+          "tid": 1805,
+          "starttime_ticks": 38229,
+          "stat": {
+            "id": 1805,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 11,
+            "starttime_ticks": 38229,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 374945,
+            "runqueue_wait_ns": 0,
+            "timeslices": 14,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 14,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1805,
+          "starttime_ticks": 38229,
+          "stat": {
+            "id": 1805,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38229,
+            "last_cpu": 6
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1867315,
+            "runqueue_wait_ns": 5032,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1806:38231": {
+        "tid": 1806,
+        "birth": 38231,
+        "first_observed_ns": 382320987198,
+        "first_observed_monotonic_ns": 382320986194,
+        "first_observed_perf_counter_ns": 382320987198,
+        "first_counters": {
+          "tid": 1806,
+          "starttime_ticks": 38231,
+          "stat": {
+            "id": 1806,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 12,
+            "starttime_ticks": 38231,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 225821,
+            "runqueue_wait_ns": 0,
+            "timeslices": 11,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 11,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1806,
+          "starttime_ticks": 38231,
+          "stat": {
+            "id": 1806,
+            "comm": ".NET Server GC",
+            "state": "R",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38231,
+            "last_cpu": 7
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1673833,
+            "runqueue_wait_ns": 3547267,
+            "timeslices": 64,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 64,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1807:38234": {
+        "tid": 1807,
+        "birth": 38234,
+        "first_observed_ns": 382341007862,
+        "first_observed_monotonic_ns": 382341006901,
+        "first_observed_perf_counter_ns": 382341007862,
+        "first_counters": {
+          "tid": 1807,
+          "starttime_ticks": 38234,
+          "stat": {
+            "id": 1807,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 13,
+            "starttime_ticks": 38234,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 141471,
+            "runqueue_wait_ns": 0,
+            "timeslices": 8,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 8,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1807,
+          "starttime_ticks": 38234,
+          "stat": {
+            "id": 1807,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38234,
+            "last_cpu": 8
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1745866,
+            "runqueue_wait_ns": 6353,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1808:38236": {
+        "tid": 1808,
+        "birth": 38236,
+        "first_observed_ns": 382360996819,
+        "first_observed_monotonic_ns": 382360995403,
+        "first_observed_perf_counter_ns": 382360996819,
+        "first_counters": {
+          "tid": 1808,
+          "starttime_ticks": 38236,
+          "stat": {
+            "id": 1808,
+            "comm": "dotnet",
+            "state": "R",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 14,
+            "starttime_ticks": 38236,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 128948,
+            "runqueue_wait_ns": 0,
+            "timeslices": 6,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 7,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1808,
+          "starttime_ticks": 38236,
+          "stat": {
+            "id": 1808,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38236,
+            "last_cpu": 9
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1939122,
+            "runqueue_wait_ns": 0,
+            "timeslices": 64,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 64,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1809:38238": {
+        "tid": 1809,
+        "birth": 38238,
+        "first_observed_ns": 382391023460,
+        "first_observed_monotonic_ns": 382391022366,
+        "first_observed_perf_counter_ns": 382391023460,
+        "first_counters": {
+          "tid": 1809,
+          "starttime_ticks": 38238,
+          "stat": {
+            "id": 1809,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 15,
+            "starttime_ticks": 38238,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 530334,
+            "runqueue_wait_ns": 0,
+            "timeslices": 19,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 19,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1809,
+          "starttime_ticks": 38238,
+          "stat": {
+            "id": 1809,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38238,
+            "last_cpu": 10
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1696742,
+            "runqueue_wait_ns": 1806821,
+            "timeslices": 61,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 61,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1810:38240": {
+        "tid": 1810,
+        "birth": 38240,
+        "first_observed_ns": 382411004967,
+        "first_observed_monotonic_ns": 382411003704,
+        "first_observed_perf_counter_ns": 382411004967,
+        "first_counters": {
+          "tid": 1810,
+          "starttime_ticks": 38240,
+          "stat": {
+            "id": 1810,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 16,
+            "starttime_ticks": 38240,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 445687,
+            "runqueue_wait_ns": 0,
+            "timeslices": 16,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 16,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1810,
+          "starttime_ticks": 38240,
+          "stat": {
+            "id": 1810,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38240,
+            "last_cpu": 11
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1851989,
+            "runqueue_wait_ns": 0,
+            "timeslices": 67,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 67,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1811:38242": {
+        "tid": 1811,
+        "birth": 38242,
+        "first_observed_ns": 382431007168,
+        "first_observed_monotonic_ns": 382431005915,
+        "first_observed_perf_counter_ns": 382431007168,
+        "first_counters": {
+          "tid": 1811,
+          "starttime_ticks": 38242,
+          "stat": {
+            "id": 1811,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 17,
+            "starttime_ticks": 38242,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 212458,
+            "runqueue_wait_ns": 0,
+            "timeslices": 8,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 8,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1811,
+          "starttime_ticks": 38242,
+          "stat": {
+            "id": 1811,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38242,
+            "last_cpu": 12
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1943181,
+            "runqueue_wait_ns": 0,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1813:38245": {
+        "tid": 1813,
+        "birth": 38245,
+        "first_observed_ns": 382460995953,
+        "first_observed_monotonic_ns": 382460994908,
+        "first_observed_perf_counter_ns": 382460995953,
+        "first_counters": {
+          "tid": 1813,
+          "starttime_ticks": 38245,
+          "stat": {
+            "id": 1813,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 18,
+            "starttime_ticks": 38245,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 668478,
+            "runqueue_wait_ns": 9376,
+            "timeslices": 21,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 21,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1813,
+          "starttime_ticks": 38245,
+          "stat": {
+            "id": 1813,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38245,
+            "last_cpu": 13
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1920789,
+            "runqueue_wait_ns": 9376,
+            "timeslices": 67,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 67,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1814:38247": {
+        "tid": 1814,
+        "birth": 38247,
+        "first_observed_ns": 382481028720,
+        "first_observed_monotonic_ns": 382481027441,
+        "first_observed_perf_counter_ns": 382481028720,
+        "first_counters": {
+          "tid": 1814,
+          "starttime_ticks": 38247,
+          "stat": {
+            "id": 1814,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 19,
+            "starttime_ticks": 38247,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 574457,
+            "runqueue_wait_ns": 0,
+            "timeslices": 19,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 19,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1814,
+          "starttime_ticks": 38247,
+          "stat": {
+            "id": 1814,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38247,
+            "last_cpu": 14
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1506868,
+            "runqueue_wait_ns": 503181,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1815:38249": {
+        "tid": 1815,
+        "birth": 38249,
+        "first_observed_ns": 382501071813,
+        "first_observed_monotonic_ns": 382501070691,
+        "first_observed_perf_counter_ns": 382501071813,
+        "first_counters": {
+          "tid": 1815,
+          "starttime_ticks": 38249,
+          "stat": {
+            "id": 1815,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 20,
+            "starttime_ticks": 38249,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 475961,
+            "runqueue_wait_ns": 0,
+            "timeslices": 16,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 16,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1815,
+          "starttime_ticks": 38249,
+          "stat": {
+            "id": 1815,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38249,
+            "last_cpu": 15
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1980049,
+            "runqueue_wait_ns": 0,
+            "timeslices": 67,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 67,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1816:38251": {
+        "tid": 1816,
+        "birth": 38251,
+        "first_observed_ns": 382520996959,
+        "first_observed_monotonic_ns": 382520995695,
+        "first_observed_perf_counter_ns": 382520996959,
+        "first_counters": {
+          "tid": 1816,
+          "starttime_ticks": 38251,
+          "stat": {
+            "id": 1816,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 21,
+            "starttime_ticks": 38251,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 396258,
+            "runqueue_wait_ns": 0,
+            "timeslices": 12,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 12,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1816,
+          "starttime_ticks": 38251,
+          "stat": {
+            "id": 1816,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38251,
+            "last_cpu": 16
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1837444,
+            "runqueue_wait_ns": 5269,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1817:38254": {
+        "tid": 1817,
+        "birth": 38254,
+        "first_observed_ns": 382541005933,
+        "first_observed_monotonic_ns": 382541004649,
+        "first_observed_perf_counter_ns": 382541005933,
+        "first_counters": {
+          "tid": 1817,
+          "starttime_ticks": 38254,
+          "stat": {
+            "id": 1817,
+            "comm": "dotnet",
+            "state": "R",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 1,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 22,
+            "starttime_ticks": 38254,
+            "last_cpu": 18
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 205439,
+            "runqueue_wait_ns": 0,
+            "timeslices": 8,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 7,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1817,
+          "starttime_ticks": 38254,
+          "stat": {
+            "id": 1817,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38254,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1873007,
+            "runqueue_wait_ns": 163004,
+            "timeslices": 67,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 67,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1818:38256": {
+        "tid": 1818,
+        "birth": 38256,
+        "first_observed_ns": 382571019845,
+        "first_observed_monotonic_ns": 382571018529,
+        "first_observed_perf_counter_ns": 382571019845,
+        "first_counters": {
+          "tid": 1818,
+          "starttime_ticks": 38256,
+          "stat": {
+            "id": 1818,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 23,
+            "starttime_ticks": 38256,
+            "last_cpu": 18
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 546215,
+            "runqueue_wait_ns": 13084,
+            "timeslices": 17,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 17,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1818,
+          "starttime_ticks": 38256,
+          "stat": {
+            "id": 1818,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38256,
+            "last_cpu": 18
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1968315,
+            "runqueue_wait_ns": 52985,
+            "timeslices": 64,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 64,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1819:38258": {
+        "tid": 1819,
+        "birth": 38258,
+        "first_observed_ns": 382591024302,
+        "first_observed_monotonic_ns": 382591023076,
+        "first_observed_perf_counter_ns": 382591024302,
+        "first_counters": {
+          "tid": 1819,
+          "starttime_ticks": 38258,
+          "stat": {
+            "id": 1819,
+            "comm": "dotnet",
+            "state": "R",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 24,
+            "starttime_ticks": 38258,
+            "last_cpu": 5
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 537505,
+            "runqueue_wait_ns": 0,
+            "timeslices": 15,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 14,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1819,
+          "starttime_ticks": 38258,
+          "stat": {
+            "id": 1819,
+            "comm": ".NET Server GC",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38258,
+            "last_cpu": 19
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 1969502,
+            "runqueue_wait_ns": 0,
+            "timeslices": 65,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 65,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1821:38271": {
+        "tid": 1821,
+        "birth": 38271,
+        "first_observed_ns": 382721010211,
+        "first_observed_monotonic_ns": 382721008469,
+        "first_observed_perf_counter_ns": 382721010211,
+        "first_counters": {
+          "tid": 1821,
+          "starttime_ticks": 38271,
+          "stat": {
+            "id": 1821,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 25,
+            "starttime_ticks": 38271,
+            "last_cpu": 12
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 597563,
+            "runqueue_wait_ns": 0,
+            "timeslices": 19,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 19,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384052290650,
+        "last_observed_monotonic_ns": 384052290420,
+        "last_observed_perf_counter_ns": 384052290650,
+        "last_counters": {
+          "tid": 1821,
+          "starttime_ticks": 38271,
+          "stat": {
+            "id": 1821,
+            "comm": ".NET Finalizer",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 12,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 26,
+            "starttime_ticks": 38271,
+            "last_cpu": 12
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 2205878,
+            "runqueue_wait_ns": 201050,
+            "timeslices": 75,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 75,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1822:38279": {
+        "tid": 1822,
+        "birth": 38279,
+        "first_observed_ns": 382800987573,
+        "first_observed_monotonic_ns": 382800986320,
+        "first_observed_perf_counter_ns": 382800987573,
+        "first_counters": {
+          "tid": 1822,
+          "starttime_ticks": 38279,
+          "stat": {
+            "id": 1822,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 26,
+            "starttime_ticks": 38279,
+            "last_cpu": 3
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 491222,
+            "runqueue_wait_ns": 0,
+            "timeslices": 15,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 15,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384043539985,
+        "last_observed_monotonic_ns": 384043539616,
+        "last_observed_perf_counter_ns": 384043539985,
+        "last_counters": {
+          "tid": 1822,
+          "starttime_ticks": 38279,
+          "stat": {
+            "id": 1822,
+            "comm": ".NET Tiered JIT",
+            "state": "S",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 31,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38279,
+            "last_cpu": 14
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 3343475,
+            "runqueue_wait_ns": 6750,
+            "timeslices": 133,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 133,
+            "involuntary_context_switches": 0
+          }
+        }
+      },
+      "1828:38403": {
+        "tid": 1828,
+        "birth": 38403,
+        "first_observed_ns": 384041017690,
+        "first_observed_monotonic_ns": 384041016065,
+        "first_observed_perf_counter_ns": 384041017690,
+        "first_counters": {
+          "tid": 1828,
+          "starttime_ticks": 38403,
+          "stat": {
+            "id": 1828,
+            "comm": ".NET SigHandler",
+            "state": "S",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38403,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 383358,
+            "runqueue_wait_ns": 0,
+            "timeslices": 15,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 15,
+            "involuntary_context_switches": 0
+          }
+        },
+        "last_observed_ns": 384043539985,
+        "last_observed_monotonic_ns": 384043539616,
+        "last_observed_perf_counter_ns": 384043539985,
+        "last_counters": {
+          "tid": 1828,
+          "starttime_ticks": 38403,
+          "stat": {
+            "id": 1828,
+            "comm": ".NET SigHandler",
+            "state": "S",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 2,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 27,
+            "starttime_ticks": 38403,
+            "last_cpu": 17
+          },
+          "schedstat": {
+            "cpu_runtime_ns": 383358,
+            "runqueue_wait_ns": 0,
+            "timeslices": 15,
+            "counter_activity_observed": true,
+            "status": "native_cumulative_counters"
+          },
+          "context_switches": {
+            "voluntary_context_switches": 15,
+            "involuntary_context_switches": 0
+          }
+        }
+      }
+    },
+    "started": {
+      "monotonic_ns": 381379278171,
+      "perf_counter_ns": 381379279258,
+      "utc_ns": 1793336145606421025
+    },
+    "target_identity": {
+      "pid": 1789,
+      "starttime_ticks": 38137
+    },
+    "expected_target_identity": {
+      "pid": 1789,
+      "starttime_ticks": 38137
+    },
+    "scope": "diagnostic sampled native OS counters only, never exact scheduler events or benchmark evidence",
+    "unseen_short_lived_threads_possible": true,
+    "tail_coverage": "not guaranteed",
+    "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+    "timing_clock": "perf_counter_ns; legacy monotonic_ns is distinct and must not be joined to QPC",
+    "flush_policy": "flush each JSON line; no fsync/power-loss guarantee",
+    "capabilities": {
+      "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+      "io": "unavailable_proc_io_absent",
+      "cpu_tick_hz": 100,
+      "thread_state": "sampled_proc_stat",
+      "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+      "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+      "kernel_config_observed": {
+        "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+        "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+        "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+        "CONFIG_TASK_IO_ACCOUNTING": null
+      }
+    },
+    "last_successful_observation": {
+      "monotonic_ns": 384052290420,
+      "perf_counter_ns": 384052290650,
+      "utc_ns": 1793336148279431917
+    },
+    "finished": {
+      "monotonic_ns": 384053852206,
+      "perf_counter_ns": 384053853222,
+      "utc_ns": 1793336148280994947
+    },
+    "observer_thread_cpu_ns": 396476211,
+    "controller_process_cpu_ns_during_observation": 396949825,
+    "actual_gap_count": 266,
+    "actual_min_gap_ns": 9870091,
+    "actual_max_gap_ns": 10151688,
+    "gap_count_over_twice_requested": 0,
+    "tail_since_last_sample_ns": 1562572
+  },
+  "stdout_capture_status": "complete",
+  "stderr_capture_status": "complete",
+  "coverage_status": "sampled_partial_lifetime",
+  "native_summary": {
+    "schema_version": 1,
+    "scope": "ptrace-observed syscall intervals/counts, not physical disk latency or benchmark timing",
+    "kernel_event_loss_count": null,
+    "loss_status": "strace supplies no kernel event-loss counter; incomplete/unparsed input retained",
+    "syscall_counts": {
+      "execve": 1,
+      "mmap": 475,
+      "access": 17,
+      "openat": 289,
+      "newfstatat": 141,
+      "close": 142,
+      "read": 149,
+      "pread64": 52,
+      "munmap": 166,
+      "clone3": 26,
+      "write": 27,
+      "pwrite64": 1,
+      "fsync": 1,
+      "rename": 1,
+      "exit_group": 1
+    },
+    "sum_observed_syscall_wall_seconds": {
+      "execve": 0.000401,
+      "mmap": 0.039814999999999996,
+      "access": 0.0010340000000000002,
+      "openat": 0.045127999999999974,
+      "newfstatat": 0.011758999999999997,
+      "close": 0.014302000000000002,
+      "read": 0.026781000000000003,
+      "pread64": 0.005345999999999999,
+      "munmap": 0.016875999999999995,
+      "clone3": 0.005916,
+      "write": 0.0027610000000000004,
+      "pwrite64": 0.000659,
+      "fsync": 0.001159,
+      "rename": 0.002786
+    },
+    "positive_buffer_syscall_return_bytes": {
+      "read": 91840,
+      "pread64": 9665,
+      "write": 704,
+      "pwrite64": 1265
+    },
+    "utf8_replacement_line_numbers": [],
+    "incomplete_events": 0,
+    "unparsed_lines": 0
+  },
+  "finished_monotonic_ns": 384135532424,
+  "finished_utc_ns": 1793336148362674660
+}

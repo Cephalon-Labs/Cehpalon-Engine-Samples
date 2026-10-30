@@ -1,0 +1,241 @@
+"""Read-only native/proc evidence analysis; no trace launch or benchmark claims."""
+import argparse
+from collections import Counter, defaultdict
+import hashlib
+import json
+from pathlib import Path
+
+EPOCH = 621355968000000000
+COUNTERS = {'stat': ('minor_faults', 'major_faults', 'user_cpu_ticks', 'kernel_cpu_ticks'),
+            'schedstat': ('cpu_runtime_ns', 'runqueue_wait_ns', 'timeslices'),
+            'context_switches': ('voluntary_context_switches', 'involuntary_context_switches')}
+
+
+def load(p):
+    return json.loads(p.read_text(encoding='utf-8-sig'))
+
+
+def save(p, x):
+    p.write_text(json.dumps(x, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+
+
+def digest(p):
+    h = hashlib.sha256()
+    with p.open('rb') as f:
+        for chunk in iter(lambda: f.read(1048576), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def deltas(a, b):
+    return {name + '.' + k: b.get(name, {}).get(k) - a.get(name, {}).get(k)
+            for name, keys in COUNTERS.items() for k in keys
+            if type(a.get(name, {}).get(k)) is int and type(b.get(name, {}).get(k)) is int}
+
+
+def add(total, values):
+    for k, v in values.items():
+        total[k] += v
+
+
+def proc(p, manifest):
+    first = last = summary = None
+    threads = {}
+    samples = identities_bad = races = 0
+    offsets = []
+    read_ns = []
+    main_intervals, previous_main = [], None
+    for line in p.open(encoding='utf-8'):
+        r = json.loads(line)
+        if r['kind'] == 'observer_summary':
+            summary = r['data']
+        if r['kind'] != 'sample':
+            continue
+        samples += 1
+        first = first or r
+        last = r
+        identities_bad += r['target_identity'] != manifest['target_owned_identity']
+        races += len(r['races'])
+        read_ns.append(r['read_duration_ns'])
+        offsets.extend(c['utc_ns'] - c['perf_counter_ns'] for c in (r['begin'], r['end']))
+        for t in r['threads']:
+            key = str(t['tid']) + ':' + str(t['starttime_ticks'])
+            if key not in threads:
+                threads[key] = {'tid': t['tid'], 'birth': t['starttime_ticks'],
+                                'first_sample_begin': r['begin'], 'first': t, 'samples': 0}
+            threads[key].update(last_sample_end=r['end'], last=t)
+            threads[key]['samples'] += 1
+            if t['tid'] == manifest['target_pid']:
+                if previous_main is not None and previous_main['thread']['starttime_ticks'] == t['starttime_ticks']:
+                    main_intervals.append({'begin_perf_ns': previous_main['begin']['perf_counter_ns'],
+                                           'end_perf_ns': r['end']['perf_counter_ns'],
+                                           'delta': deltas(previous_main['thread'], t)})
+                previous_main = {'begin': r['begin'], 'thread': t}
+    if summary is None or first is None:
+        raise ValueError('Missing observer evidence: ' + str(p))
+    total = Counter()
+    for t in threads.values():
+        t['observed_counter_deltas'] = deltas(t['first'], t['last'])
+        add(total, t['observed_counter_deltas'])
+    process_delta = {k: last['process_stat'][k] - first['process_stat'][k]
+                     for k in COUNTERS['stat']}
+    return {'samples': samples, 'target_identity': manifest['target_owned_identity'],
+            'all_sample_identity_mismatches': identities_bad, 'sample_race_count': races,
+            'observer_status': summary['status'], 'read_failures': summary['read_failures'],
+            'process_first_sample': {k: first[k] for k in ('begin', 'end', 'target_identity', 'process_stat', 'process_io')},
+            'process_last_sample': {k: last[k] for k in ('begin', 'end', 'target_identity', 'process_stat', 'process_io')},
+            'observed_process_counter_deltas': process_delta,
+            'sum_observed_per_thread_counter_deltas': dict(total),
+            'threads_seen': len(threads), 'observer_thread_cpu_ns': summary['observer_thread_cpu_ns'],
+            'controller_process_cpu_ns_during_observation': summary['controller_process_cpu_ns_during_observation'],
+            'tail_since_last_sample_ns': summary['tail_since_last_sample_ns'],
+            'actual_min_gap_ns': summary['actual_min_gap_ns'], 'actual_max_gap_ns': summary['actual_max_gap_ns'],
+            'read_duration_ns': {'min': min(read_ns), 'max': max(read_ns), 'sum': sum(read_ns)},
+            'utc_minus_perf_offset_ns': {'min': min(offsets), 'max': max(offsets), 'spread': max(offsets)-min(offsets)},
+            'initial_coverage': summary['initial_coverage'], 'tail_coverage': summary['tail_coverage'],
+            'capabilities': summary['capabilities']}, threads, main_intervals
+
+
+def marker_bounds(marker):
+    assert marker['frequency'] == 1_000_000_000
+    anchor = (marker['utcAnchorTicks'] - EPOCH) * 100
+    return {'start_earliest': anchor + marker['startTicks'] - marker['anchorAfterTicks'],
+            'start_latest': anchor + marker['startTicks'] - marker['anchorBeforeTicks'],
+            'end_earliest': anchor + marker['endTicks'] - marker['anchorAfterTicks'],
+            'end_latest': anchor + marker['endTicks'] - marker['anchorBeforeTicks']}
+
+
+def aggregate_events(events):
+    counts, wall, missing, buffers = Counter(), Counter(), Counter(), Counter()
+    for e in events:
+        counts[e['name']] += 1
+        ns = e.get('observed_syscall_wall_ns')
+        if ns is None:
+            missing[e['name']] += 1
+        else:
+            wall[e['name']] += ns
+        if e['name'] in ('read', 'pread64', 'readv', 'write', 'pwrite64', 'writev') and (e.get('return_value') or 0) > 0:
+            buffers[e['name']] += e['return_value']
+    return {'syscall_counts': dict(counts), 'sum_syscall_wall_ns_across_tids': dict(wall),
+            'duration_unavailable_counts': dict(missing), 'positive_buffer_return_bytes': dict(buffers)}
+
+
+def attribution(events, markers):
+    """Small active interval set; strict guaranteed-inside same native TID only."""
+    spans = defaultdict(list)
+    for marker in markers:
+        spans[marker['osThreadId']].append({**marker, **marker_bounds(marker)})
+    for group in spans.values():
+        group.sort(key=lambda m: m['start_earliest'])
+    cursors, active = defaultdict(int), defaultdict(list)
+    buckets = defaultdict(list)
+    per_row = defaultdict(list)
+    reasons = Counter()
+    for e in sorted(events, key=lambda x: (x.get('printed_entry_epoch_ns') or 0, x['entry_line'] or 0)):
+        tid, begin, ns = e['pid_or_tid'], e.get('printed_entry_epoch_ns'), e.get('observed_syscall_wall_ns')
+        if begin is None or ns is None:
+            buckets['unassigned'].append(e); reasons['missing_entry_or_duration'] += 1; continue
+        group = spans.get(tid, [])
+        while cursors[tid] < len(group) and group[cursors[tid]]['start_earliest'] <= begin:
+            active[tid].append(group[cursors[tid]]); cursors[tid] += 1
+        active[tid] = [m for m in active[tid] if m['end_latest'] >= begin]
+        matches = [m for m in active[tid] if m['start_latest'] <= begin and begin + ns <= m['end_earliest']]
+        if not matches:
+            buckets['unassigned'].append(e)
+            reasons['no_guaranteed_inside_same_tid_span'] += 1
+            continue
+        shortest = min(m['endTicks'] - m['startTicks'] for m in matches)
+        matches = [m for m in matches if m['endTicks'] - m['startTicks'] == shortest]
+        if len(matches) != 1:
+            buckets['unassigned'].append(e); reasons['ambiguous_equal_span'] += 1; continue
+        chosen = matches[0]
+        buckets[chosen['stage']].append(e)
+        per_row[chosen['sequence']].append(e)
+    return {k: aggregate_events(v) for k, v in buckets.items()}, per_row, dict(reasons)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('capture')
+    parser.add_argument('output')
+    a = parser.parse_args()
+    source, output = Path(a.capture), Path(a.output)
+    lane = load(source/'manifest.json')
+    assert lane['status'] == 'completed' and lane['mode'] == 'native' and len(lane['cases']) == 25
+    output.mkdir(parents=True, exist_ok=False)
+    result = {'status': 'started', 'role': 'native_perturbed_diagnostics_not_acceptance',
+              'source': str(source), 'source_manifest_sha256': digest(source/'manifest.json'), 'cases': [],
+              'limits': ['All deltas are first-to-last sampled counters, not complete lifetime totals.',
+                         'Per-thread deltas omit work before first/after last sample and unseen short-lived threads.',
+                         'Native schedstat/context-switch fields are cumulative samples, not exact scheduling events.',
+                         'Raw zero does not prove zero scheduler wait; kernel capability/config remains explicit.',
+                         'Positive buffer syscall returns are logical traffic, not physical disk I/O or durability.',
+                         'Syscall wall duration includes ptrace/scheduling; sums across TIDs are not elapsed budgets.',
+                         'Stage attribution requires full syscall inside guaranteed UTC envelope and same native TID.',
+                         'Nested stages select shortest guaranteed containing span; boundaries/unknowns remain unassigned.',
+                         'One startup UTC/perf anchor assumes no clock step; sampled offset range cannot exclude between-poll steps.',
+                         'No EventPipe/native separate-execution exact causal overlaps are inferred.']}
+    group_events = defaultdict(list)
+    all_thread_deltas = Counter()
+    with (output/'case-threads.jsonl').open('w', encoding='utf-8') as thread_file:
+        for item in lane['cases']:
+            folder = source/item['name']; manifest = load(folder/'manifest.json'); parsed = load(folder/'parsed.json')
+            assert manifest['status'] == 'completed' and manifest['exit'] == 0 and not manifest.get('timed_out')
+            counters, threads, main_intervals = proc(folder/'proc.jsonl', manifest)
+            assert counters['all_sample_identity_mismatches'] == 0
+            for key,t in threads.items():
+                thread_file.write(json.dumps({'case':item['name'],'identity':key,**t})+'\n')
+            add(all_thread_deltas,counters['sum_observed_per_thread_counter_deltas'])
+            row = {'name':item['name'],'scenario':item.get('scenario','generator'),'round':item.get('round'),
+                   'verification_status':item.get('verification_status'), 'target_pid':manifest['target_pid'],
+                   'target_discovery':manifest['target_discovery'],'target_owned_identity':manifest['target_owned_identity'],
+                   'executable_match':manifest.get('target_executable_matches_requested'),
+                   'cleanup':{k:manifest.get(k) for k in ('status','exit','timed_out','cleanup_unresolved','cleanup_group_signals')},
+                   'source_snapshot_sha256':{name:digest(folder/name) for name in ('native-helper.py.txt','os-observer.py.txt')},
+                   'evidence_sha256':{name:digest(folder/name) for name in ('manifest.json','proc.jsonl','parsed.json','native.raw.log')},
+                   'proc':counters,'native':aggregate_events(parsed['events']),
+                   'missing':{k:parsed[k] for k in ('kernel_event_loss_count','incomplete_events','utf8_replacement_line_numbers')},
+                   'unparsed_line_count':len(parsed['unparsed_lines'])}
+            group_events[row['scenario']].extend(parsed['events'])
+            if item['name']=='generator':
+                markers=[json.loads(s) for s in (folder/'generator.json.spans.jsonl').read_text().splitlines()]
+                assert len(markers)==2956 and all(m['processId']==manifest['target_pid'] for m in markers)
+                main_markers=[m for m in markers if m['stage']=='compiler.wall' and m['phase'] in ('primer','measurement')]
+                assert len(main_markers)==306
+                attribution_summary, by_marker, reasons=attribution(parsed['events'],markers)
+                row['generator_attribution']={'stage_aggregate':attribution_summary,'unassigned_reasons':reasons,
+                                              'markers':len(markers),'main_rows':len(main_markers),
+                                              'marker_stages':dict(Counter(m['stage'] for m in markers)),
+                                              'utc_anchor_uncertainty_ns':markers[0]['anchorAfterTicks']-markers[0]['anchorBeforeTicks']}
+                with (output/'generator-main-rows.jsonl').open('w',encoding='utf-8') as f:
+                    for m in main_markers:
+                        children=[x for x in markers if x['osThreadId']==m['osThreadId']
+                                  and m['startTicks']<=x['startTicks'] and x['endTicks']<=m['endTicks']
+                                  and x['sequence']!=m['sequence']]
+                        es=[e for x in [m]+children for e in by_marker.get(x['sequence'],[])]
+                        intervals=[i for i in main_intervals if m['startTicks']<=i['begin_perf_ns']
+                                   and i['end_perf_ns']<=m['endTicks']]
+                        counter_sum=Counter()
+                        for interval in intervals:
+                            add(counter_sum,interval['delta'])
+                        f.write(json.dumps({'marker':m,'utc_bounds':marker_bounds(m),
+                                            'native_events_unique_shortest_stage':aggregate_events(es),
+                                            'attributed_event_lines':[e['entry_line'] for e in es],
+                                            'main_tid_counter_intervals_wholly_inside_body':len(intervals),
+                                            'main_tid_observed_interior_counter_deltas':dict(counter_sum),
+                                            'main_tid_counter_coverage_window_perf_ns':[
+                                                intervals[0]['begin_perf_ns'],intervals[-1]['end_perf_ns']] if intervals else None,
+                                            'counter_scope':'Main native TID cumulative deltas only between wholly interior samples; partial body coverage.',
+                                            'body_duration_ns':m['endTicks']-m['startTicks']})+'\n')
+            result['cases'].append(row)
+            print('Analyzed',item['name'],counters['samples'],'samples',len(parsed['events']),'native events',flush=True)
+    result['scenario_aggregate']={k:aggregate_events(v) for k,v in group_events.items()}
+    result['sum_observed_per_thread_counter_deltas_all_cases']=dict(all_thread_deltas)
+    result['status']='completed'
+    result['script_sha256']=digest(Path(__file__))
+    save(output/'analysis.json',result)
+    print('Completed',len(result['cases']),'cases',flush=True)
+
+
+if __name__=='__main__':
+    main()

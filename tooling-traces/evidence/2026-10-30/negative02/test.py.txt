@@ -1,0 +1,25 @@
+from pathlib import Path
+import sys,json
+from unittest.mock import patch
+root=Path(__file__).resolve().parents[2];sys.path.insert(0,str(root/'tools'));import trace_tooling as t
+out=Path(__file__).resolve().parent;checks=[]
+source={'DOTNET_DIAGNOSTICPORTS':'bad','COMPLUS_DEFAULTDIAGNOSTICPORTSUSPEND':'1','OTHER':'kept'}
+env,removed=t.diagnostics_environment(source,True)
+assert len(removed)==2 and env['OTHER']=='kept' and len(source)==3
+checks.append('Windows case insensitive aliases isolated; original unchanged')
+for key in ('DOTNET_ENABLEDIAGNOSTICS','COMPLUS_ENABLEDIAGNOSTICS_IPC'):
+ try:t.diagnostics_environment({key:'0'},True)
+ except ValueError:checks.append(key+' disabled policy rejected')
+ else:raise AssertionError(key)
+linux={'DOTNET_DiagnosticPorts':'bad','DOTNET_DIAGNOSTICPORTS':'different'}
+env,removed=t.diagnostics_environment(linux,False);assert removed==['DOTNET_DiagnosticPorts'] and env['DOTNET_DIAGNOSTICPORTS']=='different'
+checks.append('Linux exact names preserved')
+spawn=[]
+with patch.object(t.subprocess,'Popen',side_effect=lambda *a,**k:spawn.append(a)):
+ try:t.capture_runtime(['missing.exe'],root,out/'missing','missing.exe','missing-tool.dll','missing-analyzer.dll')
+ except ValueError:pass
+ else:raise AssertionError('missing binaries')
+assert not spawn and not t.read(out/'missing/capture.json')['owned_process_cleanup']
+checks.append('Missing binaries spawn zero owned children')
+t.save(out/'result.json',{'status':'passed','checks':checks,'runner_sha256':t.sha(root/'tools/trace_tooling.py'),'test_sha256':t.sha(__file__)})
+print(json.dumps({'status':'passed','checks':len(checks)}))

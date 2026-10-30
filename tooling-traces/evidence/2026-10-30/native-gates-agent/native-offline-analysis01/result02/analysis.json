@@ -1,0 +1,5858 @@
+{
+  "status": "completed",
+  "role": "native_perturbed_diagnostics_not_acceptance",
+  "source": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-native-linux01",
+  "source_manifest_sha256": "07d2ddbd0a658fd1b12c3211b0a43817ad63b522dc63bf31be2269ce9fd00d9d",
+  "cases": [
+    {
+      "name": "generator",
+      "scenario": "generator",
+      "round": null,
+      "verification_status": null,
+      "target_pid": 751,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 751,
+        "starttime_ticks": 27193
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "ab14276a582467bc6e2bf65f59577c33ff7c5dde8938f6e6cd626bdced00ebfc",
+        "proc.jsonl": "57a3fed3474787e506b08bfcb35b2d4b1be00ca8cbd6653a19870679ff79ce1f",
+        "parsed.json": "609ac0a11814ea01938ae4c1d55692a1dc8bce9737a35202a4acb554b002f074",
+        "native.raw.log": "a6fd9e91b5b48b62bfb73c03c9cc7e4e673146ea987c9277c8d6440c735ba672"
+      },
+      "proc": {
+        "samples": 3225,
+        "target_identity": {
+          "pid": 751,
+          "starttime_ticks": 27193
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 271945661327,
+            "perf_counter_ns": 271945661663,
+            "utc_ns": 1793336036172802955
+          },
+          "end": {
+            "monotonic_ns": 271946014890,
+            "perf_counter_ns": 271946015283,
+            "utc_ns": 1793336036173156466
+          },
+          "target_identity": {
+            "pid": 751,
+            "starttime_ticks": 27193
+          },
+          "process_stat": {
+            "id": 751,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 748,
+            "process_group_id": 748,
+            "session_id": 748,
+            "minor_faults": 28,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 27193,
+            "last_cpu": 6
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 304185771361,
+            "perf_counter_ns": 304185772598,
+            "utc_ns": 1793336068412914453
+          },
+          "end": {
+            "monotonic_ns": 304186976592,
+            "perf_counter_ns": 304186976894,
+            "utc_ns": 1793336068414118289
+          },
+          "target_identity": {
+            "pid": 751,
+            "starttime_ticks": 27193
+          },
+          "process_stat": {
+            "id": 751,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 748,
+            "process_group_id": 748,
+            "session_id": 748,
+            "minor_faults": 68597,
+            "major_faults": 222,
+            "user_cpu_ticks": 2856,
+            "kernel_cpu_ticks": 367,
+            "thread_count": 26,
+            "starttime_ticks": 27193,
+            "last_cpu": 9
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 68569,
+          "major_faults": 222,
+          "user_cpu_ticks": 2856,
+          "kernel_cpu_ticks": 367
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 68508,
+          "stat.major_faults": 222,
+          "stat.user_cpu_ticks": 2841,
+          "stat.kernel_cpu_ticks": 352,
+          "schedstat.cpu_runtime_ns": 32230987402,
+          "schedstat.runqueue_wait_ns": 53593423,
+          "schedstat.timeslices": 201608,
+          "context_switches.voluntary_context_switches": 200823,
+          "context_switches.involuntary_context_switches": 785
+        },
+        "threads_seen": 31,
+        "observer_thread_cpu_ns": 4497703247,
+        "controller_process_cpu_ns_during_observation": 4498072715,
+        "tail_since_last_sample_ns": 837063,
+        "actual_min_gap_ns": 9614873,
+        "actual_max_gap_ns": 10369449,
+        "read_duration_ns": {
+          "min": 192208,
+          "max": 5890773,
+          "sum": 3710832189
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141018,
+          "max": 1793335764227167189,
+          "spread": 26171
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 8049,
+          "access": 13,
+          "openat": 617,
+          "newfstatat": 236,
+          "close": 487,
+          "read": 238,
+          "pread64": 293,
+          "munmap": 6961,
+          "clone3": 30,
+          "write": 54,
+          "pwrite64": 627,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 418000,
+          "mmap": 622444000,
+          "access": 1376000,
+          "openat": 95152000,
+          "newfstatat": 24140000,
+          "close": 45855000,
+          "read": 187029000,
+          "pread64": 248045000,
+          "munmap": 517932000,
+          "clone3": 8377000,
+          "write": 16350000,
+          "pwrite64": 393141000
+        },
+        "duration_unavailable_counts": {
+          "read": 1,
+          "openat": 1,
+          "exit_group": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 158996,
+          "pread64": 83560726,
+          "write": 526,
+          "pwrite64": 1823273
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0,
+      "generator_attribution": {
+        "stage_aggregate": {
+          "unassigned": {
+            "syscall_counts": {
+              "execve": 1,
+              "mmap": 5865,
+              "access": 13,
+              "openat": 557,
+              "newfstatat": 193,
+              "close": 441,
+              "read": 192,
+              "pread64": 265,
+              "munmap": 5251,
+              "clone3": 27,
+              "write": 48,
+              "pwrite64": 321,
+              "exit_group": 1
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "execve": 418000,
+              "mmap": 498333000,
+              "access": 1376000,
+              "openat": 74287000,
+              "newfstatat": 17675000,
+              "close": 41554000,
+              "read": 181835000,
+              "pread64": 246736000,
+              "munmap": 421450000,
+              "clone3": 7605000,
+              "write": 15471000,
+              "pwrite64": 188224000
+            },
+            "duration_unavailable_counts": {
+              "openat": 1,
+              "read": 1,
+              "exit_group": 1
+            },
+            "positive_buffer_return_bytes": {
+              "read": 105169,
+              "pread64": 83556134,
+              "write": 489,
+              "pwrite64": 1582358
+            }
+          },
+          "hash": {
+            "syscall_counts": {
+              "mmap": 23,
+              "munmap": 3,
+              "openat": 6,
+              "pread64": 2,
+              "read": 8,
+              "newfstatat": 5,
+              "close": 5
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 1378000,
+              "munmap": 207000,
+              "openat": 352000,
+              "pread64": 104000,
+              "read": 562000,
+              "newfstatat": 259000,
+              "close": 181000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {
+              "pread64": 328,
+              "read": 14915
+            }
+          },
+          "fixture.setup": {
+            "syscall_counts": {
+              "mmap": 172,
+              "munmap": 136,
+              "openat": 4,
+              "newfstatat": 2,
+              "read": 2,
+              "close": 3,
+              "clone3": 1,
+              "write": 2,
+              "pread64": 2
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 11421000,
+              "munmap": 9444000,
+              "openat": 267000,
+              "newfstatat": 93000,
+              "read": 144000,
+              "close": 221000,
+              "clone3": 182000,
+              "write": 208000,
+              "pread64": 133000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {
+              "read": 2048,
+              "write": 9,
+              "pread64": 328
+            }
+          },
+          "generator.run": {
+            "syscall_counts": {
+              "mmap": 1042,
+              "munmap": 863,
+              "openat": 5,
+              "pread64": 8,
+              "newfstatat": 1,
+              "read": 1,
+              "close": 1
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 59997000,
+              "munmap": 49826000,
+              "openat": 13127000,
+              "pread64": 466000,
+              "newfstatat": 427000,
+              "read": 419000,
+              "close": 43000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {
+              "pread64": 1312,
+              "read": 1024
+            }
+          },
+          "pe.emit": {
+            "syscall_counts": {
+              "mmap": 476,
+              "munmap": 398,
+              "openat": 26,
+              "pread64": 10,
+              "clone3": 2,
+              "write": 4,
+              "close": 21,
+              "newfstatat": 19,
+              "read": 19
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 23566000,
+              "munmap": 20524000,
+              "openat": 5006000,
+              "pread64": 332000,
+              "clone3": 590000,
+              "write": 671000,
+              "close": 3157000,
+              "newfstatat": 4200000,
+              "read": 2668000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {
+              "pread64": 1640,
+              "write": 28,
+              "read": 19456
+            }
+          },
+          "ast.verify": {
+            "syscall_counts": {
+              "mmap": 65,
+              "munmap": 58,
+              "openat": 16,
+              "newfstatat": 16,
+              "read": 16,
+              "close": 16
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 3441000,
+              "munmap": 3080000,
+              "openat": 1933000,
+              "newfstatat": 1486000,
+              "read": 1401000,
+              "close": 699000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {
+              "read": 16384
+            }
+          },
+          "runtime.verify": {
+            "syscall_counts": {
+              "mmap": 309,
+              "munmap": 189
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 20102000,
+              "munmap": 10338000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {}
+          },
+          "fixture.edit": {
+            "syscall_counts": {
+              "mmap": 22,
+              "munmap": 21
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 983000,
+              "munmap": 1163000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {}
+          },
+          "compiler.wall": {
+            "syscall_counts": {
+              "mmap": 1
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 37000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {}
+          },
+          "journal.persistence": {
+            "syscall_counts": {
+              "mmap": 74,
+              "munmap": 42,
+              "openat": 3,
+              "pread64": 6,
+              "pwrite64": 306
+            },
+            "sum_syscall_wall_ns_across_tids": {
+              "mmap": 3186000,
+              "munmap": 1900000,
+              "openat": 180000,
+              "pread64": 274000,
+              "pwrite64": 204917000
+            },
+            "duration_unavailable_counts": {},
+            "positive_buffer_return_bytes": {
+              "pread64": 984,
+              "pwrite64": 240915
+            }
+          }
+        },
+        "unassigned_reasons": {
+          "no_guaranteed_inside_same_tid_span": 13172,
+          "missing_entry_or_duration": 3
+        },
+        "markers": 2956,
+        "main_rows": 306,
+        "marker_stages": {
+          "hash": 988,
+          "fixture.setup": 60,
+          "execute.setup": 330,
+          "generator.run": 168,
+          "pe.emit": 330,
+          "compiler.wall": 330,
+          "ast.verify": 348,
+          "runtime.verify": 42,
+          "fixture.edit": 54,
+          "journal.persistence": 306
+        },
+        "utc_anchor_uncertainty_ns": 43384
+      }
+    },
+    {
+      "name": "00-00-new-portable",
+      "scenario": "new-portable",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 943,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 943,
+        "starttime_ticks": 30484
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "20a981181a1329062624dcf3b5964ae0172004bd3f2ba7d7324b484dd44a0107",
+        "proc.jsonl": "eef60dce365f7e71204af45863710366e51edda64e17ee2a2aaaa2735f73d360",
+        "parsed.json": "b185aa4576381708fa4bfac054b8923f808e32cfe53f926255d8f5489be267e7",
+        "native.raw.log": "381cd7a0071d830e45f23b8ffae66dc52e585f12a3ba1504a46d785e6b173468"
+      },
+      "proc": {
+        "samples": 193,
+        "target_identity": {
+          "pid": 943,
+          "starttime_ticks": 30484
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 304855201089,
+            "perf_counter_ns": 304855201278,
+            "utc_ns": 1793336069082342501
+          },
+          "end": {
+            "monotonic_ns": 304855384750,
+            "perf_counter_ns": 304855384910,
+            "utc_ns": 1793336069082525956
+          },
+          "target_identity": {
+            "pid": 943,
+            "starttime_ticks": 30484
+          },
+          "process_stat": {
+            "id": 943,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 940,
+            "process_group_id": 940,
+            "session_id": 940,
+            "minor_faults": 30,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 30484,
+            "last_cpu": 12
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 306775312354,
+            "perf_counter_ns": 306775313150,
+            "utc_ns": 1793336071002454808
+          },
+          "end": {
+            "monotonic_ns": 306775756713,
+            "perf_counter_ns": 306775757161,
+            "utc_ns": 1793336071002898257
+          },
+          "target_identity": {
+            "pid": 943,
+            "starttime_ticks": 30484
+          },
+          "process_stat": {
+            "id": 943,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 940,
+            "process_group_id": 940,
+            "session_id": 940,
+            "minor_faults": 3554,
+            "major_faults": 6,
+            "user_cpu_ticks": 11,
+            "kernel_cpu_ticks": 12,
+            "thread_count": 7,
+            "starttime_ticks": 30484,
+            "last_cpu": 18
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3524,
+          "major_faults": 6,
+          "user_cpu_ticks": 11,
+          "kernel_cpu_ticks": 12
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3509,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 10,
+          "stat.kernel_cpu_ticks": 13,
+          "schedstat.cpu_runtime_ns": 242146033,
+          "schedstat.runqueue_wait_ns": 535076,
+          "schedstat.timeslices": 9042,
+          "context_switches.voluntary_context_switches": 9041,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 116347831,
+        "controller_process_cpu_ns_during_observation": 116623617,
+        "tail_since_last_sample_ns": 717625,
+        "actual_min_gap_ns": 9958891,
+        "actual_max_gap_ns": 10118364,
+        "read_duration_ns": {
+          "min": 183632,
+          "max": 1060917,
+          "sum": 78942915
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141011,
+          "max": 1793335764227142274,
+          "spread": 1263
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 385,
+          "access": 13,
+          "openat": 273,
+          "newfstatat": 123,
+          "close": 123,
+          "read": 102,
+          "pread64": 73,
+          "munmap": 114,
+          "clone3": 6,
+          "write": 7,
+          "pwrite64": 9,
+          "fsync": 9,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 313000,
+          "mmap": 22197000,
+          "access": 621000,
+          "openat": 75302000,
+          "newfstatat": 7790000,
+          "close": 19726000,
+          "read": 16969000,
+          "pread64": 7012000,
+          "munmap": 7522000,
+          "clone3": 991000,
+          "write": 437000,
+          "pwrite64": 4278000,
+          "fsync": 7163000,
+          "rename": 2259000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 70758,
+          "pread64": 58051,
+          "write": 426,
+          "pwrite64": 14231
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-01-new-small-api",
+      "scenario": "new-small-api",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 967,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 967,
+        "starttime_ticks": 30742
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "2169b8fb8ebc9430a909fed7ec5da4dc92a1f4823cf4d70521afbd335243f628",
+        "proc.jsonl": "b354cc915018715067bbd7f471a8d1806fbd9648ee8fc85406bd47616a53b771",
+        "parsed.json": "0983f94b802fc185bbbe51e2a294d93bcd4960f3f456f38db6b084ca589487e6",
+        "native.raw.log": "f988a787db05ee2cd6e6312999a879ba32950470a6e2200f92f6703ca440e6d9"
+      },
+      "proc": {
+        "samples": 212,
+        "target_identity": {
+          "pid": 967,
+          "starttime_ticks": 30742
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/967/stat'",
+            "monotonic_ns": 309550072391,
+            "perf_counter_ns": 309550072552,
+            "utc_ns": 1793336073777213559
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 307433927023,
+            "perf_counter_ns": 307433927294,
+            "utc_ns": 1793336071661068423
+          },
+          "end": {
+            "monotonic_ns": 307434098274,
+            "perf_counter_ns": 307434098454,
+            "utc_ns": 1793336071661239498
+          },
+          "target_identity": {
+            "pid": 967,
+            "starttime_ticks": 30742
+          },
+          "process_stat": {
+            "id": 967,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 964,
+            "process_group_id": 964,
+            "session_id": 964,
+            "minor_faults": 30,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 30742,
+            "last_cpu": 6
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 309544060714,
+            "perf_counter_ns": 309544061568,
+            "utc_ns": 1793336073771203222
+          },
+          "end": {
+            "monotonic_ns": 309544516196,
+            "perf_counter_ns": 309544516484,
+            "utc_ns": 1793336073771657606
+          },
+          "target_identity": {
+            "pid": 967,
+            "starttime_ticks": 30742
+          },
+          "process_stat": {
+            "id": 967,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 964,
+            "process_group_id": 964,
+            "session_id": 964,
+            "minor_faults": 3778,
+            "major_faults": 6,
+            "user_cpu_ticks": 11,
+            "kernel_cpu_ticks": 15,
+            "thread_count": 7,
+            "starttime_ticks": 30742,
+            "last_cpu": 6
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3748,
+          "major_faults": 6,
+          "user_cpu_ticks": 11,
+          "kernel_cpu_ticks": 15
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3741,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 11,
+          "stat.kernel_cpu_ticks": 14,
+          "schedstat.cpu_runtime_ns": 264758450,
+          "schedstat.runqueue_wait_ns": 707582,
+          "schedstat.timeslices": 11106,
+          "context_switches.voluntary_context_switches": 11106,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 122433885,
+        "controller_process_cpu_ns_during_observation": 123103777,
+        "tail_since_last_sample_ns": 6114710,
+        "actual_min_gap_ns": 5953210,
+        "actual_max_gap_ns": 10140014,
+        "read_duration_ns": {
+          "min": 171160,
+          "max": 1047888,
+          "sum": 84054401
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141017,
+          "max": 1793335764227142158,
+          "spread": 1141
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 403,
+          "access": 13,
+          "openat": 294,
+          "newfstatat": 123,
+          "close": 144,
+          "read": 103,
+          "pread64": 88,
+          "munmap": 130,
+          "clone3": 6,
+          "write": 7,
+          "pwrite64": 14,
+          "fsync": 14,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 287000,
+          "mmap": 23614000,
+          "access": 573000,
+          "openat": 114732000,
+          "newfstatat": 6732000,
+          "close": 31244000,
+          "read": 14423000,
+          "pread64": 10068000,
+          "munmap": 9440000,
+          "clone3": 858000,
+          "write": 433000,
+          "pwrite64": 7883000,
+          "fsync": 11124000,
+          "rename": 2298000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 70881,
+          "pread64": 130973,
+          "write": 524,
+          "pwrite64": 78147
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-02-validate-portable",
+      "scenario": "validate-portable",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 993,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 993,
+        "starttime_ticks": 31044
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "977d14554098b1e4f7218fc88cb4a7475d73e98c69e83d0c5d36887573abf25b",
+        "proc.jsonl": "5714349659faf112f07f711b307177fc5f1f57b396d94af224e2d97112e01e9e",
+        "parsed.json": "2827dc983035c62ef07c44ebfebb91f88fdee4f17aa50c88d42abb9f79f39b9f",
+        "native.raw.log": "c953cc084422daaf4ca083f52538032e242eaab12172e34afb94622e937a542a"
+      },
+      "proc": {
+        "samples": 144,
+        "target_identity": {
+          "pid": 993,
+          "starttime_ticks": 31044
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 4,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 310454174668,
+            "perf_counter_ns": 310454174822,
+            "utc_ns": 1793336074681315977
+          },
+          "end": {
+            "monotonic_ns": 310454372852,
+            "perf_counter_ns": 310454372976,
+            "utc_ns": 1793336074681514023
+          },
+          "target_identity": {
+            "pid": 993,
+            "starttime_ticks": 31044
+          },
+          "process_stat": {
+            "id": 993,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 990,
+            "process_group_id": 990,
+            "session_id": 990,
+            "minor_faults": 28,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 31044,
+            "last_cpu": 9
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 312135644735,
+            "perf_counter_ns": 312135645863,
+            "utc_ns": 1793336076362787827
+          },
+          "end": {
+            "monotonic_ns": 312136298142,
+            "perf_counter_ns": 312136298406,
+            "utc_ns": 1793336076363439520
+          },
+          "target_identity": {
+            "pid": 993,
+            "starttime_ticks": 31044
+          },
+          "process_stat": {
+            "id": 993,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 990,
+            "process_group_id": 990,
+            "session_id": 990,
+            "minor_faults": 2838,
+            "major_faults": 6,
+            "user_cpu_ticks": 9,
+            "kernel_cpu_ticks": 9,
+            "thread_count": 7,
+            "starttime_ticks": 31044,
+            "last_cpu": 8
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 2810,
+          "major_faults": 6,
+          "user_cpu_ticks": 9,
+          "kernel_cpu_ticks": 9
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 2789,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 9,
+          "stat.kernel_cpu_ticks": 9,
+          "schedstat.cpu_runtime_ns": 192564109,
+          "schedstat.runqueue_wait_ns": 397392,
+          "schedstat.timeslices": 5833,
+          "context_switches.voluntary_context_switches": 5832,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 6,
+        "observer_thread_cpu_ns": 83986319,
+        "controller_process_cpu_ns_during_observation": 84312915,
+        "tail_since_last_sample_ns": 791585,
+        "actual_min_gap_ns": 9928074,
+        "actual_max_gap_ns": 139641834,
+        "read_duration_ns": {
+          "min": 190118,
+          "max": 1160443,
+          "sum": 54808949
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141014,
+          "max": 1793335764227142287,
+          "spread": 1273
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 344,
+          "access": 13,
+          "openat": 135,
+          "newfstatat": 93,
+          "close": 68,
+          "read": 91,
+          "pread64": 52,
+          "munmap": 118,
+          "clone3": 6,
+          "write": 7,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 176000,
+          "mmap": 18490000,
+          "access": 462000,
+          "openat": 19456000,
+          "newfstatat": 5662000,
+          "close": 6236000,
+          "read": 15645000,
+          "pread64": 2800000,
+          "munmap": 7462000,
+          "clone3": 935000,
+          "write": 551000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 53341,
+          "pread64": 9467,
+          "write": 393
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-03-validate-small-api",
+      "scenario": "validate-small-api",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 1015,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1015,
+        "starttime_ticks": 31235
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "ecd0e333b93c1ebd61386cd86f38dbb1561d693c2ea8a8d5729eb329c95dc888",
+        "proc.jsonl": "7d7dce229d7d85bdeef75984e51648a3fd5c7263ba1f9c5ac52a3a4fd2d57e23",
+        "parsed.json": "c21d7beb51b879e2da4b42d5532bb9a24ff34477e33b0ae707b3a0236c905eed",
+        "native.raw.log": "8658e85567165248b9b94e8864592a37492223beed6d58ff4be0c3cdd3ff6fe3"
+      },
+      "proc": {
+        "samples": 125,
+        "target_identity": {
+          "pid": 1015,
+          "starttime_ticks": 31235
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1015/stat'",
+            "monotonic_ns": 313610284585,
+            "perf_counter_ns": 313610284710,
+            "utc_ns": 1793336077837425729
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 312361625156,
+            "perf_counter_ns": 312361625324,
+            "utc_ns": 1793336076588766697
+          },
+          "end": {
+            "monotonic_ns": 312361801916,
+            "perf_counter_ns": 312361802070,
+            "utc_ns": 1793336076588943101
+          },
+          "target_identity": {
+            "pid": 1015,
+            "starttime_ticks": 31235
+          },
+          "process_stat": {
+            "id": 1015,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1012,
+            "process_group_id": 1012,
+            "session_id": 1012,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 31235,
+            "last_cpu": 3
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 313601728434,
+            "perf_counter_ns": 313601728949,
+            "utc_ns": 1793336077828870242
+          },
+          "end": {
+            "monotonic_ns": 313602198423,
+            "perf_counter_ns": 313602198675,
+            "utc_ns": 1793336077829339794
+          },
+          "target_identity": {
+            "pid": 1015,
+            "starttime_ticks": 31235
+          },
+          "process_stat": {
+            "id": 1015,
+            "comm": "dotnet",
+            "state": "S",
+            "parent_pid": 1012,
+            "process_group_id": 1012,
+            "session_id": 1012,
+            "minor_faults": 2842,
+            "major_faults": 6,
+            "user_cpu_ticks": 9,
+            "kernel_cpu_ticks": 9,
+            "thread_count": 7,
+            "starttime_ticks": 31235,
+            "last_cpu": 19
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 2813,
+          "major_faults": 6,
+          "user_cpu_ticks": 9,
+          "kernel_cpu_ticks": 9
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 2801,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 9,
+          "stat.kernel_cpu_ticks": 8,
+          "schedstat.cpu_runtime_ns": 182205313,
+          "schedstat.runqueue_wait_ns": 323596,
+          "schedstat.timeslices": 5800,
+          "context_switches.voluntary_context_switches": 5799,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 73121182,
+        "controller_process_cpu_ns_during_observation": 73743763,
+        "tail_since_last_sample_ns": 8629628,
+        "actual_min_gap_ns": 8493847,
+        "actual_max_gap_ns": 10149487,
+        "read_duration_ns": {
+          "min": 176746,
+          "max": 716041,
+          "sum": 48021978
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227140994,
+          "max": 1793335764227142291,
+          "spread": 1297
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 349,
+          "access": 13,
+          "openat": 135,
+          "newfstatat": 93,
+          "close": 68,
+          "read": 91,
+          "pread64": 52,
+          "munmap": 123,
+          "clone3": 6,
+          "write": 9,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 338000,
+          "mmap": 17111000,
+          "access": 564000,
+          "openat": 18603000,
+          "newfstatat": 4790000,
+          "close": 5159000,
+          "read": 13078000,
+          "pread64": 3460000,
+          "munmap": 7587000,
+          "clone3": 752000,
+          "write": 475000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 53499,
+          "pread64": 9664,
+          "write": 841
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-04-export-api",
+      "scenario": "export-api",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 1035,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1035,
+        "starttime_ticks": 31383
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "7522d8554f7383176deba0fd2e8d9db42c08003325b38fb6d7f29bb1f31ae339",
+        "proc.jsonl": "89057747f1747bbaaf57783dcfce2ec4d7eb00cc82471b2410f92218b1f38df6",
+        "parsed.json": "aedd7fb2f8d5e180e2f36c0cc947551991f8a67ec977da7db063ec634a974905",
+        "native.raw.log": "79ff1124044ed0f2511d2db8afbe82bc65d52228ba4dc16b627626fab3af15fd"
+      },
+      "proc": {
+        "samples": 212,
+        "target_identity": {
+          "pid": 1035,
+          "starttime_ticks": 31383
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 313841771638,
+            "perf_counter_ns": 313841771813,
+            "utc_ns": 1793336078068913052
+          },
+          "end": {
+            "monotonic_ns": 313841955623,
+            "perf_counter_ns": 313841955792,
+            "utc_ns": 1793336078069096841
+          },
+          "target_identity": {
+            "pid": 1035,
+            "starttime_ticks": 31383
+          },
+          "process_stat": {
+            "id": 1035,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1032,
+            "process_group_id": 1032,
+            "session_id": 1032,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 31383,
+            "last_cpu": 12
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 315951894542,
+            "perf_counter_ns": 315951895428,
+            "utc_ns": 1793336080179037242
+          },
+          "end": {
+            "monotonic_ns": 315952208401,
+            "perf_counter_ns": 315952208622,
+            "utc_ns": 1793336080179349939
+          },
+          "target_identity": {
+            "pid": 1035,
+            "starttime_ticks": 31383
+          },
+          "process_stat": {
+            "id": 1035,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1032,
+            "process_group_id": 1032,
+            "session_id": 1032,
+            "minor_faults": 4160,
+            "major_faults": 11,
+            "user_cpu_ticks": 14,
+            "kernel_cpu_ticks": 14,
+            "thread_count": 2,
+            "starttime_ticks": 31383,
+            "last_cpu": 19
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 4131,
+          "major_faults": 11,
+          "user_cpu_ticks": 14,
+          "kernel_cpu_ticks": 14
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 4068,
+          "stat.major_faults": 11,
+          "stat.user_cpu_ticks": 13,
+          "stat.kernel_cpu_ticks": 11,
+          "schedstat.cpu_runtime_ns": 273603446,
+          "schedstat.runqueue_wait_ns": 4586429,
+          "schedstat.timeslices": 9777,
+          "context_switches.voluntary_context_switches": 9777,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 27,
+        "observer_thread_cpu_ns": 245052356,
+        "controller_process_cpu_ns_during_observation": 245487435,
+        "tail_since_last_sample_ns": 630035,
+        "actual_min_gap_ns": 9934661,
+        "actual_max_gap_ns": 10122122,
+        "read_duration_ns": {
+          "min": 183979,
+          "max": 2499681,
+          "sum": 195620722
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141016,
+          "max": 1793335764227142037,
+          "spread": 1021
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 533,
+          "access": 17,
+          "openat": 296,
+          "newfstatat": 146,
+          "close": 148,
+          "read": 159,
+          "pread64": 54,
+          "munmap": 196,
+          "clone3": 26,
+          "write": 27,
+          "pwrite64": 2,
+          "fsync": 2,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 244000,
+          "mmap": 28051000,
+          "access": 1158000,
+          "openat": 33359000,
+          "newfstatat": 8239000,
+          "close": 8924000,
+          "read": 16831000,
+          "pread64": 3986000,
+          "munmap": 13538000,
+          "clone3": 2972000,
+          "write": 1464000,
+          "pwrite64": 1249000,
+          "fsync": 1743000,
+          "rename": 2273000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 107049,
+          "pread64": 9992,
+          "write": 724,
+          "pwrite64": 50313
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-05-export-both",
+      "scenario": "export-both",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 1078,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1078,
+        "starttime_ticks": 31626
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "8f8f5b308292082709f1e8c30b9ac27bf51b2aaed7bcb9925251020664592434",
+        "proc.jsonl": "7265824c63d8ede88b6557ccb5f49c4668c5abe8850a7918f060767176c4b08b",
+        "parsed.json": "a3409855e735ff593d5202b4a52add236fe9486b5d96af6db653332b33f87664",
+        "native.raw.log": "8c39a45f2867cd58c7fc8d6a1c9c98e4661d34f185a71091a359963bd70c9bd9"
+      },
+      "proc": {
+        "samples": 581,
+        "target_identity": {
+          "pid": 1078,
+          "starttime_ticks": 31626
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 316272628913,
+            "perf_counter_ns": 316272629272,
+            "utc_ns": 1793336080499770393
+          },
+          "end": {
+            "monotonic_ns": 316272813193,
+            "perf_counter_ns": 316272813359,
+            "utc_ns": 1793336080499954389
+          },
+          "target_identity": {
+            "pid": 1078,
+            "starttime_ticks": 31626
+          },
+          "process_stat": {
+            "id": 1078,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1075,
+            "process_group_id": 1075,
+            "session_id": 1075,
+            "minor_faults": 28,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 31626,
+            "last_cpu": 5
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 322072752794,
+            "perf_counter_ns": 322072754029,
+            "utc_ns": 1793336086299895908
+          },
+          "end": {
+            "monotonic_ns": 322073017225,
+            "perf_counter_ns": 322073017596,
+            "utc_ns": 1793336086300158636
+          },
+          "target_identity": {
+            "pid": 1078,
+            "starttime_ticks": 31626
+          },
+          "process_stat": {
+            "id": 1078,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1075,
+            "process_group_id": 1075,
+            "session_id": 1075,
+            "minor_faults": 9358,
+            "major_faults": 92,
+            "user_cpu_ticks": 69,
+            "kernel_cpu_ticks": 39,
+            "thread_count": 2,
+            "starttime_ticks": 31626,
+            "last_cpu": 12
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 9330,
+          "major_faults": 92,
+          "user_cpu_ticks": 69,
+          "kernel_cpu_ticks": 39
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 9259,
+          "stat.major_faults": 92,
+          "stat.user_cpu_ticks": 67,
+          "stat.kernel_cpu_ticks": 35,
+          "schedstat.cpu_runtime_ns": 1074871468,
+          "schedstat.runqueue_wait_ns": 5288864,
+          "schedstat.timeslices": 22333,
+          "context_switches.voluntary_context_switches": 22332,
+          "context_switches.involuntary_context_switches": 1
+        },
+        "threads_seen": 32,
+        "observer_thread_cpu_ns": 869594415,
+        "controller_process_cpu_ns_during_observation": 869986979,
+        "tail_since_last_sample_ns": 517359,
+        "actual_min_gap_ns": 9933264,
+        "actual_max_gap_ns": 10124247,
+        "read_duration_ns": {
+          "min": 184087,
+          "max": 3363348,
+          "sum": 718339437
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141030,
+          "max": 1793335764227143083,
+          "spread": 2053
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 1799,
+          "access": 17,
+          "openat": 358,
+          "newfstatat": 152,
+          "close": 170,
+          "read": 170,
+          "pread64": 154,
+          "munmap": 1187,
+          "clone3": 31,
+          "write": 37,
+          "pwrite64": 3,
+          "fsync": 3,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 238000,
+          "mmap": 104620000,
+          "access": 570000,
+          "openat": 67519000,
+          "newfstatat": 8724000,
+          "close": 14714000,
+          "read": 56529000,
+          "pread64": 17146000,
+          "munmap": 74238000,
+          "clone3": 5697000,
+          "write": 4949000,
+          "pwrite64": 1738000,
+          "fsync": 2720000,
+          "rename": 2484000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 108029,
+          "pread64": 26391,
+          "write": 820,
+          "pwrite64": 51739
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-06-export-graphql",
+      "scenario": "export-graphql",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 1142,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1142,
+        "starttime_ticks": 32248
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "7e130f68d40beb118c4cf0f9399074f9f56dfcdc6da650dc80d2308c7816cc3d",
+        "proc.jsonl": "9ee7ebe99dace239acf7b3e7458fb4f4de63ae6bd75b0765af2315f2b7251b8c",
+        "parsed.json": "fdd2f9e0f699693462f1945c9bffacbf28e9db2d2fd010ef6b83a74b3004c41c",
+        "native.raw.log": "0c181c0afd3917a72725c2d2172765db252e87b780e04670e86ab29ef7ea6bc5"
+      },
+      "proc": {
+        "samples": 548,
+        "target_identity": {
+          "pid": 1142,
+          "starttime_ticks": 32248
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 322497498937,
+            "perf_counter_ns": 322497499135,
+            "utc_ns": 1793336086724640320
+          },
+          "end": {
+            "monotonic_ns": 322497680256,
+            "perf_counter_ns": 322497680369,
+            "utc_ns": 1793336086724821388
+          },
+          "target_identity": {
+            "pid": 1142,
+            "starttime_ticks": 32248
+          },
+          "process_stat": {
+            "id": 1142,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1139,
+            "process_group_id": 1139,
+            "session_id": 1139,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 32248,
+            "last_cpu": 6
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 327967653954,
+            "perf_counter_ns": 327967655084,
+            "utc_ns": 1793336092194796626
+          },
+          "end": {
+            "monotonic_ns": 327967925233,
+            "perf_counter_ns": 327967925730,
+            "utc_ns": 1793336092195066759
+          },
+          "target_identity": {
+            "pid": 1142,
+            "starttime_ticks": 32248
+          },
+          "process_stat": {
+            "id": 1142,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1139,
+            "process_group_id": 1139,
+            "session_id": 1139,
+            "minor_faults": 8778,
+            "major_faults": 87,
+            "user_cpu_ticks": 66,
+            "kernel_cpu_ticks": 37,
+            "thread_count": 2,
+            "starttime_ticks": 32248,
+            "last_cpu": 19
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 8749,
+          "major_faults": 87,
+          "user_cpu_ticks": 66,
+          "kernel_cpu_ticks": 37
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 8671,
+          "stat.major_faults": 87,
+          "stat.user_cpu_ticks": 64,
+          "stat.kernel_cpu_ticks": 33,
+          "schedstat.cpu_runtime_ns": 1024663207,
+          "schedstat.runqueue_wait_ns": 8505524,
+          "schedstat.timeslices": 21344,
+          "context_switches.voluntary_context_switches": 21344,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 32,
+        "observer_thread_cpu_ns": 805941231,
+        "controller_process_cpu_ns_during_observation": 806261603,
+        "tail_since_last_sample_ns": 683930,
+        "actual_min_gap_ns": 9926338,
+        "actual_max_gap_ns": 10129874,
+        "read_duration_ns": {
+          "min": 181234,
+          "max": 2729309,
+          "sum": 666651409
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141019,
+          "max": 1793335764227142287,
+          "spread": 1268
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 1699,
+          "access": 17,
+          "openat": 356,
+          "newfstatat": 151,
+          "close": 168,
+          "read": 169,
+          "pread64": 154,
+          "munmap": 1108,
+          "clone3": 31,
+          "write": 37,
+          "pwrite64": 2,
+          "fsync": 2,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 326000,
+          "mmap": 94249000,
+          "access": 765000,
+          "openat": 96647000,
+          "newfstatat": 9949000,
+          "close": 12816000,
+          "read": 82705000,
+          "pread64": 20072000,
+          "munmap": 64500000,
+          "clone3": 5312000,
+          "write": 3271000,
+          "pwrite64": 1429000,
+          "fsync": 2233000,
+          "rename": 2498000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 106975,
+          "pread64": 26392,
+          "write": 800,
+          "pwrite64": 2707
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "00-07-export-off",
+      "scenario": "export-off",
+      "round": 0,
+      "verification_status": "passed",
+      "target_pid": 1204,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1204,
+        "starttime_ticks": 32836
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "4586265f044be63496959228bee7bb501a1fa52504c4c2e66dd05621b7c3fb18",
+        "proc.jsonl": "48cf1b56b5069baf96a0da810099b44dcd04b19f4779e09c55311ba5994ad1c4",
+        "parsed.json": "664e4c3cf767ffe8dcbca5f73dc47069ea795c3167a477d2cfa6f5c88a6bec3e",
+        "native.raw.log": "ea6f927c47fd5a17a43295e8f5c5bf4c436ed0936e6337076b973c9ee32a31d2"
+      },
+      "proc": {
+        "samples": 195,
+        "target_identity": {
+          "pid": 1204,
+          "starttime_ticks": 32836
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 16,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 328375712111,
+            "perf_counter_ns": 328375712343,
+            "utc_ns": 1793336092602853586
+          },
+          "end": {
+            "monotonic_ns": 328375909092,
+            "perf_counter_ns": 328375909305,
+            "utc_ns": 1793336092603050326
+          },
+          "target_identity": {
+            "pid": 1204,
+            "starttime_ticks": 32836
+          },
+          "process_stat": {
+            "id": 1204,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1201,
+            "process_group_id": 1201,
+            "session_id": 1201,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 32836,
+            "last_cpu": 10
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 330315840804,
+            "perf_counter_ns": 330315841809,
+            "utc_ns": 1793336094542983337
+          },
+          "end": {
+            "monotonic_ns": 330316386759,
+            "perf_counter_ns": 330316387411,
+            "utc_ns": 1793336094543528607
+          },
+          "target_identity": {
+            "pid": 1204,
+            "starttime_ticks": 32836
+          },
+          "process_stat": {
+            "id": 1204,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1201,
+            "process_group_id": 1201,
+            "session_id": 1201,
+            "minor_faults": 3425,
+            "major_faults": 9,
+            "user_cpu_ticks": 11,
+            "kernel_cpu_ticks": 15,
+            "thread_count": 23,
+            "starttime_ticks": 32836,
+            "last_cpu": 8
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3396,
+          "major_faults": 9,
+          "user_cpu_ticks": 11,
+          "kernel_cpu_ticks": 15
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3324,
+          "stat.major_faults": 9,
+          "stat.user_cpu_ticks": 10,
+          "stat.kernel_cpu_ticks": 12,
+          "schedstat.cpu_runtime_ns": 241833957,
+          "schedstat.runqueue_wait_ns": 3583396,
+          "schedstat.timeslices": 9026,
+          "context_switches.voluntary_context_switches": 9026,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 27,
+        "observer_thread_cpu_ns": 219905518,
+        "controller_process_cpu_ns_during_observation": 220293103,
+        "tail_since_last_sample_ns": 745151,
+        "actual_min_gap_ns": 9956214,
+        "actual_max_gap_ns": 10119964,
+        "read_duration_ns": {
+          "min": 196962,
+          "max": 2292122,
+          "sum": 173562340
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141006,
+          "max": 1793335764227142152,
+          "spread": 1146
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 475,
+          "access": 17,
+          "openat": 289,
+          "newfstatat": 141,
+          "close": 142,
+          "read": 151,
+          "pread64": 52,
+          "munmap": 165,
+          "clone3": 26,
+          "write": 27,
+          "pwrite64": 1,
+          "fsync": 1,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 272000,
+          "mmap": 26090000,
+          "access": 787000,
+          "openat": 29352000,
+          "newfstatat": 7009000,
+          "close": 8683000,
+          "read": 17698000,
+          "pread64": 3516000,
+          "munmap": 10902000,
+          "clone3": 3396000,
+          "write": 1495000,
+          "pwrite64": 786000,
+          "fsync": 1138000,
+          "rename": 2531000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 92066,
+          "pread64": 9665,
+          "write": 704,
+          "pwrite64": 1265
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-00-new-portable",
+      "scenario": "new-portable",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1247,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1247,
+        "starttime_ticks": 33064
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "ecf45fc13126b5b47cffaf84aa18d5a50cb5ffd92b12b28521ddb6ef22d86f91",
+        "proc.jsonl": "544f79484f795b6aa09fe3e4b70dc6a0820c7f013bf412987cef3a7935e89725",
+        "parsed.json": "f18407f0cbe598852bdf3fd4f142cd9165791966944d259eee50a5b03eccbbfa",
+        "native.raw.log": "8604a93415ce5aa24b8b1161da155c233a26cbdf25f673ba8f99b2d852055027"
+      },
+      "proc": {
+        "samples": 193,
+        "target_identity": {
+          "pid": 1247,
+          "starttime_ticks": 33064
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 330658963912,
+            "perf_counter_ns": 330658964105,
+            "utc_ns": 1793336094886105502
+          },
+          "end": {
+            "monotonic_ns": 330659161510,
+            "perf_counter_ns": 330659161726,
+            "utc_ns": 1793336094886302783
+          },
+          "target_identity": {
+            "pid": 1247,
+            "starttime_ticks": 33064
+          },
+          "process_stat": {
+            "id": 1247,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1244,
+            "process_group_id": 1244,
+            "session_id": 1244,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 33064,
+            "last_cpu": 3
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 332579125704,
+            "perf_counter_ns": 332579126744,
+            "utc_ns": 1793336096806268545
+          },
+          "end": {
+            "monotonic_ns": 332579391148,
+            "perf_counter_ns": 332579391410,
+            "utc_ns": 1793336096806532501
+          },
+          "target_identity": {
+            "pid": 1247,
+            "starttime_ticks": 33064
+          },
+          "process_stat": {
+            "id": 1247,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1244,
+            "process_group_id": 1244,
+            "session_id": 1244,
+            "minor_faults": 3545,
+            "major_faults": 6,
+            "user_cpu_ticks": 8,
+            "kernel_cpu_ticks": 17,
+            "thread_count": 2,
+            "starttime_ticks": 33064,
+            "last_cpu": 3
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3516,
+          "major_faults": 6,
+          "user_cpu_ticks": 8,
+          "kernel_cpu_ticks": 17
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3493,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 8,
+          "stat.kernel_cpu_ticks": 16,
+          "schedstat.cpu_runtime_ns": 258450278,
+          "schedstat.runqueue_wait_ns": 992345,
+          "schedstat.timeslices": 9025,
+          "context_switches.voluntary_context_switches": 9025,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 124646553,
+        "controller_process_cpu_ns_during_observation": 125190752,
+        "tail_since_last_sample_ns": 834013,
+        "actual_min_gap_ns": 9959523,
+        "actual_max_gap_ns": 10115560,
+        "read_duration_ns": {
+          "min": 197621,
+          "max": 1328712,
+          "sum": 84329600
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141003,
+          "max": 1793335764227142509,
+          "spread": 1506
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 380,
+          "access": 13,
+          "openat": 273,
+          "newfstatat": 123,
+          "close": 123,
+          "read": 102,
+          "pread64": 73,
+          "munmap": 113,
+          "clone3": 6,
+          "write": 7,
+          "pwrite64": 9,
+          "fsync": 9,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 246000,
+          "mmap": 22375000,
+          "access": 613000,
+          "openat": 77535000,
+          "newfstatat": 7073000,
+          "close": 21012000,
+          "read": 15816000,
+          "pread64": 7341000,
+          "munmap": 9363000,
+          "clone3": 936000,
+          "write": 499000,
+          "pwrite64": 6377000,
+          "fsync": 7639000,
+          "rename": 2559000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "openat": 1,
+          "read": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 70904,
+          "pread64": 58051,
+          "write": 426,
+          "pwrite64": 14231
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-01-export-off",
+      "scenario": "export-off",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1272,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1272,
+        "starttime_ticks": 33339
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "e99dd8b725e3a25744221f9dcccfc8fd2d5205bd7e18ccb73d31805fb2a031f2",
+        "proc.jsonl": "30bc77d2c8c8fa01fcca627b91e65dac3b63d64f071d7fe28e6d8170448151b3",
+        "parsed.json": "dc85fd7406d4698105220ee335b2a69ab882e4489e230797d19eac04de4fbc31",
+        "native.raw.log": "b37041f1f8450e7ee8562123da211f30ace4af381c439e6b9b368b330f7f7fea"
+      },
+      "proc": {
+        "samples": 303,
+        "target_identity": {
+          "pid": 1272,
+          "starttime_ticks": 33339
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 333413803840,
+            "perf_counter_ns": 333413803975,
+            "utc_ns": 1793336097640945131
+          },
+          "end": {
+            "monotonic_ns": 333414086282,
+            "perf_counter_ns": 333414086746,
+            "utc_ns": 1793336097641227818
+          },
+          "target_identity": {
+            "pid": 1272,
+            "starttime_ticks": 33339
+          },
+          "process_stat": {
+            "id": 1272,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1269,
+            "process_group_id": 1269,
+            "session_id": 1269,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 33339,
+            "last_cpu": 10
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 336435115269,
+            "perf_counter_ns": 336435116761,
+            "utc_ns": 1793336100662258914
+          },
+          "end": {
+            "monotonic_ns": 336436694157,
+            "perf_counter_ns": 336436694417,
+            "utc_ns": 1793336100663835763
+          },
+          "target_identity": {
+            "pid": 1272,
+            "starttime_ticks": 33339
+          },
+          "process_stat": {
+            "id": 1272,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1269,
+            "process_group_id": 1269,
+            "session_id": 1269,
+            "minor_faults": 3476,
+            "major_faults": 9,
+            "user_cpu_ticks": 12,
+            "kernel_cpu_ticks": 26,
+            "thread_count": 16,
+            "starttime_ticks": 33339,
+            "last_cpu": 13
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3447,
+          "major_faults": 9,
+          "user_cpu_ticks": 12,
+          "kernel_cpu_ticks": 26
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3396,
+          "stat.major_faults": 9,
+          "stat.user_cpu_ticks": 11,
+          "stat.kernel_cpu_ticks": 21,
+          "schedstat.cpu_runtime_ns": 369142800,
+          "schedstat.runqueue_wait_ns": 8978055,
+          "schedstat.timeslices": 9355,
+          "context_switches.voluntary_context_switches": 9356,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 27,
+        "observer_thread_cpu_ns": 433879811,
+        "controller_process_cpu_ns_during_observation": 434348682,
+        "tail_since_last_sample_ns": 832861,
+        "actual_min_gap_ns": 9888842,
+        "actual_max_gap_ns": 11015030,
+        "read_duration_ns": {
+          "min": 221371,
+          "max": 3419805,
+          "sum": 340179797
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141018,
+          "max": 1793335764227142578,
+          "spread": 1560
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 480,
+          "access": 17,
+          "openat": 289,
+          "newfstatat": 141,
+          "close": 142,
+          "read": 151,
+          "pread64": 52,
+          "munmap": 170,
+          "clone3": 26,
+          "write": 27,
+          "pwrite64": 1,
+          "fsync": 1,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 347000,
+          "mmap": 39779000,
+          "access": 1263000,
+          "openat": 43395000,
+          "newfstatat": 12641000,
+          "close": 13868000,
+          "read": 24141000,
+          "pread64": 5222000,
+          "munmap": 17217000,
+          "clone3": 5523000,
+          "write": 2424000,
+          "pwrite64": 929000,
+          "fsync": 1125000,
+          "rename": 7539000
+        },
+        "duration_unavailable_counts": {
+          "openat": 1,
+          "exit_group": 1,
+          "read": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 91967,
+          "pread64": 9665,
+          "write": 704,
+          "pwrite64": 1265
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-02-export-graphql",
+      "scenario": "export-graphql",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1320,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1320,
+        "starttime_ticks": 33687
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "3ed822b726cba3d62796666325e405c255e961790d986f6701c3ec1ccf1c0f4f",
+        "proc.jsonl": "5efb3eb082cbbf1cb60eb44c0f7a858c33513fee4baad77aac7dbd207a9a8e80",
+        "parsed.json": "6ed9ea79bcd48a89e39b32dc9609ded2fd59a8f9ec96594d00b076069d954c6b",
+        "native.raw.log": "6f2f411b72cced05440577e65c6ebdf73422511936f10e6c92dbda29756bac82"
+      },
+      "proc": {
+        "samples": 681,
+        "target_identity": {
+          "pid": 1320,
+          "starttime_ticks": 33687
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 336890582198,
+            "perf_counter_ns": 336890582519,
+            "utc_ns": 1793336101117723689
+          },
+          "end": {
+            "monotonic_ns": 336890785659,
+            "perf_counter_ns": 336890785793,
+            "utc_ns": 1793336101117926870
+          },
+          "target_identity": {
+            "pid": 1320,
+            "starttime_ticks": 33687
+          },
+          "process_stat": {
+            "id": 1320,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1317,
+            "process_group_id": 1317,
+            "session_id": 1317,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 33687,
+            "last_cpu": 10
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 343690746290,
+            "perf_counter_ns": 343690747472,
+            "utc_ns": 1793336107917889204
+          },
+          "end": {
+            "monotonic_ns": 343692327085,
+            "perf_counter_ns": 343692327768,
+            "utc_ns": 1793336107919469086
+          },
+          "target_identity": {
+            "pid": 1320,
+            "starttime_ticks": 33687
+          },
+          "process_stat": {
+            "id": 1320,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1317,
+            "process_group_id": 1317,
+            "session_id": 1317,
+            "minor_faults": 8933,
+            "major_faults": 87,
+            "user_cpu_ticks": 79,
+            "kernel_cpu_ticks": 53,
+            "thread_count": 32,
+            "starttime_ticks": 33687,
+            "last_cpu": 10
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 8904,
+          "major_faults": 87,
+          "user_cpu_ticks": 79,
+          "kernel_cpu_ticks": 53
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 8837,
+          "stat.major_faults": 87,
+          "stat.user_cpu_ticks": 77,
+          "stat.kernel_cpu_ticks": 47,
+          "schedstat.cpu_runtime_ns": 1314383571,
+          "schedstat.runqueue_wait_ns": 6033005,
+          "schedstat.timeslices": 22051,
+          "context_switches.voluntary_context_switches": 22051,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 32,
+        "observer_thread_cpu_ns": 1144374358,
+        "controller_process_cpu_ns_during_observation": 1144856252,
+        "tail_since_last_sample_ns": 829631,
+        "actual_min_gap_ns": 9894639,
+        "actual_max_gap_ns": 10127127,
+        "read_duration_ns": {
+          "min": 203274,
+          "max": 3572998,
+          "sum": 941548639
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141023,
+          "max": 1793335764227153248,
+          "spread": 12225
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 1667,
+          "access": 17,
+          "openat": 356,
+          "newfstatat": 151,
+          "close": 168,
+          "read": 169,
+          "pread64": 154,
+          "munmap": 1072,
+          "clone3": 31,
+          "write": 37,
+          "pwrite64": 2,
+          "fsync": 2,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 435000,
+          "mmap": 133337000,
+          "access": 1117000,
+          "openat": 102827000,
+          "newfstatat": 12874000,
+          "close": 19931000,
+          "read": 86908000,
+          "pread64": 28837000,
+          "munmap": 85419000,
+          "clone3": 7702000,
+          "write": 7855000,
+          "pwrite64": 1293000,
+          "fsync": 2504000,
+          "rename": 3257000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 107011,
+          "pread64": 26392,
+          "write": 800,
+          "pwrite64": 2707
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-03-export-both",
+      "scenario": "export-both",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1387,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1387,
+        "starttime_ticks": 34406
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "7de7186f57912d24b5df32ebd71345e4e4ecbbede136ebb2d0edb4cd532b6133",
+        "proc.jsonl": "057e47f2442703b976333af5bc38d9ecff97dc620a905ede101c3bfddfa300bc",
+        "parsed.json": "398a7d915f4184fd83cec79419551e5e9a8920da5b110b817017e6cf67e5a74a",
+        "native.raw.log": "e033a2b6b48068e5b307817d6ef085b5d46361d2ba8ade4df913439ebd00f662"
+      },
+      "proc": {
+        "samples": 677,
+        "target_identity": {
+          "pid": 1387,
+          "starttime_ticks": 34406
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 344076927446,
+            "perf_counter_ns": 344076927612,
+            "utc_ns": 1793336108304068858
+          },
+          "end": {
+            "monotonic_ns": 344077106372,
+            "perf_counter_ns": 344077106526,
+            "utc_ns": 1793336108304247565
+          },
+          "target_identity": {
+            "pid": 1387,
+            "starttime_ticks": 34406
+          },
+          "process_stat": {
+            "id": 1387,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1384,
+            "process_group_id": 1384,
+            "session_id": 1384,
+            "minor_faults": 30,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 34406,
+            "last_cpu": 19
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 350837064839,
+            "perf_counter_ns": 350837066209,
+            "utc_ns": 1793336115064208421
+          },
+          "end": {
+            "monotonic_ns": 350837468267,
+            "perf_counter_ns": 350837468456,
+            "utc_ns": 1793336115064609700
+          },
+          "target_identity": {
+            "pid": 1387,
+            "starttime_ticks": 34406
+          },
+          "process_stat": {
+            "id": 1387,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1384,
+            "process_group_id": 1384,
+            "session_id": 1384,
+            "minor_faults": 9619,
+            "major_faults": 87,
+            "user_cpu_ticks": 76,
+            "kernel_cpu_ticks": 53,
+            "thread_count": 2,
+            "starttime_ticks": 34406,
+            "last_cpu": 9
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 9589,
+          "major_faults": 87,
+          "user_cpu_ticks": 76,
+          "kernel_cpu_ticks": 53
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 9529,
+          "stat.major_faults": 87,
+          "stat.user_cpu_ticks": 75,
+          "stat.kernel_cpu_ticks": 47,
+          "schedstat.cpu_runtime_ns": 1288916966,
+          "schedstat.runqueue_wait_ns": 7201571,
+          "schedstat.timeslices": 23212,
+          "context_switches.voluntary_context_switches": 23214,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 32,
+        "observer_thread_cpu_ns": 1132705055,
+        "controller_process_cpu_ns_during_observation": 1132999409,
+        "tail_since_last_sample_ns": 791871,
+        "actual_min_gap_ns": 9870005,
+        "actual_max_gap_ns": 10121245,
+        "read_duration_ns": {
+          "min": 178914,
+          "max": 3525322,
+          "sum": 937236984
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141009,
+          "max": 1793335764227142674,
+          "spread": 1665
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 1848,
+          "access": 17,
+          "openat": 358,
+          "newfstatat": 152,
+          "close": 170,
+          "read": 170,
+          "pread64": 154,
+          "munmap": 1229,
+          "clone3": 31,
+          "write": 37,
+          "pwrite64": 3,
+          "fsync": 3,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 249000,
+          "mmap": 132801000,
+          "access": 671000,
+          "openat": 77790000,
+          "newfstatat": 9119000,
+          "close": 14783000,
+          "read": 62423000,
+          "pread64": 24857000,
+          "munmap": 87874000,
+          "clone3": 7881000,
+          "write": 5309000,
+          "pwrite64": 1716000,
+          "fsync": 2512000,
+          "rename": 2203000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 108005,
+          "pread64": 26391,
+          "write": 820,
+          "pwrite64": 51739
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-04-export-api",
+      "scenario": "export-api",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1455,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1455,
+        "starttime_ticks": 35130
+      },
+      "executable_match": false,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "97364567373f45f568f579d852d361cfd212c93d377c1e56c9c2694fcb4fc951",
+        "proc.jsonl": "effef9797333c5e04f253f9ef07663450fdfb616dc3cffc92c3762fe23e1c27f",
+        "parsed.json": "8e8f0dacdc0c0a4ab92b207443ef2accf9fecf9e547c3d754ca667fb10282503",
+        "native.raw.log": "490d6c516fffba9724a4426cc84a7539084956741b6c7af9523212c14df3ee54"
+      },
+      "proc": {
+        "samples": 232,
+        "target_identity": {
+          "pid": 1455,
+          "starttime_ticks": 35130
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 351319676688,
+            "perf_counter_ns": 351319676892,
+            "utc_ns": 1793336115546817967
+          },
+          "end": {
+            "monotonic_ns": 351319862633,
+            "perf_counter_ns": 351319862783,
+            "utc_ns": 1793336115547003845
+          },
+          "target_identity": {
+            "pid": 1455,
+            "starttime_ticks": 35130
+          },
+          "process_stat": {
+            "id": 1455,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1452,
+            "process_group_id": 1452,
+            "session_id": 1452,
+            "minor_faults": 28,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 35130,
+            "last_cpu": 10
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 353629815473,
+            "perf_counter_ns": 353629816605,
+            "utc_ns": 1793336117856958364
+          },
+          "end": {
+            "monotonic_ns": 353630316712,
+            "perf_counter_ns": 353630317012,
+            "utc_ns": 1793336117857458238
+          },
+          "target_identity": {
+            "pid": 1455,
+            "starttime_ticks": 35130
+          },
+          "process_stat": {
+            "id": 1455,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1452,
+            "process_group_id": 1452,
+            "session_id": 1452,
+            "minor_faults": 4162,
+            "major_faults": 9,
+            "user_cpu_ticks": 12,
+            "kernel_cpu_ticks": 18,
+            "thread_count": 2,
+            "starttime_ticks": 35130,
+            "last_cpu": 14
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 4134,
+          "major_faults": 9,
+          "user_cpu_ticks": 12,
+          "kernel_cpu_ticks": 18
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 4073,
+          "stat.major_faults": 9,
+          "stat.user_cpu_ticks": 12,
+          "stat.kernel_cpu_ticks": 16,
+          "schedstat.cpu_runtime_ns": 299025209,
+          "schedstat.runqueue_wait_ns": 3250476,
+          "schedstat.timeslices": 9769,
+          "context_switches.voluntary_context_switches": 9769,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 27,
+        "observer_thread_cpu_ns": 295301137,
+        "controller_process_cpu_ns_during_observation": 295810792,
+        "tail_since_last_sample_ns": 737733,
+        "actual_min_gap_ns": 9933345,
+        "actual_max_gap_ns": 10113467,
+        "read_duration_ns": {
+          "min": 185891,
+          "max": 2450514,
+          "sum": 234670879
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227140999,
+          "max": 1793335764227142157,
+          "spread": 1158
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 533,
+          "access": 17,
+          "openat": 296,
+          "newfstatat": 146,
+          "close": 148,
+          "read": 159,
+          "pread64": 54,
+          "munmap": 197,
+          "clone3": 26,
+          "write": 27,
+          "pwrite64": 2,
+          "fsync": 2,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 342000,
+          "mmap": 31331000,
+          "access": 1034000,
+          "openat": 38523000,
+          "newfstatat": 9838000,
+          "close": 10657000,
+          "read": 17975000,
+          "pread64": 4304000,
+          "munmap": 16193000,
+          "clone3": 3383000,
+          "write": 1608000,
+          "pwrite64": 1420000,
+          "fsync": 1641000,
+          "rename": 2611000
+        },
+        "duration_unavailable_counts": {
+          "openat": 1,
+          "exit_group": 1,
+          "read": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 106951,
+          "pread64": 9992,
+          "write": 724,
+          "pwrite64": 50313
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-05-validate-small-api",
+      "scenario": "validate-small-api",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1499,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1499,
+        "starttime_ticks": 35401
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "2831f7549327e058956a8b2619abc9ff8475ed206c707f07fff4d7b29f172302",
+        "proc.jsonl": "50bd690cebc0dee7e868d7e1e64cf9bdeabb2e5e332f6726f5ef50389786a7de",
+        "parsed.json": "80e17308f766e27d55345a96c9e009dd61335e501784944563a262ce40a9439a",
+        "native.raw.log": "62490db50d24877e8641892b672ff1929836f515449eb80708dc1b00c6b84270"
+      },
+      "proc": {
+        "samples": 135,
+        "target_identity": {
+          "pid": 1499,
+          "starttime_ticks": 35401
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1499/stat'",
+            "monotonic_ns": 355372614786,
+            "perf_counter_ns": 355372614988,
+            "utc_ns": 1793336119599756093
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 354022435293,
+            "perf_counter_ns": 354022435538,
+            "utc_ns": 1793336118249576889
+          },
+          "end": {
+            "monotonic_ns": 354022645625,
+            "perf_counter_ns": 354022645847,
+            "utc_ns": 1793336118249786951
+          },
+          "target_identity": {
+            "pid": 1499,
+            "starttime_ticks": 35401
+          },
+          "process_stat": {
+            "id": 1499,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1496,
+            "process_group_id": 1496,
+            "session_id": 1496,
+            "minor_faults": 31,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 35401,
+            "last_cpu": 18
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 355362562393,
+            "perf_counter_ns": 355362563659,
+            "utc_ns": 1793336119589705522
+          },
+          "end": {
+            "monotonic_ns": 355363331811,
+            "perf_counter_ns": 355363332221,
+            "utc_ns": 1793336119590473608
+          },
+          "target_identity": {
+            "pid": 1499,
+            "starttime_ticks": 35401
+          },
+          "process_stat": {
+            "id": 1499,
+            "comm": "dotnet",
+            "state": "S",
+            "parent_pid": 1496,
+            "process_group_id": 1496,
+            "session_id": 1496,
+            "minor_faults": 2840,
+            "major_faults": 6,
+            "user_cpu_ticks": 7,
+            "kernel_cpu_ticks": 12,
+            "thread_count": 7,
+            "starttime_ticks": 35401,
+            "last_cpu": 14
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 2809,
+          "major_faults": 6,
+          "user_cpu_ticks": 7,
+          "kernel_cpu_ticks": 12
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 2800,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 7,
+          "stat.kernel_cpu_ticks": 11,
+          "schedstat.cpu_runtime_ns": 195536898,
+          "schedstat.runqueue_wait_ns": 452178,
+          "schedstat.timeslices": 5817,
+          "context_switches.voluntary_context_switches": 5815,
+          "context_switches.involuntary_context_switches": 1
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 83515211,
+        "controller_process_cpu_ns_during_observation": 84195719,
+        "tail_since_last_sample_ns": 9783862,
+        "actual_min_gap_ns": 9959929,
+        "actual_max_gap_ns": 10125276,
+        "read_duration_ns": {
+          "min": 198686,
+          "max": 999722,
+          "sum": 54352743
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227140999,
+          "max": 1793335764227142005,
+          "spread": 1006
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 349,
+          "access": 13,
+          "openat": 135,
+          "newfstatat": 93,
+          "close": 68,
+          "read": 91,
+          "pread64": 52,
+          "munmap": 123,
+          "clone3": 6,
+          "write": 9,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 444000,
+          "mmap": 18704000,
+          "access": 639000,
+          "openat": 19573000,
+          "newfstatat": 5413000,
+          "close": 5421000,
+          "read": 14830000,
+          "pread64": 3133000,
+          "munmap": 8421000,
+          "clone3": 740000,
+          "write": 512000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 53567,
+          "pread64": 9664,
+          "write": 841
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-06-validate-portable",
+      "scenario": "validate-portable",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1520,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1520,
+        "starttime_ticks": 35567
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "c809e14bac0b38aa02b4d01278ed96e2dc1aec40391c95680174cf401a75a3f6",
+        "proc.jsonl": "1ab17d7c2c90341da4760b8e5ca59648cc0e34ca18ae5cae45d389e9c0630a47",
+        "parsed.json": "c5ae0ae6631c78a6e481de327384cdac21c99c6b4c65aa38f057b66abcdfe64a",
+        "native.raw.log": "74de91d908917d532bdc6b6edf472a1dcdcfaa2cd04aa2e2841052b4412145ab"
+      },
+      "proc": {
+        "samples": 146,
+        "target_identity": {
+          "pid": 1520,
+          "starttime_ticks": 35567
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1520/stat'",
+            "monotonic_ns": 357145924281,
+            "perf_counter_ns": 357145924485,
+            "utc_ns": 1793336121373065893
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 355685701924,
+            "perf_counter_ns": 355685702248,
+            "utc_ns": 1793336119912843608
+          },
+          "end": {
+            "monotonic_ns": 355685904706,
+            "perf_counter_ns": 355685904907,
+            "utc_ns": 1793336119913045946
+          },
+          "target_identity": {
+            "pid": 1520,
+            "starttime_ticks": 35567
+          },
+          "process_stat": {
+            "id": 1520,
+            "comm": "dotnet",
+            "state": "R",
+            "parent_pid": 1517,
+            "process_group_id": 1517,
+            "session_id": 1517,
+            "minor_faults": 31,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 35567,
+            "last_cpu": 2
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 357135854919,
+            "perf_counter_ns": 357135855888,
+            "utc_ns": 1793336121362998015
+          },
+          "end": {
+            "monotonic_ns": 357136548068,
+            "perf_counter_ns": 357136548385,
+            "utc_ns": 1793336121363689495
+          },
+          "target_identity": {
+            "pid": 1520,
+            "starttime_ticks": 35567
+          },
+          "process_stat": {
+            "id": 1520,
+            "comm": "dotnet",
+            "state": "S",
+            "parent_pid": 1517,
+            "process_group_id": 1517,
+            "session_id": 1517,
+            "minor_faults": 2831,
+            "major_faults": 6,
+            "user_cpu_ticks": 12,
+            "kernel_cpu_ticks": 8,
+            "thread_count": 7,
+            "starttime_ticks": 35567,
+            "last_cpu": 13
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 2800,
+          "major_faults": 6,
+          "user_cpu_ticks": 12,
+          "kernel_cpu_ticks": 8
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 2797,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 12,
+          "stat.kernel_cpu_ticks": 8,
+          "schedstat.cpu_runtime_ns": 213791729,
+          "schedstat.runqueue_wait_ns": 323664,
+          "schedstat.timeslices": 5843,
+          "context_switches.voluntary_context_switches": 5842,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 98468357,
+        "controller_process_cpu_ns_during_observation": 99148753,
+        "tail_since_last_sample_ns": 10085974,
+        "actual_min_gap_ns": 9944417,
+        "actual_max_gap_ns": 10153465,
+        "read_duration_ns": {
+          "min": 202659,
+          "max": 1101525,
+          "sum": 64437208
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141013,
+          "max": 1793335764227142127,
+          "spread": 1114
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 349,
+          "access": 13,
+          "openat": 135,
+          "newfstatat": 93,
+          "close": 68,
+          "read": 91,
+          "pread64": 52,
+          "munmap": 124,
+          "clone3": 6,
+          "write": 7,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 326000,
+          "mmap": 21395000,
+          "access": 903000,
+          "openat": 20918000,
+          "newfstatat": 5593000,
+          "close": 6172000,
+          "read": 15912000,
+          "pread64": 3291000,
+          "munmap": 9414000,
+          "clone3": 838000,
+          "write": 383000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 53591,
+          "pread64": 9467,
+          "write": 393
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "01-07-new-small-api",
+      "scenario": "new-small-api",
+      "round": 1,
+      "verification_status": "passed",
+      "target_pid": 1541,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1541,
+        "starttime_ticks": 35747
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "7e7967cc9ccb681a3b850c7f7f0ee4b03cb9d12c2fbc7312935b31cf64516bd5",
+        "proc.jsonl": "a7df9ef60a98d11c4b38b6b6f4af6637b2526ec3cb0a9b1b26df111f6aafa447",
+        "parsed.json": "2d18de76a5de142dbe0eb30797149aeca8867da61e95b75f57a7ac8aaace2fa1",
+        "native.raw.log": "ef7c9a1c9b3cdf02029d7b414de9af6421c2ba8b5c49fa0dcd5d9bffe3aa837f"
+      },
+      "proc": {
+        "samples": 263,
+        "target_identity": {
+          "pid": 1541,
+          "starttime_ticks": 35747
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1541/stat'",
+            "monotonic_ns": 360114348617,
+            "perf_counter_ns": 360114348834,
+            "utc_ns": 1793336124341489866
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 357484864697,
+            "perf_counter_ns": 357484864857,
+            "utc_ns": 1793336121712006041
+          },
+          "end": {
+            "monotonic_ns": 357485071281,
+            "perf_counter_ns": 357485071434,
+            "utc_ns": 1793336121712212477
+          },
+          "target_identity": {
+            "pid": 1541,
+            "starttime_ticks": 35747
+          },
+          "process_stat": {
+            "id": 1541,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1538,
+            "process_group_id": 1538,
+            "session_id": 1538,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 35747,
+            "last_cpu": 8
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 360104988396,
+            "perf_counter_ns": 360104988852,
+            "utc_ns": 1793336124332130465
+          },
+          "end": {
+            "monotonic_ns": 360105461345,
+            "perf_counter_ns": 360105461492,
+            "utc_ns": 1793336124332602659
+          },
+          "target_identity": {
+            "pid": 1541,
+            "starttime_ticks": 35747
+          },
+          "process_stat": {
+            "id": 1541,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1538,
+            "process_group_id": 1538,
+            "session_id": 1538,
+            "minor_faults": 3739,
+            "major_faults": 6,
+            "user_cpu_ticks": 13,
+            "kernel_cpu_ticks": 20,
+            "thread_count": 7,
+            "starttime_ticks": 35747,
+            "last_cpu": 15
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3710,
+          "major_faults": 6,
+          "user_cpu_ticks": 13,
+          "kernel_cpu_ticks": 20
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3699,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 13,
+          "stat.kernel_cpu_ticks": 19,
+          "schedstat.cpu_runtime_ns": 343222632,
+          "schedstat.runqueue_wait_ns": 1240410,
+          "schedstat.timeslices": 11112,
+          "context_switches.voluntary_context_switches": 11111,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 185022627,
+        "controller_process_cpu_ns_during_observation": 185694904,
+        "tail_since_last_sample_ns": 9375427,
+        "actual_min_gap_ns": 9300229,
+        "actual_max_gap_ns": 10146039,
+        "read_duration_ns": {
+          "min": 206577,
+          "max": 1189089,
+          "sum": 124809831
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141009,
+          "max": 1793335764227142225,
+          "spread": 1216
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 407,
+          "access": 13,
+          "openat": 294,
+          "newfstatat": 123,
+          "close": 144,
+          "read": 103,
+          "pread64": 88,
+          "munmap": 135,
+          "clone3": 6,
+          "write": 7,
+          "pwrite64": 14,
+          "fsync": 14,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 331000,
+          "mmap": 29488000,
+          "access": 877000,
+          "openat": 142570000,
+          "newfstatat": 8774000,
+          "close": 38387000,
+          "read": 16439000,
+          "pread64": 11877000,
+          "munmap": 13568000,
+          "clone3": 985000,
+          "write": 342000,
+          "pwrite64": 8541000,
+          "fsync": 12465000,
+          "rename": 2496000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 70875,
+          "pread64": 130973,
+          "write": 524,
+          "pwrite64": 78147
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-00-validate-portable",
+      "scenario": "validate-portable",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1570,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1570,
+        "starttime_ticks": 36116
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "a34f2655ef5f93ddcfbdc85401efa7854c689a1e24ff53dfe7bc16b9516beff7",
+        "proc.jsonl": "e63a96474dee44ecd7c6a7c1128a241ded0160afb1f7d081d9ee206b0636947b",
+        "parsed.json": "692bb1768830cac483b8cf974aa7430fc98bad4e69a65a31fbf8860c6c1d6775",
+        "native.raw.log": "25803ee64199ba80a41a76994dc1ee5d0c59144b31e944ea4813e5f11a219384"
+      },
+      "proc": {
+        "samples": 153,
+        "target_identity": {
+          "pid": 1570,
+          "starttime_ticks": 36116
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1570/stat'",
+            "monotonic_ns": 362706724297,
+            "perf_counter_ns": 362706724426,
+            "utc_ns": 1793336126933865475
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 361177302951,
+            "perf_counter_ns": 361177303140,
+            "utc_ns": 1793336125404444453
+          },
+          "end": {
+            "monotonic_ns": 361177504983,
+            "perf_counter_ns": 361177505224,
+            "utc_ns": 1793336125404646478
+          },
+          "target_identity": {
+            "pid": 1570,
+            "starttime_ticks": 36116
+          },
+          "process_stat": {
+            "id": 1570,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1567,
+            "process_group_id": 1567,
+            "session_id": 1567,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 36116,
+            "last_cpu": 2
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 362697455256,
+            "perf_counter_ns": 362697455941,
+            "utc_ns": 1793336126924597585
+          },
+          "end": {
+            "monotonic_ns": 362697972355,
+            "perf_counter_ns": 362697972620,
+            "utc_ns": 1793336126925113831
+          },
+          "target_identity": {
+            "pid": 1570,
+            "starttime_ticks": 36116
+          },
+          "process_stat": {
+            "id": 1570,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1567,
+            "process_group_id": 1567,
+            "session_id": 1567,
+            "minor_faults": 2825,
+            "major_faults": 6,
+            "user_cpu_ticks": 13,
+            "kernel_cpu_ticks": 8,
+            "thread_count": 7,
+            "starttime_ticks": 36116,
+            "last_cpu": 2
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 2796,
+          "major_faults": 6,
+          "user_cpu_ticks": 13,
+          "kernel_cpu_ticks": 8
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 2786,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 13,
+          "stat.kernel_cpu_ticks": 8,
+          "schedstat.cpu_runtime_ns": 222066776,
+          "schedstat.runqueue_wait_ns": 356496,
+          "schedstat.timeslices": 5841,
+          "context_switches.voluntary_context_switches": 5842,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 106358634,
+        "controller_process_cpu_ns_during_observation": 106978048,
+        "tail_since_last_sample_ns": 9213163,
+        "actual_min_gap_ns": 9207055,
+        "actual_max_gap_ns": 10154485,
+        "read_duration_ns": {
+          "min": 202084,
+          "max": 1062999,
+          "sum": 70198788
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141009,
+          "max": 1793335764227142264,
+          "spread": 1255
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 349,
+          "access": 13,
+          "openat": 135,
+          "newfstatat": 93,
+          "close": 68,
+          "read": 91,
+          "pread64": 52,
+          "munmap": 123,
+          "clone3": 6,
+          "write": 7,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 340000,
+          "mmap": 22266000,
+          "access": 1050000,
+          "openat": 24614000,
+          "newfstatat": 8100000,
+          "close": 7637000,
+          "read": 19275000,
+          "pread64": 3964000,
+          "munmap": 8941000,
+          "clone3": 1065000,
+          "write": 496000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 53365,
+          "pread64": 9467,
+          "write": 393
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-01-validate-small-api",
+      "scenario": "validate-small-api",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1591,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1591,
+        "starttime_ticks": 36297
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "c1b5b4e1016526cfa079d676fda252925f0720d439d9d8212aee664bdc205ea2",
+        "proc.jsonl": "2c3937f44d2838c86e36fad74544962bca70fba35e16b6edbccd773835d49616",
+        "parsed.json": "618d56ac11758fbd2e2444e199f23d93f2a4c0fdae104db3d46fa5a09b096e01",
+        "native.raw.log": "f4aa116af18361e79b461a0894216285df4f64dd53bb8b7ab5e8e60cfe5037e7"
+      },
+      "proc": {
+        "samples": 138,
+        "target_identity": {
+          "pid": 1591,
+          "starttime_ticks": 36297
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1591/stat'",
+            "monotonic_ns": 364370889599,
+            "perf_counter_ns": 364370889726,
+            "utc_ns": 1793336128598030820
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 362990693403,
+            "perf_counter_ns": 362990693621,
+            "utc_ns": 1793336127217835031
+          },
+          "end": {
+            "monotonic_ns": 362990906795,
+            "perf_counter_ns": 362990907039,
+            "utc_ns": 1793336127218048120
+          },
+          "target_identity": {
+            "pid": 1591,
+            "starttime_ticks": 36297
+          },
+          "process_stat": {
+            "id": 1591,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1588,
+            "process_group_id": 1588,
+            "session_id": 1588,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 36297,
+            "last_cpu": 2
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 364360795303,
+            "perf_counter_ns": 364360795754,
+            "utc_ns": 1793336128587937290
+          },
+          "end": {
+            "monotonic_ns": 364361312930,
+            "perf_counter_ns": 364361313107,
+            "utc_ns": 1793336128588454355
+          },
+          "target_identity": {
+            "pid": 1591,
+            "starttime_ticks": 36297
+          },
+          "process_stat": {
+            "id": 1591,
+            "comm": "dotnet",
+            "state": "R",
+            "parent_pid": 1588,
+            "process_group_id": 1588,
+            "session_id": 1588,
+            "minor_faults": 2834,
+            "major_faults": 6,
+            "user_cpu_ticks": 9,
+            "kernel_cpu_ticks": 11,
+            "thread_count": 7,
+            "starttime_ticks": 36297,
+            "last_cpu": 2
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 2805,
+          "major_faults": 6,
+          "user_cpu_ticks": 9,
+          "kernel_cpu_ticks": 11
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 2793,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 9,
+          "stat.kernel_cpu_ticks": 10,
+          "schedstat.cpu_runtime_ns": 206686387,
+          "schedstat.runqueue_wait_ns": 390943,
+          "schedstat.timeslices": 5867,
+          "context_switches.voluntary_context_switches": 5868,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 91464928,
+        "controller_process_cpu_ns_during_observation": 91998603,
+        "tail_since_last_sample_ns": 10216996,
+        "actual_min_gap_ns": 9955444,
+        "actual_max_gap_ns": 10115300,
+        "read_duration_ns": {
+          "min": 206941,
+          "max": 1096425,
+          "sum": 61170071
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141023,
+          "max": 1793335764227142271,
+          "spread": 1248
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 349,
+          "access": 13,
+          "openat": 135,
+          "newfstatat": 93,
+          "close": 68,
+          "read": 91,
+          "pread64": 52,
+          "munmap": 125,
+          "clone3": 6,
+          "write": 9,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 420000,
+          "mmap": 20113000,
+          "access": 532000,
+          "openat": 20146000,
+          "newfstatat": 5776000,
+          "close": 5496000,
+          "read": 16430000,
+          "pread64": 3983000,
+          "munmap": 9012000,
+          "clone3": 812000,
+          "write": 544000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 53463,
+          "pread64": 9664,
+          "write": 841
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-02-export-api",
+      "scenario": "export-api",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1611,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1611,
+        "starttime_ticks": 36467
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "57556408dc2319f2ea75e20c8a4435aab040440b154223c98ce3167a324ba98b",
+        "proc.jsonl": "bdd4d64f61844be2890228cdcc704d8b48c5404c3c0188104e42bc944ec0e05f",
+        "parsed.json": "0589d3550b59b51474d58ecf62975c86da2a05c72636a70fe1f85454b0167454",
+        "native.raw.log": "46c9ddbae46f20cda319899e64b80c2fa2e54f1805b2699c3b05a10c190acf75"
+      },
+      "proc": {
+        "samples": 253,
+        "target_identity": {
+          "pid": 1611,
+          "starttime_ticks": 36467
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 2,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 364683480607,
+            "perf_counter_ns": 364683480885,
+            "utc_ns": 1793336128910622469
+          },
+          "end": {
+            "monotonic_ns": 364683850457,
+            "perf_counter_ns": 364683850870,
+            "utc_ns": 1793336128910992009
+          },
+          "target_identity": {
+            "pid": 1611,
+            "starttime_ticks": 36467
+          },
+          "process_stat": {
+            "id": 1611,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1608,
+            "process_group_id": 1608,
+            "session_id": 1608,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 36467,
+            "last_cpu": 12
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 367203582669,
+            "perf_counter_ns": 367203583362,
+            "utc_ns": 1793336131430724807
+          },
+          "end": {
+            "monotonic_ns": 367203832261,
+            "perf_counter_ns": 367203832419,
+            "utc_ns": 1793336131430973462
+          },
+          "target_identity": {
+            "pid": 1611,
+            "starttime_ticks": 36467
+          },
+          "process_stat": {
+            "id": 1611,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1608,
+            "process_group_id": 1608,
+            "session_id": 1608,
+            "minor_faults": 4160,
+            "major_faults": 9,
+            "user_cpu_ticks": 13,
+            "kernel_cpu_ticks": 22,
+            "thread_count": 2,
+            "starttime_ticks": 36467,
+            "last_cpu": 19
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 4131,
+          "major_faults": 9,
+          "user_cpu_ticks": 13,
+          "kernel_cpu_ticks": 22
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 4076,
+          "stat.major_faults": 9,
+          "stat.user_cpu_ticks": 11,
+          "stat.kernel_cpu_ticks": 18,
+          "schedstat.cpu_runtime_ns": 344044960,
+          "schedstat.runqueue_wait_ns": 7840894,
+          "schedstat.timeslices": 9921,
+          "context_switches.voluntary_context_switches": 9920,
+          "context_switches.involuntary_context_switches": 1
+        },
+        "threads_seen": 27,
+        "observer_thread_cpu_ns": 325737102,
+        "controller_process_cpu_ns_during_observation": 326340429,
+        "tail_since_last_sample_ns": 659752,
+        "actual_min_gap_ns": 9932257,
+        "actual_max_gap_ns": 10128052,
+        "read_duration_ns": {
+          "min": 208035,
+          "max": 3188495,
+          "sum": 258141885
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141035,
+          "max": 1793335764227142274,
+          "spread": 1239
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 533,
+          "access": 17,
+          "openat": 296,
+          "newfstatat": 146,
+          "close": 148,
+          "read": 159,
+          "pread64": 54,
+          "munmap": 196,
+          "clone3": 26,
+          "write": 27,
+          "pwrite64": 2,
+          "fsync": 2,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 351000,
+          "mmap": 36713000,
+          "access": 1080000,
+          "openat": 39021000,
+          "newfstatat": 9934000,
+          "close": 13099000,
+          "read": 25140000,
+          "pread64": 4751000,
+          "munmap": 16963000,
+          "clone3": 5278000,
+          "write": 2443000,
+          "pwrite64": 1414000,
+          "fsync": 1649000,
+          "rename": 2461000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 106853,
+          "pread64": 9992,
+          "write": 724,
+          "pwrite64": 50313
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-03-export-both",
+      "scenario": "export-both",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1657,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1657,
+        "starttime_ticks": 36755
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "74070e7b6f2d3e641dc990938dc43099cc15e1ffa9c8d603e32d7dddf38d6154",
+        "proc.jsonl": "1c926cabf52ff57b448a3b3cf1cb23346e320a9d70b8e3d3e8f7db5233d1df29",
+        "parsed.json": "1438c87a4d5ea786c0c3fcb38402c3634f68e1865dbca494e90f208b17eb44a3",
+        "native.raw.log": "2440fd4a0ac64897256f07f41582f0d3a5bfae2d1b92af86c8b22e736aea7bcd"
+      },
+      "proc": {
+        "samples": 618,
+        "target_identity": {
+          "pid": 1657,
+          "starttime_ticks": 36755
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 367564553617,
+            "perf_counter_ns": 367564553883,
+            "utc_ns": 1793336131791695304
+          },
+          "end": {
+            "monotonic_ns": 367564748259,
+            "perf_counter_ns": 367564748496,
+            "utc_ns": 1793336131791889571
+          },
+          "target_identity": {
+            "pid": 1657,
+            "starttime_ticks": 36755
+          },
+          "process_stat": {
+            "id": 1657,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1654,
+            "process_group_id": 1654,
+            "session_id": 1654,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 36755,
+            "last_cpu": 0
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 373734688946,
+            "perf_counter_ns": 373734690237,
+            "utc_ns": 1793336137961831997
+          },
+          "end": {
+            "monotonic_ns": 373734955990,
+            "perf_counter_ns": 373734956242,
+            "utc_ns": 1793336137962097364
+          },
+          "target_identity": {
+            "pid": 1657,
+            "starttime_ticks": 36755
+          },
+          "process_stat": {
+            "id": 1657,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1654,
+            "process_group_id": 1654,
+            "session_id": 1654,
+            "minor_faults": 9363,
+            "major_faults": 87,
+            "user_cpu_ticks": 68,
+            "kernel_cpu_ticks": 47,
+            "thread_count": 2,
+            "starttime_ticks": 36755,
+            "last_cpu": 0
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 9334,
+          "major_faults": 87,
+          "user_cpu_ticks": 68,
+          "kernel_cpu_ticks": 47
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 9268,
+          "stat.major_faults": 87,
+          "stat.user_cpu_ticks": 65,
+          "stat.kernel_cpu_ticks": 43,
+          "schedstat.cpu_runtime_ns": 1147355928,
+          "schedstat.runqueue_wait_ns": 5558979,
+          "schedstat.timeslices": 22295,
+          "context_switches.voluntary_context_switches": 22295,
+          "context_switches.involuntary_context_switches": 1
+        },
+        "threads_seen": 32,
+        "observer_thread_cpu_ns": 956933084,
+        "controller_process_cpu_ns_during_observation": 957322244,
+        "tail_since_last_sample_ns": 604305,
+        "actual_min_gap_ns": 9889562,
+        "actual_max_gap_ns": 10131376,
+        "read_duration_ns": {
+          "min": 194613,
+          "max": 3362090,
+          "sum": 786244439
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141042,
+          "max": 1793335764227142445,
+          "spread": 1403
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 1778,
+          "access": 17,
+          "openat": 358,
+          "newfstatat": 152,
+          "close": 170,
+          "read": 168,
+          "pread64": 154,
+          "munmap": 1166,
+          "clone3": 31,
+          "write": 37,
+          "pwrite64": 3,
+          "fsync": 3,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 226000,
+          "mmap": 109262000,
+          "access": 1101000,
+          "openat": 76327000,
+          "newfstatat": 12238000,
+          "close": 20147000,
+          "read": 61723000,
+          "pread64": 19646000,
+          "munmap": 77800000,
+          "clone3": 7780000,
+          "write": 4588000,
+          "pwrite64": 1860000,
+          "fsync": 2647000,
+          "rename": 2636000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 107839,
+          "pread64": 26391,
+          "write": 820,
+          "pwrite64": 51739
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-04-export-graphql",
+      "scenario": "export-graphql",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1722,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1722,
+        "starttime_ticks": 37420
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "e33d3aa1aea3e15c10358b78660332e43cfc3f72f747b0cd33a284dce1136de9",
+        "proc.jsonl": "00ee27a253553c41306921a22217776ba0e8ddc8eef6f315ab36f38c05a77192",
+        "parsed.json": "0ce1ffeac8b4e9d6abc1feb6bc97f8658701f9046676b9b3c494db4de4e17a83",
+        "native.raw.log": "ec7658625de34eb272b812a7b81a925e399e9095d6de7d28376e61d43aefc9a4"
+      },
+      "proc": {
+        "samples": 663,
+        "target_identity": {
+          "pid": 1722,
+          "starttime_ticks": 37420
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 24,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 374216168403,
+            "perf_counter_ns": 374216168566,
+            "utc_ns": 1793336138443309994
+          },
+          "end": {
+            "monotonic_ns": 374216352981,
+            "perf_counter_ns": 374216353127,
+            "utc_ns": 1793336138443494189
+          },
+          "target_identity": {
+            "pid": 1722,
+            "starttime_ticks": 37420
+          },
+          "process_stat": {
+            "id": 1722,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1719,
+            "process_group_id": 1719,
+            "session_id": 1719,
+            "minor_faults": 27,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 37420,
+            "last_cpu": 19
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 380836282840,
+            "perf_counter_ns": 380836284188,
+            "utc_ns": 1793336145063425930
+          },
+          "end": {
+            "monotonic_ns": 380837409111,
+            "perf_counter_ns": 380837409747,
+            "utc_ns": 1793336145064551265
+          },
+          "target_identity": {
+            "pid": 1722,
+            "starttime_ticks": 37420
+          },
+          "process_stat": {
+            "id": 1722,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1719,
+            "process_group_id": 1719,
+            "session_id": 1719,
+            "minor_faults": 8846,
+            "major_faults": 87,
+            "user_cpu_ticks": 86,
+            "kernel_cpu_ticks": 42,
+            "thread_count": 32,
+            "starttime_ticks": 37420,
+            "last_cpu": 16
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 8819,
+          "major_faults": 87,
+          "user_cpu_ticks": 86,
+          "kernel_cpu_ticks": 42
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 8750,
+          "stat.major_faults": 87,
+          "stat.user_cpu_ticks": 83,
+          "stat.kernel_cpu_ticks": 37,
+          "schedstat.cpu_runtime_ns": 1273073748,
+          "schedstat.runqueue_wait_ns": 2486858,
+          "schedstat.timeslices": 21870,
+          "context_switches.voluntary_context_switches": 21872,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 32,
+        "observer_thread_cpu_ns": 1143837822,
+        "controller_process_cpu_ns_during_observation": 1144186412,
+        "tail_since_last_sample_ns": 3072329,
+        "actual_min_gap_ns": 9861377,
+        "actual_max_gap_ns": 10139584,
+        "read_duration_ns": {
+          "min": 184561,
+          "max": 3615651,
+          "sum": 944572381
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141006,
+          "max": 1793335764227142328,
+          "spread": 1322
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 1731,
+          "access": 17,
+          "openat": 356,
+          "newfstatat": 151,
+          "close": 168,
+          "read": 167,
+          "pread64": 154,
+          "munmap": 1141,
+          "clone3": 31,
+          "write": 37,
+          "pwrite64": 2,
+          "fsync": 2,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 352000,
+          "mmap": 129624000,
+          "access": 1125000,
+          "openat": 85750000,
+          "newfstatat": 9737000,
+          "close": 19702000,
+          "read": 73480000,
+          "pread64": 21351000,
+          "munmap": 96605000,
+          "clone3": 5736000,
+          "write": 6406000,
+          "pwrite64": 1354000,
+          "fsync": 1835000,
+          "rename": 2883000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 106815,
+          "pread64": 26392,
+          "write": 800,
+          "pwrite64": 2707
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-05-export-off",
+      "scenario": "export-off",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1789,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1789,
+        "starttime_ticks": 38137
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "b0dcf3b3dfcbd3a6cd7172b35b621dbf17390d015c3a1bad21d518ee2fbd7cd4",
+        "proc.jsonl": "773b9e944b91b7c5fc0cd5f62a46ef2059d7c955c5739ffe14b097a7ea3a7635",
+        "parsed.json": "f6181ccb3807ad653a51e83b7b43a91d05a10d694cdc2302670f1ae88b20e9c0",
+        "native.raw.log": "f46cbf6c45b3429e7afd9425c3db438c94cef291af7e93b169ad086ab6ee5546"
+      },
+      "proc": {
+        "samples": 267,
+        "target_identity": {
+          "pid": 1789,
+          "starttime_ticks": 38137
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 2,
+        "observer_status": "completed_exit_observed",
+        "read_failures": [],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 381390867748,
+            "perf_counter_ns": 381390867923,
+            "utc_ns": 1793336145618009237
+          },
+          "end": {
+            "monotonic_ns": 381391089176,
+            "perf_counter_ns": 381391089407,
+            "utc_ns": 1793336145618230444
+          },
+          "target_identity": {
+            "pid": 1789,
+            "starttime_ticks": 38137
+          },
+          "process_stat": {
+            "id": 1789,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 38137,
+            "last_cpu": 4
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 384050994058,
+            "perf_counter_ns": 384050994941,
+            "utc_ns": 1793336148278136756
+          },
+          "end": {
+            "monotonic_ns": 384052290420,
+            "perf_counter_ns": 384052290650,
+            "utc_ns": 1793336148279431917
+          },
+          "target_identity": {
+            "pid": 1789,
+            "starttime_ticks": 38137
+          },
+          "process_stat": {
+            "id": 1789,
+            "comm": "dotnet",
+            "state": "Z",
+            "parent_pid": 1786,
+            "process_group_id": 1786,
+            "session_id": 1786,
+            "minor_faults": 3430,
+            "major_faults": 9,
+            "user_cpu_ticks": 14,
+            "kernel_cpu_ticks": 23,
+            "thread_count": 27,
+            "starttime_ticks": 38137,
+            "last_cpu": 4
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3401,
+          "major_faults": 9,
+          "user_cpu_ticks": 14,
+          "kernel_cpu_ticks": 23
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3354,
+          "stat.major_faults": 9,
+          "stat.user_cpu_ticks": 14,
+          "stat.kernel_cpu_ticks": 18,
+          "schedstat.cpu_runtime_ns": 371954237,
+          "schedstat.runqueue_wait_ns": 7793642,
+          "schedstat.timeslices": 9387,
+          "context_switches.voluntary_context_switches": 9388,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 27,
+        "observer_thread_cpu_ns": 396476211,
+        "controller_process_cpu_ns_during_observation": 396949825,
+        "tail_since_last_sample_ns": 1562572,
+        "actual_min_gap_ns": 9870091,
+        "actual_max_gap_ns": 10151688,
+        "read_duration_ns": {
+          "min": 211784,
+          "max": 3155064,
+          "sum": 316971347
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141010,
+          "max": 1793335764227142167,
+          "spread": 1157
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 475,
+          "access": 17,
+          "openat": 289,
+          "newfstatat": 141,
+          "close": 142,
+          "read": 149,
+          "pread64": 52,
+          "munmap": 166,
+          "clone3": 26,
+          "write": 27,
+          "pwrite64": 1,
+          "fsync": 1,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 401000,
+          "mmap": 39815000,
+          "access": 1034000,
+          "openat": 45128000,
+          "newfstatat": 11759000,
+          "close": 14302000,
+          "read": 26781000,
+          "pread64": 5346000,
+          "munmap": 16876000,
+          "clone3": 5916000,
+          "write": 2761000,
+          "pwrite64": 659000,
+          "fsync": 1159000,
+          "rename": 2786000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 91840,
+          "pread64": 9665,
+          "write": 704,
+          "pwrite64": 1265
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-06-new-portable",
+      "scenario": "new-portable",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1835,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1835,
+        "starttime_ticks": 38445
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "216203da97a7937e1d5015910b6f415161f8f81a01e0e3eafea3b4142a19aed0",
+        "proc.jsonl": "426d5eca4ef6c099881c3fd0a04081ea1b3f2df452e44f018e60b068c43f24e5",
+        "parsed.json": "10930c753418d3306b069603b5b78ee824207e140ad575e226cb2fe419b8ea9f",
+        "native.raw.log": "008823c50b47ee8e06965689e6e13707d9d1c24275d30231f407da4e5615a27c"
+      },
+      "proc": {
+        "samples": 275,
+        "target_identity": {
+          "pid": 1835,
+          "starttime_ticks": 38445
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1835/stat'",
+            "monotonic_ns": 387219233733,
+            "perf_counter_ns": 387219234179,
+            "utc_ns": 1793336151446375380
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 384468814901,
+            "perf_counter_ns": 384468815147,
+            "utc_ns": 1793336148695956504
+          },
+          "end": {
+            "monotonic_ns": 384469005070,
+            "perf_counter_ns": 384469005242,
+            "utc_ns": 1793336148696146413
+          },
+          "target_identity": {
+            "pid": 1835,
+            "starttime_ticks": 38445
+          },
+          "process_stat": {
+            "id": 1835,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1832,
+            "process_group_id": 1832,
+            "session_id": 1832,
+            "minor_faults": 29,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 38445,
+            "last_cpu": 2
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 387208949358,
+            "perf_counter_ns": 387208950185,
+            "utc_ns": 1793336151436092344
+          },
+          "end": {
+            "monotonic_ns": 387210188141,
+            "perf_counter_ns": 387210188593,
+            "utc_ns": 1793336151437330113
+          },
+          "target_identity": {
+            "pid": 1835,
+            "starttime_ticks": 38445
+          },
+          "process_stat": {
+            "id": 1835,
+            "comm": "dotnet",
+            "state": "S",
+            "parent_pid": 1832,
+            "process_group_id": 1832,
+            "session_id": 1832,
+            "minor_faults": 3496,
+            "major_faults": 6,
+            "user_cpu_ticks": 16,
+            "kernel_cpu_ticks": 20,
+            "thread_count": 7,
+            "starttime_ticks": 38445,
+            "last_cpu": 3
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3467,
+          "major_faults": 6,
+          "user_cpu_ticks": 16,
+          "kernel_cpu_ticks": 20
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3457,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 15,
+          "stat.kernel_cpu_ticks": 20,
+          "schedstat.cpu_runtime_ns": 366759255,
+          "schedstat.runqueue_wait_ns": 1435888,
+          "schedstat.timeslices": 9073,
+          "context_switches.voluntary_context_switches": 9073,
+          "context_switches.involuntary_context_switches": 1
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 250017948,
+        "controller_process_cpu_ns_during_observation": 250712157,
+        "tail_since_last_sample_ns": 9959172,
+        "actual_min_gap_ns": 9930610,
+        "actual_max_gap_ns": 10130463,
+        "read_duration_ns": {
+          "min": 190095,
+          "max": 1566646,
+          "sum": 174616437
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141034,
+          "max": 1793335764227142340,
+          "spread": 1306
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 379,
+          "access": 13,
+          "openat": 273,
+          "newfstatat": 123,
+          "close": 123,
+          "read": 102,
+          "pread64": 73,
+          "munmap": 110,
+          "clone3": 6,
+          "write": 7,
+          "pwrite64": 9,
+          "fsync": 9,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 314000,
+          "mmap": 36525000,
+          "access": 743000,
+          "openat": 116550000,
+          "newfstatat": 9518000,
+          "close": 33256000,
+          "read": 24031000,
+          "pread64": 10384000,
+          "munmap": 15087000,
+          "clone3": 1073000,
+          "write": 1182000,
+          "pwrite64": 7279000,
+          "fsync": 8341000,
+          "rename": 7371000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "read": 1,
+          "openat": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 71008,
+          "pread64": 58051,
+          "write": 426,
+          "pwrite64": 14231
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    },
+    {
+      "name": "02-07-new-small-api",
+      "scenario": "new-small-api",
+      "round": 2,
+      "verification_status": "passed",
+      "target_pid": 1863,
+      "target_discovery": "owned_strace_direct_child_proc",
+      "target_owned_identity": {
+        "pid": 1863,
+        "starttime_ticks": 38792
+      },
+      "executable_match": true,
+      "cleanup": {
+        "status": "completed",
+        "exit": 0,
+        "timed_out": null,
+        "cleanup_unresolved": null,
+        "cleanup_group_signals": null
+      },
+      "source_snapshot_sha256": {
+        "native-helper.py.txt": "55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff",
+        "os-observer.py.txt": "7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203"
+      },
+      "evidence_sha256": {
+        "manifest.json": "88e8aa41cbab5ec00e6c3d60b1c9504d7fff58e0ecc88403ce97cada61183956",
+        "proc.jsonl": "749f3668e38a1b59c14592fd818fa6f099394c9e253c1dd122e6bb8b38877752",
+        "parsed.json": "ef4b40f401565c2b6b81179d21f015bf2816ed7a1f2e72a72fd5f048202cb676",
+        "native.raw.log": "909781f62803ec164cb1ca89ee8200320ddf7baa32693db3b455316067a45c87"
+      },
+      "proc": {
+        "samples": 240,
+        "target_identity": {
+          "pid": 1863,
+          "starttime_ticks": 38792
+        },
+        "all_sample_identity_mismatches": 0,
+        "sample_race_count": 0,
+        "observer_status": "partial_target_unavailable",
+        "read_failures": [
+          {
+            "reason": "FileNotFoundError",
+            "message": "[Errno 2] No such file or directory: '/proc/1863/stat'",
+            "monotonic_ns": 390334939649,
+            "perf_counter_ns": 390334939754,
+            "utc_ns": 1793336154562080806
+          }
+        ],
+        "process_first_sample": {
+          "begin": {
+            "monotonic_ns": 387937625913,
+            "perf_counter_ns": 387937626107,
+            "utc_ns": 1793336152164767292
+          },
+          "end": {
+            "monotonic_ns": 387937875215,
+            "perf_counter_ns": 387937875528,
+            "utc_ns": 1793336152165016646
+          },
+          "target_identity": {
+            "pid": 1863,
+            "starttime_ticks": 38792
+          },
+          "process_stat": {
+            "id": 1863,
+            "comm": "dotnet",
+            "state": "t",
+            "parent_pid": 1860,
+            "process_group_id": 1860,
+            "session_id": 1860,
+            "minor_faults": 30,
+            "major_faults": 0,
+            "user_cpu_ticks": 0,
+            "kernel_cpu_ticks": 0,
+            "thread_count": 1,
+            "starttime_ticks": 38792,
+            "last_cpu": 4
+          },
+          "process_io": null
+        },
+        "process_last_sample": {
+          "begin": {
+            "monotonic_ns": 390327738469,
+            "perf_counter_ns": 390327739459,
+            "utc_ns": 1793336154554881262
+          },
+          "end": {
+            "monotonic_ns": 390328281277,
+            "perf_counter_ns": 390328281611,
+            "utc_ns": 1793336154555422923
+          },
+          "target_identity": {
+            "pid": 1863,
+            "starttime_ticks": 38792
+          },
+          "process_stat": {
+            "id": 1863,
+            "comm": "dotnet",
+            "state": "R",
+            "parent_pid": 1860,
+            "process_group_id": 1860,
+            "session_id": 1860,
+            "minor_faults": 3750,
+            "major_faults": 6,
+            "user_cpu_ticks": 13,
+            "kernel_cpu_ticks": 17,
+            "thread_count": 7,
+            "starttime_ticks": 38792,
+            "last_cpu": 4
+          },
+          "process_io": null
+        },
+        "observed_process_counter_deltas": {
+          "minor_faults": 3720,
+          "major_faults": 6,
+          "user_cpu_ticks": 13,
+          "kernel_cpu_ticks": 17
+        },
+        "sum_observed_per_thread_counter_deltas": {
+          "stat.minor_faults": 3707,
+          "stat.major_faults": 6,
+          "stat.user_cpu_ticks": 12,
+          "stat.kernel_cpu_ticks": 16,
+          "schedstat.cpu_runtime_ns": 305063308,
+          "schedstat.runqueue_wait_ns": 1226867,
+          "schedstat.timeslices": 11059,
+          "context_switches.voluntary_context_switches": 11058,
+          "context_switches.involuntary_context_switches": 0
+        },
+        "threads_seen": 7,
+        "observer_thread_cpu_ns": 157571821,
+        "controller_process_cpu_ns_during_observation": 158099103,
+        "tail_since_last_sample_ns": 7184629,
+        "actual_min_gap_ns": 7136247,
+        "actual_max_gap_ns": 10140832,
+        "read_duration_ns": {
+          "min": 205783,
+          "max": 1067281,
+          "sum": 108710182
+        },
+        "utc_minus_perf_offset_ns": {
+          "min": 1793335764227141010,
+          "max": 1793335764227142335,
+          "spread": 1325
+        },
+        "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+        "tail_coverage": "not guaranteed",
+        "capabilities": {
+          "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+          "io": "unavailable_proc_io_absent",
+          "cpu_tick_hz": 100,
+          "thread_state": "sampled_proc_stat",
+          "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+          "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+          "kernel_config_observed": {
+            "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+            "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+            "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+            "CONFIG_TASK_IO_ACCOUNTING": null
+          }
+        }
+      },
+      "native": {
+        "syscall_counts": {
+          "execve": 1,
+          "mmap": 394,
+          "access": 13,
+          "openat": 294,
+          "newfstatat": 123,
+          "close": 144,
+          "read": 103,
+          "pread64": 88,
+          "munmap": 122,
+          "clone3": 6,
+          "write": 7,
+          "pwrite64": 14,
+          "fsync": 14,
+          "rename": 1,
+          "exit_group": 1
+        },
+        "sum_syscall_wall_ns_across_tids": {
+          "execve": 273000,
+          "mmap": 24542000,
+          "access": 481000,
+          "openat": 130107000,
+          "newfstatat": 7559000,
+          "close": 31334000,
+          "read": 17057000,
+          "pread64": 11510000,
+          "munmap": 10476000,
+          "clone3": 879000,
+          "write": 487000,
+          "pwrite64": 7306000,
+          "fsync": 11079000,
+          "rename": 2552000
+        },
+        "duration_unavailable_counts": {
+          "exit_group": 1,
+          "openat": 1,
+          "read": 1
+        },
+        "positive_buffer_return_bytes": {
+          "read": 70777,
+          "pread64": 130973,
+          "write": 524,
+          "pwrite64": 78147
+        }
+      },
+      "missing": {
+        "kernel_event_loss_count": null,
+        "incomplete_events": 0,
+        "utf8_replacement_line_numbers": []
+      },
+      "unparsed_line_count": 0
+    }
+  ],
+  "limits": [
+    "All deltas are first-to-last sampled counters, not complete lifetime totals.",
+    "Per-thread deltas omit work before first/after last sample and unseen short-lived threads.",
+    "Native schedstat/context-switch fields are cumulative samples, not exact scheduling events.",
+    "Raw zero does not prove zero scheduler wait; kernel capability/config remains explicit.",
+    "Positive buffer syscall returns are logical traffic, not physical disk I/O or durability.",
+    "Syscall wall duration includes ptrace/scheduling; sums across TIDs are not elapsed budgets.",
+    "Stage attribution requires full syscall inside guaranteed UTC envelope and same native TID.",
+    "Nested stages select shortest guaranteed containing span; boundaries/unknowns remain unassigned.",
+    "One startup UTC/perf anchor assumes no clock step; sampled offset range cannot exclude between-poll steps.",
+    "No EventPipe/native separate-execution exact causal overlaps are inferred."
+  ],
+  "scenario_aggregate": {
+    "generator": {
+      "syscall_counts": {
+        "execve": 1,
+        "mmap": 8049,
+        "access": 13,
+        "openat": 617,
+        "newfstatat": 236,
+        "close": 487,
+        "read": 238,
+        "pread64": 293,
+        "munmap": 6961,
+        "clone3": 30,
+        "write": 54,
+        "pwrite64": 627,
+        "exit_group": 1
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 418000,
+        "mmap": 622444000,
+        "access": 1376000,
+        "openat": 95152000,
+        "newfstatat": 24140000,
+        "close": 45855000,
+        "read": 187029000,
+        "pread64": 248045000,
+        "munmap": 517932000,
+        "clone3": 8377000,
+        "write": 16350000,
+        "pwrite64": 393141000
+      },
+      "duration_unavailable_counts": {
+        "read": 1,
+        "openat": 1,
+        "exit_group": 1
+      },
+      "positive_buffer_return_bytes": {
+        "read": 158996,
+        "pread64": 83560726,
+        "write": 526,
+        "pwrite64": 1823273
+      }
+    },
+    "new-portable": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 1144,
+        "access": 39,
+        "openat": 819,
+        "newfstatat": 369,
+        "close": 369,
+        "read": 306,
+        "pread64": 219,
+        "munmap": 337,
+        "clone3": 18,
+        "write": 21,
+        "pwrite64": 27,
+        "fsync": 27,
+        "rename": 3,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 873000,
+        "mmap": 81097000,
+        "access": 1977000,
+        "openat": 269387000,
+        "newfstatat": 24381000,
+        "close": 73994000,
+        "read": 56816000,
+        "pread64": 24737000,
+        "munmap": 31972000,
+        "clone3": 3000000,
+        "write": 2118000,
+        "pwrite64": 17934000,
+        "fsync": 23143000,
+        "rename": 12189000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 212670,
+        "pread64": 174153,
+        "write": 1278,
+        "pwrite64": 42693
+      }
+    },
+    "new-small-api": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 1204,
+        "access": 39,
+        "openat": 882,
+        "newfstatat": 369,
+        "close": 432,
+        "read": 309,
+        "pread64": 264,
+        "munmap": 387,
+        "clone3": 18,
+        "write": 21,
+        "pwrite64": 42,
+        "fsync": 42,
+        "rename": 3,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 891000,
+        "mmap": 77644000,
+        "access": 1931000,
+        "openat": 387409000,
+        "newfstatat": 23065000,
+        "close": 100965000,
+        "read": 47919000,
+        "pread64": 33455000,
+        "munmap": 33484000,
+        "clone3": 2722000,
+        "write": 1262000,
+        "pwrite64": 23730000,
+        "fsync": 34668000,
+        "rename": 7346000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 212533,
+        "pread64": 392919,
+        "write": 1572,
+        "pwrite64": 234441
+      }
+    },
+    "validate-portable": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 1042,
+        "access": 39,
+        "openat": 405,
+        "newfstatat": 279,
+        "close": 204,
+        "read": 273,
+        "pread64": 156,
+        "munmap": 365,
+        "clone3": 18,
+        "write": 21,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 842000,
+        "mmap": 62151000,
+        "access": 2415000,
+        "openat": 64988000,
+        "newfstatat": 19355000,
+        "close": 20045000,
+        "read": 50832000,
+        "pread64": 10055000,
+        "munmap": 25817000,
+        "clone3": 2838000,
+        "write": 1430000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 160297,
+        "pread64": 28401,
+        "write": 1179
+      }
+    },
+    "validate-small-api": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 1047,
+        "access": 39,
+        "openat": 405,
+        "newfstatat": 279,
+        "close": 204,
+        "read": 273,
+        "pread64": 156,
+        "munmap": 371,
+        "clone3": 18,
+        "write": 27,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 1202000,
+        "mmap": 55928000,
+        "access": 1735000,
+        "openat": 58322000,
+        "newfstatat": 15979000,
+        "close": 16076000,
+        "read": 44338000,
+        "pread64": 10576000,
+        "munmap": 25020000,
+        "clone3": 2304000,
+        "write": 1531000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 160529,
+        "pread64": 28992,
+        "write": 2523
+      }
+    },
+    "export-api": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 1599,
+        "access": 51,
+        "openat": 888,
+        "newfstatat": 438,
+        "close": 444,
+        "read": 477,
+        "pread64": 162,
+        "munmap": 589,
+        "clone3": 78,
+        "write": 81,
+        "pwrite64": 6,
+        "fsync": 6,
+        "rename": 3,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 937000,
+        "mmap": 96095000,
+        "access": 3272000,
+        "openat": 110903000,
+        "newfstatat": 28011000,
+        "close": 32680000,
+        "read": 59946000,
+        "pread64": 13041000,
+        "munmap": 46694000,
+        "clone3": 11633000,
+        "write": 5515000,
+        "pwrite64": 4083000,
+        "fsync": 5033000,
+        "rename": 7345000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 320853,
+        "pread64": 29976,
+        "write": 2172,
+        "pwrite64": 150939
+      }
+    },
+    "export-both": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 5425,
+        "access": 51,
+        "openat": 1074,
+        "newfstatat": 456,
+        "close": 510,
+        "read": 508,
+        "pread64": 462,
+        "munmap": 3582,
+        "clone3": 93,
+        "write": 111,
+        "pwrite64": 9,
+        "fsync": 9,
+        "rename": 3,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 713000,
+        "mmap": 346683000,
+        "access": 2342000,
+        "openat": 221636000,
+        "newfstatat": 30081000,
+        "close": 49644000,
+        "read": 180675000,
+        "pread64": 61649000,
+        "munmap": 239912000,
+        "clone3": 21358000,
+        "write": 14846000,
+        "pwrite64": 5314000,
+        "fsync": 7879000,
+        "rename": 7323000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 323873,
+        "pread64": 79173,
+        "write": 2460,
+        "pwrite64": 155217
+      }
+    },
+    "export-graphql": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 5097,
+        "access": 51,
+        "openat": 1068,
+        "newfstatat": 453,
+        "close": 504,
+        "read": 505,
+        "pread64": 462,
+        "munmap": 3321,
+        "clone3": 93,
+        "write": 111,
+        "pwrite64": 6,
+        "fsync": 6,
+        "rename": 3,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 1113000,
+        "mmap": 357210000,
+        "access": 3007000,
+        "openat": 285224000,
+        "newfstatat": 32560000,
+        "close": 52449000,
+        "read": 243093000,
+        "pread64": 70260000,
+        "munmap": 246524000,
+        "clone3": 18750000,
+        "write": 17532000,
+        "pwrite64": 4076000,
+        "fsync": 6572000,
+        "rename": 8638000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 320801,
+        "pread64": 79176,
+        "write": 2400,
+        "pwrite64": 8121
+      }
+    },
+    "export-off": {
+      "syscall_counts": {
+        "execve": 3,
+        "mmap": 1430,
+        "access": 51,
+        "openat": 867,
+        "newfstatat": 423,
+        "close": 426,
+        "read": 451,
+        "pread64": 156,
+        "munmap": 501,
+        "clone3": 78,
+        "write": 81,
+        "pwrite64": 3,
+        "fsync": 3,
+        "rename": 3,
+        "exit_group": 3
+      },
+      "sum_syscall_wall_ns_across_tids": {
+        "execve": 1020000,
+        "mmap": 105684000,
+        "access": 3084000,
+        "openat": 117875000,
+        "newfstatat": 31409000,
+        "close": 36853000,
+        "read": 68620000,
+        "pread64": 14084000,
+        "munmap": 44995000,
+        "clone3": 14835000,
+        "write": 6680000,
+        "pwrite64": 2374000,
+        "fsync": 3422000,
+        "rename": 12856000
+      },
+      "duration_unavailable_counts": {
+        "exit_group": 3,
+        "read": 3,
+        "openat": 3
+      },
+      "positive_buffer_return_bytes": {
+        "read": 275873,
+        "pread64": 28995,
+        "write": 2112,
+        "pwrite64": 3795
+      }
+    }
+  },
+  "sum_observed_per_thread_counter_deltas_all_cases": {
+    "stat.minor_faults": 183485,
+    "stat.major_faults": 877,
+    "stat.user_cpu_ticks": 3471,
+    "stat.kernel_cpu_ticks": 842,
+    "schedstat.cpu_runtime_ns": 44247108067,
+    "schedstat.runqueue_wait_ns": 133083553,
+    "schedstat.timeslices": 487366,
+    "context_switches.voluntary_context_switches": 486579,
+    "context_switches.involuntary_context_switches": 790
+  },
+  "script_sha256": "1af939e384c3c1985d4a578acb45635f8f6d7ade821a72c244a9d3daf32e778e"
+}

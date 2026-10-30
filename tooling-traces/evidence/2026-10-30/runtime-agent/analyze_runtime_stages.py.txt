@@ -1,0 +1,49 @@
+"""Read-only retained diagnostic analysis; never executes targets or collects traces."""
+import argparse,json,math,statistics,collections,os
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--lane',required=True);p.add_argument('--output',required=True);a=p.parse_args()
+lane=Path(a.lane).resolve();out=Path(a.output).resolve()
+if out.exists():raise FileExistsError(out)
+analysis=lane/'generator/analysis'
+summary=json.loads((analysis/'summary.json').read_text(encoding='utf-8'))
+rows=[];stage_values=collections.defaultdict(list)
+def union(intervals,lo,hi):
+ intervals=sorted((max(lo,x),min(hi,y)) for x,y in intervals if y>lo and x<hi)
+ total=0.;end=None
+ for x,y in intervals:
+  if y<=x:continue
+  if end is None or x>end:total+=y-x;end=y
+  elif y>end:total+=y-end;end=y
+ return total
+for line in (analysis/'spans-correlated.jsonl').open(encoding='utf-8'):
+ x=json.loads(line);s=x['span'];duration=(s['endTicks']-s['startTicks'])*1000/s['frequency'];stage_values[s['stage']].append(duration)
+ if s['stage']!='compiler.wall' or s['phase'] not in ('primer','measurement'):continue
+ lo=x['startRelativeLowerMsec'];hi=x['endRelativeUpperMsec'];innerlo=x['startRelativeUpperMsec'];innerhi=x['endRelativeLowerMsec']
+ same=[(j['startMsec'],j['endMsec']) for j in x['jitStartToLoadIntervals'] if j['sameCallerThread']]
+ bg=[(j['startMsec'],j['endMsec']) for j in x['jitStartToLoadIntervals'] if not j['sameCallerThread']]
+ gc=[(g['startMsec'],g['endMsec']) for g in x['gcSuspensionEnvelopes']]
+ narrow=[(g['fullySuspendedStartMsec'],g['restartStartMsec']) for g in x['gcSuspensionEnvelopes'] if g['fullySuspendedStartMsec'] is not None and g['restartStartMsec'] is not None]
+ bounds=lambda xs:{'lower_msec':union(xs,innerlo,innerhi) if innerhi>=innerlo else 0.,'upper_msec':min(duration,union(xs,lo,hi))}
+ rows.append({'identity':{k:s[k] for k in ('caseIndex','size','state','variant','pairSequence','phase','processId','osThreadId')},'wall_msec':duration,'trace_start_lower_msec':lo,'trace_end_upper_msec':hi,'same_caller_jit_elapsed_overlap':bounds(same),'background_jit_elapsed_overlap':bounds(bg),'gc_envelope_overlap':bounds(gc),'gc_fully_suspended_overlap':bounds(narrow),'sampled_thread_events':x['sampledThreadEvents'],'same_thread_sample_events':x['sameThreadSampleEvents'],'jit_intervals':[{'method':j['method'],'tier':j['tier'],'same_caller_thread':j['sameCallerThread'],'start_msec':j['startMsec'],'end_msec':j['endMsec']} for j in x['jitStartToLoadIntervals']]})
+assert len(rows)==306,(len(rows),'main compiler rows')
+groups=[]
+for key in sorted({(r['identity']['size'],r['identity']['state'],r['identity']['variant']) for r in rows}):
+ rs=[r for r in rows if (r['identity']['size'],r['identity']['state'],r['identity']['variant'])==key and r['identity']['phase']=='measurement'];assert len(rs)==15
+ means=[statistics.mean(r['wall_msec'] for r in rs if (r['identity']['pairSequence']-2)//3==rep) for rep in range(5)]
+ mean=statistics.mean(means);cv=statistics.stdev(means)/mean*100
+ groups.append({'size':key[0],'state':key[1],'variant':key[2],'count':15,'diagnostic_repetition_means_msec':means,'diagnostic_mean_msec':mean,'diagnostic_cv_percent':cv,'diagnostic_unstable':cv>15,'rows_with_gc_envelope_overlap':sum(r['gc_envelope_overlap']['upper_msec']>0 for r in rs),'rows_with_same_caller_jit_overlap':sum(r['same_caller_jit_elapsed_overlap']['upper_msec']>0 for r in rs),'rows_with_background_jit_overlap':sum(r['background_jit_elapsed_overlap']['upper_msec']>0 for r in rs),'slowest_rows_for_inspection_only':sorted(rs,key=lambda r:r['wall_msec'],reverse=True)[:3]})
+main_rows=[r for r in rows if r['identity']['phase']=='measurement']
+stack_inclusive=collections.Counter();same_stack_inclusive=collections.Counter();sample_associations=0;multiple_row_associations=0
+for line in (analysis/'sampled-thread-stacks.jsonl').open(encoding='utf-8'):
+ s=json.loads(line);matches=[r for r in main_rows if r['identity']['processId']==s['processId'] and r['trace_start_lower_msec']<=s['timeRelativeMsec']<=r['trace_end_upper_msec']]
+ if not matches:continue
+ sample_associations+=1;multiple_row_associations+=len(matches)>1
+ for frame in set(s['frames']):stack_inclusive[frame]+=1
+ if any(r['identity']['osThreadId']==s['osThreadId'] for r in matches):
+  for frame in set(s['frames']):same_stack_inclusive[frame]+=1
+result={'protocol':'retained-runtime-stage-observations-v1','canonical':False,'performance_status':'diagnostic_only_not_acceptance','lane':str(lane),'source_summary':summary,'stage_durations':{stage:{'count':len(values),'total_inclusive_msec':sum(values),'mean_msec':statistics.mean(values),'maximum_msec':max(values)} for stage,values in stage_values.items()},'groups':groups,'all_main_rows':rows,'top_sampled_thread_residency_frames':[{'frame':name,'inclusive_sample_observations':n} for name,n in stack_inclusive.most_common(40)],'top_same_caller_sampled_residency_frames':[{'frame':name,'inclusive_sample_observations':n} for name,n in same_stack_inclusive.most_common(40)],'sample_associations':sample_associations,'samples_possible_in_multiple_rows_due_bounds':multiple_row_associations,'limits':['Traced CV/means are not canonical benchmark acceptance or an untraced performance comparison.','Intervals use bounded marker offsets; global EE/JIT pairing/loss gaps remain authoritative in source_summary.','JIT start-to-load overlap is elapsed, not CPU work; background overlap is not caller stall.','GC envelope includes rendezvous/restart; narrower all-suspended interval is separate.','Inclusive overlapping stages must not be summed as exclusive time; JIT overlaps are unioned and physically capped.','Sample profiler counts managed thread residency including waits, not OS on-CPU hotspots; native scheduler/IO proof is separate.','Encoding/source string preparation, logger bookkeeping and final persistence can occur in unassigned gaps.','Slowest rows are displayed only for inspection; all306mainrows and all15values/group remain included.']}
+out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n')
+print(json.dumps({'output':str(out),'main_rows':len(rows),'groups':len(groups),'diagnostic_unstable':sum(g['diagnostic_unstable'] for g in groups),'source_correlation_status':summary['correlationStatus']}))
+for g in groups:
+ if g['diagnostic_unstable']:
+  print('unstable_diag',g['size'],g['state'],g['variant'],round(g['diagnostic_cv_percent'],3),'GCrows',g['rows_with_gc_envelope_overlap'],'callerJITrows',g['rows_with_same_caller_jit_overlap'],'backgroundJITrows',g['rows_with_background_jit_overlap'])

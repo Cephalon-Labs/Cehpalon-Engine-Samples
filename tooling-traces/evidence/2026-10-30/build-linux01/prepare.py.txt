@@ -1,0 +1,26 @@
+from pathlib import Path
+import subprocess,sys,os,json,shutil
+root=Path(__file__).resolve().parents[2];out=Path(__file__).resolve().parent
+sdk='/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet'
+env=dict(os.environ,DOTNET_NOLOGO='1',DOTNET_CLI_TELEMETRY_OPTOUT='1',MSBUILDDISABLENODEREUSE='1')
+r={'role':'diagnostic preparation only','status':'started','commands':[]}
+def save():(out/'manifest.json').write_text(json.dumps(r,indent=2)+'\n',encoding='utf-8',newline='\n')
+def run(argv,label):
+ result=subprocess.run(list(map(str,argv)),cwd=root,env=env,capture_output=True);(out/(label+'.stdout.txt')).write_bytes(result.stdout);(out/(label+'.stderr.txt')).write_bytes(result.stderr);r['commands'].append({'argv':list(map(str,argv)),'label':label,'exit':result.returncode});save()
+ if result.returncode:raise RuntimeError(label+' failed')
+try:
+ run([sys.executable,'tools/prepare_tooling_trace_driver.py','--engine-root','/mnt/d/Cephalon/Cehpalon-Engine','--output','.local/tooling-trace-driver-linux01'],'prepare-driver')
+ conf=root/'.local/tooling-trace-conformance-app-linux01';conf.mkdir(exist_ok=False)
+ for name in ('Conformance.csproj','Program.cs','DiagnosticSupport.cs','global.json','Directory.Build.props','NuGet.Config'):shutil.copyfile(root/'.local/tooling-trace-conformance-app-win01'/name,conf/name)
+ for name,project,config,locked in [('analyzer',root/'tooling-traces/TraceAnalysis/TraceAnalysis.csproj',root/'tooling-traces/TraceAnalysis/NuGet.Config',True),('driver',root/'.local/tooling-trace-driver-linux01/TraceDriver.csproj',root/'.local/tooling-trace-driver-linux01/NuGet.Config',False),('conformance',conf/'Conformance.csproj',conf/'NuGet.Config',False)]:
+  artifacts=out/(name+'-artifacts');args=[sdk,'restore',project,'--configfile',config,'--artifacts-path',artifacts]
+  if locked:args.append('--locked-mode')
+  run(args,name+'-restore')
+  if not locked:run(args+['--locked-mode'],name+'-locked-restore')
+  run([sdk,'build',project,'-c','Release','--no-restore','--artifacts-path',artifacts,'-p:UseSharedCompilation=false','-warnaserror'],name+'-build')
+  if name=='analyzer':run([sdk,artifacts/'bin/TraceAnalysis/release/TraceAnalysis.dll','--self-test'],'analyzer-self-test')
+  print('built native Linux',name,flush=True)
+ run([sys.executable,'tools/benchmark_tooling.py','--dotnet',sdk,'--engine-root','/mnt/d/Cephalon/Cehpalon-Engine','--output','.local/tooling-trace-fixture-linux01','--prepare-only'],'prepare-cli-fixtures')
+ r['status']='passed'
+except Exception as error:r.update(status='failed',failure=str(error));raise
+finally:save()

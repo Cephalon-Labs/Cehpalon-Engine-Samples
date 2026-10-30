@@ -1,0 +1,10 @@
+from pathlib import Path
+import subprocess,json,hashlib
+out=Path(__file__).resolve().parent
+dll=list((out/'tools').rglob('dotnet-trace.dll'));assert len(dll)==1
+dotnet='/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet'
+base=[dotnet,'exec','--roll-forward','Major',str(dll[0])]
+for name,args in [('version',['--version']),('collect-help',['collect','--help']),('profiles',['list-profiles'])]:
+ r=subprocess.run(base+args,capture_output=True);(out/(name+'.stdout.txt')).write_bytes(r.stdout);(out/(name+'.stderr.txt')).write_bytes(r.stderr);assert r.returncode==0,(name,r.stderr)
+(out/'tool.json').write_text(json.dumps({'argv_prefix':base,'sha256':hashlib.sha256(dll[0].read_bytes()).hexdigest()},indent=2)+'\n',encoding='utf-8',newline='\n')
+print('native Linux private trace tool probed successfully')

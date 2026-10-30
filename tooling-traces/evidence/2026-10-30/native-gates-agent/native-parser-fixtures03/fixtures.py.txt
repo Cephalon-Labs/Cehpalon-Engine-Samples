@@ -1,0 +1,64 @@
+from pathlib import Path
+import sys,json,types,threading,os
+from unittest.mock import patch
+root=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(root/'tools'))
+import tooling_os_observer as observer
+import trace_tooling_native as native
+out=Path(__file__).resolve().parent
+checks=[]
+def check(value,name):
+ assert value,name
+ checks.append(name)
+def stat(pid,parent,group,session,birth=12345):
+ fields=['R',str(parent),str(group),str(session),'0','0','0','7','0','9','0','11','12','0','0','20','0','3','0',str(birth)]+['0']*17
+ return str(pid)+' (name with ) spaces) '+' '.join(fields)+'\n'
+s=observer.parse_linux_stat(stat(12,1,2,3))
+check(s['id']==12 and s['comm']=='name with ) spaces','stat framing supports spaces and parentheses')
+check(s['parent_pid']==1 and s['process_group_id']==2 and s['session_id']==3 and s['starttime_ticks']==12345,'native birth/owner/group/session fields')
+check((s['minor_faults'],s['major_faults'],s['user_cpu_ticks'],s['kernel_cpu_ticks'])==(7,9,11,12),'native counter field offsets')
+fixture='\n'.join(['100 1700000000.000001 execve("/sdk/dotnet", ["dotnet", "a.dll"], 0x123 /* vars */) = 0 <0.000010>',
+'100 1700000000.000020 openat(AT_FDCWD, "/mnt/d/source.json", O_RDONLY) = 3</mnt/d/source.json> <0.000010>',
+'101 1700000000.000030 read(0x3, 0xaaa, 0x20 <unfinished ...>',
+'100 1700000000.000040 write(0x1, 0xbbb, 0x10) = 0x10 <0.000002>',
+'101 1700000000.000050 <... read resumed>) = 0x20 <0.000020>',
+'102 1700000000.000060 <... close resumed>) = 0 <0.000001>',
+'103 1700000000.000070 newfstatat(AT_FDCWD, "/missing", 0x123, 0) = -1 ENOENT (No such file or directory) <0.000001>',
+'104 1700000000.000080 read(0x4, 0xaaa, 0x20 <unfinished ...>',
+'100 1700000000.000090 +++ exited with 0 +++','unparsed preserved'])+'\n'
+p=out/'fixture.log';p.write_text(fixture,encoding='utf-8');r=native.parse_strace(p)
+check(r['positive_buffer_syscall_return_bytes']=={'write':16,'read':32},'hexadecimal raw-buffer byte returns')
+check(r['incomplete_events']==1 and len(r['unparsed_lines'])==2,'unfinished/orphan/unparsed data retained')
+check(next(e for e in r['events'] if e['name']=='read' and e['status']=='completed')['entry_line']==3,'unfinished/resumed pairing')
+check(next(e for e in r['events'] if e['name']=='openat')['quoted_argument_renderings']==['"/mnt/d/source.json"'],'quoted file arguments not duplicated')
+check(next(e for e in r['events'] if e['name']=='newfstatat')['return_value']==-1,'failed syscall not counted as positive bytes')
+check(r['kernel_event_loss_count'] is None,'unknown loss is not zero')
+class FakePath:
+ def __init__(self,*parts):self.parts=parts
+ def read_text(self,**unused):return table[int(self.parts[1])]
+child=types.SimpleNamespace(pid=100,returncode=None)
+table={100:stat(100,777,100,100),200:stat(200,100,100,100)}
+with patch.object(native,'Path',FakePath),patch.object(native.os,'getpid',return_value=777):
+ check(native._owned_target_identity(child,200)=={'pid':200,'starttime_ticks':12345},'live exact owned target proof')
+ table[200]=stat(200,999,100,100)
+ check(native._owned_target_identity(child,200) is None,'foreign/reparented target refuses observer')
+ calls=[]
+ with patch.object(native.os,'killpg',side_effect=lambda p,s:calls.append((p,s)),create=True):
+  report={}
+  check(native._signal_owned_group(child,12345,2,report) and calls==[(100,2)],'mocked exact owned group signals only correct identity')
+  check(not native._signal_owned_group(child,99,2,report) and len(calls)==1,'mocked mismatched group birth not signaled')
+ child.returncode=0
+ with patch.object(native.os,'killpg',create=True) as kill:
+  check(not native._signal_owned_group(child,12345,2,{}) and not kill.called,'reaped leader never signals unknown group')
+class FakeReader:
+ def __init__(self,pid):self.identity={'pid':pid,'creation_filetime_100ns':88}
+ def close(self):pass
+with patch.object(observer,'_WindowsReader' if os.name=='nt' else '_LinuxReader',FakeReader):
+ q=out/'identity-refusal.jsonl'
+ result=observer.observe_process(200,q,threading.Event(),expected_identity={'pid':200,'creation_filetime_100ns':99})
+ check(result['status']=='unavailable_before_first_snapshot' and result['samples']==0,'observer rejects initial identity mismatch before samples')
+ rows=[json.loads(line) for line in q.read_text(encoding='utf-8').splitlines()]
+ check(not any(row['kind']=='sample' for row in rows),'no foreign sample serialized on identity mismatch')
+(out/'parsed.json').write_text(json.dumps(r,indent=2)+'\n',encoding='utf-8')
+(out/'checks.json').write_text(json.dumps({'scope':'pure fixtures and mocked OS readers/signals only; no actual target observed, traced or signaled','passed':len(checks),'failed':0,'checks':checks,'retained_prior_fixture_issue':'02 test mock used killpg without create=True on Windows. The Linux-only API does not exist in Windows os. Corrected test mock; no target/trace operation occurred.'},indent=2)+'\n',encoding='utf-8')
+print('Pure fixture checks passed',len(checks),'no actual target/trace/signals')

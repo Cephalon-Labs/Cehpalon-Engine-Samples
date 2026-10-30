@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "scope": "ptrace-observed syscall intervals/counts, not physical disk latency or benchmark timing",
+  "kernel_event_loss_count": null,
+  "loss_status": "strace supplies no kernel event-loss counter; incomplete/unparsed input retained",
+  "syscall_counts": {
+    "execve": 1,
+    "openat": 1,
+    "write": 1,
+    "read": 2,
+    "close": 1,
+    "newfstatat": 1
+  },
+  "sum_observed_syscall_wall_seconds": {
+    "execve": 1e-05,
+    "openat": 1e-05,
+    "write": 2e-06,
+    "read": 2e-05,
+    "close": 1e-06,
+    "newfstatat": 1e-06
+  },
+  "positive_buffer_syscall_return_bytes": {
+    "write": 16,
+    "read": 32
+  },
+  "unparsed_lines": [
+    {
+      "line": 6,
+      "raw": "102 1700000000.000060 <... close resumed>) = 0 <0.000001>",
+      "reason": "resumed_without_matching_entry"
+    },
+    {
+      "line": 10,
+      "raw": "unparsed preserved"
+    }
+  ],
+  "incomplete_events": 1,
+  "lifecycle": [
+    {
+      "pid_or_tid": 100,
+      "printed_epoch_seconds": 1700000000.00009,
+      "line": 9,
+      "raw": "+++ exited with 0 +++"
+    }
+  ],
+  "events": [
+    {
+      "pid_or_tid": 100,
+      "name": "execve",
+      "entry_line": 1,
+      "printed_entry_epoch_seconds": 1700000000.000001,
+      "raw_entry": "execve(\"/sdk/dotnet\", [\"dotnet\", \"a.dll\"], 0x123 /* vars */) = 0 <0.000010>",
+      "status": "completed",
+      "observed_syscall_wall_seconds": 1e-05,
+      "return_text": "0",
+      "return_value": 0,
+      "path_renderings": [],
+      "quoted_argument_renderings": [
+        "\"/sdk/dotnet\"",
+        "\"dotnet\"",
+        "\"a.dll\""
+      ]
+    },
+    {
+      "pid_or_tid": 100,
+      "name": "openat",
+      "entry_line": 2,
+      "printed_entry_epoch_seconds": 1700000000.00002,
+      "raw_entry": "openat(AT_FDCWD, \"/mnt/d/source.json\", O_RDONLY) = 3</mnt/d/source.json> <0.000010>",
+      "status": "completed",
+      "observed_syscall_wall_seconds": 1e-05,
+      "return_text": "3</mnt/d/source.json>",
+      "return_value": 3,
+      "path_renderings": [
+        "/mnt/d/source.json"
+      ],
+      "quoted_argument_renderings": [
+        "\"/mnt/d/source.json\""
+      ]
+    },
+    {
+      "pid_or_tid": 100,
+      "name": "write",
+      "entry_line": 4,
+      "printed_entry_epoch_seconds": 1700000000.00004,
+      "raw_entry": "write(0x1, 0xbbb, 0x10) = 0x10 <0.000002>",
+      "status": "completed",
+      "observed_syscall_wall_seconds": 2e-06,
+      "return_text": "0x10",
+      "return_value": 16,
+      "path_renderings": [],
+      "quoted_argument_renderings": []
+    },
+    {
+      "pid_or_tid": 101,
+      "name": "read",
+      "entry_line": 3,
+      "printed_entry_epoch_seconds": 1700000000.00003,
+      "raw_entry": "read(0x3, 0xaaa, 0x20 <unfinished ...>",
+      "resume_line": 5,
+      "printed_resume_epoch_seconds": 1700000000.00005,
+      "raw_resume": "<... read resumed>) = 0x20 <0.000020>",
+      "status": "completed",
+      "observed_syscall_wall_seconds": 2e-05,
+      "return_text": "0x20",
+      "return_value": 32,
+      "path_renderings": [],
+      "quoted_argument_renderings": []
+    },
+    {
+      "pid_or_tid": 102,
+      "name": "close",
+      "entry_line": null,
+      "printed_entry_epoch_seconds": null,
+      "raw_entry": null,
+      "resume_line": 6,
+      "printed_resume_epoch_seconds": 1700000000.00006,
+      "raw_resume": "<... close resumed>) = 0 <0.000001>",
+      "status": "completed",
+      "observed_syscall_wall_seconds": 1e-06,
+      "return_text": "0",
+      "return_value": 0,
+      "path_renderings": [],
+      "quoted_argument_renderings": []
+    },
+    {
+      "pid_or_tid": 103,
+      "name": "newfstatat",
+      "entry_line": 7,
+      "printed_entry_epoch_seconds": 1700000000.00007,
+      "raw_entry": "newfstatat(AT_FDCWD, \"/missing\", 0x123, 0) = -1 ENOENT (No such file or directory) <0.000001>",
+      "status": "completed",
+      "observed_syscall_wall_seconds": 1e-06,
+      "return_text": "-1 ENOENT (No such file or directory)",
+      "return_value": -1,
+      "path_renderings": [],
+      "quoted_argument_renderings": [
+        "\"/missing\""
+      ]
+    },
+    {
+      "pid_or_tid": 104,
+      "name": "read",
+      "entry_line": 8,
+      "printed_entry_epoch_seconds": 1700000000.00008,
+      "raw_entry": "read(0x4, 0xaaa, 0x20 <unfinished ...>",
+      "status": "incomplete_at_end",
+      "observed_syscall_wall_seconds": null
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+[
+  {
+    "label": "restore",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "restore",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/TraceAnalysis/TraceAnalysis.csproj",
+      "--locked-mode",
+      "--configfile",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/TraceAnalysis/NuGet.Config",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-analyzer-linux02/artifacts"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "build",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tooling-traces/TraceAnalysis/TraceAnalysis.csproj",
+      "-c",
+      "Release",
+      "--no-restore",
+      "--artifacts-path",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-analyzer-linux02/artifacts",
+      "-p:UseSharedCompilation=false",
+      "-warnaserror"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "self-test",
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-analyzer-linux02/artifacts/bin/TraceAnalysis/release/TraceAnalysis.dll",
+      "--self-test"
+    ],
+    "exit": 0
+  }
+]

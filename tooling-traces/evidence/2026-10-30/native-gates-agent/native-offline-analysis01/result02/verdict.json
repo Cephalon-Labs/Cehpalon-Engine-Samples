@@ -1,0 +1,91 @@
+{
+  "status": "completed",
+  "product_change_verdict": "No Engine product patch justified by these native observations alone. Retain current product semantics and run the unchanged complete untraced protocol.",
+  "case_count": 25,
+  "native_events": 64254,
+  "proc_samples": 10672,
+  "native_pid_birth_sample_mismatches": 0,
+  "native_unparsed_lines": 0,
+  "native_incomplete_events": 0,
+  "kernel_event_loss_count": null,
+  "observer_status_counts": {
+    "completed_exit_observed": 16,
+    "partial_target_unavailable": 9
+  },
+  "per_thread_read_races": 48,
+  "generator": {
+    "main_rows": 306,
+    "rows_with_wholly_interior_main_tid_counter_intervals": 270,
+    "rows_without_interior_counter_interval": 36,
+    "rows_with_safely_attributed_native_syscalls": 40,
+    "main_row_attributed_native_syscalls": 135,
+    "utc_anchor_uncertainty_ns": 43384,
+    "observed_utc_perf_offset_spread_ns": 26171,
+    "thread_identities_seen": 31,
+    "observer_thread_cpu_ns": 4497703247,
+    "slowest_main_row": {
+      "marker": {
+        "sequence": 230,
+        "stage": "compiler.wall",
+        "startTicks": 284985649260,
+        "endTicks": 285856911499,
+        "frequency": 1000000000,
+        "utcAnchorTicks": 639289328371045559,
+        "anchorBeforeTicks": 272877372745,
+        "anchorAfterTicks": 272877416129,
+        "processId": 751,
+        "osThreadId": 751,
+        "caseIndex": 0,
+        "size": 1,
+        "state": "fresh",
+        "variant": "generator",
+        "pairSequence": 7,
+        "phase": "measurement",
+        "markerBeforeTicks": 285857445786,
+        "markerAfterTicks": 285857445911
+      },
+      "utc_bounds": {
+        "start_earliest": 1793336049212789031,
+        "start_latest": 1793336049212832415,
+        "end_earliest": 1793336050084051270,
+        "end_latest": 1793336050084094654
+      },
+      "native_events_unique_shortest_stage": {
+        "syscall_counts": {},
+        "sum_syscall_wall_ns_across_tids": {},
+        "duration_unavailable_counts": {},
+        "positive_buffer_return_bytes": {}
+      },
+      "attributed_event_lines": [],
+      "main_tid_counter_intervals_wholly_inside_body": 86,
+      "main_tid_observed_interior_counter_deltas": {
+        "stat.minor_faults": 0,
+        "stat.major_faults": 0,
+        "stat.user_cpu_ticks": 0,
+        "stat.kernel_cpu_ticks": 0,
+        "schedstat.cpu_runtime_ns": 6402739,
+        "schedstat.runqueue_wait_ns": 0,
+        "schedstat.timeslices": 98,
+        "context_switches.voluntary_context_switches": 99,
+        "context_switches.involuntary_context_switches": 0
+      },
+      "main_tid_counter_coverage_window_perf_ns": [
+        284985774350,
+        285848205659
+      ],
+      "counter_scope": "Main native TID cumulative deltas only between wholly interior samples; partial body coverage.",
+      "body_duration_ns": 871262239
+    }
+  },
+  "bounded_findings": [
+    "All 25 source snapshots match native55b3/observer7799 and every sampled PID/birth lease matches its capture.",
+    "Generator first-to-last sampled thread deltas total32.231s schedulerCPU/53.593ms queuewait; all25 total44.247s CPU/133.084ms queuewait. These are perturbed sampled deltas, not complete lifecycle or acceptance timing.",
+    "Five cases have48 per-thread read races; one validate-portable polling gap139.642ms. Missing/partial boundaries remain visible.",
+    "Native generator main row sequence230 lasts871.262ms; 86 wholly interior main-TID intervals cover862.431ms, yielding6.403ms CPU,0 reported queuewait and99 voluntary switches, with no selected I/O syscall fully inside that compiler body. This does not establish cause or absence of I/O/wait: futex and other syscalls are omitted, work may execute on other TIDs, mmap/9p/shared-host and ptrace effects remain.",
+    "Native synchronous journal persistence has306 pwrite64 returns totaling240915bytes and204.917ms summed syscall wall, explicitly outside compiler metric bodies. Do not blame compiler variance on these later writes.",
+    "Each of8 CLI scenarios has3 captures. new-portable shows27fsync/3rename total; new-small-api42fsync/3rename. Export api/both/graphql/off show6/9/6/3fsync respectively and3rename each. Those observed durability/atomic-publication calls do not justify weakening publication semantics.",
+    "One startup UTC/perf anchor only;43.384us bracket plus observed26.171us offset spread does not exclude between-poll UTC changes. Attribution uses same native TID/full guaranteed envelope; all other syscall intervals remain unassigned.",
+    "/proc IO accounting unavailable on this WSL kernel. Buffer return bytes and syscall wall are not physical disk I/O or latency. Native and EventPipe runs are separate executions and are never fused into exact causal overlaps."
+  ],
+  "canonical_status": "No canonical or reference qualification inferred; #3 remains Blocked."
+}

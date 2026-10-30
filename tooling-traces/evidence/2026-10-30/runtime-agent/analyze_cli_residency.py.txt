@@ -1,0 +1,23 @@
+"""Offline CLI diagnostic observation; no target execution or live tracing."""
+import argparse,json,collections,re
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--lane',required=True);p.add_argument('--output',required=True);a=p.parse_args()
+lane=Path(a.lane).resolve();out=Path(a.output).resolve()
+if out.exists():raise FileExistsError(out)
+cases=[]
+patterns={'graphql_vendor':r'HotChocolate\.', 'graphql_adapter':r'Cehpalon\.Engine\.Transports\.GraphQL', 'schema_creation':r'CreateSchema|SchemaBuilder|SchemaInitializer|RequestExecutorManager|RequestExecutorResolver|InitializeSchema', 'json_schema':r'JsonSchemaExporter|ExportJsonSchema', 'composition':r'CompositionCompiler|ActivationPlan', 'codegen':r'Cehpalon.*CodeGen|Cehpalon.*Generator', 'eventpipe_instrumentation':r'System\.Diagnostics\.Tracing\.', 'file_io':r'System\.IO\.'}
+for d in sorted(lane.iterdir()):
+ if not d.is_dir() or not re.match(r'^\d\d-\d\d-',d.name):continue
+ z=json.loads((d/'analysis/summary.json').read_text());i=json.loads((d/'analysis/intervals.json').read_text());stacks=collections.Counter();matches={k:0 for k in patterns};stack_count=0
+ for line in (d/'analysis/sampled-thread-stacks.jsonl').open():
+  s=json.loads(line);stack_count+=1
+  for frame in set(s['frames']):stacks[frame]+=1
+  for key,pattern in patterns.items():matches[key]+=any(re.search(pattern,f) for f in s['frames'])
+ jit_names=[x['method'] for x in i['jitIntervals']]
+ categories={key:{'interval_count':sum(bool(re.search(pattern,m)) for m in jit_names),'unique_methods':sorted({m for m in jit_names if re.search(pattern,m)})} for key,pattern in patterns.items()}
+ cases.append({'case':d.name,'scenario':d.name[6:],'summary':{k:z.get(k) for k in ('events','eventsLost','payloadReadErrors','correlationStatus','eePairingErrors','jitPairingErrors','gcRelatedEnvelopes','jitStartToLoadIntervals','sampledThreadEvents','stackSamples','stackExtractionStatus')},'jit_categories':categories,'sample_residency_category_observations':matches,'stack_records':stack_count,'top_residency_frames':[{'frame':k,'observations':v} for k,v in stacks.most_common(35)],'unmatched':z.get('unmatched')})
+assert len(cases)==24
+result={'canonical':False,'performance_status':'diagnostic_only_not_acceptance','lane':str(lane),'cases':cases,'limits':['No launch-to-exit or trace elapsed values are accepted as startup benchmark; startup coordination and instrumentation perturb them.','JIT interval names show observed compilation, not CPU cost or definitive absence of previously compiled/AOT code.','Samples count managed thread residency including waits and instrumentation, not OS on-CPU hotspots.','Offline schema construction is expected for GraphQL-enabled export; three rounds are diagnostic observations, not paired performance comparison.']}
+out.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
+for c in cases:
+ print(c['case'],'JIT',c['summary']['jitStartToLoadIntervals'],'GC',c['summary']['gcRelatedEnvelopes'],'EEerr',c['summary']['eePairingErrors'],'HCjit',c['jit_categories']['graphql_vendor']['interval_count'],'HCsamples',c['sample_residency_category_observations']['graphql_vendor'],'SchemaJIT',c['jit_categories']['schema_creation']['interval_count'],'JSONschemaJIT',c['jit_categories']['json_schema']['interval_count'])

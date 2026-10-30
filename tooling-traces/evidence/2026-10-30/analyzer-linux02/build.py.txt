@@ -1,0 +1,7 @@
+from pathlib import Path
+import subprocess,json
+out=Path(__file__).resolve().parent;root=out.parents[1]
+sdk='/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet';project=root/'tooling-traces/TraceAnalysis/TraceAnalysis.csproj';art=out/'artifacts';records=[]
+for name,args in [('restore',['restore',str(project),'--locked-mode','--configfile',str(project.parent/'NuGet.Config'),'--artifacts-path',str(art)]),('build',['build',str(project),'-c','Release','--no-restore','--artifacts-path',str(art),'-p:UseSharedCompilation=false','-warnaserror']),('self-test',[str(art/'bin/TraceAnalysis/release/TraceAnalysis.dll'),'--self-test'])]:
+ p=subprocess.run([sdk]+args,cwd=root,capture_output=True);(out/(name+'.stdout.txt')).write_bytes(p.stdout);(out/(name+'.stderr.txt')).write_bytes(p.stderr);records.append(dict(label=name,argv=[sdk]+args,exit=p.returncode));(out/'manifest.json').write_text(json.dumps(records,indent=2)+'\n',encoding='utf-8');assert p.returncode==0,name
+print('Linux analyzer02 passed')

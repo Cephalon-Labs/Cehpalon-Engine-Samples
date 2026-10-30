@@ -1,0 +1,140 @@
+{
+  "role": "diagnostic preparation only",
+  "status": "passed",
+  "commands": [
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\TraceAnalysis.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\analyzer-artifacts",
+        "--locked-mode"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "analyzer-restore"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\TraceAnalysis.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\analyzer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "analyzer-build"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\analyzer-artifacts\\bin\\TraceAnalysis\\release\\TraceAnalysis.dll",
+        "--self-test"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "analyzer-self-test"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-driver-win01\\TraceDriver.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-driver-win01\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\driver-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "driver-restore"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-driver-win01\\TraceDriver.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-driver-win01\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\driver-artifacts",
+        "--locked-mode"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "driver-locked-restore"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-driver-win01\\TraceDriver.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\driver-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "driver-build"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-conformance-app-win01\\Conformance.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-conformance-app-win01\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\conformance-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "conformance-restore"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-conformance-app-win01\\Conformance.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-conformance-app-win01\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\conformance-artifacts",
+        "--locked-mode"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "conformance-locked-restore"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-conformance-app-win01\\Conformance.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-build-win01\\conformance-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "label": "conformance-build"
+    }
+  ]
+}

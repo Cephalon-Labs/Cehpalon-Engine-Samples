@@ -1,0 +1,413 @@
+"""Process-scoped diagnostic samples, never benchmark or exact CSwitch evidence.
+
+Only the selected process and its threads are serialized. No command line,
+environment, read/write buffers, elevation or kernel policy is collected/changed.
+"""
+from pathlib import Path
+import ctypes
+import gzip
+import json
+import os
+import platform
+import time
+
+
+def _clock():
+    # On Windows Python 3.11 monotonic may be coarse GetTickCount64. Keep it
+    # explicitly distinct; perf_counter is QPC and is the diagnostic timing basis.
+    return {'monotonic_ns': time.monotonic_ns(), 'perf_counter_ns': time.perf_counter_ns(),
+            'utc_ns': time.time_ns()}
+
+
+def parse_linux_stat(text):
+    """Fields retain native units. comm may itself contain spaces/parentheses."""
+    end = text.rfind(')')
+    start = text.find('(')
+    if start < 0 or end < start:
+        raise ValueError('Invalid proc stat framing')
+    pid = int(text[:start].strip())
+    fields = text[end + 1:].split()
+    if len(fields) < 20:
+        raise ValueError('Short proc stat')
+    return {'id': pid, 'comm': text[start + 1:end], 'state': fields[0],
+            'parent_pid': int(fields[1]), 'process_group_id': int(fields[2]), 'session_id': int(fields[3]),
+            'minor_faults': int(fields[7]),
+            'major_faults': int(fields[9]), 'user_cpu_ticks': int(fields[11]),
+            'kernel_cpu_ticks': int(fields[12]), 'thread_count': int(fields[17]),
+            'starttime_ticks': int(fields[19]),
+            'last_cpu': int(fields[36]) if len(fields) > 36 else None}
+
+
+def _linux_status(path):
+    values = {}
+    for line in path.read_text(encoding='utf-8').splitlines():
+        if line.startswith(('voluntary_ctxt_switches:', 'nonvoluntary_ctxt_switches:')):
+            key, value = line.split(':', 1)
+            values[key] = int(value)
+    return {'voluntary_context_switches': values.get('voluntary_ctxt_switches'),
+            'involuntary_context_switches': values.get('nonvoluntary_ctxt_switches')}
+
+
+def _linux_sched(path):
+    fields = path.read_text(encoding='ascii').split()
+    if len(fields) != 3:
+        raise ValueError('Expected three native schedstat counters')
+    result = dict(zip(('cpu_runtime_ns', 'runqueue_wait_ns', 'timeslices'), map(int, fields)))
+    result['counter_activity_observed'] = any(value > 0 for value in result.values())
+    result['status'] = 'native_cumulative_counters' if result['counter_activity_observed'] else 'zero_counters_enablement_not_proven'
+    return result
+
+
+class _LinuxReader:
+    def __init__(self, pid):
+        self.pid = pid
+        self.root = Path('/proc') / str(pid)
+        stat = parse_linux_stat((self.root / 'stat').read_text(encoding='utf-8'))
+        self.identity = {'pid': pid, 'starttime_ticks': stat['starttime_ticks']}
+        config = {}
+        try:
+            source = gzip.decompress(Path('/proc/config.gz').read_bytes()).decode('ascii')
+            for name in ('CONFIG_SCHED_INFO', 'CONFIG_SCHEDSTATS', 'CONFIG_TASKSTATS', 'CONFIG_TASK_IO_ACCOUNTING'):
+                value = next((line for line in source.splitlines() if line.startswith(name + '=') or line == '# ' + name + ' is not set'), None)
+                config[name] = value
+        except (OSError, ValueError):
+            config['status'] = 'kernel_config_unavailable'
+        self.capabilities = {'scheduler': 'per-thread cumulative schedstat and context-switch samples; not event trace',
+                             'io': 'available' if (self.root / 'io').exists() else 'unavailable_proc_io_absent',
+                             'cpu_tick_hz': os.sysconf('SC_CLK_TCK'), 'thread_state': 'sampled_proc_stat',
+                             'schedstat_zero_policy': 'raw zero is not evidence of no wait; require supported/enabled counters',
+                             'io_scope': 'logical/syscall and accounted storage counters if supported, not file latency',
+                             'kernel_config_observed': config}
+
+    def read(self):
+        process = parse_linux_stat((self.root / 'stat').read_text(encoding='utf-8'))
+        if process['starttime_ticks'] != self.identity['starttime_ticks']:
+            raise RuntimeError('Target PID identity changed')
+        if process['state'] == 'Z':
+            # Zombie stat remains readable briefly; it is a useful final CPU/fault sample.
+            exited = True
+        else:
+            exited = False
+        threads, races = [], []
+        for task in sorted((p for p in (self.root / 'task').iterdir() if p.name.isdigit()), key=lambda p: int(p.name)):
+            tid = int(task.name)
+            try:
+                stat = parse_linux_stat((task / 'stat').read_text(encoding='utf-8'))
+                row = {'tid': tid, 'starttime_ticks': stat['starttime_ticks'], 'stat': stat}
+                for name, reader in [('schedstat', _linux_sched), ('context_switches', _linux_status)]:
+                    path = task / ('schedstat' if name == 'schedstat' else 'status')
+                    try:
+                        row[name] = reader(path)
+                    except (OSError, ValueError) as error:
+                        row[name] = None
+                        row[name + '_unavailable'] = type(error).__name__
+                threads.append(row)
+            except (OSError, ValueError) as error:
+                races.append({'tid': tid, 'phase': 'thread_read', 'reason': type(error).__name__})
+        io = None
+        if self.capabilities['io'] == 'available':
+            try:
+                io = {key: int(value) for key, value in
+                      (line.split(':', 1) for line in (self.root / 'io').read_text(encoding='ascii').splitlines())}
+            except OSError as error:
+                races.append({'phase': 'process_io', 'reason': type(error).__name__})
+        return {'process_stat': process, 'process_io': io, 'threads': threads, 'races': races,
+                'process_exited_observed': exited}
+
+    def close(self):
+        pass
+
+
+class _WindowsReader:
+    """Public Win32 queries only; no fragile undocumented NT structure offsets."""
+    def __init__(self, pid):
+        from ctypes import wintypes as w
+        self.w = w
+        self.pid = pid
+        self.thread_handles = {}
+        self.initial_thread_snapshot_done = False
+        self.initial_thread_snapshot_metadata = None
+        self.kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        class IO(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_ulonglong) for name in
+                        ('read_operations', 'write_operations', 'other_operations',
+                         'read_bytes', 'write_bytes', 'other_bytes')]
+        class ThreadEntry(ctypes.Structure):
+            _fields_ = [('dwSize', w.DWORD), ('cntUsage', w.DWORD), ('th32ThreadID', w.DWORD),
+                        ('th32OwnerProcessID', w.DWORD), ('tpBasePri', w.LONG),
+                        ('tpDeltaPri', w.LONG), ('dwFlags', w.DWORD)]
+        self.IO, self.ThreadEntry = IO, ThreadEntry
+        declarations = {
+            'OpenProcess': ([w.DWORD, w.BOOL, w.DWORD], w.HANDLE),
+            'OpenThread': ([w.DWORD, w.BOOL, w.DWORD], w.HANDLE),
+            'CloseHandle': ([w.HANDLE], w.BOOL),
+            'GetProcessTimes': ([w.HANDLE] + [ctypes.POINTER(w.FILETIME)] * 4, w.BOOL),
+            'GetThreadTimes': ([w.HANDLE] + [ctypes.POINTER(w.FILETIME)] * 4, w.BOOL),
+            'GetProcessIdOfThread': ([w.HANDLE], w.DWORD),
+            'GetProcessIoCounters': ([w.HANDLE, ctypes.POINTER(IO)], w.BOOL),
+            'WaitForSingleObject': ([w.HANDLE, w.DWORD], w.DWORD),
+            'CreateToolhelp32Snapshot': ([w.DWORD, w.DWORD], w.HANDLE),
+            'Thread32First': ([w.HANDLE, ctypes.POINTER(ThreadEntry)], w.BOOL),
+            'Thread32Next': ([w.HANDLE, ctypes.POINTER(ThreadEntry)], w.BOOL),
+            'QueryPerformanceCounter': ([ctypes.POINTER(ctypes.c_longlong)], w.BOOL),
+            'QueryPerformanceFrequency': ([ctypes.POINTER(ctypes.c_longlong)], w.BOOL)}
+        for name, (args, result) in declarations.items():
+            function = getattr(self.kernel, name)
+            function.argtypes, function.restype = args, result
+        self.handle = self.kernel.OpenProcess(0x1000 | 0x100000, False, pid)  # QUERY_LIMITED_INFORMATION | SYNCHRONIZE
+        if not self.handle:
+            raise OSError(ctypes.get_last_error(), 'OpenProcess query-limited/synchronize failed')
+        times = self._times(self.handle, 'GetProcessTimes')
+        if times is None:
+            self.close()
+            raise OSError(ctypes.get_last_error(), 'Initial process identity unavailable')
+        self.identity = {'pid': pid, 'creation_filetime_100ns': times['creation_filetime_100ns']}
+        self.capabilities = {'scheduler': 'unavailable_exact_cswitch_or_runqueue_trace',
+                             'thread_state': 'unavailable_public_win32_observer',
+                             'context_switches': 'unavailable_public_win32_observer',
+                             'faults': 'unavailable_requested_public_apis',
+                             'io': 'GetProcessIoCounters cumulative process accounting',
+                             'io_scope': 'includes console and diagnostic IPC; not file/physical-disk latency',
+                             'thread_enumeration': 'one initial Toolhelp snapshot only; owned live thread handles retained and queried thereafter',
+                             'thread_coverage': 'initial captured threads only; later/background threads are not discovered or attributed',
+                             'thread_identity': 'owner checked on acquisition; pinned handle and creation time checked on every query',
+                             'new_threads_not_covered': True}
+
+    def _times(self, handle, name):
+        fields = [self.w.FILETIME() for _ in range(4)]
+        if not getattr(self.kernel, name)(handle, *(ctypes.byref(v) for v in fields)):
+            return None
+        values = [(v.dwHighDateTime << 32) | v.dwLowDateTime for v in fields]
+        return dict(zip(('creation_filetime_100ns', 'exit_filetime_100ns',
+                         'kernel_cpu_100ns', 'user_cpu_100ns'), values))
+
+    def _capture_initial_threads(self):
+        """Enumerate once during the first observation.
+
+        Toolhelp is a global scan and can be expensive. Never repeat it at the
+        sample cadence. This intentionally cannot attribute later worker threads.
+        The EventPipe caller holds startup suspended; this helper cannot itself
+        verify suspension, and other callers may observe a running target.
+        """
+        self.initial_thread_snapshot_done = True
+        begin = _clock()
+        cpu_begin = time.thread_time_ns()
+        races = []
+        snapshot = self.kernel.CreateToolhelp32Snapshot(4, 0)  # TH32CS_SNAPTHREAD
+        if snapshot == ctypes.c_void_p(-1).value:
+            races.append({'phase': 'initial_thread_snapshot', 'winerror': ctypes.get_last_error()})
+        else:
+            try:
+                entry = self.ThreadEntry(); entry.dwSize = ctypes.sizeof(entry)
+                ok = self.kernel.Thread32First(snapshot, ctypes.byref(entry))
+                while ok:
+                    if entry.th32OwnerProcessID == self.pid:
+                        tid, priority = entry.th32ThreadID, entry.tpBasePri
+                        handle = self.kernel.OpenThread(0x0800, False, tid)
+                        if not handle:
+                            races.append({'tid': tid, 'phase': 'initial_thread_open', 'winerror': ctypes.get_last_error()})
+                        else:
+                            retain = False
+                            try:
+                                owner = self.kernel.GetProcessIdOfThread(handle)
+                                if owner != self.pid:
+                                    races.append({'tid': tid, 'phase': 'initial_thread_owner_identity',
+                                                  'reason': 'owner_mismatch_or_query_failed',
+                                                  'winerror': ctypes.get_last_error() if owner == 0 else None})
+                                else:
+                                    times = self._times(handle, 'GetThreadTimes')
+                                    if times is None:
+                                        races.append({'tid': tid, 'phase': 'initial_thread_times', 'winerror': ctypes.get_last_error()})
+                                    elif times['exit_filetime_100ns'] != 0:
+                                        races.append({'tid': tid, 'phase': 'initial_thread_already_exited'})
+                                    else:
+                                        self.thread_handles[tid] = {'handle': handle, 'birth': times['creation_filetime_100ns'],
+                                                                    'initial_base_priority': priority}
+                                        retain = True
+                            finally:
+                                if not retain:
+                                    self.kernel.CloseHandle(handle)
+                    ok = self.kernel.Thread32Next(snapshot, ctypes.byref(entry))
+                error = ctypes.get_last_error()
+                if error not in (0, 18):
+                    races.append({'phase': 'initial_thread_enumeration_end', 'winerror': error})
+            finally:
+                self.kernel.CloseHandle(snapshot)
+        end = _clock()
+        self.initial_thread_snapshot_metadata = {'calls': 1, 'begin': begin, 'end': end,
+                                                 'duration_perf_counter_ns': end['perf_counter_ns'] - begin['perf_counter_ns'],
+                                                 'thread_cpu_ns': time.thread_time_ns() - cpu_begin,
+                                                 'captured_live_tids': sorted(self.thread_handles),
+                                                 'status': ('partial_with_errors' if races else
+                                                            'completed_initial_snapshot' if self.thread_handles else
+                                                            'no_owned_live_threads_observed'),
+                                                 'races': races,
+                                                 'startup_suspension_verified_by_observer': False,
+                                                 'coverage': 'initial snapshot only; new/background threads remain uncovered'}
+        return races
+
+    def read(self):
+        process = self._times(self.handle, 'GetProcessTimes')
+        if process is None:
+            raise OSError(ctypes.get_last_error(), 'GetProcessTimes failed')
+        if process['creation_filetime_100ns'] != self.identity['creation_filetime_100ns']:
+            raise RuntimeError('Target PID identity changed')
+        io = self.IO()
+        io_ok = bool(self.kernel.GetProcessIoCounters(self.handle, ctypes.byref(io)))
+        io_error = None if io_ok else ctypes.get_last_error()
+        exited = self.kernel.WaitForSingleObject(self.handle, 0) == 0
+        threads, races = [], []
+        captured_now = not exited and not self.initial_thread_snapshot_done
+        if captured_now:
+            races.extend(self._capture_initial_threads())
+        for tid, pinned in list(self.thread_handles.items()):
+            times = self._times(pinned['handle'], 'GetThreadTimes')
+            retire = False
+            if times is None:
+                races.append({'tid': tid, 'phase': 'cached_thread_times', 'winerror': ctypes.get_last_error()})
+                retire = True
+            elif times['creation_filetime_100ns'] != pinned['birth']:
+                races.append({'tid': tid, 'phase': 'cached_thread_creation_identity', 'reason': 'creation_mismatch'})
+                retire = True
+            else:
+                threads.append({'tid': tid, **times, 'base_priority': pinned['initial_base_priority'],
+                                'base_priority_scope': 'initial_snapshot_only', 'state': None,
+                                'context_switches': None, 'faults': None, 'scheduler_unavailable': True,
+                                'thread_coverage': 'initial_snapshot_pinned_handle'})
+                retire = times['exit_filetime_100ns'] != 0
+            if retire:
+                self.kernel.CloseHandle(pinned['handle'])
+                del self.thread_handles[tid]
+        # Recheck after the one-time scan/query sequence before startup readiness.
+        exited = self.kernel.WaitForSingleObject(self.handle, 0) == 0
+        qpc, frequency = ctypes.c_longlong(), ctypes.c_longlong()
+        qpc_ok = self.kernel.QueryPerformanceCounter(ctypes.byref(qpc))
+        freq_ok = self.kernel.QueryPerformanceFrequency(ctypes.byref(frequency))
+        return {'process_times': process, 'process_io': {name: getattr(io, name) for name, _ in io._fields_} if io_ok else None,
+                'process_io_winerror': io_error, 'threads': threads, 'races': races,
+                'process_exited_observed': exited, 'qpc_ticks': qpc.value if qpc_ok else None,
+                'qpc_frequency': frequency.value if freq_ok else None,
+                'initial_thread_snapshot': self.initial_thread_snapshot_metadata if captured_now else None,
+                'new_threads_not_covered': True}
+
+    def close(self):
+        for pinned in getattr(self, 'thread_handles', {}).values():
+            self.kernel.CloseHandle(pinned['handle'])
+        if hasattr(self, 'thread_handles'):
+            self.thread_handles.clear()
+        if getattr(self, 'handle', None):
+            self.kernel.CloseHandle(self.handle)
+            self.handle = None
+
+
+def observe_process(pid, output_jsonl, stop_event, interval=.010, *, expected_identity=None, ready_event=None):
+    """Block until exit/stop; caller may run this in its own thread.
+
+    Samples are cumulative observations, not benchmark measurements or complete
+    lifetime/event coverage. The helper never stops or modifies the target.
+    """
+    if not isinstance(pid, int) or pid <= 0 or not (.001 <= interval <= 1):
+        raise ValueError('Positive native PID and sampling interval .001..1 second required')
+    if ready_event is not None and ready_event.is_set():
+        raise ValueError('A fresh unset ready_event is required')
+    output = Path(output_jsonl)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    summary = {'schema_version': 1, 'pid': pid, 'observer_pid': os.getpid(), 'requested_interval_seconds': interval,
+               'status': 'started', 'samples': 0, 'races': 0, 'read_failures': [], 'sample_gaps_ns': [],
+               'thread_identities_seen': {}, 'started': _clock(), 'target_identity': None,
+               'expected_target_identity': expected_identity,
+               'scope': 'diagnostic sampled native OS counters only, never exact scheduler events or benchmark evidence',
+               'unseen_short_lived_threads_possible': True, 'tail_coverage': 'not guaranteed',
+               'initial_coverage': 'first successful snapshot; startup before it is not event-traced',
+               'timing_clock': 'perf_counter_ns; legacy monotonic_ns is distinct and must not be joined to QPC',
+               'flush_policy': 'flush each JSON line; no fsync/power-loss guarantee'}
+    reader = None
+    cpu_start = time.thread_time_ns()
+    controller_cpu_start = time.process_time_ns()
+    with output.open('x', encoding='utf-8', newline='\n') as stream:
+        def write(value):
+            stream.write(json.dumps(value, separators=(',', ':'), allow_nan=False) + '\n'); stream.flush()
+        write({'kind': 'observer_start', 'data': {**summary, 'platform': platform.platform(),
+                                                 'clock': vars(time.get_clock_info('monotonic')),
+                                                 'perf_counter_clock': vars(time.get_clock_info('perf_counter'))}})
+        try:
+            reader = _WindowsReader(pid) if os.name == 'nt' else _LinuxReader(pid)
+            if expected_identity is not None and reader.identity != expected_identity:
+                raise RuntimeError('Initial target identity differs from the owned-process lease')
+            summary['target_identity'] = reader.identity
+            summary['capabilities'] = reader.capabilities
+            write({'kind': 'capabilities', 'target_identity': reader.identity, 'data': reader.capabilities, **_clock()})
+            previous_start = None
+            deadline = time.perf_counter()
+            while True:
+                begin = _clock()
+                if previous_start is not None:
+                    summary['sample_gaps_ns'].append(begin['perf_counter_ns'] - previous_start)
+                previous_start = begin['perf_counter_ns']
+                try:
+                    sample = reader.read()
+                except (OSError, ValueError, RuntimeError) as error:
+                    failure = {'reason': type(error).__name__, 'message': str(error), **_clock()}
+                    summary['read_failures'].append(failure); write({'kind': 'read_failure', **failure})
+                    summary['status'] = 'partial_target_unavailable'
+                    break
+                end = _clock()
+                sample.update(kind='sample', sequence=summary['samples'], begin=begin, end=end,
+                              read_duration_ns=end['perf_counter_ns'] - begin['perf_counter_ns'],
+                              target_identity=reader.identity)
+                write(sample); summary['samples'] += 1; summary['races'] += len(sample['races'])
+                for thread in sample['threads']:
+                    birth = thread.get('starttime_ticks', thread.get('creation_filetime_100ns'))
+                    key = str(thread['tid']) + ':' + str(birth)
+                    if key not in summary['thread_identities_seen']:
+                        summary['thread_identities_seen'][key] = {'tid': thread['tid'], 'birth': birth,
+                                                                 'first_observed_ns': begin['perf_counter_ns'],
+                                                                 'first_observed_monotonic_ns': begin['monotonic_ns'],
+                                                                 'first_observed_perf_counter_ns': begin['perf_counter_ns'],
+                                                                 'first_counters': thread}
+                    summary['thread_identities_seen'][key]['last_observed_ns'] = end['perf_counter_ns']
+                    summary['thread_identities_seen'][key]['last_observed_monotonic_ns'] = end['monotonic_ns']
+                    summary['thread_identities_seen'][key]['last_observed_perf_counter_ns'] = end['perf_counter_ns']
+                    summary['thread_identities_seen'][key]['last_counters'] = thread
+                summary['last_successful_observation'] = end
+                if sample.get('initial_thread_snapshot') is not None:
+                    summary['windows_initial_thread_snapshot'] = sample['initial_thread_snapshot']
+                live_thread = any((thread.get('stat', {}).get('state') not in (None, 'Z', 'X'))
+                                  or thread.get('exit_filetime_100ns') == 0 for thread in sample['threads'])
+                if (ready_event is not None and not ready_event.is_set() and not stop_event.is_set()
+                        and live_thread and not sample['process_exited_observed']):
+                    summary['ready_after_sample'] = sample['sequence']
+                    summary['ready_monotonic_ns'] = end['monotonic_ns']
+                    summary['ready_perf_counter_ns'] = end['perf_counter_ns']
+                    # The sample has been flushed and both process/thread identity
+                    # checks passed. Headers or an empty thread snapshot never resume
+                    # a startup-suspended target.
+                    write({'kind': 'observer_ready', 'target_identity': reader.identity,
+                           'after_sample': sample['sequence'], 'verified_live_native_thread': True, **end})
+                    ready_event.set()
+                if sample['process_exited_observed']:
+                    summary['status'] = 'completed_exit_observed'; break
+                if stop_event.is_set():
+                    summary['status'] = 'completed_stop_requested'; break
+                deadline += interval
+                delay = max(0.0, deadline - time.perf_counter())
+                if delay == 0:
+                    # Do not burst to catch up after an expensive snapshot.
+                    deadline = time.perf_counter()
+                stop_event.wait(delay)
+        except (OSError, ValueError, RuntimeError) as error:
+            summary.update(status='unavailable_before_first_snapshot', error={'type': type(error).__name__, 'message': str(error)})
+        finally:
+            if reader is not None:
+                reader.close()
+            summary['finished'] = _clock()
+            summary['observer_thread_cpu_ns'] = time.thread_time_ns() - cpu_start
+            summary['controller_process_cpu_ns_during_observation'] = time.process_time_ns() - controller_cpu_start
+            gaps = summary.pop('sample_gaps_ns')
+            summary['actual_gap_count'] = len(gaps)
+            summary['actual_min_gap_ns'] = min(gaps) if gaps else None
+            summary['actual_max_gap_ns'] = max(gaps) if gaps else None
+            summary['gap_count_over_twice_requested'] = sum(g > interval * 2e9 for g in gaps)
+            summary['tail_since_last_sample_ns'] = (summary['finished']['perf_counter_ns'] - summary['last_successful_observation']['perf_counter_ns']) if summary.get('last_successful_observation') else None
+            write({'kind': 'observer_summary', 'data': summary})
+    return summary

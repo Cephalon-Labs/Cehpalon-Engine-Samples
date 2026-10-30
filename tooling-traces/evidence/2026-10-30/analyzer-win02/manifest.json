@@ -1,0 +1,41 @@
+[
+  {
+    "label": "restore",
+    "argv": [
+      "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+      "restore",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\TraceAnalysis.csproj",
+      "--locked-mode",
+      "--configfile",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\NuGet.Config",
+      "--artifacts-path",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-analyzer-win02\\artifacts"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build",
+    "argv": [
+      "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+      "build",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\TraceAnalysis.csproj",
+      "-c",
+      "Release",
+      "--no-restore",
+      "--artifacts-path",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-analyzer-win02\\artifacts",
+      "-p:UseSharedCompilation=false",
+      "-warnaserror"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "self-test",
+    "argv": [
+      "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\tooling-trace-analyzer-win02\\artifacts\\bin\\TraceAnalysis\\release\\TraceAnalysis.dll",
+      "--self-test"
+    ],
+    "exit": 0
+  }
+]
