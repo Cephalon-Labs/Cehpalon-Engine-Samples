@@ -1,0 +1,29 @@
+# Managed trace analysis (diagnostic only)
+
+Standalone `net11.0` tool, pinned SDK `11.0.100-rc.3.26522.148`, TraceEvent `4.0.0` and Diagnostics client `0.2.750501`. It does not change Engine's package policy. Restore with this directory's `NuGet.Config` and committed lock, then build Release. Invoke with the exact private SDK; run SDK commands from this directory or otherwise verify the actual SDK version.
+
+```text
+dotnet TraceAnalysis.dll --trace <input.nettrace> --output <new-analysis-directory> [--spans <diagnostic-sidecar.jsonl>]
+dotnet TraceAnalysis.dll --resume <known-owned-target-pid>
+dotnet TraceAnalysis.dll --self-test
+```
+
+`--resume` sends ResumeRuntime to the default PID diagnostic port and returns `command_acknowledged`, `executionResumed=null`. It does not collect a trace or prove execution resumed: every configured suspended port needs its own resume. A default-port acknowledgment cannot release a separately suspended reverse port. The trace runner instead starts the target suspended, readies its owned PID observer, then starts the collector with automatic resume on that same reverse endpoint after session creation. Do not inherit a target's suspend-on-start environment into coordination processes.
+
+Analysis refuses an existing output directory. It writes `summary.json`, raw dispatched `events.jsonl`, `intervals.json`, optional `spans-correlated.jsonl`, managed `sampled-thread-stacks.jsonl`, and an ETLX conversion used for stack lookup. Raw NetTrace remains authoritative: unsupported payload objects may be represented as strings in the JSON export. No external symbol server is configured. Keep binary traces/ETLX private according to the trace retention protocol.
+
+All event kinds, provider/name counts, payload-read errors and reported loss are retained. The two-pass stack conversion has its own loss/error status. The sample profiler observes thread stacks; it is not OS on-CPU, native-stack, scheduler-wait or physical-disk-IO evidence. Actual OS observations must come from a separate supported observer.
+
+GC episodes pair observed SuspendEEStart/Stop and RestartEEStart/Stop per PID/CLR instance. Only GC/GCPrep reasons are classified GC-related. The outer episode is a rendezvous/suspension/restart envelope, not proof every thread stopped throughout it; Stop to RestartStart gives the narrower all-suspended window. Missing or ambiguous episodes remain incomplete; GC collection lifetime is never substituted for a pause.
+
+JIT matching uses actual runtime JittingStarted and JITTED MethodLoad/LoadVerbose with unique PID/CLR/native-TID/MethodID/ModuleID. Rundown/DC loads cannot complete an interval. Repeated starts tombstone the pairing rather than selecting one. Start-to-load is elapsed time, not compiler CPU duration or proven caller stall. Background-thread overlap stays distinguishable from the calling thread. Unmatched starts and actual loads without a unique start are separately retained.
+
+The optional sidecar carries exact Stopwatch body start/end, frequency, UTC anchor bracket, PID/native TID and row/stage identity. Marker events are emitted after the original wall/CPU/allocation/GC brackets. Sidecar MarkerBefore/AfterTicks bound the event-write call, so each marker gives an offset interval to trace-relative milliseconds. The analyzer retains each interval and their intersection, reports inconsistent mappings as uncertain, and caps overlap bounds to physical interval lengths. Event timestamp placement within the logging call is an explicit assumption, not an immutable clock attestation.
+
+`tools/prepare_tooling_trace_driver.py --engine-root <clean-engine> --output <new-Samples-.local-project>` prepares only a diagnostic copy of the pinned Engine55 driver. It checks full revision, source SHA and every rewrite anchor. Optional `--expected-engine-revision <full-SHA>` still requires identical pinned driver content. It writes `TraceDriver.csproj`, `Program.cs`, `DiagnosticSupport.cs`, copied SDK/NuGet inputs, original source and `diagnostic-manifest.json`. Build it, then invoke `TraceDriver.dll --output=<new-report.json>`; sidecar is `<report>.spans.jsonl`.
+
+The diagnostic provider is `Cehpalon-Tooling-Diagnostic`, keyword `0x1`, Informational event `Span` (ID1). Payload fields: sequence, stage, startTicks, endTicks, frequency, utcAnchorTicks, anchorBeforeTicks, anchorAfterTicks, processId, osThreadId, caseIndex, size, state, variant, pairSequence, phase, markerBeforeTicks. Sidecar adds markerAfterTicks. Stage labels cover fixture setup/edit, Execute setup, generator.run, pe.emit, compiler.wall, SHA/hex hash, AST verification, runtime verification and raw journal persistence. Compiler spans include preflight/seed executions: select `primer`/`measurement` phases for the 306 main rows rather than treating all 330 Execute calls as measurements.
+
+Extra clocks, event/log work, native-thread lookup and buffered record allocation perturb the process and can affect subsequent stages. Hash spans cover SHA/hex only; UTF8/source string construction and final pretty-report/sidecar persistence remain unassigned gaps. The sidecar is buffered until completion; abrupt loss makes marker correlation incomplete. Original canonical benchmark source and criteria remain untouched. Traced numeric summaries are explicitly `canonical=false`, `diagnosticPerturbed=true`, `performanceStatus=diagnostic_only_not_acceptance`, qualification `not_qualified`.
+
+Implementation references: [EventPipe](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/eventpipe), [dotnet-trace](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-trace), [pinned EventPipe reader](https://github.com/microsoft/perfview/blob/v4.0.0/src/TraceEvent/EventPipe/EventPipeEventSource.cs), [pinned CLR parser](https://github.com/microsoft/perfview/blob/v4.0.0/src/TraceEvent/Parsers/ClrTraceEventParser.cs).
