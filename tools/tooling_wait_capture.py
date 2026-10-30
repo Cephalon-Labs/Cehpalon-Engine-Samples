@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import shutil
+import re
 import signal
 import subprocess
 import sys
@@ -135,11 +136,13 @@ def _absolute_file(value):
     return path.resolve()
 
 
-def _wait(predicate, tracer, deadline, description, collector=None):
+def _wait(predicate, tracer, deadline, description, collector=None, *, allow_successful_tracer_exit=False):
     while time.perf_counter() < deadline:
         if predicate():
             return
-        _require(tracer.poll() is None, 'Tracer/target exited before ' + description)
+        tracer_exit = tracer.poll()
+        _require(tracer_exit is None or allow_successful_tracer_exit and tracer_exit == 0,
+                 'Tracer/target exited before ' + description)
         if collector is not None:
             _require(collector.poll() is None, 'Collector exited before ' + description)
         time.sleep(.010)
@@ -151,6 +154,120 @@ def _remaining(deadline):
     if remaining <= 0:
         raise TimeoutError('Combined capture deadline expired')
     return remaining
+
+
+def _discover_managed_target(tracer, raw, executable, deadline, report):
+    """Join successful exact-host execve to a live owned child before leasing.
+
+    strace may briefly create setup children that never exec the target. Their
+    presence under /proc/.../children is diagnostic only, never target identity.
+    """
+    discovery = {'proc_child_candidate_ids': [], 'execve_records': [],
+                 'scope': 'Only successful exact-host raw execve plus live birth/parent/group/session and matching executable establishes target lease'}
+    report['target_discovery_diagnostics'] = discovery
+    children_seen, pending, candidates = set(), {}, []
+    offset, partial, line_number = 0, b'', 0
+    exec_path = re.compile(r'^execve\(("(?:[^"\\]|\\.)*"),')
+    while time.perf_counter() < deadline:
+        try:
+            children = Path('/proc', str(tracer.pid), 'task', str(tracer.pid), 'children').read_text(encoding='ascii')
+            children_seen.update(int(value) for value in children.split())
+            discovery['proc_child_candidate_ids'] = sorted(children_seen)
+        except (OSError, ValueError) as error:
+            discovery['last_proc_children_error'] = type(error).__name__
+        try:
+            with raw.open('rb') as stream:
+                stream.seek(offset)
+                chunk = stream.read(1024 * 1024)
+                offset += len(chunk)
+            lines = (partial + chunk).split(b'\n')
+            partial = lines.pop()
+            for encoded in lines:
+                line_number += 1
+                match = native.PREFIX.match(encoded.decode('utf-8'))
+                if not match:
+                    continue
+                pid, body = int(match['pid']), match['body']
+                if body.startswith('execve('):
+                    record = {'pid_candidate': pid, 'entry_line': line_number,
+                              'printed_entry_epoch_text': match['stamp'], 'status': 'raw_execve_observed_not_leased'}
+                    path = exec_path.match(body)
+                    if path:
+                        # The pinned SDK path is ASCII and needs no strace C
+                        # escaping. Fail closed on unsupported renderings.
+                        if path[1].isascii() and '\\' not in path[1]:
+                            record['executable_rendered'] = path[1][1:-1]
+                        else:
+                            record['path_parse_status'] = 'escaped_or_nonascii_path_unsupported'
+                    if '<unfinished ...>' in body:
+                        pending[pid] = record
+                        continue
+                elif body.startswith('<... execve resumed>'):
+                    record = pending.pop(pid, None)
+                    if record is None:
+                        discovery.setdefault('orphan_execve_resume_lines', []).append(line_number)
+                        continue
+                    record['resume_line'] = line_number
+                else:
+                    continue
+                result = body.rsplit(' = ', 1)[1] if ' = ' in body else None
+                value = native._integer_result(result) if result is not None else None
+                record['return_value'] = value
+                discovery['execve_records'].append(record)
+                if value != 0 or not record.get('executable_rendered'):
+                    record['status'] = 'execve_not_successful_or_exact_path_unavailable'
+                    continue
+                try:
+                    exact_path = os.path.samefile(record['executable_rendered'], executable)
+                except OSError as error:
+                    record.update(status='execve_path_verification_unavailable', reason=type(error).__name__)
+                    continue
+                if not exact_path:
+                    record['status'] = 'foreign_execve_path_not_target'
+                    continue
+                candidates.append(record)
+        except FileNotFoundError:
+            discovery['raw_status'] = 'not_yet_created'
+        except OSError as error:
+            discovery.update(raw_status='read_unavailable', raw_error=type(error).__name__)
+        _require(len(partial) <= 1024 * 1024, 'Raw startup line exceeds bounded discovery buffer')
+        for record in candidates:
+            if record.get('permanently_rejected'):
+                continue
+            pid = record['pid_candidate']
+            identity = native._owned_target_identity(tracer, pid)
+            if identity is None:
+                record['status'] = 'successful_execve_but_live_owned_child_unavailable'
+                continue
+            first = record.setdefault('first_live_owned_identity', identity)
+            if identity != first:
+                record.update(status='birth_changed_before_lease_rejected', permanently_rejected=True)
+                continue
+            try:
+                observed = os.readlink('/proc/' + str(pid) + '/exe')
+                same = os.path.samefile(observed, executable)
+            except OSError as error:
+                record.update(status='live_executable_query_unavailable', reason=type(error).__name__)
+                continue
+            after = native._owned_target_identity(tracer, pid)
+            if after != identity:
+                record.update(status='birth_or_ownership_changed_during_exec_join_rejected', permanently_rejected=True)
+                continue
+            if not same:
+                record['status'] = 'live_image_not_matching_successful_execve'
+                continue
+            record['status'] = 'successful_exact_execve_and_live_owned_image_joined'
+            discovery['partial_raw_line_bytes_at_lease'] = len(partial)
+            proof = {'target_executable_observed': observed, 'target_executable_matches_requested': True,
+                     'owned_exec_verified_perf_counter_ns': time.perf_counter_ns(),
+                     'target_execve_entry_line': record['entry_line'],
+                     'target_execve_resume_line': record.get('resume_line')}
+            return pid, 'successful_exact_execve_live_owned_child_join', identity, proof
+        _require(tracer.poll() is None, 'Owned tracer exited before a successful managed execve/live child join')
+        time.sleep(.010)
+    discovery['pending_execve_candidates'] = list(pending.values())
+    discovery['partial_raw_line_bytes_at_timeout'] = len(partial)
+    raise TimeoutError('No successful exact managed execve could be joined to a live owned child before deadline')
 
 
 def _cleanup_tracer(tracer, birth, report):
@@ -279,29 +396,9 @@ def capture(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
         report['tracer_pid'] = tracer.pid
         tracer_birth = os_observer.parse_linux_stat(Path('/proc', str(tracer.pid), 'stat').read_text())['starttime_ticks']
         report['tracer_starttime_ticks'] = tracer_birth
-        pid, discovery, identity = native._discover_target(tracer, raw, min(10, _remaining(deadline)))
+        pid, discovery, identity, executable_proof = _discover_managed_target(
+            tracer, raw, executable, min(deadline, time.perf_counter() + 10), report)
         report.update(target_pid=pid, target_discovery=discovery, target_owned_identity=identity)
-        _require(pid is not None and identity is not None and native._owned_target_identity(tracer, pid) == identity,
-                 'Live owned direct managed child and birth lease required')
-        # Discovery can precede the child exec transition. Wait on this same
-        # birth lease rather than treating the pre-exec strace image as failure.
-        executable_proof = {}
-        def owned_exec_ready():
-            _require(native._owned_target_identity(tracer, pid) == identity,
-                     'Owned target birth lease changed before exec verification')
-            try:
-                path = os.readlink('/proc/' + str(pid) + '/exe')
-                match = os.path.samefile(path, executable)
-            except OSError:
-                return False
-            _require(native._owned_target_identity(tracer, pid) == identity,
-                     'Owned target birth lease changed while verifying exec')
-            if match:
-                executable_proof.update(target_executable_observed=path, target_executable_matches_requested=True,
-                                        owned_exec_verified_perf_counter_ns=time.perf_counter_ns())
-                return True
-            return False
-        _wait(owned_exec_ready, tracer, min(deadline, time.perf_counter() + 10), 'owned child exec to pinned dotnet host')
         report.update(executable_proof)
         _save(folder / 'capture.json', report)
 
@@ -332,7 +429,8 @@ def capture(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
             return 'Process' in text and 'Output File' in text
         # Fast targets may exit before stdout header polling; the collector
         # header is checked first, then liveness only while still waiting.
-        _wait(session_ready, tracer, min(deadline, time.perf_counter() + 60), 'same-port EventPipe session', collector)
+        _wait(session_ready, tracer, min(deadline, time.perf_counter() + 60), 'same-port EventPipe session', collector,
+              allow_successful_tracer_exit=True)
         report['session_and_reverse_resume_header_observed_perf_counter_ns'] = time.perf_counter_ns()
         report['session_header_clock_anchor'] = _clock()
         report['header_timing_scope'] = 'post-resume acknowledgment upper bound, never the exact resume clock'
