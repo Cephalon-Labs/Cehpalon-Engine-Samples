@@ -1,0 +1,38 @@
+"""Small offline extension to already independently raw-replayed phase records."""
+from pathlib import Path
+import json,hashlib
+from fractions import Fraction
+
+root=Path('D:/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-combined-linux02/generator')
+context=Path('D:/Cephalon/.worktrees/tooling-trace-runtime/.local/emit-worker-context03')
+home=Path(__file__).parent
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+audit=read(home/'emit-points-audit02.json')
+assert audit['status']=='passed' and sha(context/'summary.json')==audit['input_context_summary_sha256']
+summary=read(context/'summary.json')
+candidatefile=context/'supplementary-ee-candidate-sequences.jsonl'
+assert sha(candidatefile)==summary['outputs_sha256'][candidatefile.name]
+candidates=[json.loads(x) for x in candidatefile.read_text().splitlines()]
+old=read(root/'analysis/intervals.json')['suspensions']
+rows=[]
+fields=['startMsec','fullySuspendedStartMsec','restartStartMsec','endMsec']
+for i,g in enumerate(old,1):
+    if not g['gcRelated']:continue
+    matches=[c for c in candidates if c['frames'][0]['processId']==g['processId']
+             and c['frames'][0]['payload']['ClrInstanceID']==g['clrInstanceId']
+             and Fraction(str(c['frames'][0]['timeMsec']))==Fraction(str(g['startMsec']))]
+    assert len(matches)==1
+    c=matches[0];differences={}
+    for field,frame in zip(fields,c['frames']):
+        if g[field] is None or Fraction(str(g[field]))!=Fraction(str(frame['timeMsec'])):
+            differences[field]={'previous':g[field],'hypothesis':frame['timeMsec'],'hypothesis_raw_index':frame['raw_event_record_index']}
+    rows.append({'previous_analyzer_episode_index':i,'phase_disagreements':differences})
+report={'status':'passed','phase_comparisons':len(rows)*4,'previous_intervals':len(rows),
+        'all_four_phases_equal':sum(not r['phase_disagreements'] for r in rows),
+        'intervals_with_phase_disagreement':[r for r in rows if r['phase_disagreements']],
+        'scope':'Exact comparison of derived models already raw-replayed; neither pairing is certified runtime truth',
+        'inputs_sha256':{'previous':sha(root/'analysis/intervals.json'),'hypotheses':sha(candidatefile),'prior_independent_audit':sha(home/'emit-points-audit02.json')}}
+out=home/'gc-fourphase-audit01.json'
+with out.open('x',encoding='utf-8') as stream:json.dump(report,stream,indent=2)
+print(json.dumps(report))

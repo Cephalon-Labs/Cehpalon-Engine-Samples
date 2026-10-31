@@ -26,3 +26,16 @@ WaitHandle pairs use PID/CLR/nativeTID. Malformed/nested/orphan/reused identitie
 Caller-only overlap fields are separate from process-wide background/idle thread unions. In particular `same_tid_managed_wait_native_observed_overlap` matches each pair and native intervals on its TID across the whole process; it is not caller-only or proof of a particular managed lock/futex owner. Never add overlapping managed/native/GC dimensions to infer exclusive CPU/blocked time. GC pairing and native loss remain explicitly partial/unknown even with integrity passes.
 
 [Retained ADR0019 evidence](evidence/2026-10-30-waits) includes failed full01, corrected whole02, both synthetic captures, negative/mocked checks, all source/clock/ownership data, independent audit and offline PE/EE studies. The original untraced benchmark is unchanged and was not repeated for a collector-only correction; Engine55 remains unchanged and #3 remains Blocked.
+
+
+## 2026-10-31 Emit worker analysis (ADR0020)
+
+Offline replay of the complete retained combined-linux02 generator; Engine unchanged.
+`tools/analyze_tooling_emit_workers.py --folder INPUT_GENERATOR --output NEW_CONTEXT`
+classifies exact compiler/ThreadPool point witnesses and retains legacy GC observations separately from uncertified supplementary hypotheses. `--self-test` runs 20 guards.
+`tools/analyze_tooling_worker_scheduler.py --capture INPUT_GENERATOR --context NEW_CONTEXT --output NEW_SCHEDULER --expected-context-source-sha256 4738c34d631b637af6f31bcb1eba4c0b73f7ce9bced8d38d0bc25f1c074506cc`
+reports adjacent stored-counter increments only. The old wait analyzer must retain its pinned source hash. Rehydrate original bytes from the previous retention manifests; analysis output directories must be new.
+
+Compiler frames occur in 242/270 measured Emit rows; point observations do not identify caller-task ownership or runnable state. Two of the legacy 23 GC envelopes have cross-initiator disputed ends; neither the legacy nor supplementary pairing is certified pause truth. Stored scheduler credits can include activity before the query, even when both read windows are inside it. Never interpret them as phase CPU/runqueue duration, lower bounds or exclusive GC/scheduler shares.
+
+[Retained attempts, fixtures and reviews](evidence/2026-10-31-emit-workers/retention.json) preserve superseded sources/results, the original declaration, 20 classifier fixtures, 30 scheduler fixtures on Windows and WSL, 19 independent credit fixtures, 294,835 point checks and 1,078,247 independent endpoint checks. The first independent endpoint audit had a Python indentation error; its source/log remain, and the corrected copy is retained separately. No new target, build, capture or original benchmark ran; no Engine optimization is justified.

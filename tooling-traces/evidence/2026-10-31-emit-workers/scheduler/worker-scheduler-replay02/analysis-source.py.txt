@@ -1,0 +1,410 @@
+"""Offline endpoint-counter changes for threads with compiler point witnesses.
+
+No workloads, builds, profilers or subprocesses are launched. Counter publication
+may credit activity that began before a query: these are NOT phase CPU/runqueue
+durations, lower bounds, exclusive causes, or evidence of host starvation.
+"""
+import argparse
+from bisect import bisect_left, bisect_right
+from collections import Counter, defaultdict
+from fractions import Fraction
+import hashlib
+import json
+from pathlib import Path
+import re
+import traceback
+
+import analyze_tooling_waits as clocks
+
+WAIT_ANALYZER_SHA = '2ba6d3918de520b19e22d85c5ca09b4dec2db05b6b2ba54dd0b235e5b2c2af94'
+METRICS = {'schedstat.cpu_runtime_ns': ('schedstat', 'cpu_runtime_ns'),
+           'schedstat.runqueue_wait_ns': ('schedstat', 'runqueue_wait_ns'),
+           'schedstat.timeslices': ('schedstat', 'timeslices'),
+           'context_switches.voluntary_context_switches': ('context_switches', 'voluntary_context_switches'),
+           'context_switches.involuntary_context_switches': ('context_switches', 'involuntary_context_switches'),
+           'stat.minor_faults': ('stat', 'minor_faults'), 'stat.major_faults': ('stat', 'major_faults'),
+           'stat.user_cpu_ticks': ('stat', 'user_cpu_ticks'), 'stat.kernel_cpu_ticks': ('stat', 'kernel_cpu_ticks')}
+LIMITS = [
+    'A compiler stack is a point witness, not permanent worker ownership or caller-task lineage.',
+    'All numbers are endpoint-accrued counter increments observed between interior read windows, NOT phase CPU/wait durations or lower bounds.',
+    'run_delay can be credited on arrive/dequeue for a queued interval beginning before this query; sum_exec_runtime is published cumulative accounting.',
+    'The separation between read windows is geometry, not a region in which any counter increment is proven to accrue.',
+    'Guest runqueue accounting does not prove host starvation. Raw zero does not prove accounting enabled or absence of wait/CPU.',
+    'Missing, boundary, raced, reused, reset or unobserved counters stay unknown; no prorating, gap bridging or missing-to-zero conversion.',
+    'Proc multi-file reads are non-atomic; only observed stable birth/lifecycle and read bounds are checked.',
+    'UTC joins use strict repeated target-anchor intersections and assume no hidden clock excursion; Python perf and target Stopwatch are never equated.',
+    'Native lifecycle timestamps carry printed precision and the same no-hidden-UTC-excursion assumption.',
+    'Cross-thread sums may exceed wall time. Emit/wait queries overlap and cannot be added into an exclusive budget.',
+    'Sample counts, syscall wall durations and residency are not CPU or scheduler-event traces.',
+    'Original GC pairing incompleteness is retained; no GC-free residual, exclusive GC-vs-scheduler percentage or product optimization follows.']
+KERNEL_REFERENCES = {
+    'proc_read': 'https://raw.githubusercontent.com/microsoft/WSL2-Linux-Kernel/linux-msft-wsl-6.18.54.1/fs/proc/base.c',
+    'credit_updates': 'https://raw.githubusercontent.com/microsoft/WSL2-Linux-Kernel/linux-msft-wsl-6.18.54.1/kernel/sched/stats.h',
+    'scope': 'Matching-name public source tag, not installed kernel binary/source attestation.'}
+
+
+def require(ok, message):
+    if not ok:
+        raise ValueError(message)
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def records(path):
+    with Path(path).open(encoding='utf-8-sig') as stream:
+        for line in stream:
+            yield json.loads(line)
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1048576), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def union_ns(windows):
+    total, end = 0, None
+    for start, stop in sorted((a, b) for a, b in windows if b > a):
+        total += stop - start if end is None or start > end else max(0, stop - end)
+        end = stop if end is None else max(end, stop)
+    return total
+
+
+def metric_values(thread):
+    return {name: (thread.get(section) or {}).get(field) for name, (section, field) in METRICS.items()}
+
+
+def endpoint_reason(row, tid, birth, core, life):
+    if row['begin_utc_ns'] < core[0] or row['end_utc_ns'] > core[1]:
+        return 'read_window_touches_or_crosses_query_boundary'
+    thread = row['threads'].get(tid)
+    if thread is None:
+        return 'thread_not_observed_at_endpoint'
+    if tid in row['raced_tids']:
+        return 'thread_read_race'
+    if thread['birth'] != birth:
+        return 'birth_mismatch'
+    if thread['state'] in ('Z', 'X', 'x', None):
+        return 'not_observed_live'
+    if life.get('status') != 'single_owned_generation_with_printed_lifetime_bounds':
+        return 'native_lifetime_unavailable_or_ambiguous'
+    if row['begin_utc_ns'] < life['ready_latest_utc_ns'] or row['end_utc_ns'] > life['exit_earliest_utc_ns']:
+        return 'read_window_touches_native_lifetime_boundary'
+    return None
+
+
+def point_lifetime_reason(window, life):
+    if life.get('status') != 'single_owned_generation_with_printed_lifetime_bounds':
+        return 'native_lifetime_unknown_no_assignment'
+    if window[0] < life['ready_latest_utc_ns'] or window[1] > life['exit_earliest_utc_ns']:
+        return 'compiler_point_native_lifetime_boundary_ambiguous_no_assignment'
+    return None
+
+
+def measure_worker(rows, tid, birth, core, life, *, poisoned_metrics=()):
+    """Pure adjacent-global-sample algorithm; no phase-duration interpretation."""
+    metrics = {name: {'endpoint_accrued_delta': None, 'valid_pairs': 0, 'missing_pairs': 0,
+                      'decreasing_pairs': 0, 'invalid_negative_pairs': 0, 'raw_zero_pairs': 0,
+                      'positive_cumulative_endpoint_value_observed': False} for name in METRICS}
+    rejected, pairs, envelope, separation = Counter(), [], [], []
+    inside = 0
+    for row in rows:
+        if endpoint_reason(row, tid, birth, core, life) is None:
+            inside += 1
+    for left, right in zip(rows, rows[1:]):
+        reasons = [endpoint_reason(r, tid, birth, core, life) for r in (left, right)]
+        if right['sequence'] != left['sequence'] + 1:
+            rejected['missing_global_sample_sequence'] += 1
+            continue
+        if any(reasons):
+            for reason in set(reasons) - {None}:
+                rejected[reason] += 1
+            continue
+        start, end = left['begin_utc_ns'], right['end_utc_ns']
+        envelope.append((start, end))
+        separation.append((left['end_utc_ns'], right['begin_utc_ns']))
+        changes = {}
+        a, b = left['threads'][tid]['metrics'], right['threads'][tid]['metrics']
+        for name, result in metrics.items():
+            if type(a.get(name)) is not int or type(b.get(name)) is not int:
+                result['missing_pairs'] += 1
+                changes[name] = None
+                continue
+            if a[name] < 0 or b[name] < 0:
+                result['invalid_negative_pairs'] += 1
+                changes[name] = None
+                continue
+            delta = b[name] - a[name]
+            result['positive_cumulative_endpoint_value_observed'] |= a[name] > 0 or b[name] > 0
+            if delta < 0:
+                result['decreasing_pairs'] += 1
+                changes[name] = None
+                continue
+            result['valid_pairs'] += 1
+            result['raw_zero_pairs'] += delta == 0
+            result['endpoint_accrued_delta'] = (result['endpoint_accrued_delta'] or 0) + delta
+            changes[name] = delta
+        pairs.append({'left_sequence': left['sequence'], 'right_sequence': right['sequence'],
+                      'left_read_utc_ns': [left['begin_utc_ns'], left['end_utc_ns']],
+                      'right_read_utc_ns': [right['begin_utc_ns'], right['end_utc_ns']], 'raw_counter_changes': changes})
+    for name, result in metrics.items():
+        if name in poisoned_metrics or result['decreasing_pairs'] or result['invalid_negative_pairs']:
+            result['endpoint_accrued_delta'] = None
+            result['status'] = 'counter_invalid_or_decrease_observed_unavailable'
+        elif not result['valid_pairs']:
+            result['status'] = 'no_valid_counter_endpoint_pair'
+        elif result['missing_pairs']:
+            result['status'] = 'partial_endpoint_credits_missing_fields'
+        else:
+            result['status'] = 'observed_endpoint_credits_only'
+        result['in_query_duration_ns'] = None
+        result['in_query_lower_bound_ns'] = None
+        result['accounting_enablement_scope'] = ('positive_values_observed_no_continuous_enablement_proof'
+            if result['positive_cumulative_endpoint_value_observed'] else 'not_proven_from_zero_or_missing')
+    return {'native_tid': tid, 'birth': birth, 'valid_live_endpoints': inside,
+            'structurally_valid_adjacent_pairs': len(pairs), 'pair_rejections': dict(rejected),
+            'metrics': metrics, 'pair_records': pairs,
+            'full_read_pair_envelope_union_ns': union_ns(envelope),
+            'read_time_separation_union_ns_geometry_only': union_ns(separation),
+            'query_core_not_spanned_by_read_pair_envelopes_ns_geometry_only': max(0, core[1] - core[0] - union_ns(envelope)),
+            'interpretation': 'Thread with a compiler residency point; endpoint-accrued counters, not compiler CPU or phase elapsed work.'}
+
+
+def load_proc(path, capture, selected):
+    rows, births, last_values, poisoned = [], defaultdict(set), {}, defaultdict(set)
+    summary, capabilities, previous_end = None, None, None
+    for row in records(path):
+        if row['kind'] == 'observer_summary':
+            summary = row['data']
+        if row['kind'] == 'capabilities':
+            capabilities = row['data']
+        if row['kind'] != 'sample':
+            continue
+        stat = row['process_stat']
+        require(row['target_identity'] == capture['target_owned_identity'] and stat['id'] == capture['target_pid']
+                and stat['starttime_ticks'] == capture['target_owned_identity']['starttime_ticks']
+                and stat['parent_pid'] == stat['process_group_id'] == stat['session_id'] == capture['tracer_pid'], 'Every proc sample preserves target lease')
+        begin, end = row['begin']['utc_ns'], row['end']['utc_ns']
+        require(begin <= end and (previous_end is None or begin >= previous_end), 'Visible proc UTC read clock discontinuity; attribution refused')
+        previous_end = end
+        projection = {'sequence': row['sequence'], 'begin_utc_ns': begin, 'end_utc_ns': end,
+                      'raced_tids': {race['tid'] for race in row['races'] if 'tid' in race}, 'threads': {}}
+        for thread in row['threads']:
+            tid, birth = thread['tid'], thread['starttime_ticks']
+            births[tid].add(birth)
+            if tid not in selected:
+                continue
+            require(thread['stat']['id'] == tid and thread['stat']['starttime_ticks'] == birth, 'Native endpoint TID/birth stat agreement')
+            values = metric_values(thread)
+            key = (tid, birth)
+            for name, value in values.items():
+                prior = last_values.get((key, name))
+                if type(value) is int:
+                    if value < 0:
+                        poisoned[tid].add(name)
+                        continue
+                    if prior is not None and value < prior:
+                        poisoned[tid].add(name)
+                    last_values[(key, name)] = value
+            projection['threads'][tid] = {'birth': birth, 'state': thread['stat']['state'], 'metrics': values,
+                                           'schedstat_status': (thread.get('schedstat') or {}).get('status')}
+        rows.append(projection)
+    require(summary == capture['observer']['summary'] and summary['samples'] == len(rows), 'Observer JSONL and final capture counts/summary agree')
+    return rows, births, poisoned, capabilities, summary
+
+
+def selected_precision(path, wanted):
+    result = {}
+    for number, line in enumerate(Path(path).open(encoding='utf-8'), 1):
+        if number not in wanted:
+            continue
+        start = re.match(r'^\s*(?:\[pid\s+)?\d+\]?\s+\d+\.(\d+)\s+', line)
+        duration = re.search(r'\s+<\d+\.(\d+)>\s*$', line)
+        result[number] = (10 ** (9 - len(start[1])) if start and 1 <= len(start[1]) <= 9 else None,
+                          10 ** (9 - len(duration[1])) if duration and 1 <= len(duration[1]) <= 9 else None)
+    return result
+
+
+def lifetimes(parsed, pid, selected, births, raw):
+    owned, clones, exits = {pid}, defaultdict(list), defaultdict(list)
+    for event in sorted(parsed['events'], key=lambda e: e.get('entry_line') or 0):
+        text = (event.get('raw_entry') or '') + ' ' + (event.get('raw_resume') or '')
+        if (event['name'] in ('clone', 'clone3') and 'CLONE_THREAD' in text
+                and type(event.get('return_value')) is int and event['return_value'] > 0
+                and event['pid_or_tid'] in owned):
+            child = event['return_value']
+            owned.add(child)
+            clones[child].append(event)
+    for event in parsed['lifecycle']:
+        if event['raw'].startswith('+++'):
+            exits[event['pid_or_tid']].append(event)
+    wanted = {line for tid in selected for e in clones[tid] for line in (e.get('entry_line'), e.get('resume_line') or e.get('entry_line')) if line is not None}
+    wanted.update(e['line'] for tid in selected for e in exits[tid])
+    precision = selected_precision(raw, wanted)
+    result = {}
+    for tid in selected:
+        life = {'status': 'unavailable_or_ambiguous', 'clone_records': len(clones[tid]), 'exit_records': len(exits[tid]),
+                'observed_births': sorted(births[tid]), 'timestamp_scope': 'printed UTC ordering conditional on no hidden clock excursion'}
+        if tid in owned and tid != pid and len(clones[tid]) == len(exits[tid]) == len(births[tid]) == 1:
+            creation, exit_event = clones[tid][0], exits[tid][0]
+            q = precision.get(creation.get('entry_line'), (None, None))[0]
+            d = precision.get(creation.get('resume_line') or creation.get('entry_line'), (None, None))[1]
+            x = precision.get(exit_event['line'], (None, None))[0]
+            duration = creation.get('observed_syscall_wall_ns')
+            if creation.get('status') == 'completed' and type(duration) is int and None not in (q, d, x):
+                ready = creation['printed_entry_epoch_ns'] + duration + q + d
+                end = exit_event['printed_epoch_ns'] - x
+                if ready <= end:
+                    life.update(status='single_owned_generation_with_printed_lifetime_bounds', ready_latest_utc_ns=ready,
+                                exit_earliest_utc_ns=end, clone_entry_line=creation['entry_line'], exit_line=exit_event['line'])
+        result[tid] = life
+    return result
+
+
+def validate_context_queries(queries, context, capture, spans, stack_path):
+    require(len({q['query_id'] for q in queries}) == len(queries), 'Unique context queries')
+    require(sum(q['kind'] == 'emit' for q in queries) == 306, 'All306 Emit rows retained')
+    wanted = {w['sample_record_index'] for q in queries for w in q['worker_witnesses']}
+    actual = {index: sample for index, sample in enumerate(records(stack_path), 1) if index in wanted}
+    for query in queries:
+        require(query['process_id'] == query['caller_tid'] == capture['target_pid'] and query['kind'] in ('emit', 'caller-wait-for-workers'), 'Query process/caller/kind identity')
+        span = spans[query['span_sequence']]
+        require(span['stage'] == 'pe.emit' and query['frequency'] == span['frequency'] == 1_000_000_000
+                and all(query['row_identity'][k] == span[k] for k in query['row_identity']), 'Query actual Emit carrier/row identity')
+        a, b, c, d = [query[k] for k in ('start_ticks_lower', 'start_ticks_upper', 'end_ticks_lower', 'end_ticks_upper')]
+        require(all(type(v) is int for v in (a, b, c, d)) and span['startTicks'] <= a <= b <= c <= d <= span['endTicks'],
+                'Ordered outer query with guaranteed core within actual Emit body')
+        if query['kind'] == 'emit':
+            require(a == b == span['startTicks'] and c == d == span['endTicks'], 'Full actual Emit query bounds')
+        seen = set()
+        for witness in query['worker_witnesses']:
+            tid = witness['native_tid']
+            require(tid not in seen and tid != query['caller_tid'], 'Unique noncaller worker point per query')
+            seen.add(tid)
+            sample = actual[witness['sample_record_index']]
+            require(sample['processId'] == query['process_id'] and sample['osThreadId'] == tid
+                    and sample['timeRelativeMsec'] == witness['sample_eventpipe_msec'], 'Actual raw stack PID/TID/time witness')
+            require(set(witness['compiler_frames']) <= set(sample['frames'])
+                    and any('Microsoft.CodeAnalysis.CSharp.MethodCompiler' in f for f in witness['compiler_frames'])
+                    and any('ThreadPool' in f for f in witness['compiler_frames']), 'Actual compiler plus ThreadPool sampled frames')
+            require(b <= witness['sample_ticks_lower'] <= witness['sample_ticks_upper'] <= c, 'Whole point uncertainty inside query core')
+    require(context['queries'] == dict(Counter(q['kind'] for q in queries)), 'Context query counts match producer summary')
+
+
+def analyze(capture_folder, context_folder, output, expected_context_source):
+    base, context_folder, output = map(lambda p: Path(p).resolve(), (capture_folder, context_folder, output))
+    output.mkdir(parents=True, exist_ok=False)
+    result = {'status': 'started', 'canonical': False, 'role': 'endpoint_credits_for_compiler_point_threads_not_phase_cpu_or_wait',
+              'limits': LIMITS, 'kernel_references': KERNEL_REFERENCES}
+    try:
+        source_snapshot = Path(__file__).read_bytes()
+        (output / 'analysis-source.py.txt').write_bytes(source_snapshot)
+        require(sha(clocks.__file__) == WAIT_ANALYZER_SHA, 'Reviewed clock/lifetime helper source pin')
+        capture = read(base / 'capture.json')
+        prior = read(base / 'wait-analysis/summary.json')
+        context = read(context_folder / 'summary.json')
+        require(capture['status'] == prior['status'] == context['status'] == 'completed'
+                and capture['target_exit'] == capture['tracer_exit'] == capture['collector_exit'] == 0,
+                'Completed same-process capture and prior/context analysis')
+        require(prior['analyzer_source_sha256'] == WAIT_ANALYZER_SHA and prior['eventpipe_reported_loss'] == prior['etlx_reported_loss'] == prior['runtime_payload_errors'] == 0,
+                'Existing exact raw/PID/loss integrity gate; pairing incompleteness retained separately')
+        require(context['source_sha256'] == expected_context_source
+                and sha(context_folder / 'analysis-source.py.txt') == expected_context_source, 'Explicit context classifier source pin')
+        inputs = {}
+        for report in (prior, context):
+            for name, digest in report['source_inputs_sha256'].items():
+                path = (base / name).resolve()
+                require(path.is_relative_to(base) and sha(path) == digest, 'Bound same-execution consumed input: ' + name)
+                inputs[name] = digest
+        for name in ('queries.jsonl',):
+            require(sha(context_folder / name) == context['outputs_sha256'][name], 'Frozen context output bytes')
+        queries = list(records(context_folder / 'queries.jsonl'))
+        span_list = list(records(base / 'generator.json.spans.jsonl'))
+        spans = {s['sequence']: s for s in span_list}
+        validate_context_queries(queries, context, capture, spans, base / 'analysis/sampled-thread-stacks.jsonl')
+        selected = {w['native_tid'] for q in queries for w in q['worker_witnesses']}
+        proc, births, poisoned, capabilities, observer = load_proc(base / 'os.jsonl', capture, selected)
+        parsed = read(base / 'parsed.json')
+        life = lifetimes(parsed, capture['target_pid'], selected, births, base / 'native.raw.log')
+        del parsed
+        anchors = clocks.anchors_from_spans(span_list)
+        ends, begins = [r['end_utc_ns'] for r in proc], [r['begin_utc_ns'] for r in proc]
+        totals = Counter()
+        with (output / 'queries.jsonl').open('x', encoding='utf-8', newline='\n') as qout, (output / 'endpoint-pairs.jsonl').open('x', encoding='utf-8', newline='\n') as pout:
+            for query in queries:
+                outer = {'processId': query['process_id'], 'frequency': query['frequency'],
+                         'startTicks': query['start_ticks_lower'], 'endTicks': query['end_ticks_upper']}
+                model, offset = clocks.constant_offset(outer, anchors)
+                report = {'query_id': query['query_id'], 'kind': query['kind'], 'span_sequence': query['span_sequence'],
+                          'row_identity': query['row_identity'], 'clock_model': model, 'workers': [],
+                          'worker_point_witnesses': len(query['worker_witnesses']),
+                          'boundary_worker_witnesses_excluded': len(query['boundary_worker_witnesses'])}
+                totals[query['kind'] + '.queries'] += 1
+                if offset is None:
+                    report['status'] = 'unsupported_clock_no_counter_assignment'
+                    totals['unsupported_clock_queries'] += 1
+                else:
+                    core = (clocks.ceil(clocks.ticks_ns(query['start_ticks_upper'], query['frequency']) + offset[1]),
+                            clocks.floor(clocks.ticks_ns(query['end_ticks_lower'], query['frequency']) + offset[0]))
+                    report['guaranteed_query_core_utc_ns'] = list(core)
+                    report['status'] = 'no_compiler_point_witness_activity_unknown' if not query['worker_witnesses'] else 'observed_endpoint_credits_only'
+                    lo, hi = max(0, bisect_left(ends, core[0]) - 1), min(len(proc), bisect_right(begins, core[1]) + 1)
+                    for witness in query['worker_witnesses']:
+                        tid, birth = witness['native_tid'], witness['observed_starttime_ticks']
+                        point_window = (clocks.floor(clocks.ticks_ns(witness['sample_ticks_lower'], query['frequency']) + offset[0]),
+                                        clocks.ceil(clocks.ticks_ns(witness['sample_ticks_upper'], query['frequency']) + offset[1]))
+                        if births[tid] != {birth}:
+                            worker = {'native_tid': tid, 'birth': birth, 'status': 'unknown_or_reused_proc_birth_no_assignment'}
+                        elif point_lifetime_reason(point_window, life[tid]) is not None:
+                            worker = {'native_tid': tid, 'birth': birth, 'status': point_lifetime_reason(point_window, life[tid])}
+                        elif core[1] <= core[0]:
+                            worker = {'native_tid': tid, 'birth': birth, 'status': 'no_guaranteed_query_core_no_assignment'}
+                        else:
+                            worker = measure_worker(proc[lo:hi], tid, birth, core, life[tid], poisoned_metrics=poisoned[tid])
+                            for pair in worker.pop('pair_records'):
+                                pout.write(json.dumps({'query_id': query['query_id'], 'native_tid': tid, 'birth': birth, **pair}, allow_nan=False) + '\n')
+                            totals[query['kind'] + '.worker_queries'] += 1
+                            totals[query['kind'] + '.worker_queries_with_adjacent_pairs'] += worker['structurally_valid_adjacent_pairs'] > 0
+                        worker['point_witness'] = witness
+                        worker['compiler_point_outer_utc_ns'] = list(point_window)
+                        worker['native_lifetime'] = life[tid]
+                        report['workers'].append(worker)
+                qout.write(json.dumps(report, allow_nan=False) + '\n')
+        result.update(status='completed', target_pid=capture['target_pid'], queries=len(queries), selected_point_witness_tids=sorted(selected),
+                      counts=dict(totals), native_lifetimes={str(k): v for k, v in life.items()},
+                      observed_proc_births={str(k): sorted(v) for k, v in births.items() if k in selected},
+                      globally_unavailable_invalid_or_decreasing_metrics={str(k): sorted(v) for k, v in poisoned.items() if v},
+                      capabilities=capabilities, observer_status=observer['status'], observer_samples=observer['samples'],
+                      observer_races=observer['races'], observer_read_failures=observer['read_failures'],
+                      legacy_analyzer_gc_envelopes=context['legacy_analyzer_gc_accepted_envelopes'],
+                      legacy_analyzer_gc_pairing_errors=context['legacy_analyzer_gc_pairing_errors'],
+                      legacy_analyzer_gc_boundary_disagreements=context['legacy_analyzer_gc_boundary_disagreements'],
+                      gc_certification_scope='Previous observations retained without requalification; disputed boundaries and source uncertainty prevent pause-truth or exclusive-budget claims.',
+                      source_inputs_sha256=inputs, context_source_sha256=expected_context_source,
+                      context_queries_sha256=sha(context_folder / 'queries.jsonl'),
+                      context_inputs_sha256={name: sha(context_folder / name) for name in ('summary.json', 'queries.jsonl', 'analysis-source.py.txt')},
+                      source_sha256=hashlib.sha256(source_snapshot).hexdigest(),
+                      helper_sha256=WAIT_ANALYZER_SHA)
+        require(Path(__file__).read_bytes() == source_snapshot and sha(clocks.__file__) == WAIT_ANALYZER_SHA,
+                'Offline analysis/helper source bytes remained frozen throughout replay')
+        result['outputs_sha256'] = {p.name: sha(p) for p in output.iterdir() if p.is_file()}
+    except Exception:
+        result.update(status='failed', failure=traceback.format_exc())
+    (output / 'summary.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n', encoding='utf-8', newline='\n')
+    return result
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--capture', required=True)
+    parser.add_argument('--context', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--expected-context-source-sha256', required=True)
+    args = parser.parse_args()
+    result = analyze(args.capture, args.context, args.output, args.expected_context_source_sha256)
+    print(json.dumps({'status': result['status'], 'queries': result.get('queries'), 'output': args.output}))
+    raise SystemExit(0 if result['status'] == 'completed' else 1)

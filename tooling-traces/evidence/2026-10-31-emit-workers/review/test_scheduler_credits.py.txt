@@ -1,0 +1,69 @@
+"""Independent pure endpoint-credit fixtures; no evidence or primary writes."""
+from copy import deepcopy
+import hashlib,json,sys,types
+from pathlib import Path
+
+home=Path(__file__).parent
+helper=Path('D:/Cephalon/Cehpalon-Engine-Samples/tools/analyze_tooling_waits.py')
+source=Path('D:/Cephalon/.worktrees/tooling-worker-scheduler/tools/analyze_tooling_worker_scheduler.py')
+clocks=types.ModuleType('analyze_tooling_waits');clocks.__file__=str(helper)
+exec(compile(helper.read_bytes(),str(helper),'exec'),clocks.__dict__)
+prior=sys.modules.get('analyze_tooling_waits');sys.modules['analyze_tooling_waits']=clocks
+module=types.ModuleType('independent_scheduler_fixture');module.__file__=str(source)
+try:exec(compile(source.read_bytes(),str(source),'exec'),module.__dict__)
+finally:
+    if prior is None:sys.modules.pop('analyze_tooling_waits',None)
+    else:sys.modules['analyze_tooling_waits']=prior
+results=[]
+def check(name,fn):
+    try:assert fn();results.append({'name':name,'status':'passed'})
+    except Exception as e:results.append({'name':name,'status':'failed','error':repr(e)})
+def row(seq,begin,end,queue,cpu=0,birth=55):
+    values={k:0 for k in module.METRICS}
+    values['schedstat.runqueue_wait_ns']=queue;values['schedstat.cpu_runtime_ns']=cpu
+    return {'sequence':seq,'begin_utc_ns':begin,'end_utc_ns':end,'raced_tids':set(),
+            'threads':{7:{'birth':birth,'state':'R','metrics':values}}}
+life={'status':'single_owned_generation_with_printed_lifetime_bounds','ready_latest_utc_ns':0,'exit_earliest_utc_ns':20_000_000}
+core=(0,10_000_000)
+good=[row(0,1_000_000,1_100_000,0,0),row(1,8_000_000,8_100_000,100_000_000,2_000_000)]
+def measured(rows,**kw):return module.measure_worker(rows,7,55,core,life,**kw)
+m=measured(good)
+check('100ms_credited_between_10ms_query_samples_is_retained',lambda:m['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta']==100_000_000)
+check('credited_jump_is_not_query_wait_duration',lambda:m['metrics']['schedstat.runqueue_wait_ns']['in_query_duration_ns'] is None)
+check('credited_jump_is_not_query_lower_bound',lambda:m['metrics']['schedstat.runqueue_wait_ns']['in_query_lower_bound_ns'] is None)
+check('CPU_credits_also_do_not_become_query_CPU_duration',lambda:m['metrics']['schedstat.cpu_runtime_ns']['in_query_duration_ns'] is None)
+check('separation_is_geometry_only',lambda:m['read_time_separation_union_ns_geometry_only']==6_900_000)
+boundary=deepcopy(good);boundary[0]['begin_utc_ns']=-1
+check('boundary_partial_endpoint_is_excluded',lambda:measured(boundary)['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta'] is None)
+missing=[good[0],{'sequence':1,'begin_utc_ns':4_000_000,'end_utc_ns':4_100_000,'raced_tids':set(),'threads':{}},
+         {**deepcopy(good[1]),'sequence':2}]
+check('missing_middle_endpoint_does_not_bridge',lambda:measured(missing)['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta'] is None)
+gap=deepcopy(good);gap[1]['sequence']=2
+check('missing_global_sequence_does_not_bridge',lambda:measured(gap)['structurally_valid_adjacent_pairs']==0)
+race=deepcopy(good);race[1]['raced_tids']={7}
+check('matching_TID_race_excludes_pair',lambda:measured(race)['structurally_valid_adjacent_pairs']==0)
+race_other=deepcopy(good);race_other[1]['raced_tids']={8}
+check('unrelated_TID_race_not_borrowed',lambda:measured(race_other)['structurally_valid_adjacent_pairs']==1)
+reused=deepcopy(good);reused[1]['threads'][7]['birth']=56
+check('birth_change_excludes_pair',lambda:measured(reused)['structurally_valid_adjacent_pairs']==0)
+dead=deepcopy(good);dead[1]['threads'][7]['state']='Z'
+check('exited_thread_not_live_endpoint',lambda:measured(dead)['structurally_valid_adjacent_pairs']==0)
+missing_value=deepcopy(good);missing_value[0]['threads'][7]['metrics']['schedstat.runqueue_wait_ns']=None
+check('missing_counter_not_zero',lambda:measured(missing_value)['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta'] is None)
+decrease=deepcopy(good);decrease[0]['threads'][7]['metrics']['schedstat.runqueue_wait_ns']=200_000_000
+check('counter_decrease_unavailable_not_negative_work',lambda:measured(decrease)['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta'] is None)
+negative=deepcopy(good);negative[0]['threads'][7]['metrics']['schedstat.runqueue_wait_ns']=-1
+check('negative_cumulative_counter_is_invalid',lambda:measured(negative)['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta'] is None)
+check('globally_poisoned_metric_stays_unavailable',lambda:measured(good,poisoned_metrics={'schedstat.runqueue_wait_ns'})['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta'] is None)
+zeros=[row(0,1_000_000,1_100_000,0),row(1,8_000_000,8_100_000,0)]
+check('zero_credit_is_observation_not_enablement_proof',lambda:measured(zeros)['metrics']['schedstat.runqueue_wait_ns']['accounting_enablement_scope']=='not_proven_from_zero_or_missing')
+check('zero_credit_still_has_unknown_phase_duration',lambda:measured(zeros)['metrics']['schedstat.runqueue_wait_ns']['in_query_duration_ns'] is None)
+three=[row(0,1_000_000,1_100_000,5),row(1,4_000_000,4_100_000,15),row(2,8_000_000,8_100_000,30)]
+check('adjacent_credits_telescope_without_duplication',lambda:measured(three)['metrics']['schedstat.runqueue_wait_ns']['endpoint_accrued_delta']==25)
+report={'status':'passed' if all(r['status']=='passed' for r in results) else 'failed','checks':len(results),'results':results,
+        'scheduler_source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'clock_helper_sha256':hashlib.sha256(helper.read_bytes()).hexdigest(),
+        'scope':'Pure observed-credit algebra; no phase CPU/wait duration or optimization claim'}
+output=home/sys.argv[1]
+with output.open('x',encoding='utf-8') as stream:json.dump(report,stream,indent=2)
+print(json.dumps(report))
+raise SystemExit(0 if report['status']=='passed' else 1)

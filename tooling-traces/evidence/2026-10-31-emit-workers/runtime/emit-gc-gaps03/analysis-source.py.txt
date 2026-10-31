@@ -1,0 +1,87 @@
+"""Original EE rejection distribution and nonauthoritative candidate boundaries."""
+import argparse,collections,hashlib,json
+from fractions import Fraction
+from pathlib import Path
+def read(p):return json.loads(Path(p).read_text())
+def framekey(e):return(e['processId'],e['threadId'],e['payload'].get('ClrInstanceID'),e['name'],str(e['timeMsec']))
+def ns(x):return Fraction(str(x))*1_000_000
+def ticks_ns(t,f):return Fraction(t*1_000_000_000,f)
+def floor(x):return x.numerator//x.denominator
+def ceil(x):return -floor(-x)
+def union(xs):
+ total=Fraction(0);end=None
+ for a,b in sorted((a,b) for a,b in xs if b>a):
+  if end is None or a>end:total+=b-a
+  elif b>end:total+=b-end
+  end=max(end,b) if end is not None else b
+ return total
+def overlap(w,episodes,cap):return {'lower_ns':floor(min(cap,union((max(w[1],a),min(w[2],b)) for a,b in episodes))),'upper_ns':ceil(min(cap,union((max(w[0],a),min(w[3],b)) for a,b in episodes)))}
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--folder',required=True);p.add_argument('--context',required=True);p.add_argument('--output',required=True);a=p.parse_args();base=Path(a.folder);ctx=Path(a.context);out=Path(a.output);out.mkdir(exist_ok=False)
+ original=read(base/'analysis/summary.json');intervals=read(base/'analysis/intervals.json');meta=read(ctx/'summary.json')
+ error_references=collections.defaultdict(list);reason_counts=collections.Counter();role_reason_counts=collections.Counter()
+ for i,error in enumerate(original['unmatched'],1):
+  reason_counts[error['reason']]+=1
+  for role,frame in error.items():
+   if isinstance(frame,dict) and 'payload' in frame and 'timeMsec' in frame:
+    error_references[framekey(frame)].append({'original_unmatched_index':i,'error_reason':error['reason'],'frame_role':role})
+    if 'Reason' in frame['payload']:role_reason_counts[(role,str(frame['payload']['Reason']))]+=1
+ ee=[];markers={};h=hashlib.sha256()
+ with (base/'analysis/events.jsonl').open('rb') as stream:
+  for index,line in enumerate(stream,1):
+   h.update(line);e=json.loads(line)
+   if e['provider']=='Microsoft-Windows-DotNETRuntime' and e['name'] in ('GC/SuspendEEStart','GC/SuspendEEStop','GC/RestartEEStart','GC/RestartEEStop'):ee.append({'raw_event_record_index':index,**e})
+   if e['provider']=='Cehpalon-Tooling-Diagnostic':markers[e['payload']['sequence']]=e
+ assert h.hexdigest()==meta['source_inputs_sha256']['analysis/events.jsonl']
+ starts=[e for e in ee if e['name']=='GC/SuspendEEStart'];gc_starts=[e for e in starts if e['payload']['Reason'] in (1,6)]
+ accepted=[g for g in intervals['suspensions'] if g['gcRelated']]
+ accepted_keys={(g['processId'],g['clrInstanceId'],str(g['startMsec']),str(g['endMsec'])) for g in accepted}
+ candidates=[json.loads(line) for line in (ctx/'supplementary-ee-candidate-sequences.jsonl').open()]
+ by_start={(c['frames'][0]['processId'],c['frames'][0]['payload']['ClrInstanceID'],str(c['frames'][0]['timeMsec'])):c for c in candidates}
+ agreed=[g for g in accepted if (g['processId'],g['clrInstanceId'],str(g['startMsec']),str(g['endMsec'])) in {(f['frames'][0]['processId'],f['frames'][0]['payload']['ClrInstanceID'],str(f['frames'][0]['timeMsec']),str(f['frames'][-1]['timeMsec'])) for f in candidates}]
+ disputed=[g for g in accepted if g not in agreed]
+ spans=[json.loads(line) for line in next(base.glob('*.spans.jsonl')).open()];by_sequence={s['sequence']:s for s in spans};offsets=[]
+ for s in spans:
+  e=markers[s['sequence']];assert e['payload']['startTicks']==s['startTicks'] and e['payload']['endTicks']==s['endTicks']
+  offsets.append((ns(e['timeMsec'])-ticks_ns(s['markerAfterTicks'],s['frequency']),ns(e['timeMsec'])-ticks_ns(s['markerBeforeTicks'],s['frequency'])))
+ offset=(max(x[0] for x in offsets),min(x[1] for x in offsets));assert offset[0]<=offset[1]
+ def win(s):return(ticks_ns(s['startTicks'],s['frequency'])+offset[0],ticks_ns(s['startTicks'],s['frequency'])+offset[1],ticks_ns(s['endTicks'],s['frequency'])+offset[0],ticks_ns(s['endTicks'],s['frequency'])+offset[1])
+ queries=[]
+ for s in spans:
+  if s['stage'] not in ('compiler.wall','pe.emit') or s['phase'] not in ('primer','measurement'):continue
+  queries.append({'kind':s['stage'],'identity':{k:s[k] for k in ('caseIndex','size','state','variant','pairSequence','phase')},'span_sequence':s['sequence'],'window':win(s),'cap':ticks_ns(s['endTicks']-s['startTicks'],s['frequency'])})
+ for item in map(json.loads,(ctx/'caller-wait-intersections.jsonl').read_text().splitlines()):
+  s=by_sequence[item['emit_sequence']];ws,we=ns(item['pair']['startMsec']),ns(item['pair']['endMsec']);w=win(s)
+  queries.append({'kind':'caller-wait-emit-intersection','identity':item['row_identity'],'span_sequence':s['sequence'],'caller_pair_index':item['caller_pair_index'],'window':(max(w[0],ws),max(w[1],ws),min(w[2],we),min(w[3],we)),'cap':min(ticks_ns(s['endTicks']-s['startTicks'],s['frequency']),we-ws)})
+ all_phase_comparisons=[{'legacy_analyzer_envelope':g,'four_phase_equality':[g[k]==by_start[(g['processId'],g['clrInstanceId'],str(g['startMsec']))]['frames'][i]['timeMsec'] for i,k in enumerate(('startMsec','fullySuspendedStartMsec','restartStartMsec','endMsec'))],'candidate_raw_phase_indices':[f['raw_event_record_index'] for f in by_start[(g['processId'],g['clrInstanceId'],str(g['startMsec']))]['frames']]} for g in accepted]
+ phase_complete=[g for g,r in zip(accepted,all_phase_comparisons) if all(r['four_phase_equality'])]
+ episode_sets={'legacy23_previous_analyzer_accepted_not_certified':[(ns(g['startMsec']),ns(g['endMsec'])) for g in accepted],'legacy21_same_endpoints_not_certified':[(ns(g['startMsec']),ns(g['endMsec'])) for g in agreed],'legacy2_disputed_previous_endpoints_not_certified':[(ns(g['startMsec']),ns(g['endMsec'])) for g in disputed],'candidate83_same_initiator_hypotheses_not_accepted':[(ns(c['frames'][0]['timeMsec']),ns(c['frames'][-1]['timeMsec'])) for c in candidates],'legacy21_all_phase_agree_narrow_observation_not_certified':[(ns(g['fullySuspendedStartMsec']),ns(g['restartStartMsec'])) for g in phase_complete],'candidate83_narrow_hypotheses_not_accepted':[(ns(c['frames'][1]['timeMsec']),ns(c['frames'][2]['timeMsec'])) for c in candidates]}
+ all_overlaps=[]
+ for q in queries:
+  all_overlaps.append({**{k:v for k,v in q.items() if k not in ('window','cap')},'overlaps':{name:overlap(q['window'],episodes,q['cap']) for name,episodes in episode_sets.items()}})
+ overlap_totals={}
+ for kind in ('compiler.wall','pe.emit','caller-wait-emit-intersection'):
+  measured=[r for r in all_overlaps if r['kind']==kind and r['identity']['phase']=='measurement']
+  overlap_totals[kind]={'measurement_queries':len(measured),'sets':{name:{'sum_lower_ns':sum(r['overlaps'][name]['lower_ns'] for r in measured),'sum_upper_ns':sum(r['overlaps'][name]['upper_ns'] for r in measured),'positive_queries':sum(r['overlaps'][name]['upper_ns']>0 for r in measured)} for name in episode_sets}}
+ disagreements=[]
+ for g in disputed:
+  c=by_start[(g['processId'],g['clrInstanceId'],str(g['startMsec']))];f=c['frames'];old_end=[e for e in ee if e['name']=='GC/RestartEEStop' and e['processId']==g['processId'] and str(e['timeMsec'])==str(g['endMsec'])];comparisons=[]
+  for q in queries:
+   legacy=overlap(q['window'],[(ns(g['startMsec']),ns(g['endMsec']))],q['cap']);candidate=overlap(q['window'],[(ns(f[0]['timeMsec']),ns(f[-1]['timeMsec']))],q['cap'])
+   if legacy['upper_ns'] or candidate['upper_ns']:comparisons.append({**{k:v for k,v in q.items() if k not in ('window','cap')},'legacy_disputed_overlap':legacy,'candidate_hypothesis_overlap':candidate})
+  disagreements.append({'legacy_analyzer_envelope':g,'legacy_end_raw_records':old_end,'same_initiator_hypothesis_frames':f,'end_delta_ns':int(ns(f[-1]['timeMsec'])-ns(g['endMsec'])),'intersecting_queries':comparisons,'status':'neither_endpoint_choice_certified_exact_runtime_contract_unavailable'})
+ results=[]
+ for c in candidates:
+  frames=c['frames'];start,end=frames[0],frames[-1];a0,b0=ns(start['timeMsec']),ns(end['timeMsec']);same=tuple(c['initiator_header_identity'])
+  neighbours=[e for e in starts if a0<=ns(e['timeMsec'])<=b0 and(e['processId'],e['payload']['ClrInstanceID'])==same[:2] and e['threadId']!=same[2]]
+  known=(same[0],same[1],str(start['timeMsec']),str(end['timeMsec'])) in accepted_keys
+  results.append({'status':'already_in_original_accepted_set' if known else 'nonauthoritative_only_not_in_original_accepted_set','reason':start['payload']['Reason'],'gc_count_metadata':start['payload'].get('Count'),'initiator_native_tid':start['threadId'],'start_event_record_index':start['raw_event_record_index'],'four_phase_record_indices':[f['raw_event_record_index'] for f in frames],'four_phase_eventpipe_msec':[f['timeMsec'] for f in frames],'candidate_envelope_elapsed_msec':float(ns(end['timeMsec'])-ns(start['timeMsec']))/1e6,'candidate_narrow_elapsed_msec':float(ns(frames[2]['timeMsec'])-ns(frames[1]['timeMsec']))/1e6,'original_error_references':error_references.get(framekey(start),[]),'other_initiator_start_records':[{'raw_event_record_index':e['raw_event_record_index'],'native_tid':e['threadId'],'reason':e['payload']['Reason'],'timeMsec':e['timeMsec']} for e in neighbours],'limits':['Not a promotion of per-TID runtime contract or complete-GC proof.','Initiator header TID is not the set of paused workers.','Neighbour starts are direct temporal co-observations, not a causal explanation.']})
+ error_frames=[{**e,'original_error_references':error_references[framekey(e)]} for e in ee if framekey(e) in error_references]
+ summary={'canonical':False,'status':'completed','original_ee_errors':original['eePairingErrors'],'original_error_reason_counts':dict(reason_counts),'original_reason_fields_by_frame_role':[{'role':k[0],'reason':k[1],'references':v} for k,v in sorted(role_reason_counts.items())],'raw_ee_phase_counts':dict(collections.Counter(e['name'] for e in ee)),'raw_suspend_start_reason_counts':dict(collections.Counter(str(e['payload']['Reason']) for e in starts)),'unique_error_referenced_ee_frames':len(error_frames),'gc_labelled_start_frames_referenced_in_original_errors':sum(framekey(e) in error_references for e in gc_starts),'original_gc_accepted_envelopes':len(accepted),'same_initiator_candidate_gc_sequences':len(results),'candidates_already_accepted':sum(r['status']=='already_in_original_accepted_set' for r in results),'candidates_not_accepted':sum(r['status']!='already_in_original_accepted_set' for r in results),'not_accepted_candidates_with_other_initiator_start':sum(r['status']!='already_in_original_accepted_set' and bool(r['other_initiator_start_records']) for r in results),'exact_runtime_source_available':False,'source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'raw_events_sha256':h.hexdigest(),'limits':['Original23GC envelopes and all1637 EE errors unchanged.','Per-TID sequence candidates remain nonauthoritative; no total-GC/GC-free residual or exclusive scheduler share.','Counts of error references, unique raw frames and candidate sequences are distinct units.']}
+ summary['legacy21_count']=len(agreed);summary['legacy2_disputed_count']=len(disputed);summary['legacy_all_four_phase_agreement_count']=len(phase_complete);summary['candidate_starts_absent_from_legacy_analyzer_gc_start_set']=sum((c['frames'][0]['processId'],c['frames'][0]['payload']['ClrInstanceID'],str(c['frames'][0]['timeMsec'])) not in {(g['processId'],g['clrInstanceId'],str(g['startMsec'])) for g in accepted} for c in candidates);summary['measurement_overlap_totals_nonexclusive_not_pause_truth']=overlap_totals
+ summary['original_ee_error_reason_counts']={k:v for k,v in reason_counts.items() if 'JIT' not in k};summary['other_unmatched_reason_counts']={k:v for k,v in reason_counts.items() if 'JIT' in k}
+ for filename,items in [('gc-candidate-boundaries.jsonl',results),('original-error-raw-frame-references.jsonl',error_frames),('all-query-legacy-and-candidate-overlaps.jsonl',all_overlaps),('disputed-gc-boundaries-and-overlaps.jsonl',disagreements),('legacy-all-four-phase-comparisons.jsonl',all_phase_comparisons)]:
+  with (out/filename).open('x',encoding='utf-8',newline='\n') as f:
+   for item in items:f.write(json.dumps(item,separators=(',',':'))+'\n')
+ (out/'analysis-source.py.txt').write_bytes(Path(__file__).read_bytes());(out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps(summary))
+if __name__=='__main__':main()

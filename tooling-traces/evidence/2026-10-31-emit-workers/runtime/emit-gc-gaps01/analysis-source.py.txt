@@ -1,0 +1,40 @@
+"""Original EE rejection distribution and nonauthoritative candidate boundaries."""
+import argparse,collections,hashlib,json
+from fractions import Fraction
+from pathlib import Path
+def read(p):return json.loads(Path(p).read_text())
+def framekey(e):return(e['processId'],e['threadId'],e['payload'].get('ClrInstanceID'),e['name'],str(e['timeMsec']))
+def ns(x):return Fraction(str(x))*1_000_000
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--folder',required=True);p.add_argument('--context',required=True);p.add_argument('--output',required=True);a=p.parse_args();base=Path(a.folder);ctx=Path(a.context);out=Path(a.output);out.mkdir(exist_ok=False)
+ original=read(base/'analysis/summary.json');intervals=read(base/'analysis/intervals.json');meta=read(ctx/'summary.json')
+ error_references=collections.defaultdict(list);reason_counts=collections.Counter();role_reason_counts=collections.Counter()
+ for i,error in enumerate(original['unmatched'],1):
+  reason_counts[error['reason']]+=1
+  for role,frame in error.items():
+   if isinstance(frame,dict) and 'payload' in frame and 'timeMsec' in frame:
+    error_references[framekey(frame)].append({'original_unmatched_index':i,'error_reason':error['reason'],'frame_role':role})
+    if 'Reason' in frame['payload']:role_reason_counts[(role,str(frame['payload']['Reason']))]+=1
+ ee=[];h=hashlib.sha256()
+ with (base/'analysis/events.jsonl').open('rb') as stream:
+  for index,line in enumerate(stream,1):
+   h.update(line);e=json.loads(line)
+   if e['provider']=='Microsoft-Windows-DotNETRuntime' and e['name'] in ('GC/SuspendEEStart','GC/SuspendEEStop','GC/RestartEEStart','GC/RestartEEStop'):ee.append({'raw_event_record_index':index,**e})
+ assert h.hexdigest()==meta['source_inputs_sha256']['analysis/events.jsonl']
+ starts=[e for e in ee if e['name']=='GC/SuspendEEStart'];gc_starts=[e for e in starts if e['payload']['Reason'] in (1,6)]
+ accepted=[g for g in intervals['suspensions'] if g['gcRelated']]
+ accepted_keys={(g['processId'],g['clrInstanceId'],str(g['startMsec']),str(g['endMsec'])) for g in accepted}
+ candidates=[json.loads(line) for line in (ctx/'supplementary-ee-candidate-sequences.jsonl').open()]
+ results=[]
+ for c in candidates:
+  frames=c['frames'];start,end=frames[0],frames[-1];a0,b0=ns(start['timeMsec']),ns(end['timeMsec']);same=tuple(c['initiator_header_identity'])
+  neighbours=[e for e in starts if a0<=ns(e['timeMsec'])<=b0 and(e['processId'],e['payload']['ClrInstanceID'])==same[:2] and e['threadId']!=same[2]]
+  known=(same[0],same[1],str(start['timeMsec']),str(end['timeMsec'])) in accepted_keys
+  results.append({'status':'already_in_original_accepted_set' if known else 'nonauthoritative_only_not_in_original_accepted_set','reason':start['payload']['Reason'],'gc_count_metadata':start['payload'].get('Count'),'initiator_native_tid':start['threadId'],'start_event_record_index':start['raw_event_record_index'],'four_phase_record_indices':[f['raw_event_record_index'] for f in frames],'four_phase_eventpipe_msec':[f['timeMsec'] for f in frames],'candidate_envelope_elapsed_msec':float(ns(end['timeMsec'])-ns(start['timeMsec']))/1e6,'candidate_narrow_elapsed_msec':float(ns(frames[2]['timeMsec'])-ns(frames[1]['timeMsec']))/1e6,'original_error_references':error_references.get(framekey(start),[]),'other_initiator_start_records':[{'raw_event_record_index':e['raw_event_record_index'],'native_tid':e['threadId'],'reason':e['payload']['Reason'],'timeMsec':e['timeMsec']} for e in neighbours],'limits':['Not a promotion of per-TID runtime contract or complete-GC proof.','Initiator header TID is not the set of paused workers.','Neighbour starts are direct temporal co-observations, not a causal explanation.']})
+ error_frames=[{**e,'original_error_references':error_references[framekey(e)]} for e in ee if framekey(e) in error_references]
+ summary={'canonical':False,'status':'completed','original_ee_errors':original['eePairingErrors'],'original_error_reason_counts':dict(reason_counts),'original_reason_fields_by_frame_role':[{'role':k[0],'reason':k[1],'references':v} for k,v in sorted(role_reason_counts.items())],'raw_ee_phase_counts':dict(collections.Counter(e['name'] for e in ee)),'raw_suspend_start_reason_counts':dict(collections.Counter(str(e['payload']['Reason']) for e in starts)),'unique_error_referenced_ee_frames':len(error_frames),'gc_labelled_start_frames_referenced_in_original_errors':sum(framekey(e) in error_references for e in gc_starts),'original_gc_accepted_envelopes':len(accepted),'same_initiator_candidate_gc_sequences':len(results),'candidates_already_accepted':sum(r['status']=='already_in_original_accepted_set' for r in results),'candidates_not_accepted':sum(r['status']!='already_in_original_accepted_set' for r in results),'not_accepted_candidates_with_other_initiator_start':sum(r['status']!='already_in_original_accepted_set' and bool(r['other_initiator_start_records']) for r in results),'exact_runtime_source_available':False,'source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'raw_events_sha256':h.hexdigest(),'limits':['Original23GC envelopes and all1637 EE errors unchanged.','Per-TID sequence candidates remain nonauthoritative; no total-GC/GC-free residual or exclusive scheduler share.','Counts of error references, unique raw frames and candidate sequences are distinct units.']}
+ for filename,items in [('gc-candidate-boundaries.jsonl',results),('original-error-raw-frame-references.jsonl',error_frames)]:
+  with (out/filename).open('x') as f:
+   for item in items:f.write(json.dumps(item,separators=(',',':'))+'\n')
+ (out/'analysis-source.py.txt').write_bytes(Path(__file__).read_bytes());(out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');print(json.dumps(summary))
+if __name__=='__main__':main()

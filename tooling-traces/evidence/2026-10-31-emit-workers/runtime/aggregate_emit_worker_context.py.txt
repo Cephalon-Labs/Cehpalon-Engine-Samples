@@ -1,0 +1,12 @@
+"""Offline summaries: unique points versus repeat query associations."""
+import argparse,collections,json,hashlib
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--context',required=True);p.add_argument('--output',required=True);a=p.parse_args();base=Path(a.context);out=Path(a.output);assert not out.exists()
+records=lambda name:[json.loads(line) for line in (base/name).open(encoding='utf-8')]
+qs=records('queries.jsonl');waits=records('caller-wait-intersections.jsonl');result={'canonical':False,'scope':'unique point counts and per-query associations are distinct; no task lineage or CPU claim','by_phase_kind':[]}
+for phase in ('primer','measurement'):
+ for kind in ('emit','caller-wait-for-workers'):
+  rs=[q for q in qs if q['row_identity']['phase']==phase and q['kind']==kind];ids=[i for q in rs for i in q['all_strict_worker_point_indices']]
+  result['by_phase_kind'].append({'phase':phase,'kind':kind,'queries':len(rs),'distinct_emit_spans':len({q['span_sequence'] for q in rs}),'queries_with_strict_compiler_points':sum(bool(q['all_strict_worker_point_indices']) for q in rs),'queries_without_strict_compiler_points_unknown':sum(not q['all_strict_worker_point_indices'] for q in rs),'point_query_associations':len(ids),'distinct_points':len(set(ids)),'observed_native_tids':sorted({w['native_tid'] for q in rs for w in q['worker_witnesses']})})
+result['all_queries']=len(qs);result['all_point_query_associations']=sum(len(q['all_strict_worker_point_indices']) for q in qs);result['all_distinct_query_points']=len({i for q in qs for i in q['all_strict_worker_point_indices']});result['wait_intersections']=dict(collections.Counter(w['row_identity']['phase']+'/'+w['classification'] for w in waits));result['source_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+out.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps(result))

@@ -1,0 +1,206 @@
+"""Bounded ADR0020 offline point-witness/GC study; no live target or build."""
+import argparse,collections,hashlib,json,math
+from fractions import Fraction
+from pathlib import Path
+
+RUNTIME='Microsoft-Windows-DotNETRuntime'
+MARKER='Cehpalon-Tooling-Diagnostic'
+PHASES=('GC/SuspendEEStart','GC/SuspendEEStop','GC/RestartEEStart','GC/RestartEEStop')
+
+def require(ok,message):
+ if not ok:raise ValueError(message)
+def read(path):return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def ns(ms):return Fraction(str(ms))*1_000_000
+def tick_ns(t,f):return Fraction(t*1_000_000_000,f)
+def floor(x):return x.numerator//x.denominator
+def ceil(x):return -floor(-x)
+def window(x):return {'start_lower_ns':floor(x[0]),'start_upper_ns':ceil(x[1]),'end_lower_ns':floor(x[2]),'end_upper_ns':ceil(x[3])}
+def identity(x):return {k:x[k] for k in ('caseIndex','size','state','variant','pairSequence','phase')}
+def key(x):return tuple(x[k] for k in ('caseIndex','size','state','variant','pairSequence','phase'))
+def union(xs):
+ total=Fraction(0);end=None
+ for a,b in sorted((a,b) for a,b in xs if b>a):
+  if end is None or a>end:total+=b-a
+  elif b>end:total+=b-end
+  end=max(end,b) if end is not None else b
+ return total
+def overlap(w,episodes,physical_cap):
+ require(physical_cap>=0,'Nonnegative physical overlap cap')
+ lo=union((max(w[1],a),min(w[2],b)) for a,b in episodes)
+ hi=union((max(w[0],a),min(w[3],b)) for a,b in episodes)
+ return {'guaranteed_observed_ns':floor(min(lo,physical_cap)),'possible_observed_ns':ceil(min(hi,physical_cap)),'physical_duration_cap_ns_lower':floor(physical_cap),'physical_duration_cap_ns_upper':ceil(physical_cap),'scope':'nonexclusive previous-analyzer accepted observations; disputed boundaries are not certified pauses; not total GC or absence proof'}
+def query_ticks(x,offset,ws=None,we=None):
+ f=x['frequency'];require(type(f) is int and f>0,'Positive integer query frequency')
+ start=Fraction(x['startTicks']);end=Fraction(x['endTicks']);require(start<end and offset[0]<=offset[1],'Ordered query source clocks')
+ q=(start,start,end,end)
+ if ws is not None:
+  require(we is not None and ws<we,'Positive ordered wait interval')
+  q=(max(start,(ws-offset[1])*f/1_000_000_000),max(start,(ws-offset[0])*f/1_000_000_000),min(end,(we-offset[1])*f/1_000_000_000),min(end,(we-offset[0])*f/1_000_000_000))
+ result=(floor(q[0]),ceil(q[1]),floor(q[2]),ceil(q[3]))
+ require(result[0]<=result[1]<=result[2]<=result[3] and result[0]<result[3],'Nonempty ordered guaranteed query core required')
+ return result
+def point_ticks(t,offset,f):return(floor((t-offset[1])*f/1_000_000_000),ceil((t-offset[0])*f/1_000_000_000))
+def wholly_inside(point,query):return point[0]>=query[1] and point[1]<=query[2]
+def classify(frames,tid,pid):
+ pool=[f for f in frames if f.startswith(('System.Threading.ThreadPoolWorkQueue.','System.Threading.PortableThreadPool'))]
+ compiler=[f for f in frames if f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass') and '.<CompileNamedTypeAsync>b__' in f]
+ completion=[f for f in frames if f.startswith('Microsoft.CodeAnalysis.CSharp.Symbols.SourceNamespaceSymbol+') and '.<ForceComplete>' in f]
+ caller=[f for f in frames if f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers(')]
+ if tid!=pid and compiler and pool:return 'compiler_async_point',compiler+pool
+ if tid!=pid and completion and pool:return 'completion_point',completion+pool
+ if tid==pid and caller:return 'caller_wait_for_workers_point',caller
+ return 'unclassified',[]
+
+class EeCandidates:
+ """Strict same-initiator-header-TID sequence hypotheses; never accepted GC."""
+ def __init__(self):self.active={};self.poisoned=set();self.previous={};self.pairs=[];self.errors=[]
+ def add(self,e,index):
+  if e.get('provider')!=RUNTIME or e.get('name') not in PHASES:return
+  p=e.get('payload',{});k=(e.get('processId'),p.get('ClrInstanceID'),e.get('threadId'))
+  require(all(type(v) is int for v in k) and k[0]>0 and k[1]>=0 and k[2]>0,'EE identity required; malformed stream rejected')
+  t=ns(e['timeMsec']);item={'raw_event_record_index':index,**e}
+  if k in self.previous and t<self.previous[k]:self.poisoned.add(k);self.active.pop(k,None);self.errors.append({'reason':'out_of_order_key_poisoned','event':item})
+  self.previous[k]=t
+  if k in self.poisoned:self.errors.append({'reason':'permanently_poisoned_identity','event':item});return
+  if e['name']==PHASES[0]:
+   if k in self.active:self.poisoned.add(k);self.errors.append({'reason':'duplicate_start_key_poisoned','previous':self.active.pop(k),'event':item})
+   else:self.active[k]=[item]
+  elif k not in self.active:self.poisoned.add(k);self.errors.append({'reason':'phase_without_start_key_poisoned','event':item})
+  else:
+   frames=self.active[k]
+   if e['name']!=PHASES[len(frames)]:self.poisoned.add(k);self.errors.append({'reason':'phase_order_key_poisoned','previous':self.active.pop(k),'event':item})
+   else:
+    frames.append(item)
+    if len(frames)==4:
+     self.active.pop(k);self.pairs.append({'status':'hypothesis_only_exact_runtime_contract_unavailable','gc_reason':frames[0]['payload'].get('Reason'),'gc_label':frames[0]['payload'].get('Reason') in (1,6),'initiator_header_identity':k,'frames':frames})
+ def finish(self):
+  self.errors.extend({'reason':'unfinished_sequence','frames':v} for v in self.active.values())
+
+def self_test():
+ checks=0
+ def check(x):
+  nonlocal checks;assert x;checks+=1
+ lam='Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass25_0.<CompileNamedTypeAsync>b__0()'
+ pool='System.Threading.ThreadPoolWorkQueue.Dispatch()'
+ check(classify([lam,pool],2,1)[0]=='compiler_async_point')
+ check(classify([lam,pool],1,1)[0]=='unclassified')
+ check(classify([lam],2,1)[0]=='unclassified')
+ check(classify(['Other.'+lam,pool],2,1)[0]=='unclassified')
+ check(classify(['Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers()'],1,1)[0]=='caller_wait_for_workers_point')
+ def e(name,t,tid=2):return {'provider':RUNTIME,'name':name,'processId':1,'threadId':tid,'timeMsec':t,'payload':{'ClrInstanceID':0,'Reason':1}}
+ c=EeCandidates()
+ for i,n in enumerate(PHASES):c.add(e(n,i),i+1)
+ c.finish();check(len(c.pairs)==1 and not c.errors and c.pairs[0]['status'].startswith('hypothesis'))
+ c=EeCandidates();c.add(e(PHASES[0],0),1);c.add(e(PHASES[0],1),2)
+ for i,n in enumerate(PHASES):c.add(e(n,i+2),i+3)
+ c.finish();check(not c.pairs and bool(c.poisoned))
+ c=EeCandidates()
+ for i,n in enumerate(PHASES):
+  c.add(e(n,i,2),i*2);c.add(e(n,i+.1,3),i*2+1)
+ c.finish();check(len(c.pairs)==2 and not c.errors)
+ c=EeCandidates();c.add(e(PHASES[0],1),1);c.add(e(PHASES[2],2),2);c.finish();check(not c.pairs)
+ c=EeCandidates();c.add(e(PHASES[0],1),1);c.finish();check(not c.pairs and c.errors[0]['reason']=='unfinished_sequence')
+ check(overlap(tuple(map(Fraction,(0,1,9,10))),[(Fraction(2),Fraction(5))],Fraction(9))['guaranteed_observed_ns']==3)
+ check(overlap(tuple(map(Fraction,(0,1,9,10))),[(Fraction(20),Fraction(25))],Fraction(9))['possible_observed_ns']==0)
+ check(overlap(tuple(map(Fraction,(0,2,10,12))),[(Fraction(-10),Fraction(20))],Fraction(10))['possible_observed_ns']==10)
+ check(overlap(tuple(map(Fraction,(0,2,10,12))),[(Fraction(-10),Fraction(20)),(Fraction(0),Fraction(10))],Fraction(10))['guaranteed_observed_ns']==8)
+ sample={'frequency':1_000_000_000,'startTicks':0,'endTicks':100};off=(Fraction(10),Fraction(12))
+ q=query_ticks(sample,off,Fraction(15),Fraction(19));check(q==(3,5,7,9))
+ check(wholly_inside(point_ticks(Fraction(17),off,1_000_000_000),q))
+ check(not wholly_inside(point_ticks(Fraction(15),off,1_000_000_000),q))
+ for ws,we in ((19,15),(1,1),(0,2)):
+  try:query_ticks(sample,off,Fraction(ws),Fraction(we))
+  except ValueError:check(True)
+  else:check(False)
+ print(json.dumps({'self_test':'passed','checks':checks}))
+
+def main():
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--folder');p.add_argument('--output');p.add_argument('--self-test',action='store_true');a=p.parse_args()
+ if a.self_test:self_test();return
+ require(a.folder and a.output,'--folder and --output required')
+ base=Path(a.folder).resolve();out=Path(a.output).resolve();out.mkdir(parents=True,exist_ok=False)
+ (out/'analysis-source.py.txt').write_bytes(Path(__file__).read_bytes())
+ s=read(base/'analysis/summary.json');w=read(base/'wait-analysis/summary.json');pid=w['target_pid']
+ require(w['status']=='completed' and w['rows']==306,'Complete fixed generator required')
+ require(s['eventsLost']==0 and s['payloadReadErrors']==0,'Original channel errors require separate rejected interpretation')
+ sourcehash={};sidecar=next(base.glob('*.spans.jsonl'));spans=[json.loads(x) for x in sidecar.read_text().splitlines()];sourcehash[sidecar.name]=sha(sidecar)
+ require([x['sequence'] for x in spans]==list(range(1,2957)),'Exact ordered unique sidecar sequences1..2956')
+ by_sequence={x['sequence']:x for x in spans};markers={};ee=EeCandidates();gc_starts=[];h=hashlib.sha256();raw_count=0
+ with (base/'analysis/events.jsonl').open('rb') as stream:
+  for index,line in enumerate(stream,1):
+   h.update(line);e=json.loads(line);raw_count+=1
+   if e['provider']==RUNTIME:
+    require(e['processId']==pid,'Runtime target PID')
+    ee.add(e,index)
+    if e['name']==PHASES[0] and e['payload'].get('Reason') in (1,6):gc_starts.append({'raw_event_record_index':index,**e})
+   if e['provider']==MARKER:
+    seq=e['payload']['sequence'];require(seq not in markers,'Unique marker sequence');markers[seq]=e
+ sourcehash['analysis/events.jsonl']=h.hexdigest();require(raw_count==s['events'],'All raw events retained/count verified');ee.finish()
+ offsets=[]
+ for seq,x in by_sequence.items():
+  e=markers[seq];require(e['processId']==pid and e['threadId']==x['osThreadId'],'Marker native PID/TID')
+  for k in ('sequence','stage','startTicks','endTicks','frequency','processId','osThreadId','caseIndex','size','state','variant','pairSequence','phase','markerBeforeTicks','anchorBeforeTicks','anchorAfterTicks','utcAnchorTicks'):require(e['payload'].get(k)==x.get(k),'Marker/sidecar identity '+k)
+  offsets.append((ns(e['timeMsec'])-tick_ns(x['markerAfterTicks'],x['frequency']),ns(e['timeMsec'])-tick_ns(x['markerBeforeTicks'],x['frequency'])))
+ require(len(markers)==len(spans)==2956,'All2956 markers/spans')
+ offset=(max(x[0] for x in offsets),min(x[1] for x in offsets));require(offset[0]<=offset[1],'Consistent bounded marker map')
+ wall=[x for x in spans if x['stage']=='compiler.wall' and x['phase'] in ('primer','measurement')];emit={key(x):x for x in spans if x['stage']=='pe.emit' and x['phase'] in ('primer','measurement')};require(len(wall)==len(emit)==306,'All306 main compiler/Emit spans')
+ caller=[x for x in map(json.loads,(base/'wait-analysis/wait-pairs.jsonl').read_text().splitlines()) if x['osThreadId']==pid and x['identity_attribution_status']=='no_native_tid_reuse_observed_in_retained_scope']
+ scope=w['native_thread_scope'];births=scope['proc_observed_births'];ambiguous=set(scope['ambiguous_or_reused_tid_numbers']);members=set(scope['thread_ids_from_lifecycle'])
+ points=[];all_samples=0;h=hashlib.sha256()
+ with (base/'analysis/sampled-thread-stacks.jsonl').open('rb') as stream:
+  for index,line in enumerate(stream,1):
+   h.update(line);x=json.loads(line);all_samples+=1;require(x['processId']==pid,'Sample target PID');kind,frames=classify(x['frames'],x['osThreadId'],pid)
+   if kind!='unclassified':
+    tid=x['osThreadId'];birth=births.get(str(tid),[]);eligible=tid in members and tid not in ambiguous and len(birth)==1 and type(birth[0]) is int
+    points.append({'kind':kind,'process_id':pid,'native_tid':tid,'sample_record_index':index,'sample_eventpipe_msec':x['timeRelativeMsec'],'matching_frames':frames,'native_birth_eligibility':'observed_unique_birth_and_owned_lifecycle' if eligible else 'unknown_or_ambiguous_unassigned','observed_starttime_ticks':birth[0] if eligible else None})
+ sourcehash['analysis/sampled-thread-stacks.jsonl']=h.hexdigest();require(all_samples==s['stackSamples'],'All managed stack records counted')
+ point_times={pt['sample_record_index']:ns(pt['sample_eventpipe_msec']) for pt in points}
+ compiler_points=[pt for pt in points if pt['kind']=='compiler_async_point']
+ caller_points_all=[pt for pt in points if pt['kind']=='caller_wait_for_workers_point']
+ mapped_ticks={(pt['sample_record_index'],f):((point_times[pt['sample_record_index']]-offset[1])*f/1_000_000_000,(point_times[pt['sample_record_index']]-offset[0])*f/1_000_000_000) for pt in compiler_points for f in {x['frequency'] for x in spans}}
+ accepted=read(base/'analysis/intervals.json')['suspensions'];gc=[(ns(x['startMsec']),ns(x['endMsec'])) for x in accepted if x['processId']==pid and x['gcRelated']];narrow=[(ns(x['fullySuspendedStartMsec']),ns(x['restartStartMsec'])) for x in accepted if x['processId']==pid and x['gcRelated'] and x['fullySuspendedStartMsec'] is not None and x['restartStartMsec'] is not None]
+ require(len(gc)==23 and s['eePairingErrors']==1637,'Frozen original GC23/1637 retained')
+ candidate_gc_by_start={(p['frames'][0]['processId'],p['frames'][0]['payload']['ClrInstanceID'],str(p['frames'][0]['timeMsec'])):p for p in ee.pairs if p['gc_label']}
+ disputes=[{'previous_analyzer_envelope':g,'supplementary_candidate':candidate_gc_by_start[(g['processId'],g['clrInstanceId'],str(g['startMsec']))]} for g in accepted if g['processId']==pid and g['gcRelated'] and (g['processId'],g['clrInstanceId'],str(g['startMsec'])) in candidate_gc_by_start and str(g['endMsec'])!=str(candidate_gc_by_start[(g['processId'],g['clrInstanceId'],str(g['startMsec']))]['frames'][-1]['timeMsec'])]
+ queries=[];rows=[];wait_records=[]
+ def ep_window(x):
+  start=tick_ns(x['startTicks'],x['frequency']);end=tick_ns(x['endTicks'],x['frequency']);return (start+offset[0],start+offset[1],end+offset[0],end+offset[1])
+ def make_query(x,kind,identifier,ws=None,we=None):
+  f=x['frequency'];lower,upper,elower,eupper=query_ticks(x,offset,ws,we);witness=[];boundary=[];all_strict=[];seen=set();boundary_seen=set()
+  for point in compiler_points:
+   if point['native_birth_eligibility']!='observed_unique_birth_and_owned_lifecycle':continue
+   tl,tu=mapped_ticks[(point['sample_record_index'],f)]
+   if tu<lower or tl>eupper:continue
+   item={'native_tid':point['native_tid'],'sample_record_index':point['sample_record_index'],'sample_eventpipe_msec':point['sample_eventpipe_msec'],'compiler_frames':point['matching_frames'],'sample_ticks_lower':floor(tl),'sample_ticks_upper':ceil(tu),'observed_starttime_ticks':point['observed_starttime_ticks']}
+   if wholly_inside((item['sample_ticks_lower'],item['sample_ticks_upper']),(lower,upper,elower,eupper)):
+    all_strict.append(point['sample_record_index'])
+    if point['native_tid'] not in seen:witness.append(item);seen.add(point['native_tid'])
+   elif point['native_tid'] not in boundary_seen:boundary.append(item);boundary_seen.add(point['native_tid'])
+  return {'query_id':identifier,'kind':kind,'process_id':pid,'caller_tid':pid,'span_sequence':x['sequence'],'row_identity':identity(x),'start_ticks_lower':lower,'start_ticks_upper':upper,'end_ticks_lower':elower,'end_ticks_upper':eupper,'frequency':f,'worker_witnesses':witness,'all_strict_worker_point_indices':all_strict,'boundary_worker_witnesses':boundary,'scope':'one sampled compiler context point per TID eligibility; all point indices retained; not task lineage or permanent TID ownership'}
+ for x in wall:
+  pe=emit[key(x)];win=ep_window(pe);q=make_query(pe,'emit','emit:'+str(x['sequence']));queries.append(q);waits=[]
+  for n,pair in enumerate(caller,1):
+   ws,we=ns(pair['startMsec']),ns(pair['endMsec'])
+   if we<=win[0] or ws>=win[3]:continue
+   caller_points=[pt for pt in caller_points_all if ws<=point_times[pt['sample_record_index']]<=we and win[1]<=point_times[pt['sample_record_index']]<=win[2]]
+   worker_points=[pt for pt in compiler_points if ws<=point_times[pt['sample_record_index']]<=we and win[1]<=point_times[pt['sample_record_index']]<=win[2]]
+   intersection=(max(win[0],ws),max(win[1],ws),min(win[2],we),min(win[3],we))
+   cap=min(tick_ns(pe['endTicks']-pe['startTicks'],pe['frequency']),we-ws)
+   item={'caller_pair_index':n,'pair':pair,'row_identity':identity(x),'emit_sequence':pe['sequence'],'intersection_eventpipe':window(intersection),'caller_wait_for_workers_sample_indices':[p['sample_record_index'] for p in caller_points],'worker_point_indices':[p['sample_record_index'] for p in worker_points],'observed_worker_tids':sorted({p['native_tid'] for p in worker_points}),'original_gc_envelope_overlap':overlap(intersection,gc,cap),'original_gc_narrow_overlap':overlap(intersection,narrow,cap),'classification':'caller_wait_with_waitforworkers_point_witness' if caller_points else 'caller_wait_without_waitforworkers_point_witness_unknown_context'}
+   if caller_points:queries.append(make_query(pe,'caller-wait-for-workers','wait:'+str(x['sequence'])+':'+str(n),ws,we))
+   waits.append(item);wait_records.append(item)
+  cap=tick_ns(pe['endTicks']-pe['startTicks'],pe['frequency'])
+  rows.append({'row_identity':identity(x),'compiler_sequence':x['sequence'],'emit_sequence':pe['sequence'],'emit_eventpipe':window(win),'strict_compiler_worker_point_indices':[p['sample_record_index'] for p in compiler_points if win[1]<=point_times[p['sample_record_index']]<=win[2]],'worker_query_id':q['query_id'],'caller_wait_intersections':len(waits),'caller_wait_with_waitforworkers_witness':sum(bool(z['caller_wait_for_workers_sample_indices']) for z in waits),'original_gc_envelope_overlap':overlap(win,gc,cap),'original_gc_narrow_overlap':overlap(win,narrow,cap),'raw_gc_label_start_indices':[g['raw_event_record_index'] for g in gc_starts if win[0]<=ns(g['timeMsec'])<=win[3]]})
+ catalog=sorted({frame for pt in points for frame in pt['matching_frames']});frame_ids={frame:i for i,frame in enumerate(catalog)}
+ compact_points=[{**{k:v for k,v in pt.items() if k!='matching_frames'},'matching_frame_ids':[frame_ids[f] for f in pt['matching_frames']]} for pt in points]
+ (out/'frame-catalog.json').write_text(json.dumps(catalog,indent=2)+'\n',encoding='utf-8',newline='\n')
+ for filename,items in (('points.jsonl',compact_points),('queries.jsonl',queries),('rows.jsonl',rows),('caller-wait-intersections.jsonl',wait_records),('supplementary-ee-candidate-sequences.jsonl',[p for p in ee.pairs if p['gc_label']]),('supplementary-ee-rejections.jsonl',ee.errors),('previous-analyzer-gc-boundary-disagreements.jsonl',disputes)):
+  with (out/filename).open('x',encoding='utf-8',newline='\n') as stream:
+   for item in items:stream.write(json.dumps(item,separators=(',',':'),allow_nan=False)+'\n')
+ for name in ('analysis/summary.json','analysis/intervals.json','wait-analysis/summary.json','wait-analysis/wait-pairs.jsonl','capture.json'):sourcehash[name]=sha(base/name)
+ result={'status':'completed','canonical':False,'role':'offline_point_context_and_gc_evidence_not_causal_attribution','target_pid':pid,'raw_runtime_records':raw_count,'stack_records':all_samples,'points_by_kind':dict(collections.Counter(p['kind'] for p in points)),'compiler_context_native_tids':sorted({p['native_tid'] for p in points if p['kind']=='compiler_async_point'}),'rows':len(rows),'queries':dict(collections.Counter(q['kind'] for q in queries)),'original_gc_accepted_envelopes':len(gc),'original_gc_pairing_errors':s['eePairingErrors'],'previous_analyzer_gc_boundary_disagreements':len(disputes),'previous_analyzer_gc_quality':'immutable previous-analyzer observations, not certified pause truth; boundary disagreements retained','supplementary_same_initiator_tid_sequences':len(ee.pairs),'supplementary_gc_label_sequences':sum(p['gc_label'] for p in ee.pairs),'supplementary_rejections':len(ee.errors),'supplementary_pairing_status':'not_accepted_exact_runtime_contract_unavailable_no_original_change','source_inputs_sha256':sourcehash,'source_sha256':sha(__file__),'limits':['Compiler frame is a point/window witness, not permanent worker ownership, CPU or caller-task lineage.','Thread identity is observed unique birth/lifecycle only; proc sampling remains partial.','Original23GC envelopes/1637 errors remain unchanged but two boundaries disagree; neither source is certified pause truth.','No GC-free residual or exclusive scheduler percentage can be derived.','Four-phase same-initiator-TID sequences are hypotheses only; exact installed runtime source is unavailable.','Unknown/boundary/missing samples do not become zero worker activity.','No new targets, builds, captures, benchmark or Engine edits.']}
+ result['outputs_sha256']={p.name:sha(p) for p in out.iterdir() if p.is_file()}
+ (out/'summary.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps({k:v for k,v in result.items() if k not in ('outputs_sha256','source_inputs_sha256','limits')}))
+
+if __name__=='__main__':main()

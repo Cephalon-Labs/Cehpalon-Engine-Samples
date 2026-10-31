@@ -1,0 +1,198 @@
+"""Independent raw endpoint/lifecycle/query replay; no builds or live targets."""
+import argparse
+from bisect import bisect_left,bisect_right
+from collections import Counter,defaultdict
+from fractions import Fraction
+import hashlib,json,math,re
+from pathlib import Path
+
+FIELDS=[('schedstat','cpu_runtime_ns'),('schedstat','runqueue_wait_ns'),('schedstat','timeslices'),
+        ('context_switches','voluntary_context_switches'),('context_switches','involuntary_context_switches'),
+        ('stat','minor_faults'),('stat','major_faults'),('stat','user_cpu_ticks'),('stat','kernel_cpu_ticks')]
+NAMES=['.'.join(x) for x in FIELDS]
+EPOCH=621355968000000000
+def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
+def records(p):
+    with Path(p).open(encoding='utf-8-sig') as f:
+        for line in f:yield json.loads(line)
+def sha(p):
+    h=hashlib.sha256()
+    with Path(p).open('rb') as f:
+        for b in iter(lambda:f.read(1048576),b''):h.update(b)
+    return h.hexdigest()
+def floor(x):return x.numerator//x.denominator
+def ceil(x):return -floor(-x)
+def ticks(t,f):return Fraction(t*1_000_000_000,f)
+def dec_ns(text):
+    a,b=text.split('.');return int(a)*1_000_000_000+int((b+'000000000')[:9])
+def print_unit(text):return 10**(9-len(text.split('.')[1]))
+def union(xs):
+    end=None;total=0
+    for a,b in sorted((a,b) for a,b in xs if b>a):
+        total+=b-a if end is None or a>end else max(0,b-end)
+        end=b if end is None else max(end,b)
+    return total
+def offsets(q,anchors):
+    preceding=[a for a in anchors if a[0]<=q['start_ticks_lower']]
+    following=[a for a in anchors if a[1]>=q['end_ticks_upper']]
+    if not preceding or not following:return None
+    first=max(preceding,key=lambda a:(a[0],a[1]));last=min(following,key=lambda a:(a[1],a[0]))
+    chosen=[a for a in anchors if first[0]<=a[0] and a[1]<=last[1]]
+    for a in (first,last):
+        if a not in chosen:chosen.append(a)
+    lo=max(Fraction((u-EPOCH)*100)-ticks(b,f) for a,b,u,f in chosen)
+    hi=min(Fraction((u-EPOCH)*100+100)-ticks(a,f) for a,b,u,f in chosen)
+    return (lo,hi) if lo<=hi else None
+
+def native_lifetimes(path):
+    pending={};clones=[];exits=defaultdict(list)
+    prefix=re.compile(r'^\s*(?:\[pid\s+)?(\d+)\]?\s+(\d+\.\d+)\s+(.*)$')
+    duration=re.compile(r'\s+<(\d+\.\d+)>$')
+    with Path(path).open(encoding='utf-8') as f:
+        for number,line in enumerate(f,1):
+            match=prefix.match(line.rstrip('\n'))
+            if not match:continue
+            tid,stamp,body=int(match[1]),match[2],match[3]
+            if body.startswith('+++'):
+                exits[tid].append((number,dec_ns(stamp),print_unit(stamp)));continue
+            if body.startswith(('clone(','clone3(')):
+                item={'parent':tid,'entry_line':number,'stamp':dec_ns(stamp),'q':print_unit(stamp),'raw':body}
+                if '<unfinished ...>' in body:pending[tid]=item;continue
+            elif body.startswith(('<... clone resumed>','<... clone3 resumed>')):
+                item=pending.pop(tid,None)
+                if item is None:continue
+            else:continue
+            d=duration.search(body);ret=body.rsplit(' = ',1)[1] if ' = ' in body else ''
+            value=re.match(r'(-?(?:0x[0-9a-fA-F]+|\d+))',ret)
+            child=int(value[1],0) if value else None
+            if 'CLONE_THREAD' in item['raw'] and child is not None and child>0 and d:
+                clones.append({**item,'child':child,'duration':dec_ns(d[1]),'d':print_unit(d[1])})
+    return clones,exits
+
+def run(base,context,replay):
+    base,context,replay=map(Path,(base,context,replay));c=read(base/'capture.json');s=read(replay/'summary.json')
+    context_queries={q['query_id']:q for q in records(context/'queries.jsonl')}
+    reports={q['query_id']:q for q in records(replay/'queries.jsonl')}
+    selected={w['native_tid'] for q in context_queries.values() for w in q['worker_witnesses']}
+    result={'status':'running','checks':0,'failure_count':0,'failures':[]}
+    def check(ok,label):
+        result['checks']+=1
+        if not ok:
+            result['failure_count']+=1
+            if len(result['failures'])<100:result['failures'].append(label)
+    check(set(reports)==set(context_queries) and len(reports)==379,'Exact379 queries without omitted no-witness rows')
+    check(s['source_sha256']==sha(replay/'analysis-source.py.txt')=='e466a056c63e656a23e6bbe6ffd514accae3a2f2822ee21422f59721e2b6e41c','Reviewed frozen scheduler source')
+    check(s['context_source_sha256']=='4738c34d631b637af6f31bcb1eba4c0b73f7ce9bced8d38d0bc25f1c074506cc','Reviewed frozen runtime context source')
+    proc=[];births=defaultdict(set);last={};poison=defaultdict(set)
+    for row in records(base/'os.jsonl'):
+        if row['kind']!='sample':continue
+        st=row['process_stat']
+        check(row['target_identity']==c['target_owned_identity'] and st['id']==c['target_pid'] and st['starttime_ticks']==c['target_owned_identity']['starttime_ticks']
+              and st['parent_pid']==st['process_group_id']==st['session_id']==c['tracer_pid'],'Raw process lease/birth/group/session')
+        threads={}
+        for t in row['threads']:
+            tid=t['tid']
+            if tid not in selected:continue
+            b=t['starttime_ticks'];births[tid].add(b)
+            values=tuple((t.get(group) or {}).get(field) for group,field in FIELDS)
+            for i,v in enumerate(values):
+                if type(v) is int:
+                    if v<0 or ((tid,b,i) in last and v<last[tid,b,i]):poison[tid].add(NAMES[i])
+                    last[tid,b,i]=v
+            threads[tid]=(b,t['stat']['state'],values)
+        proc.append((row['sequence'],row['begin']['utc_ns'],row['end']['utc_ns'],{r['tid'] for r in row['races'] if 'tid' in r},threads))
+    check(len(proc)==s['observer_samples'],'Full proc sample count')
+    clones,exits=native_lifetimes(base/'native.raw.log');owned={c['target_pid']};by_child=defaultdict(list)
+    for event in sorted(clones,key=lambda x:x['entry_line']):
+        if event['parent'] in owned:owned.add(event['child']);by_child[event['child']].append(event)
+    life={}
+    for tid in selected:
+        reported=s['native_lifetimes'][str(tid)]
+        if len(by_child[tid])==len(exits[tid])==len(births[tid])==1:
+            e=by_child[tid][0];x=exits[tid][0]
+            ready=e['stamp']+e['duration']+e['q']+e['d'];end=x[1]-x[2]
+            check(reported['status']=='single_owned_generation_with_printed_lifetime_bounds' and reported['ready_latest_utc_ns']==ready
+                  and reported['exit_earliest_utc_ns']==end and reported['clone_entry_line']==e['entry_line'] and reported['exit_line']==x[0],
+                  'Independent raw successfulCLONE_THREAD/exit precision lifetime')
+            life[tid]=(ready,end)
+        else:check(reported['status']=='unavailable_or_ambiguous','Ambiguous lifecycle not assigned')
+    anchors=set()
+    for span in records(base/'generator.json.spans.jsonl'):
+        anchors.add((span['anchorBeforeTicks'],span['anchorAfterTicks'],span['utcAnchorTicks'],span['frequency']))
+        anchors.add((span['utcSampleBeforeTicks'],span['utcSampleAfterTicks'],span['utcSampleTicks'],span['frequency']))
+    anchors=sorted(anchors)
+    seqs={r[0]:r for r in proc};observed_pairs={};actual_counts=Counter()
+    for pair in records(replay/'endpoint-pairs.jsonl'):
+        key=(pair['query_id'],pair['native_tid'],pair['left_sequence'],pair['right_sequence'])
+        check(key not in observed_pairs,'No duplicate endpoint-pair association')
+        observed_pairs[key]=pair
+    expected_pairs=set();metric_associations=Counter();geometry_count=0;worker_queries=Counter()
+    begins=[r[1] for r in proc];ends=[r[2] for r in proc]
+    for qid,q in context_queries.items():
+        r=reports[qid];off=offsets(q,anchors)
+        check(r['kind']==q['kind'] and r['span_sequence']==q['span_sequence'] and r['worker_point_witnesses']==len(q['worker_witnesses']),'Exact query/witness identity')
+        if off is None:
+            check(r['status']=='unsupported_clock_no_counter_assignment' and not r['workers'],'Unsupported clock unassigned');continue
+        core=(ceil(ticks(q['start_ticks_upper'],q['frequency'])+off[1]),floor(ticks(q['end_ticks_lower'],q['frequency'])+off[0]))
+        check(r['guaranteed_query_core_utc_ns']==list(core),'Independent strict-bracket UTC core')
+        check({x['native_tid'] for x in r['workers']}=={w['native_tid'] for w in q['worker_witnesses']},'Every worker point query retained')
+        a=max(0,bisect_left(ends,core[0])-1);b=min(len(proc),bisect_right(begins,core[1])+1);candidate=proc[a:b]
+        for w in r['workers']:
+            tid=w['native_tid'];birth=w['birth'];witness=w['point_witness'];f=q['frequency']
+            point=(floor(ticks(witness['sample_ticks_lower'],f)+off[0]),ceil(ticks(witness['sample_ticks_upper'],f)+off[1]))
+            check(w['compiler_point_outer_utc_ns']==list(point),'Independent point lifetime uncertainty')
+            assigned=births[tid]=={birth} and tid in life and point[0]>=life[tid][0] and point[1]<=life[tid][1] and core[1]>core[0]
+            if not assigned:
+                check('metrics' not in w,'Unassigned birth/lifetime/core has no counters');continue
+            def eligible(row):
+                t=row[4].get(tid)
+                return row[1]>=core[0] and row[2]<=core[1] and t is not None and tid not in row[3] and t[0]==birth
+                       and t[1] not in ('Z','X','x',None) and row[1]>=life[tid][0] and row[2]<=life[tid][1]
+            sums=[None]*len(NAMES);valid=[0]*len(NAMES);missing=[0]*len(NAMES);zero=[0]*len(NAMES);positive=[False]*len(NAMES)
+            pairs=0;envelope=[];separation=[]
+            for left,right in zip(candidate,candidate[1:]):
+                if right[0]!=left[0]+1 or not eligible(left) or not eligible(right):continue
+                key=(qid,tid,left[0],right[0]);expected_pairs.add(key);pairs+=1
+                check(key in observed_pairs,'Every independently eligible adjacent pair present')
+                if key not in observed_pairs:continue
+                p=observed_pairs[key]
+                check(p['birth']==birth and p['left_read_utc_ns']==[left[1],left[2]] and p['right_read_utc_ns']==[right[1],right[2]],'Exact raw endpoint times/birth')
+                for i,name in enumerate(NAMES):
+                    x,y=left[4][tid][2][i],right[4][tid][2][i]
+                    delta=y-x if type(x) is int and type(y) is int and 0<=x<=y else None
+                    check(p['raw_counter_changes'][name]==delta,'Exact unprorated raw metric delta')
+                    if delta is None:missing[i]+=1;continue
+                    valid[i]+=1;sums[i]=(sums[i] or 0)+delta;zero[i]+=delta==0;positive[i]|=x>0 or y>0
+                    metric_associations[(q['kind'],name)]+=delta
+                envelope.append((left[1],right[2]));separation.append((left[2],right[1]))
+            check(w['valid_live_endpoints']==sum(eligible(x) for x in candidate),'Exact eligible endpoint count')
+            check(w['structurally_valid_adjacent_pairs']==pairs,'Exact adjacent-pair count')
+            check(w['full_read_pair_envelope_union_ns']==union(envelope) and w['read_time_separation_union_ns_geometry_only']==union(separation),'Exact geometry unions—not accrual intervals')
+            for i,name in enumerate(NAMES):
+                m=w['metrics'][name]
+                expected=None if name in poison[tid] else sums[i]
+                check(m['endpoint_accrued_delta']==expected and m['valid_pairs']==valid[i] and m['raw_zero_pairs']==zero[i],'Exact endpoint metric sum/count/zero')
+                check(m['in_query_duration_ns'] is None and m['in_query_lower_bound_ns'] is None,'No phase duration/lower-bound promotion')
+                check(m['positive_cumulative_endpoint_value_observed']==positive[i],'Exact accounting-observability value flag')
+            worker_queries[q['kind']]+=1;actual_counts[q['kind']+'.worker_queries_with_adjacent_pairs']+=pairs>0
+    check(set(observed_pairs)==expected_pairs,'No extra/omitted endpoint-pair associations')
+    for kind,count in worker_queries.items():check(s['counts'][kind+'.worker_queries']==count,'Exact worker-query totals')
+    for name,count in actual_counts.items():check(s['counts'][name]==count,'Exact worker-query-with-pair totals')
+    for name,h in s['outputs_sha256'].items():check(sha(replay/name)==h,'Output file hash '+name)
+    distinct={(t,left,right) for _,t,left,right in expected_pairs}
+    result.update(status='passed' if not result['failure_count'] else 'failed',queries=len(reports),selected_tids=len(selected),
+                  proc_samples=len(proc),worker_queries=dict(worker_queries),query_pair_associations=len(expected_pairs),
+                  distinct_native_endpoint_pairs=len(distinct),repeated_pair_query_associations=len(expected_pairs)-len(distinct),
+                  scheduler_source_sha256=s['source_sha256'],context_source_sha256=s['context_source_sha256'],
+                  replay_summary_sha256=sha(replay/'summary.json'),
+                  endpoint_pair_identity_fingerprint_sha256=hashlib.sha256(json.dumps(sorted(expected_pairs),separators=(',',':')).encode()).hexdigest(),
+                  limits=['Stored credit publication can include pre-query activity; no CPU/runqueue phase elapsed or lower bound is assigned.',
+                          'Query pair associations repeat across overlapping query kinds; distinct count is separate.',
+                          'Native lifetime/UTC conclusions remain conditional on no hidden clock excursions; no causal GC/scheduler split or product patch proof.'])
+    return result
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser();p.add_argument('--capture',required=True);p.add_argument('--context',required=True);p.add_argument('--replay',required=True);p.add_argument('--output',required=True);a=p.parse_args()
+    report=run(a.capture,a.context,a.replay)
+    with Path(a.output).open('x',encoding='utf-8') as f:json.dump(report,f,indent=2)
+    print(json.dumps(report));raise SystemExit(0 if report['status']=='passed' else 1)

@@ -1,0 +1,231 @@
+"""Independent streamed ADR0020 point/query replay; no target/build operations."""
+import argparse
+from collections import Counter, defaultdict
+from fractions import Fraction
+import hashlib
+import json
+from pathlib import Path
+
+
+def records(path):
+    with Path(path).open('rb') as stream:
+        for index,line in enumerate(stream,1):
+            yield index,json.loads(line),line
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def digest(path):
+    h=hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for b in iter(lambda:stream.read(1024*1024),b''):h.update(b)
+    return h.hexdigest()
+
+
+def ep(value):return Fraction(str(value))*1_000_000
+def tick(t,f):return Fraction(t*1_000_000_000,f)
+def down(x):return x.numerator//x.denominator
+def up(x):return -down(-x)
+
+
+def own_classification(frames,tid,pid):
+    pools=[];compiler=[];completion=[];caller=[]
+    for frame in frames:
+        if frame.startswith('System.Threading.ThreadPoolWorkQueue.') or frame.startswith('System.Threading.PortableThreadPool'):
+            pools.append(frame)
+        if frame.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass') and '.<CompileNamedTypeAsync>b__' in frame:
+            compiler.append(frame)
+        if frame.startswith('Microsoft.CodeAnalysis.CSharp.Symbols.SourceNamespaceSymbol+') and '.<ForceComplete>' in frame:
+            completion.append(frame)
+        if frame.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers('):caller.append(frame)
+    if tid==pid:
+        return ('caller_wait_for_workers_point',caller) if caller else (None,[])
+    if compiler and pools:return 'compiler_async_point',compiler+pools
+    if completion and pools:return 'completion_point',completion+pools
+    return None,[]
+
+
+def run(folder,context):
+    folder=Path(folder);context=Path(context)
+    result={'status':'running','checks':0,'failures':[],'failure_count':0}
+    def check(ok,label):
+        result['checks']+=1
+        if not ok:
+            result['failure_count']+=1
+            if len(result['failures'])<100:result['failures'].append(label)
+    c=read(folder/'capture.json');pid=c['target_pid']
+    summary=read(context/'summary.json')
+    wait_summary=read(folder/'wait-analysis/summary.json')
+    spans=[s for _,s,_ in records(folder/'generator.json.spans.jsonl')]
+    check(len(spans)==2956 and [s['sequence'] for s in spans]==list(range(1,2957)),'Exact2956 sidecar sequence')
+    marker={};raw_hash=hashlib.sha256();raw_count=0
+    phases=('GC/SuspendEEStart','GC/SuspendEEStop','GC/RestartEEStart','GC/RestartEEStop')
+    active_gc={};gc_candidates=[];gc_errors=[]
+    for raw_index,event,line in records(folder/'analysis/events.jsonl'):
+        raw_hash.update(line);raw_count+=1
+        if event['provider']=='Microsoft-Windows-DotNETRuntime' and event['name'] in phases:
+            k=(event['processId'],event['payload'].get('ClrInstanceID'),event['threadId'])
+            if event['name']==phases[0]:
+                check(k not in active_gc,'Independent strict candidate has no nested same-key start')
+                active_gc[k]=[(raw_index,event)]
+            elif k not in active_gc or event['name']!=phases[len(active_gc[k])]:
+                gc_errors.append({'raw_index':raw_index,'key':k,'name':event['name']});active_gc.pop(k,None)
+            else:
+                active_gc[k].append((raw_index,event))
+                if len(active_gc[k])==4:
+                    sequence=active_gc.pop(k)
+                    if sequence[0][1]['payload'].get('Reason') in (1,6):
+                        gc_candidates.append({'key':k,'indices':[i for i,_ in sequence],
+                                              'times':[e['timeMsec'] for _,e in sequence]})
+        if event['provider']=='Cehpalon-Tooling-Diagnostic':
+            seq=event['payload']['sequence'];check(seq not in marker,'Unique event marker')
+            marker[seq]=event
+    check(len(marker)==2956,'Exact2956 raw marker events')
+    lower=[];upper=[]
+    for s in spans:
+        m=marker[s['sequence']]
+        check(m['processId']==s['processId']==pid and m['threadId']==s['osThreadId'],'Exact target marker PID/TID')
+        lower.append(ep(m['timeMsec'])-tick(s['markerAfterTicks'],s['frequency']))
+        upper.append(ep(m['timeMsec'])-tick(s['markerBeforeTicks'],s['frequency']))
+    offset=(max(lower),min(upper));check(offset[0]<=offset[1],'Independent global EventPipe/Stopwatch intersection')
+    catalog=read(context/'frame-catalog.json')
+    produced={p['sample_record_index']:p for _,p,_ in records(context/'points.jsonl')}
+    check(len(produced)==sum(1 for _ in records(context/'points.jsonl')),'Unique point indices')
+    births=wait_summary['native_thread_scope']['proc_observed_births']
+    members=set(wait_summary['native_thread_scope']['thread_ids_from_lifecycle'])
+    ambiguous=set(wait_summary['native_thread_scope']['ambiguous_or_reused_tid_numbers'])
+    observed=[];raw_stack_count=0;stack_hash=hashlib.sha256()
+    for index,stack,line in records(folder/'analysis/sampled-thread-stacks.jsonl'):
+        raw_stack_count+=1;stack_hash.update(line)
+        check(stack['processId']==pid,'Raw stack target PID')
+        kind,frames=own_classification(stack['frames'],stack['osThreadId'],pid)
+        if kind is None:
+            check(index not in produced,'No unclassified point promoted')
+            continue
+        check(index in produced,'Every independently classified point retained')
+        if index not in produced:continue
+        p=produced[index];tid=stack['osThreadId'];bs=births.get(str(tid),[])
+        eligible=tid in members and tid not in ambiguous and len(bs)==1 and type(bs[0]) is int
+        check(p['kind']==kind and p['process_id']==pid and p['native_tid']==tid,'Point kind/PID/TID')
+        check(p['sample_eventpipe_msec']==stack['timeRelativeMsec'],'Original point timestamp')
+        check([catalog[i] for i in p['matching_frame_ids']]==frames,'Exact matching frame IDs/strings')
+        check(p['native_birth_eligibility']==('observed_unique_birth_and_owned_lifecycle' if eligible else 'unknown_or_ambiguous_unassigned'),'Observed native birth qualification')
+        check(p['observed_starttime_ticks']==(bs[0] if eligible else None),'Observed exact native birth')
+        observed.append({'index':index,'kind':kind,'tid':tid,'time':ep(stack['timeRelativeMsec']),
+                         'frames':frames,'eligible':eligible,'birth':bs[0] if eligible else None})
+    counts=Counter(x['kind'] for x in observed)
+    check(dict(counts)==summary['points_by_kind'],'All point-kind counters independently replayed')
+    check(raw_stack_count==summary['stack_records'],'Full unfiltered stack record count')
+    check(raw_count==summary['raw_runtime_records'],'Full unfiltered runtime record count')
+    compiler=[p for p in observed if p['kind']=='compiler_async_point']
+    caller_points=[p for p in observed if p['kind']=='caller_wait_for_workers_point']
+    check(sorted({p['tid'] for p in compiler})==summary['compiler_context_native_tids'],'Exact compiler-context TID set')
+    mapped={(p['index'],f):((p['time']-offset[1])*f/1_000_000_000,(p['time']-offset[0])*f/1_000_000_000)
+            for p in compiler for f in {s['frequency'] for s in spans}}
+    wall=[s for s in spans if s['stage']=='compiler.wall' and s['phase'] in ('primer','measurement')]
+    def business(s):return tuple(s[k] for k in ('caseIndex','size','state','variant','pairSequence','phase'))
+    emits={business(s):s for s in spans if s['stage']=='pe.emit' and s['phase'] in ('primer','measurement')}
+    check(len(wall)==len(emits)==306,'All306 main Emit spans')
+    caller_pairs=[p for _,p,_ in records(folder/'wait-analysis/wait-pairs.jsonl') if p['osThreadId']==pid
+                  and p['identity_attribution_status']=='no_native_tid_reuse_observed_in_retained_scope']
+    queries={q['query_id']:q for _,q,_ in records(context/'queries.jsonl')}
+    produced_waits={(w['emit_sequence'],w['caller_pair_index']):w for _,w,_ in records(context/'caller-wait-intersections.jsonl')}
+    rows={r['compiler_sequence']:r for _,r,_ in records(context/'rows.jsonl')}
+    expected_query_ids=[];expected_wait_ids=set();associations=[];query_totals=Counter();measured=Counter()
+    fingerprints=[]
+    def query(s,wall_sequence,kind,identifier,ws=None,we=None):
+        f=s['frequency'];a=Fraction(s['startTicks']);b=Fraction(s['endTicks'])
+        q=(a,a,b,b)
+        if ws is not None:
+            q=(max(a,(ws-offset[1])*f/1_000_000_000),max(a,(ws-offset[0])*f/1_000_000_000),
+               min(b,(we-offset[1])*f/1_000_000_000),min(b,(we-offset[0])*f/1_000_000_000))
+        bounds=(down(q[0]),up(q[1]),down(q[2]),up(q[3]))
+        expected_query_ids.append(identifier);check(identifier in queries,'Every expected query retained')
+        if identifier not in queries:return
+        actual=queries[identifier]
+        check(actual['kind']==kind and actual['span_sequence']==s['sequence'] and actual['process_id']==pid and actual['caller_tid']==pid,'Query kind/span/PID/caller')
+        check(tuple(actual[k] for k in ('start_ticks_lower','start_ticks_upper','end_ticks_lower','end_ticks_upper'))==bounds,'Exact conservative query bounds')
+        strict=[];by_tid={};boundary={}
+        for p in compiler:
+            if not p['eligible']:continue
+            pl,pu=mapped[(p['index'],f)]
+            if pu<bounds[0] or pl>bounds[3]:continue
+            item={'native_tid':p['tid'],'sample_record_index':p['index'],'sample_eventpipe_msec':float(p['time']/1_000_000),
+                  'compiler_frames':p['frames'],'sample_ticks_lower':down(pl),'sample_ticks_upper':up(pu),'observed_starttime_ticks':p['birth']}
+            if item['sample_ticks_lower']>=bounds[1] and item['sample_ticks_upper']<=bounds[2]:
+                strict.append(p['index']);by_tid.setdefault(p['tid'],item)
+            else:boundary.setdefault(p['tid'],item)
+        check(actual['all_strict_worker_point_indices']==strict,'Every strict point association retained in raw order')
+        check(actual['worker_witnesses']==list(by_tid.values()),'One exact first strict witness perTID/query')
+        check(actual['boundary_worker_witnesses']==list(boundary.values()),'Boundary-only witnesses retained')
+        associations.extend(strict);query_totals[kind]+=1
+        if s['phase']=='measurement':
+            measured[kind+'_queries']+=1;measured[kind+'_point_associations']+=len(strict)
+        fingerprints.append({'query_id':identifier,'bounds':bounds,'strict_points':strict,'witness_tids':list(by_tid)})
+    for w in wall:
+        s=emits[business(w)];f=s['frequency'];start=tick(s['startTicks'],f);end=tick(s['endTicks'],f)
+        win=(start+offset[0],start+offset[1],end+offset[0],end+offset[1])
+        query(s,w['sequence'],'emit','emit:'+str(w['sequence']))
+        expected_rows=[p['index'] for p in compiler if win[1]<=p['time']<=win[2]]
+        check(rows[w['sequence']]['strict_compiler_worker_point_indices']==expected_rows,'Exact row point witness indices')
+        for pair_index,pair in enumerate(caller_pairs,1):
+            ws=ep(pair['startMsec']);we=ep(pair['endMsec'])
+            if we<=win[0] or ws>=win[3]:continue
+            key=(s['sequence'],pair_index);expected_wait_ids.add(key)
+            check(key in produced_waits,'All caller-wait/Emit intersections retained')
+            if key not in produced_waits:continue
+            cp=[p['index'] for p in caller_points if ws<=p['time']<=we and win[1]<=p['time']<=win[2]]
+            wp=[p['index'] for p in compiler if ws<=p['time']<=we and win[1]<=p['time']<=win[2]]
+            actual=produced_waits[key]
+            check(actual['caller_wait_for_workers_sample_indices']==cp,'Exact caller WaitForWorkers point indices')
+            check(actual['worker_point_indices']==wp,'Exact worker point indices during caller interval')
+            check(actual['observed_worker_tids']==sorted({p['tid'] for p in compiler if p['index'] in set(wp)}),'Exact observed worker TIDs during caller interval')
+            if cp:
+                query(s,w['sequence'],'caller-wait-for-workers','wait:'+str(w['sequence'])+':'+str(pair_index),ws,we)
+    check(set(queries)==set(expected_query_ids) and len(queries)==len(expected_query_ids),'No extra/missing/duplicate query IDs')
+    check(set(produced_waits)==expected_wait_ids,'No extra caller-wait intersection records')
+    check(dict(query_totals)==summary['queries'],'Exact query-kind counters')
+    check(len(rows)==summary['rows']==306,'Exact306 row summaries')
+    check(summary['source_inputs_sha256']['analysis/events.jsonl']==raw_hash.hexdigest(),'Runtime raw source hash')
+    check(summary['source_inputs_sha256']['analysis/sampled-thread-stacks.jsonl']==stack_hash.hexdigest(),'Stack source hash')
+    for name,h in summary['outputs_sha256'].items():check(digest(context/name)==h,'Actual output hash '+name)
+    old_gc=[(i,g) for i,g in enumerate(read(folder/'analysis/intervals.json')['suspensions'],1) if g['gcRelated'] and g['processId']==pid]
+    gc_same=0;gc_disputes=[]
+    for i,g in old_gc:
+        matches=[x for x in gc_candidates if x['key'][0]==pid and x['key'][1]==g['clrInstanceId'] and ep(x['times'][0])==ep(g['startMsec'])]
+        check(len(matches)==1,'Unique hypothesis start matching original-analyzer interval')
+        if len(matches)!=1:continue
+        x=matches[0]
+        if ep(x['times'][3])==ep(g['endMsec']):gc_same+=1
+        else:gc_disputes.append({'previous_analyzer_episode_index':i,'startMsec':g['startMsec'],
+                                'previousEndMsec':g['endMsec'],'hypothesisEndMsec':x['times'][3],
+                                'delta_ns':float(ep(g['endMsec'])-ep(x['times'][3])),
+                                'hypothesis_native_tid':x['key'][2],'hypothesis_raw_phase_indices':x['indices'],
+                                'status':'disputed_no_certified_pairing_choice'})
+    proposed=[x for _,x,_ in records(context/'supplementary-ee-candidate-sequences.jsonl')]
+    check([x['indices'] for x in gc_candidates]==[[f['raw_event_record_index'] for f in x['frames']] for x in proposed],
+          'Independent83 hypothesis raw phase indices match without promoting pairing')
+    result.update(status='passed' if not result['failure_count'] else 'failed',target_pid=pid,
+                  raw_events=raw_count,raw_stacks=raw_stack_count,points_by_kind=dict(counts),query_counts=dict(query_totals),
+                  worker_point_query_associations=len(associations),distinct_worker_points_in_queries=len(set(associations)),
+                  repeated_worker_point_associations=len(associations)-len(set(associations)),measured_counts=dict(measured),
+                  query_fingerprint_sha256=hashlib.sha256(json.dumps(fingerprints,separators=(',',':')).encode()).hexdigest(),
+                  input_context_summary_sha256=digest(context/'summary.json'),
+                  gc_boundary_replay={'hypothesis_gc_label_sequences':len(gc_candidates),'independent_phase_errors':len(gc_errors),
+                                      'previous_analyzer_gc_intervals':len(old_gc),'same_start_end':gc_same,'disputes':gc_disputes,
+                                      'scope':'previous outputs immutable; both pairing models uncertified; agreement is not runtime-contract proof'},
+                  limits=['Point observations are residency, not CPU duration/task lineage.',
+                          'Query association totals repeat points legitimately; distinct point count is separate.',
+                          'This audit does not promote supplementary GC hypotheses or derive exclusive causes.'])
+    return result
+
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--folder',required=True);p.add_argument('--context',required=True);p.add_argument('--output',required=True);a=p.parse_args()
+    out=Path(a.output);assert not out.exists(),'Fresh audit result required'
+    result=run(a.folder,a.context)
+    with out.open('x',encoding='utf-8') as stream:json.dump(result,stream,indent=2)
+    print(json.dumps(result))
+    raise SystemExit(0 if result['status']=='passed' else 1)
