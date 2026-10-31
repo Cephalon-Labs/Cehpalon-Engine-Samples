@@ -1,0 +1,72 @@
+{
+  "status": "source_contract_review_completed_not_pause_certification",
+  "runtime_commit": "5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+  "official_repository": "dotnet/dotnet VMR src/runtime",
+  "source_provenance_sha256": "d400c19f645e69f9228d08ed1e07ccce3a7b27a603c1224082433fc054642b9d",
+  "event_contract": {
+    "provider": "Microsoft-Windows-DotNETRuntime",
+    "keyword": "GCKeyword 0x1",
+    "version": 1,
+    "SuspendEEStart": {
+      "eventId": 9,
+      "opcode": 10,
+      "template": "GCSuspendEE_V1: Reason uint32, Count uint32, ClrInstanceID uint16"
+    },
+    "SuspendEEStop": {
+      "eventId": 8,
+      "opcode": 137,
+      "template": "GCNoUserData: ClrInstanceID uint16"
+    },
+    "RestartEEStart": {
+      "eventId": 7,
+      "opcode": 136,
+      "template": "GCNoUserData: ClrInstanceID uint16"
+    },
+    "RestartEEStop": {
+      "eventId": 3,
+      "opcode": 132,
+      "template": "GCNoUserData: ClrInstanceID uint16"
+    }
+  },
+  "findings": [
+    {
+      "code": "begin_precedes_serialization",
+      "source": "src_coreclr_vm_threadsuspend.cpp.txt:5531,5550",
+      "finding": "SuspendEE Begin is emitted before acquiring ThreadStore lock. Multiple initiators may log start before their work serializes."
+    },
+    {
+      "code": "end_follows_unlock",
+      "source": "src_coreclr_vm_threadsuspend.cpp.txt:5454,5485",
+      "finding": "RestartEE End is emitted after unlocking ThreadStore. A later initiator can begin/advance before the earlier end is emitted. Global process/CLR adjacency is not reliable episode pairing."
+    },
+    {
+      "code": "debugger_retry_breaks_fourphase",
+      "source": "src_coreclr_vm_threadsuspend.cpp.txt:5541,5658-5700",
+      "finding": "Debugger unsafe-place branch calls RestartEE(false), then goto retry_for_debugger below original Begin. It can emit restart phases before SuspendStop and later SuspendStop without another Begin. Fourphase state machine is not a universal runtime contract."
+    },
+    {
+      "code": "gc_callers",
+      "source": "src_coreclr_vm_gcenv.ee.cpp.txt:38-63; src_coreclr_gc_interface.cpp.txt:1929,1983; src_coreclr_gc_collect.cpp.txt:416-491; src_coreclr_gc_background.cpp.txt:1960-1967,3816-3822",
+      "finding": "GC bridge forwards synchronous calls; reviewed workstation and background heap-zero paths support same-initiator sequences under their specific branches. Background dont_restart_ee_p and server rendezvous mean branch/caller coverage must be explicit; functions alone do not establish all paths."
+    },
+    {
+      "code": "native_header_chain",
+      "source": "src_coreclr_scripts_genEventPipe.py.txt:403-406; src_coreclr_vm_eventpipeadapter.h.txt:488-508; src_native_eventpipe_ep.c.txt:841-865,1764-1778; ep-buffer-manager.c.txt:1246-1247; ep-buffer.c.txt:101-105; src_native_eventpipe_ep-event-instance.c.txt:58-77",
+      "finding": "Generated CoreCLR EventPipe writer calls EventPipeAdapter WriteEvent, then ep_write_event; ordinary write obtains current thread and passes NULL event_thread. Buffer manager uses writer thread when event_thread is NULL; ep_event_instance_init stores its OS thread ID. Sampling has separate explicit event-thread override. Thus ordinary EE event header is the emitter native thread under this source path, not a paused worker identity."
+    }
+  ],
+  "raw_metadata_check": "raw-metadata-check.json; each of four phase counts12147, zero ID/opcode/version mismatches",
+  "interpretation": {
+    "same_initiator_83": "Source-consistent observed fourphase candidates can be studied with stronger justification than earlier URL miss, but are not automatically accepted pause truth or universal GC coverage. Preserve all malformed/ambiguous episodes and original legacy results.",
+    "outer_envelope": "Begin->RestartEnd includes lock acquisition wait, suspension coordination and post-unlock work; it is not all-stop duration.",
+    "inner_envelope": "SuspendStop->RestartStart is a source-supported coordinated suspension observation for successful branch, not per-worker scheduler/CPU causality.",
+    "acceptance_decision": "Do not promote83 wholesale from existing source functions/metadata alone. Requires explicit applicable caller-path/build evidence, expected feature macros/GC mode, no retry/identity ambiguity for each episode, and captured binary/runtime mapping. No task lineage or kernel scheduler transitions are added by source review."
+  },
+  "remaining_unknowns": [
+    "Recorded commit source is not immutable proof of loaded binary equivalence or exact feature macros/build options.",
+    "Full GC server/background caller path coverage and retry absence are not certified by reviewing selected functions.",
+    "Runtime event loss0 is not proof all branch-specific expected phases exist.",
+    "Native initiator identity is not all paused thread identity; no exclusive GC/scheduler share or avoidable Engine work is established."
+  ],
+  "no_new_target_capture_build_or_host_configuration": true
+}

@@ -1,0 +1,74 @@
+"""Independent raw synthetic TPL/marker audit; imports neither production analyzer nor verifier."""
+import argparse
+from collections import Counter,defaultdict
+from fractions import Fraction
+import hashlib,json
+from pathlib import Path
+
+p=argparse.ArgumentParser();p.add_argument('--capture',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+paths={k:a.capture/v for k,v in {'events':'analysis/events.jsonl','summary':'analysis/summary.json','capture':'capture.json','target':'target.json','points':'target.json.points.jsonl'}.items()}
+def records(path):return [json.loads(s) for s in path.read_text(encoding='utf-8-sig').splitlines()]
+def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
+def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
+events=records(paths['events']);summary=read(paths['summary']);capture=read(paths['capture']);target=read(paths['target']);points=records(paths['points']);pid=target['processId'];checks=0;failures=[]
+def check(condition,message):
+ global checks
+ checks+=1
+ if not condition:failures.append(message)
+check(summary['status']=='completed' and all(type(summary[k]) is int and summary[k]==0 for k in ['eventsLost','etlxEventsLost','payloadReadErrors']),'Parser quality zero-loss/readerrors')
+check(summary['events']==len(events),'Every raw record consumed')
+check(capture['status']=='completed' and capture['target_pid']==pid,'Owned completed target identity')
+check(target['status']=='passed' and target['ownedThreadsJoined'] is True,'Target semantics and joined threads')
+check([c['name'] for c in target['cases']]==['scheduled','completed-before-wait','synchronous-block','forced-inline','nested','exception','cancellation'],'Exact ordered seven cases')
+markers=[(i,e) for i,e in enumerate(events) if e.get('provider')=='Cehpalon-Task-Conformance'];tpl=[(i,e) for i,e in enumerate(events) if e.get('provider')=='System.Threading.Tasks.TplEventSource'];check(len(markers)==len(points)==52,'All52fixture markers')
+point_fields=('sequence','caseName','kind','taskId','schedulerId','processId','nativeTid','stopwatchTicks','frequency')
+marker_by_sequence={};lower=None;upper=None
+for ordinal,((index,e),point) in enumerate(zip(markers,points),1):
+ check(type(e['eventId']) is int and e['eventId']==1 and type(e['version']) is int and e['version']==0 and type(e['opcode']) is int and e['opcode']==0,'Marker template '+str(index))
+ check(e['payload']['sequence']==point['sequence']==ordinal,'Exact ordinal marker sequence')
+ check(e['processId']==point['processId']==pid and e['threadId']==point['nativeTid'],'Exact marker native identity')
+ check(all(type(e['payload'][k]) is type(point[k]) and e['payload'][k]==point[k] for k in point_fields),'Exact payload/sidecar parity')
+ check(point['frequency']>0 and point['markerAfterTicks']>=point['markerBeforeTicks'],'Ordered read bounds')
+ stamp=Fraction(str(e['timeMsec']));lo=stamp-Fraction(point['markerAfterTicks']*1000,point['frequency']);hi=stamp-Fraction(point['markerBeforeTicks']*1000,point['frequency']);lower=lo if lower is None else max(lower,lo);upper=hi if upper is None else min(upper,hi)
+ marker_by_sequence[ordinal]=(e,point)
+check(lower<=upper,'Common marker-clock intersection')
+by_task=defaultdict(lambda:defaultdict(list));kinds=Counter()
+versions={7:1,8:0,9:1,10:3,11:0,13:0};opcodes={k:9 if k in [7,10] else 0 for k in versions}
+for index,e in tpl:
+ event_id=e['eventId'];kinds[event_id]+=1
+ check(type(event_id) is int and event_id in versions,'Supported observed TPL template')
+ check(type(e['version']) is int and e['version']==versions.get(event_id) and type(e['opcode']) is int and e['opcode']==opcodes.get(event_id),'TPL exact version/opcode')
+ check(e['processId']==pid and type(e['threadId']) is int and e['threadId']>0,'TPL exact process/native thread')
+ check(e['templateType']=='Microsoft.Diagnostics.Tracing.Parsers.DynamicTraceEventData','Actual dynamic event template')
+ payload=e['payload'];task=payload['TaskID'];check(type(task) is int and task>0,'Task identity positive integer')
+ by_task[task][event_id].append((index,e))
+check(kinds=={7:7,8:7,9:7,10:7,11:7,13:7},'All42TPL records with7per-template')
+completed_id=target['cases'][1]['taskId'];check(completed_id not in by_task,'Completed-before-wait no manufactured TPL activity')
+proof=[]
+for case in target['cases']:
+ task_ids=[case['taskId']]+([case['childTaskId']] if case['name']=='nested' else [])
+ for task in task_ids:
+  if task==completed_id:continue
+  group=by_task[task]
+  check(all(len(group[k])==1 for k in [7,8,9,10,11,13]),'Unique lifecycle/wait phases task'+str(task))
+  schedule,start,end,wait_begin,wait_end=[group[k][0][1] for k in [7,8,9,10,11]]
+  check(schedule['timeMsec']<=start['timeMsec']<=end['timeMsec'],'Schedule/start/executeexit order')
+  check(wait_begin['timeMsec']<=wait_end['timeMsec'],'Waitbracket order')
+  check(start['threadId']==end['threadId'],'Execute body nativeTID stable')
+  check(wait_begin['threadId']==wait_end['threadId'],'Caller nativeTID stable')
+  check(start['payload']['OriginatingTaskSchedulerID']==end['payload']['OriginatingTaskSchedulerID'] and start['payload']['OriginatingTaskID']==end['payload']['OriginatingTaskID'],'Execution origin context stable')
+  check(wait_begin['payload']['Behavior']==1 and all(wait_begin['payload'][k]==wait_end['payload'][k] for k in ['OriginatingTaskSchedulerID','OriginatingTaskID','TaskID']),'Synchronous caller origin context stable')
+  check(end['payload']['IsExceptional'] is (case['name']=='exception'),'Fault versus cancellation observation')
+  witnesses=[(e,q) for e,q in marker_by_sequence.values() if q['caseName']==case['name'] and q['taskId']==task]
+  body=[e for e,q in witnesses if q['kind'] in ['task.body.enter','task.body.exit']];check(len(body)==2 and all(e['threadId']==start['threadId'] for e in body),'Body markers native identity')
+  check(start['timeMsec']<=body[0]['timeMsec']<=body[1]['timeMsec']<=end['timeMsec'],'Body witnesses inside execution event lifetime')
+  binding=[q for e,q in witnesses if q['kind']=='task.bound'];check(len(binding)==1 and binding[0]['schedulerId']==schedule['payload']['OriginatingTaskSchedulerID'],'Destination scheduler independently bound')
+  if case['name']=='forced-inline':
+   check(start['threadId']==wait_begin['threadId']==target['mainNativeTid'],'Forced inline on caller TID')
+   check(wait_begin['timeMsec']<=start['timeMsec']<=end['timeMsec']<=wait_end['timeMsec'],'Inline work inside wait is not blocked time')
+   check(schedule['payload']['OriginatingTaskSchedulerID']!=start['payload']['OriginatingTaskSchedulerID'],'Inline destination differs ambient scheduler')
+  proof.append({'case':case['name'],'task_id':task,'execution_native_tid':start['threadId'],'caller_native_tid':wait_begin['threadId'],'destination_scheduler_id':schedule['payload']['OriginatingTaskSchedulerID'],'execution_origin_scheduler_id':start['payload']['OriginatingTaskSchedulerID']})
+check(set(by_task)=={p['task_id'] for p in proof},'No omitted task histories')
+report={'status':'passed' if not failures else 'failed','checks':checks,'failures':failures,'raw_records':len(events),'markers':len(markers),'tpl_records':len(tpl),'tpl_templates':dict(kinds),'complete_observed_execution_event_histories':len(proof),'proof':proof,'marker_offset_ms':{'lower':str(lower),'upper':str(upper)},'inputs_sha256':{k:sha(path) for k,path in paths.items()},'audit_source_sha256':sha(Path(__file__)),'limits':['Independent raw replay, not a second capture.','TaskCompleted is execution exit, not guaranteed logical completion with attached children.','No CPU/blocked/scheduler time or Roslyn task lineage claim.']}
+with a.output.open('x',encoding='utf-8',newline='\n') as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items() if k not in ['proof','inputs_sha256','limits']}));raise SystemExit(0 if not failures else 1)
