@@ -1,0 +1,174 @@
+{
+  "timestamp_utc": "2026-10-31T15:48:28.333941+00:00",
+  "scope": "Read-only host feasibility; no sudo/config/capture/build/target",
+  "probes": [
+    {
+      "command": [
+        "wsl",
+        "--",
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux TOM-NPC 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "id"
+      ],
+      "exit_code": 0,
+      "stdout": "uid=1000(tom) gid=1000(tom) groups=1000(tom),4(adm),8(mail),20(dialout),24(cdrom),25(floppy),27(sudo),29(audio),30(dip),44(video),46(plugdev),116(netdev),1001(docker)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "perf",
+        "version"
+      ],
+      "exit_code": 0,
+      "stdout": "perf version 6.18.54.1.g26d1ceb55087\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_paranoid"
+      ],
+      "exit_code": 0,
+      "stdout": "2\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/kptr_restrict"
+      ],
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "sh",
+        "-c",
+        "grep Cap /proc/self/status"
+      ],
+      "exit_code": 0,
+      "stdout": "CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "ls",
+        "-ld",
+        "/sys/kernel/tracing",
+        "/sys/kernel/debug/tracing"
+      ],
+      "exit_code": 2,
+      "stdout": "drwx------ 6 root root 0 Oct 31 22:47 /sys/kernel/tracing\n",
+      "stderr": "ls: cannot access '/sys/kernel/debug/tracing': Permission denied\n"
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_switch/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_switch/format: Permission denied\n"
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_wakeup/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_wakeup/format: Permission denied\n"
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/available_events"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/available_events: Permission denied\n"
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "perf",
+        "list",
+        "tracepoint"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "sh",
+        "-c",
+        "zcat /proc/config.gz | grep -E 'CONFIG_(PERF_EVENTS|FTRACE|EVENT_TRACING|TRACING|SCHEDSTATS|SCHED_INFO|BPF_EVENTS|BPF_SYSCALL|DEBUG_INFO_BTF)(=| is)'"
+      ],
+      "exit_code": 0,
+      "stdout": "CONFIG_BPF_SYSCALL=y\nCONFIG_PERF_EVENTS=y\nCONFIG_DEBUG_INFO_BTF=y\nCONFIG_SCHED_INFO=y\n# CONFIG_SCHEDSTATS is not set\nCONFIG_EVENT_TRACING=y\nCONFIG_TRACING=y\nCONFIG_FTRACE=y\nCONFIG_BPF_EVENTS=y\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/sched_schedstats"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /proc/sys/kernel/sched_schedstats: No such file or directory\n"
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "getcap",
+        "/usr/lib/linux-tools/6.18.54.1-microsoft-standard-WSL2/bin/perf"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "runtime_source": {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/5254d8bcf59917edc1e1abc33bdf2442b77b1c70/src/coreclr/vm/threadsuspend.cpp",
+    "status": 404,
+    "response_sha256": "d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed"
+  },
+  "official_sources": [
+    "https://docs.kernel.org/admin-guide/perf-security.html",
+    "https://www.kernel.org/doc/html/next/trace/events.html"
+  ],
+  "conclusion": "Kernel-transition capture readiness not established for current unprivileged user. tracefs direct access denied, no effective capabilities, perf_event_paranoid=2. perf presence/config are not capture proof. CONFIG_SCHEDSTATS not set; do not infer proc schedstat enablement from zero. Exact installed runtime threadsuspend source still unavailable. A separately declared synthetic owned-target capability/loss/clock preflight and task-lineage validation is necessary before fixed workload capture."
+}

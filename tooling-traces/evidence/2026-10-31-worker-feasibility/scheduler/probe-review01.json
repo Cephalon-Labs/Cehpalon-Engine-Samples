@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "timestamp_utc": "2026-10-31T15:49:36.244514+00:00",
+  "source_sha256": "83f2fc5ad8b149d1b94312d0340df1b761985c284fb823e0cda737cfbb4901b3",
+  "tests": [
+    {
+      "command": [
+        "python",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\tools\\probe_tooling_scheduler.py",
+        "--self-test"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"self_test\": \"passed\",\n  \"checks\": 12\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wsl",
+        "--",
+        "python3",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools/probe_tooling_scheduler.py",
+        "--self-test"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"self_test\": \"passed\",\n  \"checks\": 12\n}\n",
+      "stderr": ""
+    }
+  ],
+  "review": [
+    "No subprocess/trace API/config mutation in tool. Reads fixed proc/tracefs paths only; writes only requested create-new output.",
+    "Every returned assessment status remains not_established and causal_worker_gc_scheduler_readiness stays false even when passive formats are readable.",
+    "Windows not-applicable and denied/missing/unavailable/unknown/empty formats prevent passive_format_inventory_complete.",
+    "Passive format completeness is separate from active capture permission, event delivery, loss and clock/identity joins.",
+    "observe distinguishes missing/denied/other OSError without converting failure into event absence."
+  ],
+  "limitations": [
+    "Self-tests are assert-based and must be run without Python -O.",
+    "Inventory is not active capture permission proof; no actual target/capture was run."
+  ],
+  "blocking_findings": []
+}
