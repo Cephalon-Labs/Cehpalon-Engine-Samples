@@ -1,0 +1,68 @@
+"""Independent full record/category/crosstab comparison to prior raw-only ordering oracle."""
+import argparse
+from collections import Counter
+import hashlib,json
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--oracle',type=Path,required=True);P.add_argument('--ordering',type=Path,required=True);P.add_argument('--lineage',type=Path,required=True);P.add_argument('--output',type=Path,required=True);a=P.parse_args()
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def records(p):return [json.loads(s)for s in p.read_text(encoding='utf-8-sig').splitlines()]
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def equal(a,b):
+ if type(a)is not type(b):return False
+ if type(a)is dict:return set(a)==set(b)and all(equal(a[k],b[k])for k in a)
+ if type(a)is list:return len(a)==len(b)and all(equal(x,y)for x,y in zip(a,b))
+ return a==b
+oracle=read(a.oracle);summary=read(a.ordering/'summary.json');orders=records(a.ordering/'wait-orderings.jsonl');rows=records(a.ordering/'row-orderings.jsonl');prior_rows=records(a.lineage/'rows.jsonl');checks=0;failures=[]
+def check(ok,msg):
+ global checks
+ checks+=1
+ if not ok and len(failures)<100:failures.append(msg)
+check(oracle['status']=='passed_independent_literal_oracle'and not oracle['failures'],'Raw-only oracle quality gates')
+check(summary['status']=='completed_literal_event_ordering','Completed ordering replay')
+for path,digest in oracle['input_sha256'].items():check(sha(Path(path))==digest,'Oracle exact original input '+path)
+for name,digest in read(a.lineage/'summary.json')['outputs_sha256'].items():check(sha(a.lineage/name)==digest,'Prior lineage output binding '+name)
+check(sha(a.lineage/'summary.json')==summary['lineage_summary_sha256'],'Reviewed exact lineage manifest')
+for name,digest in summary['outputs_sha256'].items():check(sha(a.ordering/name)==digest,'Ordering output binding '+name)
+check(summary['source_sha256']==sha(a.ordering/'analysis-source.py.txt'),'Ordering source snapshot hash')
+check(summary['raw_events_consumed']==oracle['raw_records']==641481,'All raw records preserved')
+check(summary['raw_reference_copies_bound']==summary['distinct_raw_references_bound']==oracle['raw_model_bindings']==63325,'Every copied raw model reference bound')
+mapkeys={'schedule_vs_wait_begin':'schedule_vs_wait_begin','start_vs_wait_begin':'execution_start_vs_wait_begin','completion_vs_wait_begin':'execution_completion_vs_wait_begin','completion_vs_wait_end':'execution_completion_vs_wait_end'}
+def rel(value):return 'same_recorded_timestamp_order_unresolved'if value=='same_timestamp_unknown_order'else value
+def expected_global(raw):
+ out={'wait_index':raw['wait_index'],'awaited_task_id':raw['task_id'],'caller_native_tid':raw['caller_native_tid'],'wait_begin_record_index':raw['wait_begin_raw_index'],'wait_end_record_index':raw['wait_end_raw_index']}
+ for key,new in mapkeys.items():out[new]=rel(raw.get('relations',{}).get(key,'unknown_execution_context'))
+ out['execution_header_tid_relation']='unknown_execution_context'if 'execution_native_tid'not in raw else'same_recorded_native_tid'if raw['execution_native_tid']==raw['caller_native_tid']else'different_recorded_native_tid'
+ if 'execution_native_tid'in raw:out['execution_native_tid']=raw['execution_native_tid']
+ return out
+check(len(orders)==len(oracle['global_orders'])==2372,'All2372 global wait records')
+for actual,raw in zip(orders,oracle['global_orders']):
+ expected=expected_global(raw)
+ for key,value in expected.items():check(key in actual and equal(actual[key],value),'Exact literal/reference/header field '+key)
+ check(actual['direct_waitforworkers_callsite_proven']is False and actual['native_lifetime_proven']is False,'No directcallsite/native-lifetime proof')
+ check(all(actual[k]is None for k in ['queue_time_ms','blocked_time_ms','scheduler_delay_ms','cpu_time_ms']),'No duration attribution')
+check(len(rows)==len(prior_rows)==306,'All306 row outputs preserved')
+row_observations=[]
+for actual,prior in zip(rows,prior_rows):
+ check(equal(actual['row_identity'],prior['row_identity'])and equal(actual['emit_sequence'],prior['emit_sequence']),'Exact unchanged row identity/order')
+ check(len(actual['wait_event_orderings'])==len(prior['observed_caller_waits']),'No omitted row waits')
+ for item,old in zip(actual['wait_event_orderings'],prior['observed_caller_waits']):
+  check(type(item['wait_index'])is int and item['wait_index']==old['wait_index'],'Exact row wait ordinal')
+  for key,value in orders[old['wait_index']].items():check(key in item and equal(item[key],value),'Exact globalorder copy within row '+key)
+  check(equal(item['row_scope'],old['row_scope'])and equal(item['caller_context_witness_count'],old['caller_context_witness_count'])and equal(item['compiler_point_context_count'],len(old['compiler_points_during_wait_in_emit'])),'Boundary/context count inheritance exact')
+  row_observations.append((actual['emit_sequence'],item['wait_index']))
+check(len(row_observations)==len(set(row_observations))==2177,'All2177 unique row-wait associations')
+check(hashlib.sha256(json.dumps(row_observations,separators=(',',':')).encode()).hexdigest()==oracle['row_wait_reference_fingerprint_sha256'],'Full rowwait fingerprint unchanged')
+def expected_counts(items):
+ globals=[expected_global(raw)for raw in items]
+ return {'associations':len(globals),'distinct_waits':len({x['wait_index']for x in globals}),'relations':{key:dict(Counter(x[key]for x in globals))for key in mapkeys.values()},'start_vs_wait_begin_by_header_relation':dict(Counter(x['execution_header_tid_relation']+'/'+x['execution_start_vs_wait_begin']for x in globals)),'unknown_execution_contexts':sum('relations'not in raw for raw in items)}
+global_by_id={x['wait_index']:x for x in oracle['global_orders']};pid=summary['pid'];all_expected=expected_counts(oracle['global_orders'])
+check(equal(summary['all_paired_waits'],all_expected),'Allwait aggregate/crosstab exact')
+check(equal(summary['main_caller_waits'],expected_counts([x for x in oracle['global_orders']if x['caller_native_tid']==pid])),'Maincaller aggregate/crosstab exact')
+check(equal(summary['nonmain_waits'],expected_counts([x for x in oracle['global_orders']if x['caller_native_tid']!=pid])),'Nonmain aggregate/crosstab exact')
+check(equal(summary['all_row_wait_associations'],expected_counts([global_by_id[x['wait_index']]for x in oracle['observations']])),'Allrow aggregate/crosstab exact')
+for phase,row_count in [('primer',36),('measurement',270)]:
+ items=[x for x in oracle['observations']if x['row_identity']['phase']==phase];subsets={'all_observed_caller_waits':items,'caller_waitforworkers_point_subset':[x for x in items if x['with_WFW_point']],'caller_and_compiler_point_subset':[x for x in items if x['with_WFW_point']and x['with_compiler_point']]};check(summary['groups'][phase]['rows']==row_count,'Complete phase row count')
+ for key,chosen in subsets.items():check(equal(summary['groups'][phase][key],expected_counts([global_by_id[x['wait_index']]for x in chosen])),'Literal phase/subset/crosstab exact '+phase+'/'+key)
+report={'status':'passed_full_independent_ordering_comparison'if not failures else'failed','checks':checks,'failures':failures,'raw_oracle_checks':oracle['checks'],'combined_checks':checks+oracle['checks'],'global_waits':len(orders),'rows':len(rows),'row_wait_associations':len(row_observations),'ordering_source_sha256':summary['source_sha256'],'row_wait_fingerprint_sha256':oracle['row_wait_reference_fingerprint_sha256'],'inputs_sha256':{'raw_oracle':sha(a.oracle),'ordering_summary':sha(a.ordering/'summary.json'),'prior_lineage_summary':sha(a.lineage/'summary.json')},'audit_source_sha256':sha(Path(__file__)),'limits':['Every literal record and crosstab compared to independently read raw event references.','Equal recorded times unresolved; no raw-index chronology, queue/CPU/blocked/GC cause or qualification.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps(report));raise SystemExit(0 if not failures else 1)

@@ -1,0 +1,97 @@
+"""Independent offline TPL timestamp oracle; no production ordering/lineage imports."""
+import argparse
+from collections import Counter,defaultdict
+from fractions import Fraction
+import hashlib,json
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--capture',type=Path,required=True);P.add_argument('--lineage',type=Path,required=True);P.add_argument('--output',type=Path,required=True);a=P.parse_args()
+def records(p):
+ with p.open(encoding='utf-8-sig')as f:
+  for line in f:yield json.loads(line)
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def sha(p):
+ h=hashlib.sha256()
+ with p.open('rb')as f:
+  for b in iter(lambda:f.read(1048576),b''):h.update(b)
+ return h.hexdigest()
+def relation(a,b):return 'before'if a<b else'after'if a>b else'same_timestamp_unknown_order'
+checks=0;failures=[]
+def check(ok,msg):
+ global checks
+ checks+=1
+ if not ok and len(failures)<100:failures.append(msg)
+summary=read(a.capture/'analysis/summary.json');capture=read(a.capture/'capture.json');pid=capture['target_pid'];rows=list(records(a.lineage/'rows.jsonl'));lineage_summary=read(a.lineage/'summary.json');check(capture['status']=='completed','Successful owned capture');check(summary['status']=='completed'and all(type(summary[k])is int and summary[k]==0 for k in ['eventsLost','etlxEventsLost','payloadReadErrors']),'Completed parser strict zero loss/readgates');check(len(rows)==306,'All306 prior lineage rows')
+raw_count=0;by_task=defaultdict(lambda:defaultdict(list));pending={};waits=[];raw_index={};templates=Counter();clockprevious={};versions={7:1,8:0,9:1,10:3,11:0,13:0};opcodes={k:9 if k in [7,10]else 0 for k in versions}
+for index,e in enumerate(records(a.capture/'analysis/events.jsonl')):
+ raw_count+=1
+ if e.get('provider')!='System.Threading.Tasks.TplEventSource':continue
+ event=e['eventId'];p=e['payload'];task=p['TaskID'];templates[(event,e['version'],e['opcode'])]+=1;raw_index[index]=e
+ check(type(event)is int and event in versions and type(e['version'])is int and e['version']==versions.get(event)and type(e['opcode'])is int and e['opcode']==opcodes.get(event),'Exact observed TPL metadata')
+ check(type(e['processId'])is int and e['processId']==pid and type(e['threadId'])is int and e['threadId']>0,'Exact target/native TPL identity')
+ check(type(task)is int and 0<task<=2147483647,'Exact positive TaskID')
+ t=Fraction(str(e['timeMsec']));check(t>=0,'Nonnegative literal EventPipe time');check(t>=clockprevious.get(task,Fraction(-1)),'PerTask event time nondecreasing');clockprevious[task]=t
+ if event in [7,8,9]:by_task[task][event].append((index,e))
+ if event not in [10,11]:continue
+ key=(e['threadId'],task,p['OriginatingTaskSchedulerID'],p['OriginatingTaskID'])
+ if event==10:
+  check(key not in pending,'No ambiguous waitbegin');pending[key]=(index,e)
+ else:
+  check(key in pending,'Waitend has samecontext begin')
+  if key in pending:waits.append((pending.pop(key),(index,e)))
+check(raw_count==summary['events']==lineage_summary['raw_events'],'Every original raw event counted');check(not pending,'No unfinished raw waits');complete={}
+for task,parts in by_task.items():
+ check(all(len(parts[k])==1 for k in [7,8,9]),'Unique complete execution history')
+ if not all(len(parts[k])==1 for k in [7,8,9]):continue
+ scheduled,start,completed=[parts[k][0]for k in [7,8,9]];check(start[1]['threadId']==completed[1]['threadId'],'Execution native header stable');check(Fraction(str(scheduled[1]['timeMsec']))<=Fraction(str(start[1]['timeMsec']))<=Fraction(str(completed[1]['timeMsec'])),'Literal schedule/start/completion event ordering');complete[task]=(scheduled,start,completed)
+def typed_equal(a,b):
+ if type(a)is not type(b):return False
+ if type(a)is dict:return set(a)==set(b)and all(typed_equal(a[k],b[k])for k in a)
+ if type(a)is list:return len(a)==len(b)and all(typed_equal(x,y)for x,y in zip(a,b))
+ return a==b
+model=read(a.lineage/'task-observations.json');check(model['process_id']==pid,'Prior task model selected process');bindings=0
+for state in model['tasks']:
+ for role in ['schedule','start','complete']:
+  ref=state.get(role)
+  if ref is None:continue
+  index=ref['raw_record_index'];check(type(index)is int and index>=0 and index in raw_index and typed_equal(ref['event'],raw_index[index]),'Exact raw task '+role+' reference');bindings+=1
+for w in model['waits']:
+ for role in ['begin','end']:
+  ref=w[role];index=ref['raw_record_index'];check(type(index)is int and index>=0 and index in raw_index and typed_equal(ref['event'],raw_index[index]),'Exact raw wait '+role+' reference');bindings+=1
+check(len(model['tasks'])==len(complete)==19527 and len(model['waits'])==len(waits)==2372,'Complete prior task/wait identityset')
+global_orders=[];global_groups=defaultdict(Counter)
+for index,(first,last)in enumerate(waits):
+ task=first[1]['payload']['TaskID'];check(model['waits'][index]['begin']['raw_record_index']==first[0] and model['waits'][index]['end']['raw_record_index']==last[0],'Independent raw wait ordinal identity');state=complete.get(task);item={'wait_index':index,'task_id':task,'caller_native_tid':first[1]['threadId'],'wait_begin_raw_index':first[0],'wait_end_raw_index':last[0]};g=global_groups['all'];g['observations']+=1;scope='main_caller'if first[1]['threadId']==pid else'nonmain';global_groups[scope]['observations']+=1
+ if state:
+  scheduled,start,completed=state;times={k:Fraction(str(v[1]['timeMsec']))for k,v in [('schedule',scheduled),('start',start),('completion',completed),('wait_begin',first),('wait_end',last)]};rel={left+'_vs_'+right:relation(times[left],times[right])for left,right in [('schedule','wait_begin'),('start','wait_begin'),('completion','wait_begin'),('completion','wait_end')]};item['relations']=rel;item['execution_native_tid']=start[1]['threadId']
+  for key,value in rel.items():
+   g[key+':'+value]+=1;global_groups[scope][key+':'+value]+=1
+ else:g['missing_execution_unknown']+=1;global_groups[scope]['missing_execution_unknown']+=1
+ global_orders.append(item)
+observations=[];groups=defaultdict(Counter);reference_keys=[]
+for row in rows:
+ for joined in row['observed_caller_waits']:
+  index=joined['wait_index'];first,last=waits[index];task=first[1]['payload']['TaskID'];check(joined['awaited_task_id']==task and joined['wait_begin_record_index']==first[0] and joined['wait_end_record_index']==last[0],'Exact prior lineage wait/raw identity');check(first[1]['threadId']==last[1]['threadId']==pid and first[1]['payload']['Behavior']==1,'Only samecaller synchronous waits');reference_keys.append((row['emit_sequence'],index));g=groups[row['row_identity']['phase']];g['observations']+=1
+  state=complete.get(task);check(joined['linked_execution_event_lifetime']is(state is not None),'Complete lifetime linkage presence parity')
+  item={'emit_sequence':row['emit_sequence'],'row_identity':row['row_identity'],'wait_index':index,'task_id':task,'wait_begin_raw_index':first[0],'wait_end_raw_index':last[0],'row_scope':joined['row_scope'],'with_WFW_point':bool(joined['caller_context_witness_count']),'with_compiler_point':bool(joined['compiler_points_during_wait_in_emit'])}
+  if state:
+   scheduled,start,completed=state;times={k:Fraction(str(v[1]['timeMsec']))for k,v in [('schedule',scheduled),('start',start),('completion',completed),('wait_begin',first),('wait_end',last)]};relations={left+'_vs_'+right:relation(times[left],times[right])for left,right in [('schedule','wait_begin'),('start','wait_begin'),('start','wait_end'),('completion','wait_begin'),('completion','wait_end')]};item.update(relations=relations,times_ms={k:str(v)for k,v in times.items()},execution_native_tid=start[1]['threadId'],destination_scheduler_id=scheduled[1]['payload']['OriginatingTaskSchedulerID'],execution_origin_scheduler_id=start[1]['payload']['OriginatingTaskSchedulerID'],schedule_raw_index=scheduled[0],start_raw_index=start[0],completion_raw_index=completed[0]);
+   for key,value in relations.items():g[key+':'+value]+=1
+  else:g['missing_execution_unknown']+=1
+  if item['with_WFW_point']:g['with_WFW_point']+=1
+  if item['with_compiler_point']:g['with_compiler_point']+=1
+  observations.append(item)
+check(len(observations)==len(set(reference_keys))==2177,'All2177 unique prior rowwait observations retained')
+cross_global=defaultdict(Counter);cross_rows=defaultdict(Counter);subset_groups=defaultdict(lambda:defaultdict(Counter))
+for item in global_orders:
+ header='unknown'if 'execution_native_tid'not in item else'same_native_header'if item['execution_native_tid']==item['caller_native_tid']else'different_native_header'
+ rel=item.get('relations',{}).get('start_vs_wait_begin','unknown');key=header+'/'+rel
+ cross_global['all'][key]+=1;cross_global['main_caller'if item['caller_native_tid']==pid else'nonmain'][key]+=1
+for item in observations:
+ phase=item['row_identity']['phase'];caller=waits[item['wait_index']][0][1]['threadId'];header='unknown'if 'execution_native_tid'not in item else'same_native_header'if item['execution_native_tid']==caller else'different_native_header';rel=item.get('relations',{}).get('start_vs_wait_begin','unknown');cross_rows[phase][header+'/'+rel]+=1
+ selected=['all']+(['caller_WFW']if item['with_WFW_point']else[])+(['caller_WFW_and_compiler']if item['with_WFW_point']and item['with_compiler_point']else[])+(['compiler_without_caller_WFW']if item['with_compiler_point']and not item['with_WFW_point']else[])
+ for subset in selected:
+  g=subset_groups[phase][subset];g['observations']+=1;g['header/'+header+'/'+rel]+=1
+  for key,value in item.get('relations',{}).items():g[key+'/'+value]+=1
+report={'status':'passed_independent_literal_oracle'if not failures else'failed','checks':checks,'failures':failures,'raw_records':raw_count,'tasks':len(complete),'waits':len(waits),'rows':len(rows),'observations':observations,'groups':{k:dict(v)for k,v in groups.items()},'global_groups':{k:dict(v)for k,v in global_groups.items()},'global_orders':global_orders,'raw_model_bindings':bindings,'header_crosstab_global':{k:dict(v)for k,v in cross_global.items()},'header_crosstab_rows':{k:dict(v)for k,v in cross_rows.items()},'nested_method_subsets':{phase:{k:dict(v)for k,v in subsets.items()}for phase,subsets in subset_groups.items()},'row_wait_reference_fingerprint_sha256':hashlib.sha256(json.dumps(reference_keys,separators=(',',':')).encode()).hexdigest(),'source_sha256':sha(Path(__file__)),'input_sha256':{str(p):sha(p)for p in [a.capture/'analysis/events.jsonl',a.capture/'analysis/summary.json',a.capture/'capture.json',a.lineage/'rows.jsonl',a.lineage/'summary.json']},'limits':['All relations are literal timestamps only, equal timestamps unknown; no raw-index chronology.','No blocked/CPU/runqueue/GC cause or timing improvement claim.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['observations','global_orders','input_sha256','limits']}));raise SystemExit(0 if not failures else 1)
