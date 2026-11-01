@@ -1,0 +1,77 @@
+"""Independent full raw marker/stack/TPL inventory; no production analyzer imports or target capture."""
+import argparse
+from collections import Counter,defaultdict
+from fractions import Fraction
+import hashlib,json
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--capture',type=Path,required=True);P.add_argument('--output',type=Path,required=True);a=P.parse_args()
+base=a.capture
+paths={'capture':base/'capture.json','summary':base/'analysis/summary.json','events':base/'analysis/events.jsonl','stacks':base/'analysis/sampled-thread-stacks.jsonl'}
+spans_files=list(base.glob('*.spans.jsonl'));assert len(spans_files)==1;paths['spans']=spans_files[0]
+def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
+def records(path):
+ with path.open(encoding='utf-8-sig') as stream:
+  for line in stream:yield json.loads(line)
+def sha(path):
+ h=hashlib.sha256()
+ with path.open('rb') as stream:
+  for block in iter(lambda:stream.read(1048576),b''):h.update(block)
+ return h.hexdigest()
+summary=read(paths['summary']);capture=read(paths['capture']);pid=capture['target_pid'];spans=list(records(paths['spans']));checks=0;failures=[]
+def check(ok,message):
+ global checks
+ checks+=1
+ if not ok and len(failures)<100:failures.append(message)
+check(type(pid)is int and pid>0 and capture['status']=='completed','Owned completed capture')
+check(summary['status']=='completed' and summary['stackExtractionStatus']=='completed','Parser/stack extraction complete')
+check(all(type(summary[k])is int and summary[k]==0 for k in ['eventsLost','etlxEventsLost','payloadReadErrors']),'Strict integer zero quality gates')
+check(len(spans)==2956 and [x['sequence'] for x in spans]==list(range(1,2957)),'All2956 ordered spans')
+marker={};raw_samples=Counter();tpl_events=[];raw_count=0;tpl_meta=Counter()
+for index,e in enumerate(records(paths['events']),1):
+ raw_count+=1
+ if e['provider']=='Cehpalon-Tooling-Diagnostic':
+  seq=e['payload']['sequence'];check(seq not in marker,'Unique marker sequence');marker[seq]=e
+ if e['provider']=='Microsoft-DotNETCore-SampleProfiler':raw_samples[(e['processId'],e['threadId'],str(e['timeMsec']))]+=1
+ if e['provider']=='System.Threading.Tasks.TplEventSource':
+  check(e['processId']==pid,'AllTPL emitted by owned process');tpl_meta[(e['eventId'],e['version'],e['opcode'],e['templateType'])]+=1;tpl_events.append((index,e))
+ check('EventSourceMessage' not in e.get('name',''),'No provider message/error record')
+check(raw_count==summary['events'],'Every raw event consumed')
+check(len(marker)==len(spans)==2956,'Every stage marker retained')
+offset_lower=offset_upper=None
+for span in spans:
+ e=marker[span['sequence']];p=e['payload']
+ check(e['processId']==pid==span['processId'] and e['threadId']==span['osThreadId'],'Exact stage marker native identity')
+ for field in ['sequence','stage','startTicks','endTicks','frequency','processId','osThreadId','caseIndex','size','state','variant','pairSequence','phase','markerBeforeTicks','anchorBeforeTicks','anchorAfterTicks','utcAnchorTicks']:
+  check(type(p.get(field))is type(span.get(field)) and p.get(field)==span.get(field),'Marker exact field '+field)
+ check(type(span['frequency'])is int and span['frequency']>0 and span['markerBeforeTicks']<=span['markerAfterTicks'],'Clock read bracket valid')
+ stamp=Fraction(str(e['timeMsec']));lo=stamp-Fraction(span['markerAfterTicks']*1000,span['frequency']);hi=stamp-Fraction(span['markerBeforeTicks']*1000,span['frequency']);offset_lower=lo if offset_lower is None else max(offset_lower,lo);offset_upper=hi if offset_upper is None else min(offset_upper,hi)
+check(offset_lower<=offset_upper,'Common stage clock offset')
+emits=[x for x in spans if x['stage']=='pe.emit' and x['phase']in ['primer','measurement']];walls=[x for x in spans if x['stage']=='compiler.wall' and x['phase']in ['primer','measurement']]
+check(len(emits)==len(walls)==306,'Complete306Emit/compiler rows')
+check(Counter(x['phase'] for x in emits)=={'primer':36,'measurement':270},'Exact36primer270measurement')
+stack_samples=Counter();points=defaultdict(list);stack_count=0
+for index,x in enumerate(records(paths['stacks']),1):
+ stack_count+=1;check(x['processId']==pid,'Every stack ownedPID');check(type(x['osThreadId'])is int and x['osThreadId']>0,'Exact native stack TID')
+ stack_samples[(x['processId'],x['osThreadId'],str(x['timeRelativeMsec']))]+=1
+ frames=x['frames'];tid=x['osThreadId'];pool=any(f.startswith(('System.Threading.ThreadPoolWorkQueue.','System.Threading.PortableThreadPool'))for f in frames);worker=any(f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass')and'.<CompileNamedTypeAsync>b__'in f for f in frames);caller=any(f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers(')for f in frames)
+ if tid!=pid and pool and worker:points['compiler'].append((index,tid,Fraction(str(x['timeRelativeMsec']))))
+ if tid==pid and caller:points['caller_wfw'].append((index,tid,Fraction(str(x['timeRelativeMsec']))))
+check(stack_count==summary['stackSamples'],'All extracted stack records')
+check(raw_samples==stack_samples,'RawSampleProfiler andETLX stack identity/time multiset parity')
+by_task=defaultdict(lambda:defaultdict(list));pending={};paired=[];wait_errors=[]
+for index,e in tpl_events:
+ task=e['payload'].get('TaskID');event=e['eventId'];p=e['payload']
+ if event in [7,8,9]:by_task[task][event].append((index,e))
+ if event not in [10,11]:continue
+ key=(e['threadId'],task,p['OriginatingTaskSchedulerID'],p['OriginatingTaskID'])
+ if event==10:
+  if key in pending:wait_errors.append(['duplicatebegin',index])
+  else:pending[key]=(index,e)
+ elif key not in pending:wait_errors.append(['endwithoutbegin',index])
+ else:
+  first=pending.pop(key);paired.append((first,(index,e)))
+complete={task:state for task,state in by_task.items()if all(len(state[k])==1 for k in [7,8,9])}
+caller_pairs=[(x,y)for x,y in paired if x[1]['threadId']==pid and x[1]['payload']['Behavior']==1]
+report={'status':'passed_input_inventory'if not failures else'failed','checks':checks,'failures':failures,'raw_records':raw_count,'stack_records':stack_count,'raw_stack_identity_parity':raw_samples==stack_samples,'stage_spans':len(spans),'emit_rows':len(emits),'clock_offset_ms':{'lower':str(offset_lower),'upper':str(offset_upper)},'tpl_templates':[dict(event_id=k[0],version=k[1],opcode=k[2],template_type=k[3],records=v)for k,v in sorted(tpl_meta.items())],'candidate_complete_execution_histories':len(complete),'paired_task_waits':len(paired),'caller_sync_pairs':len(caller_pairs),'pending_waits':len(pending),'wait_pair_errors':wait_errors,'point_counts':{k:len(v)for k,v in points.items()},'inputs_sha256':{k:sha(p)for k,p in paths.items()},'audit_source_sha256':sha(Path(__file__)),'limits':['Full raw inventory; does not certify direct method/task ownership or CPU/blocked/scheduler duration.','Task pairing candidates require the separate strict assembler poison/metadata rules.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['inputs_sha256','tpl_templates','limits']}));raise SystemExit(0 if not failures else 1)

@@ -1,0 +1,85 @@
+"""Independent pure Roslyn linkage fixtures; no targets/builds/captures."""
+import argparse
+from copy import deepcopy
+from fractions import Fraction
+import hashlib,importlib.util,json,sys
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);P.add_argument('--output',type=Path,required=True);a=P.parse_args();sys.path.insert(0,str(a.root/'tools'));import analyze_roslyn_task_lineage as tool
+checks=[]
+def check(name,fn):
+ try:
+  assert fn();checks.append({'name':name,'status':'passed'})
+ except Exception as e:checks.append({'name':name,'status':'failed','error':repr(e)})
+def raises(fn):
+ try:fn()
+ except (ValueError,KeyError,TypeError):return True
+ return False
+pid=100
+span=dict(sequence=1,stage='pe.emit',startTicks=100,endTicks=200,frequency=1000,processId=pid,osThreadId=pid,caseIndex=1,size=1,state='cold',variant='generated',pairSequence=1,phase='measurement',markerBeforeTicks=210,markerAfterTicks=215,anchorBeforeTicks=208,anchorAfterTicks=209,utcAnchorTicks=1)
+def markers(spans):
+ return {x['sequence']:{'provider':tool.MARKER,'name':'Stage','processId':x['processId'],'threadId':x['osThreadId'],'eventId':1,'version':0,'opcode':0,'templateType':'Microsoft.Diagnostics.Tracing.Parsers.DynamicTraceEventData','timeMsec':212,'payload':{k:x[k] for k in tool.SPAN_FIELDS}}for x in spans}
+offset=(Fraction(-2),Fraction(3));window=tool.stage_window(span,offset)
+check('exact_stage_window_has_outer_and_guaranteed_edges',lambda:window==(Fraction(98),Fraction(103),Fraction(198),Fraction(203)))
+for t,wanted in [(98,False),(102,False),(103,True),(150,True),(198,True),(199,False),(203,False)]:
+ check('point_core_boundary_'+str(t),lambda t=t,wanted=wanted:tool.inside_core(Fraction(t),window)is wanted)
+check('empty_guaranteed_core_keeps_allpoints_unknown',lambda:not tool.inside_core(Fraction(150),(Fraction(90),Fraction(160),Fraction(140),Fraction(210))))
+check('reversed_offset_rejected',lambda:raises(lambda:tool.stage_window(span,(Fraction(1),Fraction(-1)))))
+for field,bad in [('frequency',True),('frequency',0),('startTicks',False),('endTicks',100)]:
+ x=deepcopy(span);x[field]=bad;check('stage_clock_type_or_interval_'+field+'_'+repr(bad),lambda x=x:raises(lambda:tool.stage_window(x,offset)))
+for bad in [True,'1',float('nan'),float('inf'),-1]:
+ check('raw_time_rejects_'+repr(bad),lambda bad=bad:raises(lambda:tool.number(bad)))
+ms=markers([span]);check('valid_marker_map',lambda:tool.clock_map([span],ms,pid)==(Fraction(-3),Fraction(2)))
+for field,bad in [('eventId',True),('eventId',2),('version',False),('version',1),('opcode',False),('opcode',9)]:
+ x=deepcopy(ms);x[1][field]=bad;check('marker_header_'+field+'_'+repr(bad),lambda x=x:raises(lambda:tool.clock_map([span],x,pid)))
+x=deepcopy(ms);x[1]['threadId']=101
+check('marker_native_identity_mismatch',lambda:raises(lambda:tool.clock_map([span],x,pid)))
+x=deepcopy(ms);x[1]['payload']['frequency']=1000.0
+check('marker_payload_type_alias_rejected',lambda:raises(lambda:tool.clock_map([span],x,pid)))
+x=deepcopy(span);x['markerAfterTicks']=209
+check('marker_read_bracket_reversal_rejected',lambda:raises(lambda:tool.clock_map([x],markers([x]),pid)))
+x=deepcopy(span);x['sequence']=2
+mm=markers([span,x]);mm[2]['timeMsec']=500
+check('empty_global_clock_intersection_rejected',lambda:raises(lambda:tool.clock_map([span,x],mm,pid)))
+frames=['Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass1.<CompileNamedTypeAsync>b__0()','System.Threading.ThreadPoolWorkQueue.Dispatch()']
+check('compiler_plus_pool_point',lambda:tool.point_kind(frames,200,pid)[0]=='compiler_pool_point')
+check('compiler_without_pool_is_separate',lambda:tool.point_kind(frames[:1],200,pid)[0]=='compiler_frame_without_pool')
+check('pool_alone_not_compiler',lambda:tool.point_kind(frames[1:],200,pid)[0]is None)
+wfw=['Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers()']
+check('caller_wfw_exact_main_native_TID',lambda:tool.point_kind(wfw,pid,pid)[0]=='caller_wait_for_workers')
+check('noncaller_wfw_frame_not_main_caller',lambda:tool.point_kind(wfw,200,pid)[0]is None)
+check('malformed_stack_frames_rejected',lambda:raises(lambda:tool.point_kind([None],200,pid)))
+def state(task=1,tid=200,start=120,end=170,status='complete_observed_lifetime'):
+ return dict(task_id=task,status=status,execution_native_tid=tid,start={'event':{'timeMsec':start}},complete={'event':{'timeMsec':end}})
+def wait(task=1,tid=pid,begin=110,end=180,status='synchronous_wait_bracket_observed',behavior=1):
+ return dict(task_id=task,caller_native_tid=tid,behavior=behavior,status=status,begin={'raw_record_index':10,'event':{'timeMsec':begin}},end={'raw_record_index':20,'event':{'timeMsec':end}})
+def point(index,kind,tid,time):return dict(sample_record_index=index,kind=kind,native_tid=tid,time_msec=time)
+def link(states=None,waits=None,points=None):return tool.link_rows([span],dict(tasks=states if states is not None else[state()],waits=waits if waits is not None else[wait()]),points if points is not None else[point(1,'caller_wait_for_workers',pid,140),point(2,'compiler_pool_point',200,150)],offset,pid)
+rows,contexts=link();j=rows[0]['observed_caller_waits'][0]
+check('explicit_taskID_header_link',lambda:j['awaited_task_id']==1 and j['linked_execution_event_lifetime'] and j['execution_native_tid']==200)
+check('coobserved_methods_never_direct_WFW_ownership',lambda:j['direct_waitforworkers_callsite_proven']is False)
+check('CPU_blocked_scheduler_duration_not_inferred',lambda:j['blocked_time_ms']is None and j['scheduler_delay_ms']is None)
+check('strict_stage_wait_inside_core',lambda:j['row_scope']=='entire_wait_inside_guaranteed_emit_core')
+check('worker_point_has_single_execution_candidate',lambda:contexts[2]==[1] and not j['compiler_points_during_wait_in_emit'][0]['execution_scope_ambiguous'])
+rows,_=link(waits=[wait(begin=100)])
+check('cross_stage_wait_stays_partial',lambda:rows[0]['observed_caller_waits'][0]['row_scope']=='partial_or_boundary_uncertain')
+rows,_=link(points=[point(1,'caller_wait_for_workers',pid,102),point(2,'compiler_pool_point',200,199)])
+check('uncertain_clock_edges_not_point_witnesses',lambda:not rows[0]['caller_context_point_indices_in_core'] and not rows[0]['observed_caller_waits'][0]['compiler_points_during_wait_in_emit'])
+rows,_=link(points=[])
+check('missing_point_not_absence_of_wait',lambda:len(rows[0]['observed_caller_waits'])==1 and rows[0]['observed_caller_waits'][0]['caller_context_witness_count']==0)
+rows,_=link(waits=[])
+check('missing_wait_unknown_activity',lambda:rows[0]['status']=='no_caller_wait_observed_unknown_activity')
+for w in [wait(tid=200),wait(behavior=2),wait(status='rejected_poisoned_identity'),wait(begin=204,end=210)]:
+ rows,_=link(waits=[w]);check('unsupported_noncaller_async_rejected_outside_wait_'+repr(w),lambda rows=rows:not rows[0]['observed_caller_waits'])
+for status in ['unfinished_or_unexecuted_unknown','rejected_poisoned_identity']:
+ rows,_=link(states=[state(status=status)]);check('unaccepted_lifetime_keeps_link_unknown_'+status,lambda rows=rows:not rows[0]['observed_caller_waits'][0]['linked_execution_event_lifetime'])
+rows,contexts=link(states=[state(),state(task=2,start=130,end=160)],waits=[wait(),wait(task=2,begin=120,end=170)])
+check('nested_execution_all_candidates_preserved',lambda:contexts[2]==[1,2] and all(x['compiler_points_during_wait_in_emit'][0]['execution_scope_ambiguous']for x in rows[0]['observed_caller_waits']))
+check('nested_wait_all_candidates_preserved',lambda:all(x['caller_point_candidates'][1]==[0,1]for x in rows[0]['observed_caller_waits']))
+check('nested_scopes_never_direct_WFW_claim',lambda:all(x['direct_waitforworkers_callsite_proven']is False for x in rows[0]['observed_caller_waits']))
+rows,contexts=link(states=[state(tid=pid)],points=[point(1,'caller_wait_for_workers',pid,140),point(2,'compiler_pool_point',pid,150)])
+check('inline_header_TID_can_equal_waiting_caller',lambda:rows[0]['observed_caller_waits'][0]['execution_native_tid']==pid and contexts[2]==[1] and rows[0]['observed_caller_waits'][0]['blocked_time_ms']is None)
+rows,contexts=link(points=[point(2,'compiler_pool_point',200,119),point(3,'compiler_pool_point',200,171)])
+check('outside_execution_points_not_assigned',lambda:contexts[2]==contexts[3]==[] and not rows[0]['observed_caller_waits'][0]['compiler_points_during_wait_in_emit'])
+report={'status':'passed'if all(c['status']=='passed'for c in checks)else'failed','checks':len(checks),'failed':sum(c['status']!='passed'for c in checks),'results':checks,'lineage_source_sha256':hashlib.sha256(Path(tool.__file__).read_bytes()).hexdigest(),'fixture_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'limits':['Pure interval/type/co-observation fixtures only; no event delivery or causal ownership proof.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as stream:stream.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['results','limits']}));raise SystemExit(0 if not report['failed']else 1)

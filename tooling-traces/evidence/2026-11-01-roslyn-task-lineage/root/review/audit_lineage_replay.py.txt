@@ -1,0 +1,133 @@
+"""Independent full raw marker/stack/TPL inventory; no production analyzer imports or target capture."""
+import argparse
+from collections import Counter,defaultdict
+from fractions import Fraction
+import hashlib,json
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--capture',type=Path,required=True);P.add_argument('--output',type=Path,required=True);P.add_argument('--replay',type=Path,required=True);a=P.parse_args()
+base=a.capture
+paths={'capture':base/'capture.json','summary':base/'analysis/summary.json','events':base/'analysis/events.jsonl','stacks':base/'analysis/sampled-thread-stacks.jsonl'}
+spans_files=list(base.glob('*.spans.jsonl'));assert len(spans_files)==1;paths['spans']=spans_files[0]
+def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
+def records(path):
+ with path.open(encoding='utf-8-sig') as stream:
+  for line in stream:yield json.loads(line)
+def sha(path):
+ h=hashlib.sha256()
+ with path.open('rb') as stream:
+  for block in iter(lambda:stream.read(1048576),b''):h.update(block)
+ return h.hexdigest()
+summary=read(paths['summary']);capture=read(paths['capture']);pid=capture['target_pid'];spans=list(records(paths['spans']));checks=0;failures=[]
+def check(ok,message):
+ global checks
+ checks+=1
+ if not ok and len(failures)<100:failures.append(message)
+check(type(pid)is int and pid>0 and capture['status']=='completed','Owned completed capture')
+check(summary['status']=='completed' and summary['stackExtractionStatus']=='completed','Parser/stack extraction complete')
+check(all(type(summary[k])is int and summary[k]==0 for k in ['eventsLost','etlxEventsLost','payloadReadErrors']),'Strict integer zero quality gates')
+check(len(spans)==2956 and [x['sequence'] for x in spans]==list(range(1,2957)),'All2956 ordered spans')
+marker={};raw_samples=Counter();tpl_events=[];raw_count=0;tpl_meta=Counter()
+for index,e in enumerate(records(paths['events']),1):
+ raw_count+=1
+ if e['provider']=='Cehpalon-Tooling-Diagnostic':
+  seq=e['payload']['sequence'];check(seq not in marker,'Unique marker sequence');marker[seq]=e
+ if e['provider']=='Microsoft-DotNETCore-SampleProfiler':raw_samples[(e['processId'],e['threadId'],str(e['timeMsec']))]+=1
+ if e['provider']=='System.Threading.Tasks.TplEventSource':
+  check(e['processId']==pid,'AllTPL emitted by owned process');tpl_meta[(e['eventId'],e['version'],e['opcode'],e['templateType'])]+=1;tpl_events.append((index,e))
+ check('EventSourceMessage' not in e.get('name',''),'No provider message/error record')
+check(raw_count==summary['events'],'Every raw event consumed')
+check(len(marker)==len(spans)==2956,'Every stage marker retained')
+offset_lower=offset_upper=None
+for span in spans:
+ e=marker[span['sequence']];p=e['payload']
+ check(e['processId']==pid==span['processId'] and e['threadId']==span['osThreadId'],'Exact stage marker native identity')
+ for field in ['sequence','stage','startTicks','endTicks','frequency','processId','osThreadId','caseIndex','size','state','variant','pairSequence','phase','markerBeforeTicks','anchorBeforeTicks','anchorAfterTicks','utcAnchorTicks']:
+  check(type(p.get(field))is type(span.get(field)) and p.get(field)==span.get(field),'Marker exact field '+field)
+ check(type(span['frequency'])is int and span['frequency']>0 and span['markerBeforeTicks']<=span['markerAfterTicks'],'Clock read bracket valid')
+ stamp=Fraction(str(e['timeMsec']));lo=stamp-Fraction(span['markerAfterTicks']*1000,span['frequency']);hi=stamp-Fraction(span['markerBeforeTicks']*1000,span['frequency']);offset_lower=lo if offset_lower is None else max(offset_lower,lo);offset_upper=hi if offset_upper is None else min(offset_upper,hi)
+check(offset_lower<=offset_upper,'Common stage clock offset')
+emits=[x for x in spans if x['stage']=='pe.emit' and x['phase']in ['primer','measurement']];walls=[x for x in spans if x['stage']=='compiler.wall' and x['phase']in ['primer','measurement']]
+check(len(emits)==len(walls)==306,'Complete306Emit/compiler rows')
+check(Counter(x['phase'] for x in emits)=={'primer':36,'measurement':270},'Exact36primer270measurement')
+stack_samples=Counter();points=defaultdict(list);stack_count=0
+for index,x in enumerate(records(paths['stacks']),1):
+ stack_count+=1;check(x['processId']==pid,'Every stack ownedPID');check(type(x['osThreadId'])is int and x['osThreadId']>0,'Exact native stack TID')
+ stack_samples[(x['processId'],x['osThreadId'],str(x['timeRelativeMsec']))]+=1
+ frames=x['frames'];tid=x['osThreadId'];pool=any(f.startswith(('System.Threading.ThreadPoolWorkQueue.','System.Threading.PortableThreadPool'))for f in frames);worker=any(f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass')and'.<CompileNamedTypeAsync>b__'in f for f in frames);caller=any(f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers(')for f in frames)
+ if tid!=pid and pool and worker:points['compiler'].append((index,tid,Fraction(str(x['timeRelativeMsec']))))
+ if tid==pid and caller:points['caller_wfw'].append((index,tid,Fraction(str(x['timeRelativeMsec']))))
+check(stack_count==summary['stackSamples'],'All extracted stack records')
+check(raw_samples==stack_samples,'RawSampleProfiler andETLX stack identity/time multiset parity')
+by_task=defaultdict(lambda:defaultdict(list));pending={};paired=[];wait_errors=[]
+for index,e in tpl_events:
+ task=e['payload'].get('TaskID');event=e['eventId'];p=e['payload']
+ if event in [7,8,9]:by_task[task][event].append((index,e))
+ if event not in [10,11]:continue
+ key=(e['threadId'],task,p['OriginatingTaskSchedulerID'],p['OriginatingTaskID'])
+ if event==10:
+  if key in pending:wait_errors.append(['duplicatebegin',index])
+  else:pending[key]=(index,e)
+ elif key not in pending:wait_errors.append(['endwithoutbegin',index])
+ else:
+  first=pending.pop(key);paired.append((first,(index,e)))
+complete={task:state for task,state in by_task.items()if all(len(state[k])==1 for k in [7,8,9])}
+caller_pairs=[(x,y)for x,y in paired if x[1]['threadId']==pid and x[1]['payload']['Behavior']==1]
+
+replay_rows=list(records(a.replay/'rows.jsonl'));replay_points=list(records(a.replay/'points.jsonl'));replay_summary=read(a.replay/'summary.json')
+check(replay_summary['raw_events']==raw_count and replay_summary['stack_samples']==stack_count,'Replay raw input cardinality')
+check(replay_summary['tpl_errors']==0 and replay_summary['tpl_unfinished_waits']==0,'Strict assembler errors/unfinishedzero')
+check(len(replay_rows)==len(emits)==306,'Every replay row present')
+raw_compiler={index-1:(tid,t)for index,tid,t in points['compiler']};raw_wfw={index-1:(tid,t)for index,tid,t in points['caller_wfw']}
+output_compiler={p['sample_record_index']:p for p in replay_points if p['kind']=='compiler_pool_point'};output_wfw={p['sample_record_index']:p for p in replay_points if p['kind']=='caller_wait_for_workers'}
+check(set(output_compiler)==set(raw_compiler),'Every exact compiler sample retained')
+check(set(output_wfw)==set(raw_wfw),'Every maincaller WaitForWorkers sample retained')
+execution_by_tid=defaultdict(list)
+for task,state in complete.items():
+ start=state[8][0][1];end=state[9][0][1];check(start['threadId']==end['threadId'],'Execution native identity stable');execution_by_tid[start['threadId']].append((task,Fraction(str(start['timeMsec'])),Fraction(str(end['timeMsec']))))
+contexts={}
+for index,(tid,t) in raw_compiler.items():
+ candidates=sorted(task for task,start,end in execution_by_tid[tid]if start<=t<=end);contexts[index]=candidates
+ point=output_compiler[index];check(type(point['process_id'])is int and point['process_id']==pid,'Point selected process exact');check(point['native_tid']==tid and Fraction(str(point['time_msec']))==t,'Compiler sample identity/time exact')
+ check(point['execution_task_candidates']==candidates,'Every containing/nested execution candidate retained')
+for index,(tid,t) in raw_wfw.items():
+ point=output_wfw[index];check(point['native_tid']==tid and Fraction(str(point['time_msec']))==t,'Caller sample identity/time exact')
+main_waits={i:(first,last)for i,(first,last)in enumerate(paired)if first[1]['threadId']==pid and first[1]['payload']['Behavior']==1}
+wait_times={i:(Fraction(str(first[1]['timeMsec'])),Fraction(str(last[1]['timeMsec'])))for i,(first,last)in main_waits.items()}
+worker_by_task=defaultdict(list)
+for point,candidates in contexts.items():
+ for task in candidates:worker_by_task[task].append(point)
+associations=[];caller_point_associations=[];compiler_point_associations=[];groups=defaultdict(Counter);nested_caller=0;nested_execution=0
+row_fields=['caseIndex','size','state','variant','pairSequence','phase']
+for span,row in zip(emits,replay_rows):
+ window=(Fraction(span['startTicks']*1000,span['frequency'])+offset_lower,Fraction(span['startTicks']*1000,span['frequency'])+offset_upper,Fraction(span['endTicks']*1000,span['frequency'])+offset_lower,Fraction(span['endTicks']*1000,span['frequency'])+offset_upper)
+ check(row['emit_sequence']==span['sequence'] and row['row_identity']=={k:span[k]for k in row_fields},'Exact row identity/order')
+ check(row['eventpipe_window_ms_exact_fraction']==[str(v)for v in window],'Exact conditional row clock window')
+ core_points=[index for index,(tid,t)in raw_wfw.items()if window[1]<=t<=window[2]]
+ check(row['caller_context_point_indices_in_core']==core_points,'Every guaranteed-core callerpoint retained')
+ selected=[i for i,(start,end)in wait_times.items()if end>=window[0]and start<=window[3]]
+ check([w['wait_index']for w in row['observed_caller_waits']]==selected,'Every intersecting maincaller wait retained')
+ for joined in row['observed_caller_waits']:
+  i=joined['wait_index'];first,last=main_waits[i];start,end=wait_times[i];task=first[1]['payload']['TaskID'];associations.append((span['sequence'],i));g=groups[span['phase']];g['wait_associations']+=1
+  check(joined['awaited_task_id']==task and joined['wait_begin_record_index']==first[0]-1 and joined['wait_end_record_index']==last[0]-1,'Explicit awaited TaskID/raw identity')
+  check(joined['direct_waitforworkers_callsite_proven']is False and joined['blocked_time_ms']is None and joined['scheduler_delay_ms']is None,'No direct ownership/blocked/scheduler inference')
+  state=complete.get(task);check(joined['linked_execution_event_lifetime']is(state is not None),'Explicit complete headerlifetime presence')
+  check(joined['execution_native_tid']==(state[8][0][1]['threadId']if state else None),'Awaitedtask execution native header')
+  scope='entire_wait_inside_guaranteed_emit_core'if window[1]<=start<=end<=window[2]else'partial_or_boundary_uncertain';check(joined['row_scope']==scope,'Full/partial stage scope exact')
+  witnesses=[point for point in core_points if start<=raw_wfw[point][1]<=end]
+  expected_candidates={str(point):[j for j,(s,e)in wait_times.items()if s<=raw_wfw[point][1]<=e]for point in witnesses}
+  check(joined['caller_context_witness_count']==len(witnesses) and joined['caller_point_candidates']==expected_candidates,'Every containing caller wait candidate exact')
+  if witnesses:g['waits_with_caller_WFW']+=1
+  for point,candidates in expected_candidates.items():
+   caller_point_associations.append((span['sequence'],i,int(point)));nested_caller+=len(candidates)>1
+  worker_points=[point for point in worker_by_task.get(task,[])if start<=raw_compiler[point][1]<=end and window[1]<=raw_compiler[point][1]<=window[2]]
+  check([p['sample_record_index']for p in joined['compiler_points_during_wait_in_emit']]==worker_points,'Every awaitedtask compiler point inside wait/core exact')
+  if worker_points:g['waits_with_compiler_context']+=1
+  for point in joined['compiler_points_during_wait_in_emit']:
+   index=point['sample_record_index'];check(point['native_tid']==raw_compiler[index][0] and point['execution_task_candidates']==contexts[index] and point['execution_scope_ambiguous']is(len(contexts[index])!=1),'No nested execution candidate lost')
+   check(point['native_lifetime_proven']is False and point['proc_birth_not_single_observed']is(point['observed_birth_scope']!='one_birth_observed_partial_sampling'),'Partial proc birth never native lifetime proof')
+   compiler_point_associations.append((span['sequence'],i,index));nested_execution+=len(contexts[index])!=1
+replay_audit={'groups':{k:dict(v)for k,v in groups.items()},'wait_associations':len(associations),'distinct_wait_indices':len({i for row,i in associations}),'caller_point_query_associations':len(caller_point_associations),'distinct_caller_points':len({p for row,i,p in caller_point_associations}),'compiler_point_query_associations':len(compiler_point_associations),'distinct_compiler_points':len({p for row,i,p in compiler_point_associations}),'nested_caller_associations':nested_caller,'nested_execution_associations':nested_execution,'row_wait_identity_fingerprint_sha256':hashlib.sha256(json.dumps(associations,separators=(',',':')).encode()).hexdigest(),'replay_source_sha256':replay_summary['source_sha256'],'replay_output_hashes':{p.name:sha(p)for p in a.replay.iterdir()if p.is_file()}}
+
+report={'replay_audit':replay_audit,'status':'passed_full_lineage_replay'if not failures else'failed','checks':checks,'failures':failures,'raw_records':raw_count,'stack_records':stack_count,'raw_stack_identity_parity':raw_samples==stack_samples,'stage_spans':len(spans),'emit_rows':len(emits),'clock_offset_ms':{'lower':str(offset_lower),'upper':str(offset_upper)},'tpl_templates':[dict(event_id=k[0],version=k[1],opcode=k[2],template_type=k[3],records=v)for k,v in sorted(tpl_meta.items())],'candidate_complete_execution_histories':len(complete),'paired_task_waits':len(paired),'caller_sync_pairs':len(caller_pairs),'pending_waits':len(pending),'wait_pair_errors':wait_errors,'point_counts':{k:len(v)for k,v in points.items()},'inputs_sha256':{k:sha(p)for k,p in paths.items()},'audit_source_sha256':sha(Path(__file__)),'limits':['Full raw inventory; does not certify direct method/task ownership or CPU/blocked/scheduler duration.','Task pairing candidates require the separate strict assembler poison/metadata rules.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['inputs_sha256','tpl_templates','limits']}));raise SystemExit(0 if not failures else 1)
