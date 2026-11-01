@@ -1,0 +1,217 @@
+"""ADR0025 offline nonexclusive awaited-execution managed frame contexts only."""
+import argparse
+from bisect import bisect_right
+from collections import Counter,defaultdict
+from fractions import Fraction
+import hashlib,json,re
+from pathlib import Path
+import analyze_tooling_tasks as tpl
+import analyze_roslyn_task_lineage as lineage_tool
+import analyze_roslyn_task_ordering as ordering_tool
+
+TPL_SHA='7fe853f20ad5f257c726283b1a5d72329057508b3c50731e19e3984cd452773b'
+LINEAGE_SHA='f7599be4aa4629625b6cfd9773746e785108cc9f441c373d28734f8217f7ac79'
+ORDERING_SHA='3bd44fb5e863ddeae02a418bd8e94d53088abf37bbc7224f18fe77ad038b3dd4'
+require=tpl.require
+read=ordering_tool.read
+records=ordering_tool.records
+time=ordering_tool.timestamp
+LABEL_METHODS={
+ 'managed_wait_entry_frame':{
+ 'System.Threading.Tasks.Task':['InternalWait','InternalWaitCore','SpinThenBlockingWait','SpinWait'],
+ 'System.Runtime.CompilerServices.TaskAwaiter':['GetResult','HandleNonSuccessAndDebuggerNotification','ValidateEnd'],
+ 'System.Threading.WaitHandle':['WaitOne','WaitAny','WaitAll','WaitMultiple','WaitOneNoCheck','WaitMultipleIgnoringSyncContext'],
+ 'System.Threading.ManualResetEventSlim':['Wait'],
+ 'System.Threading.Monitor':['Wait','Enter','TryEnter'],
+ 'System.Threading.SemaphoreSlim':['Wait','WaitAsync'],
+ 'System.Threading.ReaderWriterLockSlim':['EnterReadLock','EnterWriteLock','EnterUpgradeableReadLock','TryEnterReadLock','TryEnterWriteLock','TryEnterUpgradeableReadLock'],
+ 'System.Threading.Thread':['Join','Sleep']},
+ 'runtime_preparation_entry_frame':{
+ 'System.Runtime.CompilerServices.RuntimeHelpers':['PrepareMethod','PrepareDelegate','RunClassConstructor','InitializeArray'],
+ 'System.Reflection.Assembly':['Load','LoadFrom','LoadFile','LoadWithPartialName'],
+ 'System.Runtime.Loader.AssemblyLoadContext':['LoadFromAssemblyName','LoadFromAssemblyPath','LoadFromStream','LoadFromNativeImagePath'],
+ 'System.Reflection.Emit.AssemblyBuilder':['DefineDynamicAssembly']},
+ 'explicit_gc_request_entry_frame':{'System.GC':['Collect','WaitForPendingFinalizers']}}
+TOKEN_RULES={cls+'.'+method:[label,cls+'.'+method] for label,classes in LABEL_METHODS.items() for cls,methods in classes.items() for method in methods}
+DICTIONARY={'role':'ANY serialized managed frame co-observation; no CPU/leaf/state/duration proof','token_rule':'Exact method token before opening parenthesis; generic TaskAwaiter`1[...] normalized only for named awaiter rules','method_tokens':TOKEN_RULES,'namespace_rules':{'roslyn_method_compiler_frame':['Microsoft.CodeAnalysis.CSharp.MethodCompiler.','Microsoft.CodeAnalysis.CSharp.MethodCompiler+'],'other_codeanalysis_frame':'Microsoft.CodeAnalysis. excluding MethodCompiler family'},'fallbacks':['other_frame_context','unresolved_context'],'point_boundary_policy':'Strictly inside execution/wait and optional guaranteed Emit core; equal timestamps retained unassigned'}
+
+def canonical_token(token):
+    prefix='System.Runtime.CompilerServices.TaskAwaiter`1['
+    if not token.startswith(prefix):return token
+    depth=1;start=len(prefix)
+    for i in range(start,len(token)):
+        if token[i]=='[':depth+=1
+        elif token[i]==']':
+            depth-=1
+            if depth==0:
+                tail=token[i+1:]
+                if i==start or not tail.startswith('.') or tail.count('.')!=1:return token
+                return 'System.Runtime.CompilerServices.TaskAwaiter'+tail
+    return token
+
+def classify_frames(frames):
+    require(type(frames) is list and all(type(f) is str for f in frames),'Structured exact string stack frames')
+    matches=[]
+    for depth,frame in enumerate(frames):
+        token=frame.split('(',1)[0] if '(' in frame else None
+        label=rule=None
+        compiler=frame.startswith(('Microsoft.CodeAnalysis.CSharp.MethodCompiler.','Microsoft.CodeAnalysis.CSharp.MethodCompiler+'))
+        if compiler:label='roslyn_method_compiler_frame';rule='namespace.MethodCompiler'
+        elif frame.startswith('Microsoft.CodeAnalysis.'):label='other_codeanalysis_frame';rule='namespace.otherCodeAnalysis'
+        if label:matches.append(dict(label=label,rule_id=rule,frame_index=depth,frame=frame))
+        if token is not None:
+            normalized=canonical_token(token)
+            if normalized in TOKEN_RULES:
+                label,rule=TOKEN_RULES[normalized];matches.append(dict(label=label,rule_id=rule,frame_index=depth,frame=frame))
+    labels=sorted({m['label'] for m in matches})
+    if not labels:labels=['other_frame_context' if frames else 'unresolved_context']
+    return dict(labels=labels,matches=matches)
+
+def point_in_query(point,query):
+    require(type(point) is dict and type(query) is dict,'Point/query objects')
+    require(tpl.integer(point.get('process_id'),1) and tpl.integer(point.get('native_tid'),1) and tpl.integer(query.get('process_id'),1),'Exact positive point/query process and thread identities')
+    require(query.get('execution_native_tid') is None or tpl.integer(query.get('execution_native_tid'),1),'Exact execution header identity')
+    t=time(point.get('time_msec'))
+    if query.get('execution_native_tid') is None:return False
+    require(all(k in query for k in ['execution_start_ms','execution_end_ms','wait_begin_ms','wait_end_ms']),'Complete query clocks')
+    start,end,begin,finish=[time(query[k]) for k in ['execution_start_ms','execution_end_ms','wait_begin_ms','wait_end_ms']]
+    require(start<=end and begin<=finish,'Ordered execution and wait clocks')
+    if point['process_id']!=query['process_id'] or point['native_tid']!=query['execution_native_tid']:return False
+    if not(start<t<end and begin<t<finish):return False
+    if 'emit_window_ms_exact_fraction' in query:
+        window=query['emit_window_ms_exact_fraction'];require(type(window) is list and len(window)==4 and all(type(v) is str for v in window),'Exact rational Emit window')
+        a,b,c,d=[Fraction(v) for v in window];require(all(v>=0 for v in [a,b,c,d]) and a<=b and c<=d and a<=d,'Nonnegative ordered uncertainty edges')
+        if not b<t<c:return False
+    return True
+
+class IntervalIndex:
+    def __init__(self,items):
+        self.data={}
+        for tid,values in items.items():
+            values=sorted(values);ends=[];maximum=None
+            for a,b,_ in values:maximum=b if maximum is None else max(maximum,b);ends.append(maximum)
+            self.data[tid]=(values,[v[0] for v in values],ends)
+    def candidates(self,tid,t):
+        require(tpl.integer(tid,1),'Exact indexed native TID')
+        if type(t) is Fraction:require(t>=0,'Nonnegative rational timestamp')
+        else:t=time(t)
+        if tid not in self.data:return []
+        values,starts,ends=self.data[tid];i=bisect_right(starts,t)-1;found=[]
+        while i>=0 and ends[i]>=t:
+            a,b,key=values[i]
+            if a<=t<=b:found.append(key)
+            i-=1
+        return sorted(found)
+
+def execution_candidates(tid,t,states,pid=None):
+    require(tpl.integer(tid,1) and (pid is None or tpl.integer(pid,1)),'Exact execution candidate identities');t=time(t)
+    require(type(states) is list and all(type(s) is dict and tpl.integer(s.get('task_id'),1) and tpl.integer(s.get('process_id'),1) for s in states),'Exact execution candidate states')
+    return sorted(s['task_id'] for s in states if s.get('status')=='complete_observed_lifetime' and type(s.get('execution_native_tid')) is int and s['execution_native_tid']==tid and (pid is None or s['process_id']==pid) and time(s['start']['event']['timeMsec'])<=t<=time(s['complete']['event']['timeMsec']))
+
+def query_for_wait(wait,state,pid):
+    order=ordering_tool.classify_wait(wait,state,pid)
+    result=dict(process_id=pid,awaited_task_id=wait['task_id'],caller_native_tid=wait['caller_native_tid'],execution_native_tid=None,status='unknown_execution_context',ordering=order,blocked_time_ms=None,cpu_time_ms=None,scheduler_delay_ms=None,gc_pause_ms=None,direct_waitforworkers_callsite_proven=False,native_lifetime_proven=False)
+    if order['status']!='literal_recorded_event_order':return result
+    result.update(execution_native_tid=state['execution_native_tid'],execution_start_ms=state['start']['event']['timeMsec'],execution_end_ms=state['complete']['event']['timeMsec'],wait_begin_ms=wait['begin']['event']['timeMsec'],wait_end_ms=wait['end']['event']['timeMsec'],status='wait_intersection_awaited_execution_context')
+    return result
+
+def summarize(queries,points):
+    indices=[i for q in queries for i in q['strict_point_indices']];distinct=sorted(set(indices));labels=Counter(label for i in indices for label in points[i]['labels']);unique=Counter(label for i in distinct for label in points[i]['labels'])
+    return dict(queries=len(queries),queries_with_strict_points=sum(bool(q['strict_point_indices']) for q in queries),queries_without_strict_points_unknown=sum(not q['strict_point_indices'] for q in queries),point_query_associations=len(indices),distinct_point_indices=len(distinct),repeated_point_query_associations=len(indices)-len(distinct),label_point_associations=dict(labels),distinct_points_by_label=dict(unique),nonexclusive_labels=True)
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    for arg in ['capture','lineage','ordering','expected-lineage-summary-sha256','expected-ordering-summary-sha256','dictionary','expected-dictionary-sha256','output']:parser.add_argument('--'+arg,required=True)
+    a=parser.parse_args();base=Path(a.capture);lin=Path(a.lineage);ordered=Path(a.ordering);out=Path(a.output);out.mkdir(parents=True,exist_ok=False);source=Path(__file__).read_bytes();(out/'analysis-source.py.txt').write_bytes(source)
+    require(tpl.sha(tpl.__file__)==TPL_SHA and tpl.sha(lineage_tool.__file__)==LINEAGE_SHA and tpl.sha(ordering_tool.__file__)==ORDERING_SHA,'Pinned trusted source helpers')
+    require(tpl.sha(a.dictionary)==a.expected_dictionary_sha256 and ordering_tool.typed_equal(read(a.dictionary),DICTIONARY),'Pre-replay exact declared finite dictionary')
+    (out/'dictionary.json').write_bytes(Path(a.dictionary).read_bytes())
+    require(tpl.sha(lin/'summary.json')==a.expected_lineage_summary_sha256 and tpl.sha(ordered/'summary.json')==a.expected_ordering_summary_sha256,'Reviewed lineage/ordering summary hashes')
+    ls=read(lin/'summary.json');os=read(ordered/'summary.json')
+    require(ls['status']=='completed_bounded_context_observations' and ls['source_sha256']==LINEAGE_SHA and ls['assembler_sha256']==TPL_SHA and os['status']=='completed_literal_event_ordering' and os['source_sha256']==ORDERING_SHA and os['lineage_summary_sha256']==a.expected_lineage_summary_sha256,'Pinned complete same-lineage inputs')
+    for name,digest in ls['inputs_sha256'].items():require(tpl.sha(base/name)==digest,'Complete frozen raw input '+name)
+    for folder,summary in [(lin,ls),(ordered,os)]:
+        for name,digest in summary['outputs_sha256'].items():require(tpl.sha(folder/name)==digest,'Frozen prior output '+name)
+    capture=read(base/'capture.json');report=read(base/'analysis/summary.json');pid=capture['target_pid']
+    require(capture['status']=='completed' and tpl.integer(pid,1) and ls['pid']==os['pid']==pid,'One successful owned process')
+    require(all(type(report.get(k)) is int and report[k]==0 for k in ['eventsLost','etlxEventsLost','payloadReadErrors','truncatedStacks']) and report['stackExtractionStatus']=='completed','Complete parser/loss/stack gates')
+    model=read(lin/'task-observations.json');states={s['task_id']:s for s in model['tasks']};waits=model['waits']
+    require(len(states)==len(model['tasks'])==19527 and len(waits)==2372,'All declared execution histories/global waits')
+    order_values=list(records(ordered/'wait-orderings.jsonl'));require(len(order_values)==2372,'All prior orderings')
+    refs={}
+    for state in states.values():
+        for key in ['schedule','start','complete']:
+            if state.get(key):
+                ref=state[key];idx=ref['raw_record_index'];require(type(idx) is int and idx>=0,'Exact raw refindex');require(idx not in refs or ordering_tool.typed_equal(refs[idx],ref),'No conflicting reference copies');refs[idx]=ref
+    for wait in waits:
+        for key in ['begin','end']:
+            ref=wait[key];idx=ref['raw_record_index'];require(type(idx) is int and idx>=0,'Exact raw refindex');require(idx not in refs or ordering_tool.typed_equal(refs[idx],ref),'No conflicting reference copies');refs[idx]=ref
+    tracker=tpl.Tasks(pid);raw_samples=Counter();markers={};found=set();raw_count=0
+    for index,event in enumerate(records(base/'analysis/events.jsonl')):
+        raw_count+=1;tracker.add(event,index);require('EventSourceMessage' not in event.get('name',''),'No provider error')
+        if index in refs:ordering_tool.bind_reference(refs[index],event,index);found.add(index)
+        if event['provider']==lineage_tool.SAMPLE:
+            require(type(event['processId']) is int and event['processId']==pid and tpl.integer(event['threadId'],1),'Exact raw sample identity');raw_samples[(pid,event['threadId'],time(event['timeMsec']))]+=1
+        if event['provider']==lineage_tool.MARKER:
+            seq=event['payload']['sequence'];require(type(seq) is int and seq not in markers,'Unique exact marker');markers[seq]=event
+    require(found==set(refs) and raw_count==ls['raw_events']==report['events'],'All raw references/full records consumed')
+    require(ordering_tool.typed_equal(tracker.result(),model),'Exact rebuilt TPL model/raw parity')
+    spans=list(records(base/'generator.json.spans.jsonl'));require([s['sequence'] for s in spans]==list(range(1,2957)),'All ordered stage spans');offset=lineage_tool.clock_map(spans,markers,pid)
+    span_by_id={s['sequence']:s for s in spans};rows=list(records(lin/'rows.jsonl'));require(len(rows)==306 and len({r['emit_sequence'] for r in rows})==306,'All unique Emit rows')
+    global_queries=[];query_intervals=defaultdict(list);execution_intervals=defaultdict(list)
+    for state in states.values():
+        if state['status']=='complete_observed_lifetime':execution_intervals[state['execution_native_tid']].append((time(state['start']['event']['timeMsec']),time(state['complete']['event']['timeMsec']),state['task_id']))
+    for index,wait in enumerate(waits):
+        query=query_for_wait(wait,states.get(wait['task_id']),pid);query['wait_index']=index;query['strict_point_indices']=[];query['boundary_point_indices']=[]
+        require(ordering_tool.typed_equal(query['ordering']|{'wait_index':index},order_values[index]),'Exact frozen literal ordering query')
+        if query['execution_native_tid'] is not None:
+            begin=max(time(query['execution_start_ms']),time(query['wait_begin_ms']));end=min(time(query['execution_end_ms']),time(query['wait_end_ms']))
+            if begin<=end:query_intervals[query['execution_native_tid']].append((begin,end,index))
+        global_queries.append(query)
+    qi=IntervalIndex(query_intervals);ei=IntervalIndex(execution_intervals);points={};catalog=[];catalog_index={};samples=Counter();stack_count=0
+    for index,item in enumerate(records(base/'analysis/sampled-thread-stacks.jsonl')):
+        stack_count+=1;require(type(item['processId']) is int and item['processId']==pid and tpl.integer(item['osThreadId'],1) and item['truncated'] is False,'Exact complete target stack header');t=time(item['timeRelativeMsec']);tid=item['osThreadId'];samples[(pid,tid,t)]+=1
+        require(type(item['frames']) is list and all(type(f) is str for f in item['frames']),'Complete frame serialization')
+        candidates=qi.candidates(tid,t)
+        if not candidates:continue
+        point=dict(sample_record_index=index,process_id=pid,native_tid=tid,time_msec=item['timeRelativeMsec'],execution_task_candidates=ei.candidates(tid,t),frame_ids=[],**classify_frames(item['frames']),strict_global_wait_indices=[],boundary_global_wait_indices=[])
+        for frame in item['frames']:
+            if frame not in catalog_index:catalog_index[frame]=len(catalog);catalog.append(frame)
+            point['frame_ids'].append(catalog_index[frame])
+        for match in point['matches']:match['frame_catalog_index']=catalog_index[match['frame']]
+        for w in candidates:
+            if point_in_query(point,global_queries[w]):global_queries[w]['strict_point_indices'].append(index);point['strict_global_wait_indices'].append(w)
+            else:global_queries[w]['boundary_point_indices'].append(index);point['boundary_global_wait_indices'].append(w)
+        points[index]=point
+    require(samples==raw_samples and stack_count==ls['stack_samples']==report['stackSamples']==report['sampledThreadEvents'],'Full raw/ETLX sample multiset/count parity')
+    output_rows=[];row_queries=[]
+    for row in rows:
+        span=span_by_id[row['emit_sequence']];window=[str(v) for v in lineage_tool.stage_window(span,offset)];require(window==row['eventpipe_window_ms_exact_fraction'],'Exact same row conditional clockwindow')
+        joined=[]
+        for old in row['observed_caller_waits']:
+            wi=old['wait_index'];require(type(wi) is int and 0<=wi<len(waits),'Exact row waitindex');q=global_queries[wi]
+            require(old['awaited_task_id']==q['awaited_task_id'] and old['wait_begin_record_index']==waits[wi]['begin']['raw_record_index'] and old['wait_end_record_index']==waits[wi]['end']['raw_record_index'] and q['caller_native_tid']==pid,'Exact row wait/raw/task identity')
+            rq={**q,'emit_sequence':row['emit_sequence'],'row_identity':row['row_identity'],'emit_window_ms_exact_fraction':window,'row_scope':old['row_scope'],'caller_context_witness_count':old['caller_context_witness_count'],'strict_point_indices':[],'unassigned_global_point_indices':[]}
+            for index in q['strict_point_indices']+q['boundary_point_indices']:
+                if point_in_query(points[index],rq):rq['strict_point_indices'].append(index)
+                else:rq['unassigned_global_point_indices'].append(index)
+            joined.append(rq);row_queries.append(rq)
+        output_rows.append(dict(row_identity=row['row_identity'],emit_sequence=row['emit_sequence'],worker_context_queries=joined))
+    require(len(row_queries)==2177 and Counter(r['row_identity']['phase'] for r in output_rows)=={'primer':36,'measurement':270},'All declared row associations/phases')
+    nonmain=[dict(wait_index=i,wait=w) for i,w in enumerate(waits) if w['caller_native_tid']!=pid];require(len(nonmain)==27,'All nonmain same-execution TPLwaits retained')
+    for query in global_queries:
+        query['nonmain_wait_header_intersections']=[]
+        if query['execution_native_tid'] is None:continue
+        for other in nonmain:
+            w=other['wait']
+            if w['caller_native_tid']!=query['execution_native_tid']:continue
+            left=max(time(query['execution_start_ms']),time(query['wait_begin_ms']),time(w['begin']['event']['timeMsec']));right=min(time(query['execution_end_ms']),time(query['wait_end_ms']),time(w['end']['event']['timeMsec']))
+            if left<=right:query['nonmain_wait_header_intersections'].append(dict(wait_index=other['wait_index'],boundary_only=left==right,scope='same_header_tid_temporal_coobservation_not_task_dependency_or_blocking_duration'))
+    for name,values in [('points.jsonl',list(points.values())),('wait-contexts.jsonl',global_queries),('row-contexts.jsonl',output_rows),('nonmain-waits.jsonl',nonmain)]:
+        with (out/name).open('x',encoding='utf-8',newline='\n') as f:
+            for item in values:f.write(json.dumps(item,separators=(',',':'))+'\n')
+    save_catalog=out/'frame-catalog.json';save_catalog.write_text(json.dumps(catalog,indent=2)+'\n',encoding='utf-8',newline='\n')
+    result=dict(status='completed_nonexclusive_worker_context_points',source_sha256=hashlib.sha256(source).hexdigest(),dictionary_sha256=tpl.sha(a.dictionary),pid=pid,raw_records=raw_count,bound_raw_references=len(found),stack_records=stack_count,sample_multiset_parity=True,source_pins=dict(tpl=TPL_SHA,lineage=LINEAGE_SHA,ordering=ORDERING_SHA),all_global_wait_queries=summarize(global_queries,points),main_global_wait_queries=summarize([q for q in global_queries if q['caller_native_tid']==pid],points),nonmain_global_wait_queries=summarize([q for q in global_queries if q['caller_native_tid']!=pid],points),all_row_associations=summarize(row_queries,points),groups={phase:summarize([q for q in row_queries if q['row_identity']['phase']==phase],points) for phase in ['primer','measurement']},rows=306,nonmain_waits=27,point_records_including_boundaries=len(points),frame_catalog_entries=len(catalog),inputs_sha256={'lineage_summary':tpl.sha(lin/'summary.json'),'ordering_summary':tpl.sha(ordered/'summary.json'),**{str(base/name):digest for name,digest in ls['inputs_sha256'].items()},**{str(lin/name):digest for name,digest in ls['outputs_sha256'].items()},**{str(ordered/name):digest for name,digest in os['outputs_sha256'].items()}},outputs_sha256={p.name:tpl.sha(p) for p in out.iterdir() if p.is_file()},limits=['ANY-frame multi-label point contexts, not CPU/onCPU/nativeleaf/usefulwork/runnable/blocking/GCpause.','Strict boundaries excluded; no points is unknown, never zeroactivity.','Global wait/execution and per-row Emitcore are different denominators; labels/associations overlap.','All containing execution candidates retained, not innermost ownership.','No directcallsite/native-lifetime/GC/scheduler causality or qualification.'])
+    require(tpl.sha(__file__)==result['source_sha256'] and tpl.sha(tpl.__file__)==TPL_SHA and tpl.sha(lineage_tool.__file__)==LINEAGE_SHA and tpl.sha(ordering_tool.__file__)==ORDERING_SHA,'All source pins unchanged')
+    (out/'summary.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps(result))
+if __name__=='__main__':main()

@@ -1,0 +1,133 @@
+"""Independent ADR0025 raw/reference/point/context audit; imports no production tool."""
+from pathlib import Path
+from collections import Counter,defaultdict
+from bisect import bisect_left,bisect_right
+from fractions import Fraction
+import json,hashlib,math
+BASE=Path('D:/Cephalon/.worktrees/roslyn-task-lineage/.local/roslyn-task-capture01/generator')
+LIN=Path('D:/Cephalon/Cehpalon-Engine-Docs/.local/roslyn-task-lineage01/replay02')
+OUT=Path('D:/Cephalon/.worktrees/roslyn-worker-context/.local/worker-context-replay01')
+HOME=Path(__file__).parent
+checks=0;failures=[]
+def check(ok,reason):
+ global checks
+ checks+=1
+ if not ok:failures.append(reason)
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def lines(p):
+ with p.open(encoding='utf-8-sig')as f:
+  for l in f:yield json.loads(l)
+def f(v):return Fraction(str(v))
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def typed(a,b):
+ if type(a)is not type(b):return False
+ if type(a)is dict:return a.keys()==b.keys()and all(typed(a[k],b[k])for k in a)
+ if type(a)is list:return len(a)==len(b)and all(typed(x,y)for x,y in zip(a,b))
+ return a==b
+model=read(LIN/'task-observations.json');states={s['task_id']:s for s in model['tasks']};waits=model['waits'];pid=model['process_id']
+refs={r['raw_record_index']:r['event']for s in states.values()for r in [s['schedule'],s['start'],s['complete']]if r}
+for w in waits:
+ for k in ['begin','end']:refs[w[k]['raw_record_index']]=w[k]['event']
+check(len(refs)==63325,'All63325referenceidentities')
+rawsamples=Counter();markers={};found=set();rawcount=0
+for index,e in enumerate(lines(BASE/'analysis/events.jsonl')):
+ rawcount+=1
+ if index in refs:check(typed(refs[index],e),'Strict raw copied reference '+str(index));found.add(index)
+ if e['provider']=='Microsoft-DotNETCore-SampleProfiler':rawsamples[(e['processId'],e['threadId'],f(e['timeMsec']))]+=1
+ if e['provider']=='Cehpalon-Tooling-Diagnostic':markers[e['payload']['sequence']]=e
+check(rawcount==641481 and found==set(refs),'Fullrawstreamandrefs')
+spans=list(lines(BASE/'generator.json.spans.jsonl'));check(len(spans)==len(markers)==2956,'Complete markers')
+lo=[];hi=[]
+for s in spans:
+ e=markers[s['sequence']]
+ for k,v in e['payload'].items():check(k in s and typed(v,s[k]),'Marker parity '+str(s['sequence'])+':'+k)
+ check(e['processId']==pid==s['processId']and e['threadId']==s['osThreadId'],'Marker header')
+ lo.append(f(e['timeMsec'])-Fraction(s['markerAfterTicks']*1000,s['frequency']));hi.append(f(e['timeMsec'])-Fraction(s['markerBeforeTicks']*1000,s['frequency']))
+offset=(max(lo),min(hi));check(offset[0]<=offset[1],'Clock intersection')
+actualpoints={p['sample_record_index']:p for p in lines(OUT/'points.jsonl')};catalog=read(OUT/'frame-catalog.json');check(len(catalog)==len(set(catalog)),'Unique frame catalog')
+stackbytid=defaultdict(list);samples=Counter();frames={};allstack=0;stackinfo={}
+for index,s in enumerate(lines(BASE/'analysis/sampled-thread-stacks.jsonl')):
+ allstack+=1;t=f(s['timeRelativeMsec']);tid=s['osThreadId'];samples[(s['processId'],tid,t)]+=1;stackbytid[tid].append((t,index));check(type(tid)is int and tid>0 and s['processId']==pid and s['truncated']is False,'Stack identity '+str(index))
+ if index in actualpoints:frames[index]=s['frames'];stackinfo[index]=(tid,t)
+check(samples==rawsamples and allstack==212495,'Full raw-ETLX sample multiset/count parity')
+for tid in stackbytid:stackbytid[tid].sort()
+times={tid:[t for t,i in v]for tid,v in stackbytid.items()}
+expected=[];allpointids=set();reverse_strict=defaultdict(list);reverse_boundary=defaultdict(list)
+for wi,w in enumerate(waits):
+ state=states.get(w['task_id']);tid=state['execution_native_tid'];left=max(f(state['start']['event']['timeMsec']),f(w['begin']['event']['timeMsec']));right=min(f(state['complete']['event']['timeMsec']),f(w['end']['event']['timeMsec']));strict=[];boundary=[]
+ if left<=right:
+  values=stackbytid[tid]
+  for t,index in values[bisect_left(times[tid],left):bisect_right(times[tid],right)]:
+   if left<t<right:strict.append(index);reverse_strict[index].append(wi)
+   else:boundary.append(index);reverse_boundary[index].append(wi)
+ strict.sort();boundary.sort();allpointids.update(strict+boundary);expected.append((strict,boundary,left,right))
+check(set(actualpoints)==allpointids,'Every inclusive candidate preserved includingboundaries')
+dictionary=read(OUT/'dictionary.json');tokens=dictionary['method_tokens']
+def normalized(token):
+ prefix='System.Runtime.CompilerServices.TaskAwaiter`1'
+ if not token.startswith(prefix):return token
+ tail=token[len(prefix):]
+ if not tail.startswith('['):return token
+ level=0;closing=None
+ for i,c in enumerate(tail):
+  if c=='[':level+=1
+  elif c==']':
+   level-=1
+   if level==0:closing=i;break
+ if closing is None or not tail[1:closing]or not tail[closing+1:].startswith('.'):return token
+ method=tail[closing+2:]
+ if '.'in method or '['in method or ']'in method:return token
+ arg=tail[1:closing];level=0
+ for c in arg:
+  if c=='[':level+=1
+  elif c==']':level-=1
+  elif c==','and level==0:return token
+ return 'System.Runtime.CompilerServices.TaskAwaiter.'+method
+
+def classify(fs):
+ labels=set();matches=[]
+ for depth,frame in enumerate(fs):
+  if frame.startswith(('Microsoft.CodeAnalysis.CSharp.MethodCompiler.','Microsoft.CodeAnalysis.CSharp.MethodCompiler+')):label='roslyn_method_compiler_frame';rule='namespace.MethodCompiler'
+  elif frame.startswith('Microsoft.CodeAnalysis.'):label='other_codeanalysis_frame';rule='namespace.otherCodeAnalysis'
+  else:label=rule=None
+  if label:labels.add(label);matches.append((label,rule,depth,frame))
+  if '('in frame:
+   token=normalized(frame[:frame.index('(')])
+   if token in tokens:
+    label,rule=tokens[token];labels.add(label);matches.append((label,rule,depth,frame))
+ return sorted(labels)if labels else['other_frame_context'if fs else'unresolved_context'],matches
+execbytid=defaultdict(list)
+for s in states.values():execbytid[s['execution_native_tid']].append((f(s['start']['event']['timeMsec']),f(s['complete']['event']['timeMsec']),s['task_id']))
+births=defaultdict(set)
+for s in lines(BASE/'os.jsonl'):
+ if s.get('kind')=='sample':
+  for thread in s.get('threads',[]):births[thread['tid']].add(thread['starttime_ticks'])
+for index,p in actualpoints.items():
+ tid,t=stackinfo[index];check(p['native_tid']==tid and f(p['time_msec'])==t and p['process_id']==pid,'Point raw header '+str(index));fs=frames[index];check([catalog[x]for x in p['frame_ids']]==fs,'All full frames retained '+str(index));labels,matches=classify(fs);check(p['labels']==labels,'Nonexclusive labels '+str(index));check([(m['label'],m['rule_id'],m['frame_index'],m['frame'])for m in p['matches']]==matches,'Exact match/depth/rules '+str(index))
+ for m in p['matches']:check(catalog[m['frame_catalog_index']]==m['frame'],'Matched framecatalog identity')
+ candidates=sorted(task for start,end,task in execbytid[tid]if start<=t<=end);check(p['execution_task_candidates']==candidates,'All containing executions includingties '+str(index));check(p['native_lifetime_proven']is False and p['observed_birth_values']==sorted(births[tid]),'Partial birth notlifetime '+str(index));check(p['strict_global_wait_indices']==reverse_strict[index]and p['boundary_global_wait_indices']==reverse_boundary[index],'Every point/query relationship '+str(index))
+globalq=list(lines(OUT/'wait-contexts.jsonl'));check(len(globalq)==2372,'All globalqueries');nonmain=[i for i,w in enumerate(waits)if w['caller_native_tid']!=pid];check(len(nonmain)==27,'All nonmainwaits')
+for wi,q in enumerate(globalq):
+ strict,boundary,left,right=expected[wi];check(q['wait_index']==wi and q['strict_point_indices']==strict and q['boundary_point_indices']==boundary,'Strict query/boundary membership '+str(wi));status='positive_recorded_intersection'if left<right else'zero_width_recorded_boundary_only'if left==right else'disjoint_recorded_execution_and_wait';check(q['query_window_status']==status,'Empty/disjoint query status '+str(wi));check(q['native_lifetime_proven']is False and q['direct_waitforworkers_callsite_proven']is False,'No ownership flags');check(all(q[k]is None for k in ['blocked_time_ms','cpu_time_ms','scheduler_delay_ms','gc_pause_ms']),'No inferred durations')
+ inter=[]
+ for other in nonmain:
+  ow=waits[other]
+  if ow['caller_native_tid']!=q['execution_native_tid']:continue
+  a=max(f(q['execution_start_ms']),f(q['wait_begin_ms']),f(ow['begin']['event']['timeMsec']));b=min(f(q['execution_end_ms']),f(q['wait_end_ms']),f(ow['end']['event']['timeMsec']))
+  if a<=b:inter.append((other,other==wi,a==b,ow['begin']['event']['payload']['OriginatingTaskID'],ow['begin']['event']['payload']['OriginatingTaskID']==q['awaited_task_id']))
+ check([(x['wait_index'],x['same_wait'],x['boundary_only'],x['originating_task_id'],x['originating_task_id_equals_awaited_task_id'])for x in q['nonmain_wait_header_intersections']]==inter,'Nonmain intersections inclself/context '+str(wi));check(all(x['context_match_proves_dependency']is False for x in q['nonmain_wait_header_intersections']),'No nesteddependencyproof')
+oldrows=list(lines(LIN/'rows.jsonl'));newrows=list(lines(OUT/'row-contexts.jsonl'));allrow=[];groups=defaultdict(list)
+for old,new in zip(oldrows,newrows):
+ check(typed(old['row_identity'],new['row_identity'])and old['emit_sequence']==new['emit_sequence'],'All rowidentities/order');check(len(old['observed_caller_waits'])==len(new['worker_context_queries']),'All rowqueries')
+ core=[Fraction(x)for x in old['eventpipe_window_ms_exact_fraction']]
+ for prior,q in zip(old['observed_caller_waits'],new['worker_context_queries']):
+  wi=prior['wait_index'];check(q['wait_index']==wi and q['awaited_task_id']==prior['awaited_task_id'],'Rowtaskidentity');strict,boundary,left,right=expected[wi];accepted=sorted(i for i in strict if core[1]<stackinfo[i][1]<core[2]);unassigned=sorted(set(strict+boundary)-set(accepted));check(q['strict_point_indices']==accepted and q['unassigned_global_point_indices']==unassigned,'Strict Emitcore andallunassigned');check(q['inherited_global_boundary_point_indices']==boundary,'Row boundaries not mislabeled global');allrow.append(q);groups[new['row_identity']['phase']].append(q)
+check(len(oldrows)==len(newrows)==306 and len(allrow)==2177,'Complete306rows/2177associations')
+def summarized(qs):
+ indices=[i for q in qs for i in q['strict_point_indices']];distinct=set(indices)
+ return dict(queries=len(qs),queries_with_strict_points=sum(bool(q['strict_point_indices'])for q in qs),queries_without_strict_points_unknown=sum(not q['strict_point_indices']for q in qs),point_query_associations=len(indices),distinct_point_indices=len(distinct),repeated_point_query_associations=len(indices)-len(distinct),label_point_associations=dict(Counter(label for i in indices for label in actualpoints[i]['labels'])),distinct_points_by_label=dict(Counter(label for i in distinct for label in actualpoints[i]['labels'])),nonexclusive_labels=True)
+summary=read(OUT/'summary.json')
+for key,qs in [('all_global_wait_queries',globalq),('main_global_wait_queries',[q for q in globalq if q['caller_native_tid']==pid]),('nonmain_global_wait_queries',[q for q in globalq if q['caller_native_tid']!=pid]),('all_row_associations',allrow)]:check(summary[key]==summarized(qs),'Complete summary '+key)
+for phase,qs in groups.items():check(summary['groups'][phase]==summarized(qs),'Phase summary '+phase)
+result=dict(status='passed'if not failures else'failed',checks=checks,failures=failures,raw_records=rawcount,raw_reference_bindings=len(found),stack_records=allstack,point_records=len(actualpoints),global_queries=len(globalq),row_associations=len(allrow),reviewed_source_sha256=summary['source_sha256'],replay_summary_sha256=sha(OUT/'summary.json'),script_sha256=sha(Path(__file__)),scope='Independent fullraw/reference/stack/multilabel/candidate/boundary/dedup/header audit; no production imports, target or causal proof')
+(HOME/'independent-audit01.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps(result));raise SystemExit(0 if not failures else 1)

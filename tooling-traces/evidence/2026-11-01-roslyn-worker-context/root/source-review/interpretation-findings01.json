@@ -1,0 +1,64 @@
+{
+  "status": "source_interpretation_review_passed_for_bounded_descriptive_multilabel_profile",
+  "timestamp_utc": "2026-11-01T08:00:42.250179+00:00",
+  "scope": "ADR0025 offline ANY recorded managed-frame labels only; no workloads/builds/captures/permissions/remote writes",
+  "runtime_source_commit": "5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+  "official_source_provenance_sha256": "429c89c5ddc5340e59ecb95fea0f2be0b3b576a44a812a83e81fb279e72c3974",
+  "local_stack_extractor": {
+    "path": "D:\\Cephalon\\Cehpalon-Engine-Samples\\tooling-traces\\TraceAnalysis\\Program.cs",
+    "retained": "TraceAnalysis-Program.cs.txt",
+    "sha256": "4e9fd7bb76c112162402fbca8b72143463f66c8768e054110c7fc331901f309a",
+    "lines": "208-214"
+  },
+  "findings": [
+    {
+      "id": "awaiter_not_blocking",
+      "source": "TaskAwaiter.cs.txt:58-110",
+      "finding": "GetResult delegates to ValidateEnd; fast successful completion omits slow handling. Slow HandleNonSuccess invokes InternalWait only if incomplete, then debugger/exception work. Any of these managed frames may be an ancestor to another frame and is not proof of blocking at sample time."
+    },
+    {
+      "id": "task_wait_multiphase",
+      "source": "Task.cs.txt:3119-3189,3210-3293",
+      "finding": "Task wait context can include completion checks, optional inlining, spin and blocking paths. A named InternalWait/SpinThenBlockingWait frame does not establish physical blocking, scheduler delay or useful task progress."
+    },
+    {
+      "id": "slim_wait_fastpaths",
+      "source": "ManualResetEventSlim.cs.txt:509-540; SemaphoreSlim.cs.txt:673-703",
+      "finding": "ManualResetEventSlim Wait tests IsSet and zero timeout; SemaphoreSlim WaitAsync can return already completed true/false Tasks. Entrypoint presence is not duration or a physically blocked thread. Async waiting need not block the executing thread."
+    },
+    {
+      "id": "preparation_not_jit_cpu",
+      "source": "RuntimeHelpers.CoreCLR.cs.txt:19-64,158-175,200-232",
+      "finding": "InitializeArray copies data and checks arguments; PrepareMethod/Delegate and RunClassConstructor forward preparation/constructor operations. Presence of a named preparation/loading frame cannot establish native JIT execution/CPU, cost, compilation progress or all child work."
+    },
+    {
+      "id": "gc_request_not_pause",
+      "source": "GC.CoreCLR.cs.txt:188-230,363-370",
+      "finding": "Collect and WaitForPendingFinalizers are explicit request/join entrypoints. Their sampled presence does not bind GC suspension episodes, identify collection success or attribute a managed-thread pause."
+    },
+    {
+      "id": "serialized_depth",
+      "source": "TraceAnalysis-Program.cs.txt:208-214",
+      "finding": "Extractor walks managed CallStack then Caller with 4096 frame cap and marks truncation. Retain ordinal as serialized_frame_depth only; it is not a physical native leaf/top frame, on-CPU state or instruction-level execution proof. Missing/unresolved/trimmed frames limit negative claims."
+    },
+    {
+      "id": "native_header_context",
+      "source": "ADR0025 declared scope and prior lineage proof limits",
+      "finding": "PID/native headerTID equality and timestamp overlap select recorded context candidates. They do not establish native generation lifetime, permanent task ownership, direct callsite or causal dependencies. Retain all candidates/nested overlaps and strict boundaries."
+    },
+    {
+      "id": "multilabel_overlap",
+      "source": "ADR0025 predeclared dictionary",
+      "finding": "ANY-frame labels are nonexclusive and may coexist through ancestors. Keep exact frame/rule/catalog/depth witnesses; report distinct raw point counts separately from globalquery/row associations. Do not add category counts into exclusive work proportions or convert point counts to elapsed/CPU/wait duration."
+    }
+  ],
+  "dictionary_review": "Pending exact finite dictionary/source from implementation agent; this report concerns source interpretation only",
+  "blocking_interpretation_findings": [],
+  "required_report_labels": [
+    "observed managed-frame context",
+    "not CPU/blocking/progress/GCpause",
+    "all candidate contexts retained; lifetime unproven",
+    "no sample means unknown, not zero work or wait"
+  ],
+  "no_engine_patch_justified": true
+}
