@@ -1,0 +1,98 @@
+{
+  "status": "read_only_source_design_review_completed_no_active_collector_qualification",
+  "scope": "ADR0029 fullstatic synthetic preparation; nohostworkload/perfopens/config byreview",
+  "provenance": "provenance03.json",
+  "provenance_sha256": "8300b33c8a5ccafe3322b51994f0c50494cb30ca402e3c22cac062cbeb728832",
+  "source_snapshots": 11,
+  "state": {
+    "source": "include_linux_sched.h.txt:145-148,1694-1706;include_trace_events_sched.h.txt:190-213",
+    "TASK_REPORT": 127,
+    "TASK_REPORT_IDLE": 128,
+    "TASK_REPORT_MAX": 256,
+    "rules": [
+      "raw0 = recordedrunnable/nonpreempt",
+      "raw256 = preemptmarkerR+; recordedrunnable, notsleep",
+      "rawknownsinglebit1,2,4,8,16,32,64,128 = reportednonrunning/exit/idle stateencoding; doesnotidentifywhywaited",
+      "Unknownbits/contradictorymixedpreemptandsleep states rejectorremainunknown; do notclassifynonzeroasblocked"
+    ],
+    "limits": "Thesearetracepointstates, notnativeinstructionCPU/usefulwork/GCcause."
+  },
+  "wakeup": {
+    "source": "include_trace_events_sched.h.txt:139-187",
+    "rules": [
+      "sched_waking guaranteedwakingcontext; sched_wakeup targetTASK_RUNNING butemitter notalwayswakingcontext",
+      "Payloadpid/targetCPU aretargetfields; perfheaderTID/commonpid referemitternamespace/globalcontext, nottarget",
+      "Runnablepreemptout mayneednowakeup beforelaterswitchin; nonrunnableout maybewokenbyotherCPU/emitter; missingedge unknown",
+      "wakingtowakeup gap iswakeuppath telemetry, notautomatically runnablequeue orblockedtime"
+    ]
+  },
+  "migration": {
+    "source": "include_trace_events_sched.h.txt:270-297",
+    "rules": [
+      "orig_cpu/dest_cpu payloadtargetplacement distinctfromsampleCPU/emitter",
+      "RetaincrossCPUties/orderuncertainty; noindex-temporal tiebreak",
+      "CaptureallonlineCPUs; equalbefore/aftertopologydoesnotattestnotransienthotplug; FDactivecoverage/counters andscope limits explicit"
+    ]
+  },
+  "birth_scope": {
+    "source": "include_trace_events_sched.h.txt:182-187,394-419",
+    "decision": "PrecreatedmappedstaticS cannotpositiveexerciseownedfork/newwake afterarm. Birth/newwakepredatebootstrap/arm. Parent-sideforknegativechildscopeonly; childnotS, newwakecorrectlyexcluded. Leavewakeup_newunexercised/unknown andfull8positivegateunqualified; noautoexpand orfuturePIDguess.",
+    "negative_child": "Fixturemayoperationallyowncleanup of knownnegativechild withoutadmittingit intotracedmembershipS. Retainparent/childcounterparty andnumericfilter effects separately."
+  },
+  "lifetime": {
+    "source": [
+      "kernel_pid.c.txt:95-148",
+      "fs_pidfs.c.txt:1088",
+      "kernel_exit.c.txt:228-242,249-317,959",
+      "include_trace_events_sched.h.txt:299-359"
+    ],
+    "rules": [
+      "PIDFDretainsstructpid object; free_pid removesnamespaceIDRnumericentries beforeRCUdelayedput, soPIDFDdoesnotreservePIDnumberafterreap.",
+      "sched_process_exit occursbeforelasttaskswitch/actualreap; exitnotification isnot finalinstructionorimmediatefree.",
+      "sched_process_free firesin delayed_put_task_struct RCUcallback, notontheactor itself; rawheader maybeRCUworker/unowned.",
+      "Afteractorends, numericfiltersstillcapturepotentialreusedgeneration. Keepallpostendrecords unassigned; newforkchildIDinS/newwakeclosedID/duplicateexit/free orleasechanges poisonaffectedgeneration, noownershiptransfer.",
+      "Fixed2secondRCUtail isavailabilitydeadline, notlatencyguarantee. Missingfreebydeadline unknown/failureperpredeclaredgate, neverfavorable-rerunreason.",
+      "AllCPUforkfilter(parentinS OR childinS) helpsdetectknownreusebirth evenunownedparent; absenceofforkwithoutcompleteupstreamdelivery cannotcertify noreuse."
+    ],
+    "scope": "FreePIDco-observationmaybequalifiedunderretainedgenerationguards; neverblanketnative-lifetimeproof orreuseprevention."
+  },
+  "layout": {
+    "source": "include_trace_events_sched.h.txt;include_trace_perf.h.txt:27-54",
+    "rules": [
+      "migrate/free/fork comm dynamic__string/__data_loc; switch/wake/exit commfixed16; validateoffset/len/NULifdecoding, otherwisekeepbytes. Namesnotauthority.",
+      "RawallocationALIGN(sizeofrawstruct+dynamicbytes+4,8)-4; donotusefieldend alone.",
+      "DeclaredLP64 switchraw68/sample104; wake/waking/newraw36/sample72; exitraw36/sample72. Dynamicrawsizes requiredeclaredoffsets+strings+alignment; preserveallpadding/raw.",
+      "group_deadbool isexitpayload, notproofallthreadsdeadforanyunvalidatedtaskgroup."
+    ]
+  },
+  "filters": {
+    "rules": [
+      "OneFD/event/CPU withprivateSET_FILTERack; nopublicreadbackclaim ifAPIabsent.",
+      "switchprevORnext\u2208S;wake/waking/new/migrate/exit/freepid\u2208S;forkparentORchild\u2208S",
+      "Validatepredicateagainonallretainedrawsamples withfrozenS; nonmembercontrol mustnotgetadmitted; bindFDconfig/perfID/sampleCPU/liveformat.",
+      "EveryrequiredFD/filter/enablesuccess beforeactorrelease. Commonfullwindow[lastEnableAfter,firstDisableBefore]; perFDprefix/suffixkeptunassigned.",
+      "Filteredrawswitch/fork includesunownedcounterpartyPID/comm;wakeheaderincludesemitter. Numericclosed-IDscope mayretainreusedunownedrecords asrejected/unknown; discloseboundedrawscope."
+    ]
+  },
+  "overflow": {
+    "source": [
+      "kernel_events_core.c.txt:10552-10604,10995-11017,11101-11114,6058-6078",
+      "kernel_events_ring_buffer.c.txt:174-205,248-265"
+    ],
+    "rules": [
+      "Freezeeventpopulation/ringpages/pressurephasecounts/undrainedinterval/deadlinebeforelaunch; retaincompletefixednegativeattempt. Noadaptiveextend/retryuntiloverflow.",
+      "NegativeoverflowobservedonlyifindependentterminalreadLOST>0 underdeclaredpressure orseparatelyrecognizedcapacity-lossobservation; zeroLOSTnegative=inconclusive, notpositivepass.",
+      "Forwardnonoverwrite ringpreventsoverwrite; head-tailoverrun meansABI/consumer/invariantfailure, notnormaloverflowqualification.",
+      "Kernelcount incrementsafterfiltermatch butbeforeeligibleoutput/regs/sampling/ACTIVE checks; period1normalpath attemptsoneoutput. count==SAMPLE+terminalLOST isconditionalobservedconsistency, notuniversallaw.",
+      "Canrequiresamplecount==value andterminalLOST0 asstrictpositivegate, withno throttle/decode/unknownrecords; thisdoesnotprove allupstreamkerneltpevents delivered.",
+      "PERF_RECORD_LOST coalesces earlierloss andmayonlyappearlaterwhenroomreturns; nofinalLOSTrecordrequired. NeveraddLOST-record totals toterminalreadLOST (doublecount).",
+      "OwnringperFD avoids sharedringaggregate lossambiguity. Exactdisabledterminalread23 tuple: value/enabled/running/id/lost; stabledrainheadtail withacquire/release andperFDID; allunknownaccounting explicit."
+    ]
+  },
+  "identity": [
+    "Eachthreadmapping localTGID/localTID/globalTID; nonleaderheaderPID!=TIDvalid, cannotreuseADR28leader-onlyequality. Perthreadbirth/procstatus/image andnamespace validate separately.",
+    "MappingneedsonegettidobservedsampleforEACHsameexecutionliveactor; noactorfromADR28previousrunimport.",
+    "rootlibrary/kernel/source/ABIcorrespondenceisnotimmutablebinaryattestation; originalEngine,benchmark/#3gatesunchanged."
+  ],
+  "outcome": "GO boundedimplementation/mockpreparation withtheseguards; NO full8delivery/nativeownership/schedulerCPU/GCcausalclaim. Rootalonefreezesandoperatesactualattempts."
+}

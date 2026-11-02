@@ -1,0 +1,19 @@
+"""Frozen passive preparation only: no actor/perf FD invocation."""
+import hashlib,json,subprocess,time
+from pathlib import Path
+root=Path(__file__).parent;work=Path('D:/Cephalon/.worktrees/scheduler-static/tools')
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+paths={'collector':work/'collect_scheduler_static.py','core':work/'scheduler_static_core.py','actor':work/'scheduler_static_actor.py','analysis':work/'scheduler_static_analysis.py',
+ 'python_pin':root.parent/'scheduler-mapping-feasibility01/python-image-before.txt',
+ 'library':root.parent/'scheduler-mapping-feasibility01/dependency01/libatomic.so.1.2.0','formats':root.parent/'scheduler-readiness02/source-review/event-formats.json','gettid':root.parent/'scheduler-mapping-feasibility01/sys_enter_gettid.format.txt'}
+h={k:sha(v) for k,v in paths.items()};assert h['collector']=='6e0a4b1c1c6c365875ae708295d68f5074b817814327b838ae6b5196d90b1873'
+python_sha='d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49'
+cmd=['wsl','--user','root','--','/usr/bin/timeout','--kill-after=2s','30s','/usr/bin/python3','/mnt/d/Cephalon/.worktrees/scheduler-static/tools/collect_scheduler_static.py','--output','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-static01/preparation01','--libatomic','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/dependency01/libatomic.so.1.2.0','--expected-libatomic-sha256',h['library'],'--expected-python-sha256',python_sha,'--expected-kernel-release','6.18.54.1-microsoft-standard-WSL2','--expected-source-sha256',h['collector'],'--expected-core-sha256',h['core'],'--expected-actor-sha256',h['actor'],'--expected-analysis-sha256',h['analysis'],'--formats','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-readiness02/source-review/event-formats.json','--expected-bundle-sha256',h['formats'],'--expected-gettid-format-sha256',h['gettid'],'--expected-online','0-19','--prepare-only']
+frozen={'date_bangkok':'2026-11-03','scope':'Stage A passive preparation; zero actors/perf FDs, actual library scratch permitted','files':{k:{'path':str(p),'sha256':h[k]} for k,p in paths.items()},'command':cmd,'before_monotonic_ns':time.monotonic_ns()}
+with (root/'preparation-freeze01.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(frozen,f,indent=2);f.write('\n')
+run=subprocess.run(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=45)
+for key,data in [('stdout',run.stdout),('stderr',run.stderr)]:
+    with (root/('preparation01-'+key+'.txt')).open('xb') as f:f.write(data)
+out={'exit_code':run.returncode,'after_monotonic_ns':time.monotonic_ns(),'stdout_sha256':hashlib.sha256(run.stdout).hexdigest(),'stderr_sha256':hashlib.sha256(run.stderr).hexdigest()}
+with (root/'preparation-invocation01.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(out,f,indent=2);f.write('\n')
+print(json.dumps(out));print(run.stdout.decode('utf-8'));print(run.stderr.decode('utf-8'))

@@ -1,0 +1,281 @@
+{
+  "status": "offline_specification_only_not_capture_ready",
+  "declared_example_tids": [
+    1110,
+    1111,
+    1112,
+    1113,
+    1114
+  ],
+  "target_tid_scope": "caller supplied native TIDs; not a live process/owner/birth lease",
+  "proposed_identity_split": "ordinary-user owned synthetic target; one-shot privileged collector only",
+  "arming_protocol": [
+    "Open every per-CPU/event FD disabled; no unrestricted enabled window.",
+    "Apply each payload filter and retain ioctl acknowledgment; abort/close all owned FDs on any failure.",
+    "Validate source/attrs/CPU topology/namespaces/owned actor leases; document unavailable filter readback.",
+    "Enable only after all filters are installed; release ordinary-user ready barrier after final enable.",
+    "Positive/negative synthetic delivery and loss/clock gates must pass before accepting captured evidence."
+  ],
+  "fd_specifications": [
+    {
+      "event": "sched:sched_switch",
+      "observed_event_id": 268,
+      "filter_expression": "(prev_pid == 1110 || prev_pid == 1111 || prev_pid == 1112 || prev_pid == 1113 || prev_pid == 1114 || next_pid == 1110 || next_pid == 1111 || next_pid == 1112 || next_pid == 1113 || next_pid == 1114)",
+      "filter_fields": [
+        "prev_pid",
+        "next_pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 268,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_waking",
+      "observed_event_id": 271,
+      "filter_expression": "(pid == 1110 || pid == 1111 || pid == 1112 || pid == 1113 || pid == 1114)",
+      "filter_fields": [
+        "pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 271,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_wakeup",
+      "observed_event_id": 270,
+      "filter_expression": "(pid == 1110 || pid == 1111 || pid == 1112 || pid == 1113 || pid == 1114)",
+      "filter_fields": [
+        "pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 270,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_wakeup_new",
+      "observed_event_id": 269,
+      "filter_expression": "(pid == 1110 || pid == 1111 || pid == 1112 || pid == 1113 || pid == 1114)",
+      "filter_fields": [
+        "pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 269,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_migrate_task",
+      "observed_event_id": 267,
+      "filter_expression": "(pid == 1110 || pid == 1111 || pid == 1112 || pid == 1113 || pid == 1114)",
+      "filter_fields": [
+        "pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 267,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_process_fork",
+      "observed_event_id": 262,
+      "filter_expression": "(parent_pid == 1110 || parent_pid == 1111 || parent_pid == 1112 || parent_pid == 1113 || parent_pid == 1114 || child_pid == 1110 || child_pid == 1111 || child_pid == 1112 || child_pid == 1113 || child_pid == 1114)",
+      "filter_fields": [
+        "parent_pid",
+        "child_pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 262,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_process_exit",
+      "observed_event_id": 265,
+      "filter_expression": "(pid == 1110 || pid == 1111 || pid == 1112 || pid == 1113 || pid == 1114)",
+      "filter_fields": [
+        "pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 265,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    },
+    {
+      "event": "sched:sched_process_free",
+      "observed_event_id": 266,
+      "filter_expression": "(pid == 1110 || pid == 1111 || pid == 1112 || pid == 1113 || pid == 1114)",
+      "filter_fields": [
+        "pid"
+      ],
+      "event_type": "PERF_TYPE_TRACEPOINT",
+      "config": 266,
+      "initially_disabled": true,
+      "close_on_exec": true,
+      "inherit": false,
+      "exclude_kernel": false,
+      "placement": "one FD on every online CPU; topology must be snapshotted/guarded",
+      "pid_argument": -1,
+      "clockid": "CLOCK_MONOTONIC",
+      "use_clockid": true,
+      "sample_period": 1,
+      "sample_type_names": [
+        "TID",
+        "TIME",
+        "CPU",
+        "RAW"
+      ],
+      "sample_id_all": true,
+      "mmap_comm_task_metadata_requested": false,
+      "callchains_requested": false,
+      "overwrite_mode_requested": false
+    }
+  ],
+  "active_capture_ready": false,
+  "opens_fds": false,
+  "launches_processes": false,
+  "global_tracefs_or_permission_writes": false,
+  "unowned_counterparty_metadata_retained": true,
+  "data_scope": "Switch/fork raw counterparts and waking common-header emitters may be unowned. Filters do not erase counterpart metadata.",
+  "future_children": "No automatic ownership expansion; a new/reused/unknown TID invalidates affected static scope.",
+  "gates": {
+    "owned_target_uid_pid_tid_birth_leases": "untested",
+    "static_threads_ready_before_arm": "untested",
+    "perf_event_open_permission_and_filter_delivery": "untested",
+    "complete_raw_abi_and_cpu_topology_pid_time_namespaces": "untested",
+    "CLOCK_MONOTONIC_attrs_and_marker_brackets": "untested",
+    "switch_wakeup_state_and_migration_conformance": "untested",
+    "loss_overrun_throttle_and_terminal_drain_coverage": "untested",
+    "bounded_owned_cleanup_and_no_extra_data": "untested",
+    "collector_perturbation_and_trace_source_freeze": "untested"
+  },
+  "limitations": [
+    "Readable formats or root identity do not prove perf permission, delivery, loss or clocks.",
+    "Payload target PID differs from common_pid/emitter; process-only attachment can miss remote wakeups.",
+    "No initial/final state is inferred; raw prev_state/preemption encoding needs exact-source decoder.",
+    "No LOST records is insufficient at terminal buffer edge; validate all accounting/drain limits.",
+    "Generic perf record metadata may exceed sample filters; prefer explicitly audited FD attributes.",
+    "No CPU, blocked/runqueue/GC attribution or platform/provider/production qualification."
+  ]
+}

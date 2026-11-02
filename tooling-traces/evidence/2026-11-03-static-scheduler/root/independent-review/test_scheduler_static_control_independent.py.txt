@@ -1,0 +1,149 @@
+"""Mocked ADR0029 ring ownership, output cap and cleanup; no real descriptor/native call."""
+import argparse
+import ctypes
+import hashlib
+import importlib
+import json
+from pathlib import Path
+import struct
+import sys
+import types
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--root', required=True)
+    parser.add_argument('--output', required=True)
+    args = parser.parse_args()
+    sys.path.insert(0, str(Path(args.root) / 'tools'))
+    c = importlib.import_module('collect_scheduler_static')
+    folder = Path(args.output).with_suffix('')
+    folder.mkdir(exist_ok=False)
+    checks = []
+
+    def check(name, fn):
+        try:
+            assert fn() is not False
+            checks.append(dict(name=name, passed=True))
+        except Exception as exc:
+            checks.append(dict(name=name, passed=False, error=repr(exc)))
+
+    def rejected(fn):
+        try:
+            fn()
+        except (ValueError, RuntimeError, FileExistsError):
+            return True
+        raise AssertionError('Expected guard rejection')
+
+    budget = c.OutputBudget(limit=8)
+    a, b = folder / 'a.bin', folder / 'b.bin'
+    check('budget_first_write', lambda: (budget.write(a, b'1234'), budget.total == 4)[1])
+    check('budget_append_exact_cap', lambda: (budget.write(a, b'5678', append=True), budget.total == 8 and a.read_bytes() == b'12345678')[1])
+    check('budget_reject_overflow_no_new_file', lambda: rejected(lambda: budget.write(b, b'x')) and not b.exists() and budget.total == 8)
+    check('budget_replace_counts_final_bytes', lambda: (budget.write(a, b'ab', replace=True), budget.total == 2 and a.read_bytes() == b'ab')[1])
+    check('budget_after_replace_exact_cap', lambda: (budget.write(b, b'123456'), budget.total == 8)[1])
+    check('budget_existing_path_not_overwritten', lambda: rejected(lambda: budget.write(a, b'x')))
+
+    # Page-aligned private Python memory, not native mmap/perf memory.
+    class PrivateMap(ctypes.Array):
+        _type_ = ctypes.c_char
+        _length_ = 8192
+        def close(self):
+            self.was_closed = True
+
+    owners = []
+    maps = []
+    def private_map(fd, length, **kwargs):
+        assert length == 8192
+        owner = ctypes.create_string_buffer(length + 4096)
+        shift = (-ctypes.addressof(owner)) % 4096
+        result = PrivateMap.from_buffer(owner, shift)
+        owners.append(owner)
+        struct.pack_into('<QQ', result, c.mapping.DATA_OFFSET, 4096, 4096)
+        maps.append(result)
+        return result
+
+    class PrivateAtomic:
+        def __init__(self, lockfree=True):
+            self.lockfree = lockfree
+            self.calls = []
+        def lock_free(self, address):
+            return self.lockfree
+        def acquire(self, address):
+            self.calls.append(('acquire', address))
+            return ctypes.c_uint64.from_address(address).value
+        def release(self, address, value):
+            self.calls.append(('release', address, value))
+            ctypes.c_uint64.from_address(address).value = value
+
+    original_mmap = c.mmap
+    c.mmap = types.SimpleNamespace(mmap=private_map, MAP_SHARED=1, PROT_READ=1, PROT_WRITE=2)
+    try:
+        atomic = PrivateAtomic()
+        ring = c.ForwardRing(100, 1, atomic)
+        check('ring_constructor_private_aligned_buffer', lambda: ring.capacity == 4096)
+        ring.map[4096:4100] = b'abcd'
+        struct.pack_into('<Q', ring.map, c.mapping.HEAD, 4)
+        def copycheck():
+            raw, snapshot = ring.copy()
+            return raw == b'abcd' and snapshot['head'] == snapshot['tail_after'] == 4 and ring.tail() == 4 and any(call[0] == 'release' for call in atomic.calls)
+        check('ring_copy_acquire_release_terminal_tail', copycheck)
+        ring.close()
+        check('ring_close_called', lambda: ring.map.was_closed is True)
+        check('ring_nonlockfree_constructor_rejects', lambda: rejected(lambda: c.ForwardRing(101, 1, PrivateAtomic(False))))
+        check('ring_constructor_rejection_closes_map', lambda: maps[-1].was_closed is True)
+        check('ring_frozen_page_count_guard', lambda: rejected(lambda: c.ForwardRing(102, 2, atomic)))
+    finally:
+        c.mmap = original_mmap
+
+    operations = []
+    class FakeNative:
+        def read(self, fd):
+            operations.append(('read', fd))
+            return bytes(40)
+        def close(self, fd):
+            operations.append(('close', fd))
+        def closed(self, fd):
+            operations.append(('closed_check', fd))
+            return True
+
+    class FakeRing:
+        map = bytes(8192)
+        def copy(self):
+            operations.append(('copy',))
+            return b'abc', dict(head=3, tail_before=0, tail_after=3, bytes=3, monotonic_ns=1)
+        def close(self):
+            operations.append(('unmap',))
+
+    old_fcntl = sys.modules.get('fcntl')
+    sys.modules['fcntl'] = types.SimpleNamespace(ioctl=lambda fd, op, arg: operations.append(('ioctl', fd, op)))
+    try:
+        session = c.Session(folder / 'case', 'negative', FakeNative(), None, {}, [0], {}, c.OutputBudget(), None)
+        channel_folder = session.path / 'channel'
+        channel_folder.mkdir()
+        channel = dict(fd=100, opened_fd=100, enabled=True, ring=FakeRing(), folder=channel_folder, sample_bytes=0, chunks=[])
+        session.channels = [channel]
+        session.close_channels()
+        check('cleanup_disables_before_unmap_close', lambda: operations.index(('ioctl', 100, 0x2401)) < operations.index(('unmap',)) < operations.index(('close', 100)))
+        check('cleanup_retains_original_FD_identity', lambda: channel['opened_fd'] == 100 and channel['fd'] is None and channel['fd_closed'] is True and channel['ring_unmapped'] is True)
+        check('cleanup_retains_partial_stream_chunks', lambda: (channel_folder / 'records.raw.bin').read_bytes() == b'abc' and json.loads((channel_folder / 'chunks.json').read_text())[0]['file_offset'] == 0)
+        check('cleanup_retains_counter_and_full_ring', lambda: len((channel_folder / 'cleanup-read.raw.bin').read_bytes()) == 40 and len((channel_folder / 'terminal-ring.raw.bin').read_bytes()) == 8192)
+    finally:
+        if old_fcntl is None:
+            sys.modules.pop('fcntl', None)
+        else:
+            sys.modules['fcntl'] = old_fcntl
+    report = dict(status='pass' if all(x['passed'] for x in checks) else 'fail', checks=len(checks),
+                  failures=sum(not x['passed'] for x in checks), results=checks,
+                  collector_sha256=hashlib.sha256(Path(c.__file__).read_bytes()).hexdigest(),
+                  driver_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                  scope='All descriptor/mmap/native methods mocked; only private Python buffers and retained fixture files.')
+    with Path(args.output).open('x', encoding='utf-8', newline='\n') as f:
+        json.dump(report, f, indent=2)
+        f.write('\n')
+    print(json.dumps({k: report[k] for k in ['status', 'checks', 'failures', 'collector_sha256', 'driver_sha256']}))
+    return bool(report['failures'])
+
+
+if __name__ == '__main__':
+    sys.exit(main())

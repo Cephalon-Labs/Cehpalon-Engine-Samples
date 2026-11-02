@@ -1,0 +1,120 @@
+"""Independent ADR29 retained-byte oracle; no production imports/native actions."""
+from pathlib import Path
+from collections import Counter
+import json,struct,re,hashlib,traceback
+P=Path(__file__).parent.parent;B=P/'static-attempt01';inputs={};checks=0;failures=[];summary={}
+def raw(path):
+ b=Path(path).read_bytes();inputs[str(path)]=dict(bytes=len(b),sha256=hashlib.sha256(b).hexdigest());return b
+def obj(path):return json.loads(raw(path))
+def check(ok,why):
+ global checks
+ checks+=1
+ if not ok:
+  failures.append(why)
+  if len(failures)>30:raise ValueError('Too many independent mismatches')
+def need(ok,why):
+ check(ok,why)
+ if not ok:raise ValueError(why)
+def refs(name,r):return dict(event=name,cpu=r['cpu'],record_offset=r['offset'],time_ns=r['time'])
+def key(r):return (r['event'],r['cpu'],r['record_offset'],r['time_ns'])
+def formats():
+ result={}
+ for name in ['sched_switch','sched_waking','sched_wakeup','sched_wakeup_new','sched_migrate_task','sched_process_fork','sched_process_exit','sched_process_free']:
+  text=raw(B/(name+'.format.txt')).decode();eid=int(re.search(r'^ID: (\d+)$',text,re.M)[1]);fields={}
+  for dec,off,size,sign in re.findall(r'field:([^;]+);\s*offset:(\d+);\s*size:(\d+);\s*signed:(\d+);',text):
+   namefield=re.search(r'([A-Za-z_][A-Za-z_0-9]*)(?:\[\d+\])?$',dec.strip())[1];need(namefield not in fields,'Unique ABI field');fields[namefield]=dict(dec=dec.strip(),off=int(off),size=int(size),signed=int(sign))
+  result[name]=dict(id=eid,fields=fields)
+ return result
+def decode(blob,fmt,cpu,members):
+ result=[];pos=0
+ while pos<len(blob):
+  need(pos+8<=len(blob),'Complete raw record header');kind,misc,size=struct.unpack_from('<IHH',blob,pos);need(size>=8 and size%8==0 and pos+size<=len(blob),'Complete aligned record');r=dict(type=kind,offset=pos,size=size,cpu=cpu);item=blob[pos:pos+size]
+  if kind==9:
+   need(size>=36,'Complete sample fixed fields');pid,tid,stamp,rcpu,reserved,n=struct.unpack_from('<IIQIII',item,8);need(rcpu==cpu and reserved==0 and n==size-36,'Sample CPU/raw-size');data=item[36:];vals={};dynamic=[];end=max(f['off']+f['size'] for f in fmt['fields'].values());alignment=max(4 if '__data_loc' in f['dec'] else 1 if '['in f['dec'] else min(8,f['size']) for f in fmt['fields'].values());base=(end+alignment-1)//alignment*alignment;need(len(data)>=base and data[end:base]==bytes(base-end),'Struct alignment padding')
+   for name,f in fmt['fields'].items():
+    v=data[f['off']:f['off']+f['size']];need(len(v)==f['size'],'Scalar/fixed bounds')
+    if '__data_loc' in f['dec']:
+     loc=int.from_bytes(v,'little');off,count=loc&65535,loc>>16;need(1<=count<=16 and base<=off and off+count<=len(data),'Dynamic string bounds');s=data[off:off+count];need(s[-1:]==b'\0' and b'\0'not in s[:-1],'Dynamic terminator');dynamic.append((off,off+count));vals[name]=s
+    elif '[' in f['dec']:need(b'\0'in v,'Fixed comm terminator');vals[name]=v
+    else:vals[name]=int.from_bytes(v,'little',signed=bool(f['signed']))
+   dynamic.sort();need(not dynamic or dynamic[0][0]==base and all(a[1]==b[0] for a,b in zip(dynamic,dynamic[1:])),'Dynamic ranges contiguous/disjoint');used=dynamic[-1][1] if dynamic else base;expected=((used+4+7)//8)*8-4;need(len(data)==expected and data[used:]==bytes(expected-used),'Source-rounded raw size/padding');need(vals['common_type']==fmt['id'],'Raw event identity');target=['prev_pid','next_pid'] if 'prev_pid'in vals else ['parent_pid','child_pid'] if 'parent_pid'in vals else ['pid'];need(any(vals[k]in members for k in target),'Actual payload membership predicate')
+   if 'group_dead'in vals:check(vals['group_dead']in[0,1],'group_dead bool')
+   r.update(pid=pid,tid=tid,time=stamp,p=vals)
+  else:
+   need(kind in [2,13,5,6],'No unknown/unrequested sideband');body={2:16,13:8,5:24,6:24}[kind];need(size==8+body+24,'Loss/throttle exact trailer');pid,tid,stamp,rcpu,res=struct.unpack_from('<IIQII',item,8+body);need(rcpu==cpu and res==0,'Loss trailer CPU/reserved');r.update(pid=pid,tid=tid,time=stamp)
+   if kind==2:r.update(id=struct.unpack_from('<Q',item,8)[0],lost=struct.unpack_from('<Q',item,16)[0])
+   elif kind==13:r['lost_samples']=struct.unpack_from('<Q',item,8)[0]
+  result.append(r);pos+=size
+ return result
+def counter(b):need(len(b)==40,'Exact read-format23 bytes');return dict(zip(['value','time_enabled','time_running','perf_event_id','lost'],struct.unpack('<QQQQQ',b)))
+def attr(hexval,eid):
+ b=bytes.fromhex(hexval);need(len(b)==128,'128-byte attr');need(struct.unpack_from('<IIQQQQQ',b,0)==(2,128,eid,1,1158,23,1+(1<<18)+(1<<25)),'Exact attr type/config/period/sample/read/flags');need(struct.unpack_from('<i',b,92)[0]==1,'CLOCK_MONOTONIC');check(b[48:92]==(1).to_bytes(4,'little')+bytes(40) and b[96:]==bytes(32),'No extra sideband/attr fields')
+def terminal(path,stream,head,tail,capacity):
+ b=raw(path);need(len(b)==4096+capacity,'Exact owned terminal map bytes');need(struct.unpack_from('<QQQQ',b,1024)==(head,tail,4096,capacity),'Terminal mmap metadata/headtail');start=max(0,head-capacity);count=head-start;at=start%capacity;data=b[4096:];last=data[at:at+min(count,capacity-at)]+data[:max(0,count-(capacity-at))];check(last==stream[start:head],'Raw terminal data matches reconstructed last ring bytes')
+def bootstrap(folder,entry,case,cpus):
+ tid=entry['local_tid'];q=folder/('map-'+str(tid));b=raw(q/'records.raw.bin');need(len(b)==56,'One mapping56-byte record');kind,misc,size,pid,ltid,stamp,cpu,res,n=struct.unpack_from('<IHHIIQIII',b,0);typ,flags,preempt,gid,nr=struct.unpack_from('<HBBii',b,36);need((kind,size,n,typ,nr,res)==(9,56,20,208,186,0) and b[48:]==bytes(8),'Exact mapping raw layout/padding');need(pid==case['ready']['pid'] and ltid==tid and gid==entry['global_tid']>0,'TGID/TID/global mapping tuple');r=entry['actor_result'];check(r['pid']==pid and r['tid']==r['gettid_return']==tid and r['armed_gettid_calls']==1 and entry['enable_after_ns']<=r['before_monotonic_ns']<=stamp<=r['after_monotonic_ns']<=entry['disable_before_ns'],'Mapping arm/result/clock bracket');need(cpu in cpus,'Mapping CPU');one=raw(q/'read1.raw.bin');two=raw(q/'read2.raw.bin');need(one==two,'Mapping stable reads');v=counter(one);check(v==entry['counters'] and v['value']==1 and v['lost']==0 and v['perf_event_id']==entry['perf_event_id'] and 0<=v['time_running']<=v['time_enabled'],'Mapping count/ID/loss');attr(entry['attr_hex'],208);terminal(q/'terminal-ring.raw.bin',b,56,56,4096);check(entry['ring_closed']and entry['close_ack']and entry['closed_readback']and entry['fd_closed'],'Reported mapping closures');check(entry['sample']['record_hex']==b.hex(),'Mapping copied record exactly raw');return gid
+
+def audit():
+ freeze=obj(P/'static-freeze01.json');inv=obj(P/'static-invocation01.json');need(inv['freeze_sha256']==inputs[str(P/'static-freeze01.json')]['sha256'] and inv['command']==freeze['command'] and inv['exit_code']==0,'Exact frozen invocation');need(hashlib.sha256(raw(P/'static-attempt01-stdout.txt')).hexdigest()==inv['stdout_sha256'] and hashlib.sha256(raw(P/'static-attempt01-stderr.txt')).hexdigest()==inv['stderr_sha256'],'Retained invocation raw stdio');need(freeze['case_order']==['negative','positive'],'Fixed case order');top=obj(B/'manifest.json');need(top['status']=='bounded_static_cases_completed_newwake_unexercised' and top['active_scheduler_ready']is False,'Bounded top status only');formatspec=formats();online=list(range(20));expectedpins={}
+ for name,item in freeze['files'].items():
+  snapshots={'collect_scheduler_static.py':'collector.txt','scheduler_static_core.py':'core.txt','scheduler_static_actor.py':'actor.txt','scheduler_static_analysis.py':'analysis.txt'}
+  q=B/(snapshots.get(name,name+'.txt')) if name.endswith('.py') else P/('frozen-'+name+'.txt') if name in ['adr','protocol'] else Path(item['path']);b=raw(q);check(hashlib.sha256(b).hexdigest()==item['sha256'],'Frozen source/input '+name);expectedpins[name]=item['sha256']
+ prep=top['preparation'];need(prep['environment']['errors']==[] and prep['resources']['errors']==[] and prep['environment']['values']['online']=='0-19','Actual sameinvocation passiveinputs');check(prep['resources']['positive_mapping_bytes']==20*8*65*4096 and prep['resources']['positive_mapping_bytes']<=prep['resources']['memlock'][0],'Bothcase resourceprecheck actual');check(prep['resources']['required_fd_capacity']<=prep['resources']['nofile'][0],'FD resourceprecheck')
+ post=top['postflight'];need(post['errors']==[] and post['environment_readback']['errors']==[] and post['environment_readback']['values']==prep['environment']['values'],'Source reported environment postreadback stable')
+ for key,file in [('source_sha256','collect_scheduler_static.py'),('core_sha256','scheduler_static_core.py'),('actor_sha256','scheduler_static_actor.py'),('analysis_sha256','scheduler_static_analysis.py')]:check(post[key]==expectedpins[file],'Post source hash '+key)
+ check(post['python_sha256']==prep['python_sha256']==freeze['command'][freeze['command'].index('--expected-python-sha256')+1] and post['libatomic_sha256']==expectedpins['library'] and post['kernel_release']==prep['kernel_release'],'Native/kernel postmetadata pins')
+ for name in ['collect_scheduler_mapping.py','preflight_scheduler_perf.py','plan_scheduler_conformance.py','scheduler_mapping_actor.py']:check(post['import_'+name]==expectedpins[name],'Post import pin '+name)
+ for name in formatspec:check(post['format_'+name]==prep['format_readbacks'][name]['sha256']==inputs[str(B/(name+'.format.txt'))]['sha256'],'Actual ABI post/pre/frozen hash '+name)
+ check(post['gettid_format_sha256']==prep['gettid_format_sha256']==expectedpins['gettid_format'],'Gettid ABI stable')
+ allids=[];cases={};lastfinish=0
+ for ci,c in enumerate(top['cases']):
+  name=c['case'];folder=B/name;need(name==['negative','positive'][ci] and c['status']=='bounded_static_observations_completed' and c['active_scheduler_ready']is False,'Case separation/order/status');need(c==obj(folder/'manifest.json'),'Exact top/case final mirror');need(c['common_start_ns']>lastfinish,'Cases not temporally fused');lastfinish=c['case_finished_monotonic_ns'];need(len(c['mapping'])==5,'Five mappings');members=[bootstrap(folder,e,c,online) for e in c['mapping']];need(sorted(members)==c['global_tids'] and len(set(members))==5,'Distinct case-native population');gl={e['local_tid']:e['global_tid']for e in c['mapping']};channels=c['channels'];need({(d['cpu'],d['event'])for d in channels}=={(cpu,event)for cpu in online for event in formatspec}and len(channels)==160,'AllCPU/eight FD Cartesian product');need(len(set(d['opened_fd']for d in channels))==160,'Distinct simultaneous channelFDs');firstenable=min(d['enable_before_ns']for d in channels);need(max(d['filter_after_ns']for d in channels)<firstenable,'AllfiltersACKbefore ANYenable');need(c['common_start_ns']==max(d['enable_after_ns']for d in channels)and c['common_end_ns']==min(d['disable_before_ns']for d in channels),'Common allFD bracket');records={event:[]for event in formatspec};stats=Counter();fd_report=[]
+  for d in channels:
+   cpu,event=d['cpu'],d['event'];q=folder/(str(cpu)+'-'+event);fmt=formatspec[event];attr(d['attr_hex'],fmt['id']);fields=['prev_pid','next_pid']if event=='sched_switch'else['parent_pid','child_pid']if event=='sched_process_fork'else['pid'];expression='('+' || '.join(field+' == '+str(tid)for field in fields for tid in sorted(members))+')';check(d['filter_expression']==expression and d['filter_ack']is True and d['initially_disabled']is True and d['ring_ready']is True,'Exact private predicate/arm metadata');check(d['filter_before_ns']<=d['filter_after_ns']<d['enable_before_ns']<=d['enable_after_ns']<=d['disable_before_ns']<=d['disable_after_ns'],'PerFD arm clock brackets');disabled=counter(raw(q/'disabled-read.raw.bin'));check(disabled['value']==disabled['lost']==disabled['time_enabled']==disabled['time_running']==0 and disabled['perf_event_id']==d['perf_event_id'],'Fresh disabled counters');one=raw(q/'read1.raw.bin');two=raw(q/'read2.raw.bin');check(one==two==raw(q/'cleanup-read.raw.bin'),'Stable terminal/cleanup raw reads');v=counter(one);need(v==d['values']and v['perf_event_id']==d['perf_event_id']and 0<=v['time_running']<=v['time_enabled'],'Counter raw metadata equality');allids.append(v['perf_event_id']);stream=raw(q/'records.raw.bin');need(len(stream)==d['sample_bytes']==d['terminal_head']==d['terminal_tail'],'Complete linear stream/headtail');chunks=obj(q/'chunks.json');cursor=0
+   for k in chunks:check(k['file_offset']==k['tail_before']==cursor and k['head']==k['tail_after']and k['bytes']==k['head']-cursor and 0<k['bytes']<=d['pages']*4096,'Chunk cursor/headtail/bounds');cursor=k['head']
+   check(cursor==len(stream),'Chunks cover entire raw stream');terminal(q/'terminal-ring.raw.bin',stream,d['terminal_head'],d['terminal_tail'],d['pages']*4096);decoded=decode(stream,fmt,cpu,members);check(all(a['time']<=b['time']for a,b in zip(decoded,decoded[1:])),'PerFD monotonic raw time');samples=[r for r in decoded if r['type']==9];lost=[r for r in decoded if r['type']==2];check(all(r['id']==v['perf_event_id']for r in lost),'LOSTrawID bindsFD');stats['samples']+=len(samples);stats['terminal_lost']+=v['lost'];stats['LOSTrecords']+=len(lost);stats['emitted_lost']+=sum(r['lost']for r in lost);stats['throttles']+=sum(r['type']in[5,6]for r in decoded);stats['count_minus_sample_minus_lost']+=v['value']-len(samples)-v['lost']
+   if name=='positive':need(v['lost']==0 and v['value']==len(samples)and 0<v['time_running']==v['time_enabled']and len(samples)==len(decoded),'Positive conservative count/loss/accounting gate')
+   check(d['gate']['samples']==len(samples)and d['gate']['terminal_read_lost']==v['lost'],'Gate summaries equal raw oracle');check(d['fd']is None and d['enabled']is False and d['ring_unmapped']is True and d['fd_closed']is True,'Reported ownresource closures')
+   for r in samples:r['event']=event;records[event].append(r)
+   fd_report.append(dict(cpu=cpu,event=event,samples=len(samples),lost=v['lost'],head=d['terminal_head']))
+  if name=='negative':check(stats['terminal_lost']==103613==c['negative_actual_lost'] and stats['terminal_lost']>0,'Actual fixed negative capacity loss');check([s['phase']for s in c['phases']]==['negative_pressure'],'No adaptive negativephase');check(all(w['count']==10000 for w in c['phases'][0]['workers']),'Fixed negative pressure iterations')
+  for ob in c['observations']:
+   check(ob['environment_readback']['errors']==[]and ob['environment']==prep['environment']['values'],'Retained observation env no drift/error');check(ob['leases']['errors']==[],'No unclassified lease errors');need(ob['before_monotonic_ns']<=ob['after_monotonic_ns'],'Observation read brackets')
+   for tid,z in ob['leases']['observations'].items():
+    check(z['local_pid']==c['ready']['pid']and int(tid)==z['local_tid']and z['image']==prep['environment']['values']['python_image']and z['namespaces']==prep['environment']['values']['namespaces'],'Lease target/image/ns');check(z['uid']=='1000\t1000\t1000\t1000'and z['gid']==z['uid']and z['groups']==''and all(int(z['caps'][v],16)==0 for v in ['CapEff','CapPrm','CapInh','CapAmb']),'Ordinary credentials/caps')
+    before=c['baseline_leases']['observations'][tid];check(z['starttime_ticks']==before['starttime_ticks'],'Same observed thread birth')
+  check(c['cleanup']=={'child_joined':True}and c['child_exit']['wait_status']==0,'Reported child joined exit0');check(all(z['close_ack']and z['closed_check']for z in c['control_close_readbacks']),'Reported controls closed');check(len(c['control_close_readbacks'])==len(c['opened_control_fds']),'Every declared control close readback')
+  cases[name]=dict(stats=dict(stats),global_by_local=gl,records=records,manifest=c,fd_summary=fd_report)
+ need(len(set(allids))==320,'Fresh perCPU FD kernel IDs across cases');summary['cases']={n:dict(stats=v['stats'],channels=160,mappings=5,global_by_local=v['global_by_local'])for n,v in cases.items()};positive(cases['positive']);summary['source_enforced_not_independent_os_proof']=['Actual perf/syscall/FDfilterreadback/credentialdrop implementation verified previously, this oracle audits retained raw+reportedACKs only.','Cleanup/lease/OSidentity snapshots are retained sourceobservations, not immutable native lifetime/hostilehost attestation.','Same source eventrecord gaps do not prove CPU/duration/GCcause; wakeup_new remainsunknown.']
+
+def positive(data):
+ c=data['manifest'];lo,hi=c['common_start_ns'],c['common_end_ns'];events={n:[r for r in rs if lo<r['time']<hi]for n,rs in data['records'].items()};a=c['analysis'];check(a['passed']is True and a['failures']==[]and a['active_scheduler_ready']is False and a['all_eight_positive_delivery_proven']is False,'Bounded analysis result only');check(not events['sched_wakeup_new']and a['wakeup_new_gate']=='unexercised_unknown_static_precreation','No newlyownedgeneration/newwakeclaim');roles={k:data['global_by_local'][v]for k,v in c['role_local_tids'].items()};check(roles==a['global_roles'],'Rebuilt globalroles');states=Counter({str(k):0 for k in [0,1,2,4,8,16,32,64,128,256]});states.update(str(r['p']['prev_state'])for r in data['records']['sched_switch']);check(dict(states)==a['state_counts'],'Exact statecounts allretainedpoints');check(all(int(s)in[0,1,2,4,8,16,32,64,128,256]for s in states),'Supported R/R+ andnonrunningstates');check(a['prefix_suffix_unassigned']=={n:len(rs)-len(events[n])for n,rs in data['records'].items()},'All prefix/suffix raw records keptunassigned');phase={p['phase']:p for p in c['phases']};need(list(phase)==['handoff','yield','run','migrate','nonmember_fork','sacrifice'],'Exact positivephaseorder');last=lo
+ for p in phase.values():check(last<=p['before_monotonic_ns']<p['after_monotonic_ns']<hi,'Ordered positivephase commonwindow');last=p['after_monotonic_ns']
+ oraclechains={}
+ for role in ['A','B']:
+  worker=next(w for w in phase['handoff']['workers']if w['tid']==c['role_local_tids'][role]);start,end=worker['before_monotonic_ns'],worker['after_monotonic_ns'];tid=roles[role];edge=[]
+  for r in events['sched_switch']:
+   if start<r['time']<end:
+    if r['p']['prev_pid']==tid:edge.append((r['time'],'out',r))
+    if r['p']['next_pid']==tid:edge.append((r['time'],'in',r))
+  edge.extend((r['time'],'wake',r)for r in events['sched_wakeup']if r['p']['pid']==tid and start<r['time']<end);edge.sort(key=lambda x:x[0]);frequencies=Counter(x[0]for x in edge);triples=[]
+  for i in range(2,len(edge)):
+   group=edge[i-2:i+1]
+   if [z[1]for z in group]==['out','wake','in']and all(frequencies[z[0]]==1 for z in group)and group[0][2]['p']['prev_state']in[1,2]:triples.append(tuple(key(refs(name,z[2]))for name,z in zip(['sched_switch','sched_wakeup','sched_switch'],group)))
+  reported=[tuple(key(q[k])for k in ['out','wakeup','in'])for q in a['handoff_state_chains'][role]['complete_chains']];check(set(triples)==set(reported)and len(triples)==len(reported)>0,'Independent adjacentedge triplet oracle '+role);check(a['handoff_state_chains'][role]['initial_state']==a['handoff_state_chains'][role]['final_state']=='unknown','Initial/finalstate unknown');oraclechains[role]=len(triples)
+ worker=phase['migrate']['workers'][0];steps=worker['migration_steps'];check(len(steps)==8,'Fixed8migrationsteps')
+ for i,s in enumerate(steps):
+  rs=[r for r in events['sched_migrate_task']if r['p']['pid']==roles['migrator']and s['before_monotonic_ns']<r['time']<s['after_monotonic_ns']];valid=[r for r in rs if r['p']['dest_cpu']==s['requested_cpu']and r['p']['orig_cpu']!=s['requested_cpu']and(i==0 or r['p']['orig_cpu']==steps[i-1]['requested_cpu'])];check([refs('sched_migrate_task',r)for r in rs]==a['migration_steps'][i]['all_step_records'],'Every migrationstep rawref');check([refs('sched_migrate_task',r)for r in valid]==a['migration_steps'][i]['candidates'],'Migrationpayloadorigin/dest reference parity');
+  if i:check(len(valid)==len(rs)==1,'Actual alternation migrationstep '+str(i))
+ forks=events['sched_process_fork'];check(len(forks)==1 and forks[0]['p']['parent_pid']==roles['controller']and forks[0]['p']['child_pid']not in roles.values(),'Parent-side nonmemberfork only');check(not any(r['p']['child_pid']in roles.values()for r in forks),'No observedbirthintoleasedID')
+ ex=events['sched_process_exit'];fr=events['sched_process_free'];need(len(ex)==len(fr)==1 and ex[0]['p']['pid']==fr[0]['p']['pid']==roles['sacrificial'],'Unique sacrificialexit/free');te,tf=ex[0]['time'],fr[0]['time'];tail=c['rcu_tail'];check(phase['sacrifice']['exit_marker']['before_monotonic_ns']<te<tf<=tail['declared_end_monotonic_ns']and tail['requested_ns']==2000000000,'Exit/free withinfixed2stail');outs=[r for r in events['sched_switch']if r['p']['prev_pid']==roles['sacrificial']and r['p']['prev_state']in[16,32]and te<r['time']<tf];check(len(outs)==1 and [refs('sched_switch',r)for r in outs]==a['lifecycle']['terminal_exit_switch_candidates'],'Exact terminal exitswitch');post=[]
+ for name,rs in events.items():
+  for r in rs:
+   p=r['p'];touch=roles['sacrificial']in[p[k]for k in(['prev_pid','next_pid']if name=='sched_switch'else['parent_pid','child_pid']if name=='sched_process_fork'else['pid'])]
+   if touch and r['time']>=te:post.append(refs(name,r));check(r['time']<=tf,'No observedclosedID activityafterfree')
+ check(post==a['lifecycle']['post_exit_unassigned'],'Allpostexitnumeric matches unassigned');summary['positive_phase_oracle']=dict(handoff_chains=oraclechains,migration_steps=8,exit_time_ns=te,free_time_ns=tf,postexit_unassigned=len(post),wakeup_new='unexercised_unknown',unknown_chain_annotation_scope='Counts/reasons retained inproductionresult; rawtripletwitnesscompleteness independentlyverified, not everyunknownreason regenerated')
+
+try:audit()
+except BaseException as e:failures.append(type(e).__name__+': '+str(e));summary['exception_traceback']=traceback.format_exc()
+result=dict(status='passed'if not failures else'failed',checks=checks,failures=failures,summary=summary,inputs=inputs,source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),scope='Offline independentrawABI/recordcounter/chunk/markeroracle; no productionparser imports, targets/nativecalls orperformance reruns')
+out=Path(__file__).with_suffix('.json');out.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps({k:result[k]for k in ['status','checks','failures','summary']}));raise SystemExit(0 if not failures else 1)

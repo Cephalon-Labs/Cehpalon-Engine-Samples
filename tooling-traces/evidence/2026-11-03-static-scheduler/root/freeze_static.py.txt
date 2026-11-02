@@ -1,0 +1,19 @@
+import hashlib,json
+from pathlib import Path
+root=Path(__file__).parent;work=Path('D:/Cephalon/.worktrees/scheduler-static/tools')
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+prep=json.loads((root/'preparation01/manifest.json').read_text());pf=json.loads((root/'preparation-freeze01.json').read_text())
+assert prep['status']=='prepared_no_actors_or_perf' and prep['cases']==[]
+files={name:work/name for name in ['collect_scheduler_static.py','scheduler_static_core.py','scheduler_static_actor.py','scheduler_static_analysis.py','collect_scheduler_mapping.py','preflight_scheduler_perf.py','plan_scheduler_conformance.py','scheduler_mapping_actor.py']}
+files.update({'protocol':root/'static-protocol.md','adr':root.parents[1]/'internal/adr/ADR-0029-static-scheduler-conformance.md','library':Path(pf['files']['library']['path']),'format_bundle':Path(pf['files']['formats']['path']),'gettid_format':Path(pf['files']['gettid']['path'])})
+h={k:sha(p) for k,p in files.items()}
+assert h['collect_scheduler_static.py']=='6e0a4b1c1c6c365875ae708295d68f5074b817814327b838ae6b5196d90b1873'
+assert h['scheduler_static_analysis.py']=='7731dbabba292263a51cdd0dd713ea62db29d72ca0316d105ada74ee1442b898'
+command=list(pf['command']);command[command.index('30s')]='150s';command.insert(command.index('--kill-after=2s'),'--signal=TERM')
+command[command.index('--output')+1]='/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-static01/static-attempt01'
+command[command.index('--prepare-only')]='--execute-frozen-static'
+record={'schema_version':1,'date_bangkok':'2026-11-03','stage':'ADR0029_frozen_negative_then_positive_static_only','files':{k:{'path':str(p),'sha256':h[k]} for k,p in files.items()},'command':command,'prepared_manifest_sha256':sha(root/'preparation01/manifest.json'),'case_order':['negative','positive'],'on_negative_failure':'stop; no adaptive pressure or favorable retry','protocol_sha256':h['protocol'],'deadlines_seconds':{'case_work':55,'case_cleanup':3,'case_total_max':60,'active':30,'phase':5,'rcu_tail':2,'outer_timeout':150,'outer_kill_grace':2},'resources':{'online_cpus':list(range(20)),'max_cpus':32,'static_native_tids_per_case':5,'nonmember_fork_child_positive':1,'scheduler_fds_per_case':160,'negative_data_pages_per_fd':1,'positive_data_pages_per_fd':64,'observed_positive_mapping_bytes':42598400,'artifact_budget_bytes_whole_attempt':268435456},'positive_gates':'strict perFD count==SAMPLE,0<running==enabled,lost0/no malformed/throttle; controlled literal-state/step/lifecycle/cleanup; newborn owned delivery remains unknown','active_scheduler_ready':False,'original_engine_benchmark_unchanged':True}
+for name,p in files.items():
+    if name not in ('library','format_bundle','gettid_format'):(root/('frozen-'+name.replace('.','_')+'.txt')).write_bytes(p.read_bytes())
+with (root/'static-freeze01.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(record,f,indent=2);f.write('\n')
+print(json.dumps({'status':'frozen_not_executed','collector_sha256':h['collect_scheduler_static.py'],'core_sha256':h['scheduler_static_core.py'],'actor_sha256':h['scheduler_static_actor.py'],'analysis_sha256':h['scheduler_static_analysis.py']}))

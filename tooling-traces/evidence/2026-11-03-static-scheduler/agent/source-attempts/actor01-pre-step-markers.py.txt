@@ -1,0 +1,118 @@
+"""ADR0029 one ordinary controller + four precreated threads; import is passive."""
+import ctypes,json,os,queue,struct,threading,time
+from pathlib import Path
+import scheduler_mapping_actor as wire
+
+def receive(fd):
+    def readn(n):
+        result=b''
+        while len(result)<n:
+            part=os.read(fd,n-len(result))
+            if not part:raise EOFError('Controller pipe closed')
+            result+=part
+        return result
+    n=struct.unpack('<I',readn(4))[0]
+    if not 0<n<=65536:raise ValueError('Bounded command')
+    return json.loads(readn(n).decode())
+
+def actor(control,report,syscall,case):
+    try:
+        os.setgroups([]);os.setgid(1000);os.setuid(1000)
+        if os.getresuid()!=(1000,1000,1000) or os.getresgid()!=(1000,1000,1000) or os.getgroups()!=[]:raise ValueError('Ordinary actor credentials')
+        pid=os.getpid();allowed=sorted(os.sched_getaffinity(0))
+        if len(allowed)<2:raise ValueError('At least two actual permitted CPUs')
+        readyq=queue.Queue();done=queue.Queue();jobs=[queue.Queue() for _ in range(4)];turn=threading.Condition();turn_value=[0]
+        def gettid():return int(syscall(ctypes.c_long(186),*[ctypes.c_long(0)]*6))
+        def mapping(tid):
+            before=time.monotonic_ns();value=gettid();after=time.monotonic_ns()
+            return dict(pid=pid,tid=tid,gettid_return=value,before_monotonic_ns=before,after_monotonic_ns=after,armed_gettid_calls=1)
+        def worker(index):
+            tid=gettid();readyq.put(dict(role=['A','B','migrator','sacrificial'][index],tid=tid,prearm_gettid_calls=1))
+            while True:
+                job=jobs[index].get();kind=job['kind'];before=time.monotonic_ns()
+                try:
+                    if kind=='stop':return
+                    if kind=='map':done.put(dict(kind='map_result',**mapping(tid)));continue
+                    if kind=='exit':done.put(dict(kind='thread_exiting',tid=tid,before_monotonic_ns=before));return
+                    count=job['count'];checksum=0
+                    if kind=='handoff':
+                        os.sched_setaffinity(0,{allowed[0]});limit=time.monotonic()+5
+                        for i in range(count):
+                            with turn:
+                                while turn_value[0]!=index:
+                                    left=limit-time.monotonic()
+                                    if left<=0:raise TimeoutError('Fixed handshake phase deadline')
+                                    turn.wait(left)
+                                turn_value[0]=1-index;turn.notify_all();checksum+=1
+                    elif kind=='yield':
+                        for i in range(count):os.sched_yield();checksum+=1
+                    elif kind=='run':
+                        for i in range(count):checksum=(checksum+i*17)%1000000007
+                    elif kind=='migrate':
+                        for i in range(count):os.sched_setaffinity(0,{allowed[i%2]});os.sched_yield();checksum+=1
+                    else:raise ValueError('Exact worker operation')
+                    done.put(dict(kind='worker_result',operation=kind,tid=tid,count=count,checksum=checksum,before_monotonic_ns=before,after_monotonic_ns=time.monotonic_ns()))
+                except BaseException as error:done.put(dict(kind='worker_error',tid=tid,error=repr(error)));return
+        threads=[threading.Thread(target=worker,args=(i,),name='static-'+str(i),daemon=True) for i in range(4)]
+        for thread in threads:thread.start()
+        population=[readyq.get(timeout=5) for _ in threads];controller_tid=gettid()
+        population.insert(0,dict(role='controller',tid=controller_tid,prearm_gettid_calls=1))
+        wire.send(report,dict(kind='ready',case=case,pid=pid,controller_tid=controller_tid,actors=population,uid=list(os.getresuid()),gid=list(os.getresgid()),groups=os.getgroups(),allowed_cpus=allowed,
+            namespaces={n:os.readlink('/proc/self/ns/'+n) for n in ['pid','time','user']},image=str(Path('/proc/self/exe').resolve())))
+        while True:
+            command=receive(control);op=command['op']
+            if command.get('case')!=case:raise ValueError('Same case protocol')
+            if op=='map':
+                tid=command['tid']
+                if tid==controller_tid:wire.send(report,dict(kind='map_result',case=case,**mapping(tid)))
+                else:
+                    index=next(i for i,t in enumerate(threads) if t.native_id==tid);jobs[index].put(dict(kind='map'));value=done.get(timeout=5);value['case']=case;wire.send(report,value)
+            elif op=='phase':
+                phase=command['phase'];start=time.monotonic_ns();wire.send(report,dict(kind='phase_started',case=case,phase=phase,before_monotonic_ns=start))
+                if phase in ['negative_pressure','handoff','yield','run']:
+                    operation='handoff' if phase in ['negative_pressure','handoff'] else phase;count=10000 if phase=='negative_pressure' else 100 if phase=='handoff' else 1000 if phase=='yield' else 10000
+                    if operation=='handoff':turn_value[0]=0
+                    for index in [0,1]:jobs[index].put(dict(kind=operation,count=count))
+                    values=[done.get(timeout=5) for _ in [0,1]]
+                    if any(v['kind']!='worker_result' for v in values):raise RuntimeError(repr(values))
+                    extra=dict(workers=values)
+                elif phase=='migrate':
+                    jobs[2].put(dict(kind='migrate',count=8));value=done.get(timeout=5)
+                    if value['kind']!='worker_result':raise RuntimeError(repr(value))
+                    extra=dict(workers=[value])
+                elif phase=='nonmember_fork':
+                    spawned=os.fork()
+                    if spawned==0:os._exit(0)
+                    child=spawned
+                    try:
+                        end=time.monotonic()+5
+                        while True:
+                            got,status=os.waitpid(child,os.WNOHANG)
+                            if got:
+                                reaped=child;child=None
+                                if os.waitstatus_to_exitcode(status)!=0:raise RuntimeError('Nonmember child exit')
+                                extra=dict(nonmember_local_pid=reaped,child_joined=True,child_in_static_set=False);break
+                            if time.monotonic()>=end:raise TimeoutError('Nonmember child bounded join')
+                            time.sleep(.001)
+                    finally:
+                        if child is not None:
+                            try:os.kill(child,9)
+                            except ProcessLookupError:pass
+                            os.waitpid(child,0)
+                elif phase=='sacrifice':
+                    tid=threads[3].native_id;jobs[3].put(dict(kind='exit'));value=done.get(timeout=5);threads[3].join(timeout=5)
+                    if threads[3].is_alive() or value['kind']!='thread_exiting':raise RuntimeError('Sacrificial thread join')
+                    extra=dict(exited_local_tid=tid,thread_joined=True,exit_marker=value,remaining_local_tids=sorted(int(p.name) for p in Path('/proc/self/task').iterdir()))
+                else:raise ValueError('Declared fixed phase only')
+                wire.send(report,dict(kind='phase_result',case=case,phase=phase,before_monotonic_ns=start,after_monotonic_ns=time.monotonic_ns(),**extra))
+            elif op=='finish':
+                for i,t in enumerate(threads):
+                    if t.is_alive():jobs[i].put(dict(kind='stop'))
+                for t in threads:t.join(timeout=5)
+                if any(t.is_alive() for t in threads):raise RuntimeError('All owned actor threads joined')
+                wire.send(report,dict(kind='finished',case=case,pid=pid,all_threads_joined=True));os._exit(0)
+            else:raise ValueError('Declared actor command only')
+    except BaseException as error:
+        try:wire.send(report,dict(kind='actor_error',case=case,error=repr(error)))
+        except BaseException:pass
+        os._exit(1)

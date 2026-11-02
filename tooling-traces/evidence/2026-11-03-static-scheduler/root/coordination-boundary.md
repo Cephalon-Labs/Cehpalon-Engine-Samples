@@ -1,0 +1,9 @@
+# Review and execution boundary
+
+The implementation agent and first independent reviewer hit usage limits before full handoff. Root preserved their current worktrees/sources, took ownership of the collector's remaining passive-resource/kernel preparation and executed the peer-authored control fixture. Its first run failed one fixture because the rejection helper omitted FileExistsError; old driver/result/log are retained. The narrow helper correction passed16mocked cases per Windows/WSL. Root's new14pure capacity guards also pass both. These executions are root-completed agent-authored checks, not a separate final execution/signoff by the usage-limited reviewer.
+
+Core158portable cases and independent18literal-edge cases were previously completed by the independent reviewer. Root's pure analysis56cases pass Windows/WSL. All tested source versions and old failure/preparation outputs are retained; no active capture existed during those changes.
+
+The remaining source reviewer inspected frozen collector6e0a, actor66ba, cored658 and analysis7731 plus fresh prepared inputs before root's only active matrix. After it finished, that reviewer independently audited actual raw bytes and recorded79,568checks passing. Audit01's only mismatch was sparse state dictionaries versus explicit zero-valued keys; old source/log/result/diagnosis retained, corrected audit02 did not change/rerun native data. Scope/budget and neighboring-edge adjuncts are additional distinct checks, not a qualification score.
+
+Root is the only native collector operator and remote integrator. No agent launched actors/perf FDs or changed host settings; no original benchmark or Engine change occurred. Rejected/unknown cleanup boundaries remain explicit, including a hypothetical nonmember child after incomplete ordinary-parent phase. Actual completed cases joined/closed their declared resources. No all8/newwake/dynamic/GC/production readiness follows.

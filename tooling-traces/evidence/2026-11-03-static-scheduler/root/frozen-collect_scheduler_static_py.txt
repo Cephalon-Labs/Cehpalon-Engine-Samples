@@ -1,0 +1,440 @@
+"""ADR0029 fixed negative then positive STATIC owned scheduler conformance candidate."""
+import argparse,ctypes,hashlib,json,mmap,os,platform,select,signal,struct,sys,time
+from pathlib import Path
+import collect_scheduler_mapping as mapping
+import preflight_scheduler_perf as perf
+import plan_scheduler_conformance as planner
+import scheduler_static_actor as actor
+import scheduler_static_core as core
+PINS={'collect_scheduler_mapping.py':'8609eb6f1430fdb20fe818bc523d5886f0e90db7d1f6aec0af401067bc37ebdc','preflight_scheduler_perf.py':'19b0490e23d8e626a7bb773852c1474017171c867383ffd97c78cf7c4efa01f5','plan_scheduler_conformance.py':'afb6155303bc9bba21124ef3a63e6012e86952def167cf038c566e1c45e81a50','scheduler_mapping_actor.py':'1ade911f86188e65cb891b6b23d94a945c3427884f8abc61e37a8b437df5cb2f'}
+require=planner.require
+PAGE=4096
+MAX_OUTPUT=256*1024*1024
+
+def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def save(path,value):Path(path).write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8',newline='\n')
+def send(fd,value):mapping.actor_tool.send(fd,value)
+
+def resource_snapshot(cpus):
+    import resource
+    snapshot={'operations':[],'errors':[]}
+    def take(name,fn):
+        entry={'field':name,'before_monotonic_ns':time.monotonic_ns()};snapshot['operations'].append(entry)
+        try:entry['value']=fn();snapshot[name]=entry['value']
+        except BaseException as error:entry.update(error_type=type(error).__name__,error=str(error));snapshot['errors'].append(entry)
+        finally:entry['after_monotonic_ns']=time.monotonic_ns()
+    take('nofile',lambda:list(resource.getrlimit(resource.RLIMIT_NOFILE)))
+    take('memlock',lambda:list(resource.getrlimit(resource.RLIMIT_MEMLOCK)))
+    take('open_fd_names',lambda:sorted(os.listdir('/proc/self/fd')))
+    take('perf_event_mlock_kb',lambda:Path('/proc/sys/kernel/perf_event_mlock_kb').read_text())
+    snapshot['online_cpu_count']=len(cpus)
+    snapshot['negative_mapping_bytes']=len(cpus)*8*2*PAGE
+    snapshot['positive_mapping_bytes']=len(cpus)*8*65*PAGE
+    snapshot['required_fd_capacity']=len(cpus)*8+16+len(snapshot.get('open_fd_names',[]))
+    snapshot['scope']='Fresh conservative capacity observation; no limits changed, no resource reservation or actual perf mmap proof'
+    return snapshot
+
+def validate_resources(snapshot):
+    require(snapshot['errors']==[],'Retained resource read errors reject preparation')
+    count=snapshot['online_cpu_count'];require(type(count)is int and 1<=count<=32,'Declared CPU/FD/mapping budget')
+    require(snapshot['positive_mapping_bytes']==count*8*65*PAGE and snapshot['negative_mapping_bytes']==count*8*2*PAGE,'Both fixed case mapping footprints')
+    nofile=snapshot['nofile'][0];memlock=snapshot['memlock'][0]
+    require(type(nofile)is int and (nofile==-1 or nofile>=snapshot['required_fd_capacity']),'Existing descriptor capacity for both cases before actor')
+    require(type(memlock)is int and (memlock==-1 or memlock>=snapshot['positive_mapping_bytes']),'Existing conservative positive mapping capacity before actor; no limit changes')
+    return True
+
+def environment_snapshot():
+    result=dict(values={},operations=[],errors=[])
+    def take(label,fn):
+        op=dict(field=label,before_monotonic_ns=time.monotonic_ns());result['operations'].append(op)
+        try:op['value']=fn();return op['value']
+        except BaseException as error:op.update(error_type=type(error).__name__,error=str(error));result['errors'].append(op);return None
+        finally:op['after_monotonic_ns']=time.monotonic_ns()
+    result['values']['boot_id']=take('boot_id',lambda:Path('/proc/sys/kernel/random/boot_id').read_text().strip())
+    result['values']['namespaces']={name:take('namespace_'+name,lambda name=name:os.readlink('/proc/self/ns/'+name)) for name in ['pid','time','user']}
+    result['values']['time_offsets']=take('time_offsets',lambda:Path('/proc/self/timens_offsets').read_text())
+    result['values']['online']=take('online',lambda:Path('/sys/devices/system/cpu/online').read_text().strip())
+    result['values']['python_image']=take('python_image',lambda:str(Path('/proc/self/exe').resolve()))
+    return result
+
+def actor_leases(pid,tids,retired):
+    require(type(pid)is int and pid>0 and type(tids)is list and len(tids)==len(set(tids))<=16 and all(type(t)is int and t>0 for t in tids),'Exact local static population')
+    root=Path('/proc')/str(pid);snapshot=dict(actual_local_tids=[],retired_local_tids=sorted(retired),observations={},raw_reads=[],errors=[],retired_read_races=[])
+    def read(path,kind='text',tid=None):
+        entry=dict(path=str(path),kind=kind,before_monotonic_ns=time.monotonic_ns());snapshot['raw_reads'].append(entry)
+        try:
+            value=sorted(int(p.name) for p in path.iterdir()) if kind=='taskset' else os.readlink(path) if kind=='link' else path.read_text()
+            entry.update(value=value,after_monotonic_ns=time.monotonic_ns());return value
+        except BaseException as error:
+            entry.update(error_type=type(error).__name__,error=str(error),after_monotonic_ns=time.monotonic_ns())
+            if tid in retired and isinstance(error,FileNotFoundError):snapshot['retired_read_races'].append(entry)
+            else:snapshot['errors'].append(entry)
+            return None
+    initial=read(root/'task','taskset');snapshot['taskset_before']=initial
+    if initial is None:return snapshot
+    for tid in initial:
+        task=root/'task'/str(tid);raw=read(task/'status',tid=tid);stat=read(task/'stat',tid=tid);image=read(task/'exe','link',tid);namespaces={n:read(task/'ns'/n,'link',tid) for n in ['pid','time','user']}
+        if raw is None or stat is None or image is None or any(v is None for v in namespaces.values()):continue
+        try:
+            status={line.split(':',1)[0]:line.split(':',1)[1].strip() for line in raw.splitlines() if ':'in line};parts=stat[stat.rfind(')')+2:].split()
+            require(int(status['Pid'])==tid and int(status['Tgid'])==pid,'Thread PID/TGID split')
+            require([int(x) for x in status['Uid'].split()]==[1000]*4 and [int(x) for x in status['Gid'].split()]==[1000]*4 and status['Groups']=='' and all(int(status[k],16)==0 for k in ['CapEff','CapPrm','CapInh','CapAmb']),'Ordinary perthread credentials/caps')
+            if tid not in retired:require(parts[0]not in ['Z','X','x'],'Live survivor lease')
+            snapshot['observations'][str(tid)]=dict(local_pid=pid,local_tid=tid,starttime_ticks=int(parts[19]),state=parts[0],uid=status['Uid'],gid=status['Gid'],groups=status['Groups'],caps={k:status[k] for k in ['CapEff','CapPrm','CapInh','CapAmb','CapBnd']},nspid=status.get('NSpid'),image=str(Path(image).resolve()),namespaces=namespaces)
+        except BaseException as error:snapshot['errors'].append(dict(tid=tid,error_type=type(error).__name__,error=str(error)))
+    final=read(root/'task','taskset');snapshot['taskset_after']=final;snapshot['actual_local_tids']=initial if final is None else final
+    if not set(initial)<=set(tids) or final is not None and not set(final)<=set(tids):snapshot['errors'].append(dict(error='Unexpected unleased thread in static target process'))
+    if not set(tids)-set(retired)<=set(int(t) for t in snapshot['observations']):snapshot['errors'].append(dict(error='Missing survivor lease'))
+    return snapshot
+
+def same_population(before,after,retired):
+    require(after['errors']==[],'Retained lease readback/validation errors reject scope')
+    for tid,old in before['observations'].items():
+        current=after['observations'].get(tid)
+        if current is None:require(int(tid)in retired,'Only intended retired thread may disappear');continue
+        require({k:v for k,v in old.items() if k!='state'}=={k:v for k,v in current.items() if k!='state'},'No observed thread birth/image/credentials/namespace drift')
+    return True
+
+class ForwardRing:
+    def __init__(self,fd,pages,atomic):
+        require(type(pages)is int and pages in (1,64),'Frozen data page count')
+        self.map=mmap.mmap(fd,(pages+1)*PAGE,flags=mmap.MAP_SHARED,prot=mmap.PROT_READ|mmap.PROT_WRITE);self.atomic=atomic;self.capacity=pages*PAGE
+        try:
+            self.address=ctypes.addressof(ctypes.c_char.from_buffer(self.map));require(self.address%PAGE==0,'Aligned ring mapping')
+            require(atomic.lock_free(self.address+mapping.HEAD) is True and atomic.lock_free(self.address+mapping.TAIL) is True,'Lock-free kernel-shared head/tail')
+            require(struct.unpack_from('<QQ',self.map,mapping.DATA_OFFSET)==(PAGE,self.capacity),'Exact forward ring offsets/size')
+            require(self.head()==self.tail()==0,'Fresh disabled ring')
+        except BaseException:self.map.close();raise
+    def head(self):return self.atomic.acquire(self.address+mapping.HEAD)
+    def tail(self):return self.atomic.acquire(self.address+mapping.TAIL)
+    def copy(self):
+        head,tail=self.head(),self.tail();require(0<=tail<=head and head-tail<=self.capacity,'No head/tail reversal/overwrite invariant failure')
+        count=head-tail
+        if not count:return b'',None
+        start=tail&(self.capacity-1);first=min(count,self.capacity-start);raw=self.map[PAGE+start:PAGE+start+first]+self.map[PAGE:PAGE+count-first]
+        self.atomic.release(self.address+mapping.TAIL,head)
+        return raw,dict(head=head,tail_before=tail,tail_after=head,bytes=count,monotonic_ns=time.monotonic_ns())
+    def close(self):self.map.close()
+
+def validate_thread_mapping(samples,values,perf_id,pid,tid,result,cpus,enable_after):
+    require(type(pid)is int and pid>0 and type(tid)is int and tid>0 and type(perf_id)is int and perf_id>0,'Exact TGID/TID/perf identifier')
+    require(type(values)is dict and all(type(values.get(k))is int and 0<=values[k]<=0xffffffffffffffff for k in ['perf_event_id','value','lost','time_enabled','time_running']),'Exact task mapping raw read-counter types')
+    require(type(cpus)is list and all(type(c)is int and c>=0 for c in cpus),'Exact online CPU identities')
+    require(type(samples)is list and len(samples)==1 and values['perf_event_id']==perf_id and values['value']==1 and values['lost']==0,'One own task mapping event/FD ID/no loss')
+    require(all(type(result.get(k))is int for k in ['pid','tid','gettid_return','armed_gettid_calls','before_monotonic_ns','after_monotonic_ns']),'Exact actor result numeric fields')
+    require(result['pid']==pid and result['tid']==result['gettid_return']==tid and result['armed_gettid_calls']==1,'TGID differs from nonleader worker TID')
+    sample=samples[0];require(all(type(sample.get(k))is int for k in ['local_pid','local_tid','time_ns','cpu','global_common_pid']),'Exact decoded task mapping sample types');require(sample['local_pid']==pid and sample['local_tid']==tid and result['before_monotonic_ns']>=enable_after and result['before_monotonic_ns']<=sample['time_ns']<=result['after_monotonic_ns'] and sample['cpu']in cpus and type(sample['global_common_pid'])is int and sample['global_common_pid']>0,'Worker header/return/global payload/session clock')
+    return sample['global_common_pid']
+
+class OutputBudget:
+    def __init__(self,limit=MAX_OUTPUT):self.limit=limit;self.total=0;self.sizes={}
+    def write(self,path,data,append=False,replace=False):
+        require(type(data)is bytes,'Exact artifact bytes');key=str(path);old=self.sizes.get(key,0);new=old+len(data) if append else len(data)
+        require(self.total-old+new<=self.limit,'Whole attempt256MiB artifact budget, no truncation')
+        with path.open('ab' if append else 'wb' if replace else 'xb') as f:f.write(data)
+        self.total=self.total-old+new;self.sizes[key]=new
+    def json(self,path,value,replace=False):self.write(path,(json.dumps(value,indent=2)+'\n').encode(),replace=replace)
+
+class Session:
+    def __init__(self,path,name,native,atomic,env,cpus,formats,budget,analysis):
+        self.path=path;path.mkdir(exist_ok=False);self.budget=budget;self.analysis=analysis;self.name=name;self.native=native;self.atomic=atomic;self.env=env;self.cpus=cpus;self.formats=formats;self.started=time.monotonic();self.deadline=self.started+55;self.child=None;self.pidfd=None;self.control=None;self.reply=None;self.controls=set();self.channels=[];self.output_bytes=0;self.retired=[];self.report=dict(case=name,status='preparing',observations=[],mapping=[],phases=[],channels=[],cleanup={},active_scheduler_ready=False)
+    def check_deadline(self,stage):
+        require(time.monotonic()<self.deadline,'Case work deadline before '+stage)
+        if hasattr(self,'active_deadline') and any(c.get('enabled') for c in self.channels):require(time.monotonic()<self.active_deadline,'Active capture deadline before '+stage)
+    def observe(self,label):
+        self.check_deadline(label);entry=dict(label=label,before_monotonic_ns=time.monotonic_ns());self.report['observations'].append(entry)
+        try:entry['environment_readback']=environment_snapshot();entry['environment']=entry['environment_readback']['values'];require(entry['environment_readback']['errors']==[],'Retained individual environment read errors')
+        except BaseException as error:entry['environment_error']=repr(error)
+        try:entry['leases']=actor_leases(self.child,self.tids,self.retired)
+        except BaseException as error:entry['lease_error']=repr(error)
+        entry['after_monotonic_ns']=time.monotonic_ns();entry['monotonic_ns']=entry['after_monotonic_ns']
+        require('environment_error'not in entry and 'lease_error'not in entry,'Retained observation read errors');require(entry['environment']==self.env,'Retained changed environment rejects scope');same_population(self.baseline,entry['leases'],self.retired);return entry
+    def json(self,path,value,replace=False):
+        self.budget.json(path,value,replace=replace)
+    def write(self,path,data,append=False):
+        self.budget.write(path,data,append);self.output_bytes+=len(data)
+    def close_control(self,fd):
+        self.controls.discard(fd);entry={'opened_fd':fd,'before_monotonic_ns':time.monotonic_ns()};self.report.setdefault('control_close_readbacks',[]).append(entry)
+        try:self.native.close(fd);entry['close_ack']=True;entry['closed_check']=self.native.closed(fd);require(entry['closed_check'] is True,'Closed owned control FD')
+        except BaseException as error:entry['error']=repr(error);raise
+        finally:entry['after_monotonic_ns']=time.monotonic_ns()
+    def start_actor(self):
+        cr,cw=os.pipe2(os.O_CLOEXEC);self.controls.update([cr,cw]);self.report['opened_control_fds']=[cr,cw];rr,rw=os.pipe2(os.O_CLOEXEC);self.controls.update([rr,rw]);self.report['opened_control_fds'].extend([rr,rw]);spawned=os.fork()
+        if spawned==0:
+            try:os.close(cw);os.close(rr);actor.actor(cr,rw,self.native.libc.syscall,self.name)
+            finally:os._exit(1)
+        self.child=spawned;require(type(spawned)is int and spawned>0,'Owned child')
+        for fd in [cr,rw]:self.close_control(fd)
+        self.control=cw;self.reply=rr
+        if hasattr(os,'pidfd_open'):self.pidfd=os.pidfd_open(spawned,0);self.controls.add(self.pidfd);self.report['opened_control_fds'].append(self.pidfd)
+        ready=mapping.recv(self.reply,min(self.deadline,time.monotonic()+5));self.report['ready']=ready;require(ready['kind']=='ready' and ready['case']==self.name and ready['pid']==ready['controller_tid']==spawned and ready['uid']==ready['gid']==[1000]*3 and ready['groups']==[],'Exact ordinary controller ready')
+        require(len(ready['actors'])==5 and {a['role'] for a in ready['actors']}=={'controller','A','B','migrator','sacrificial'} and all(type(a['tid'])is int and a['tid']>0 and a['prearm_gettid_calls']==1 for a in ready['actors']),'Five fixed roles/explicit prearm calls')
+        self.ready=ready;self.tids=sorted(a['tid'] for a in ready['actors']);require(len(set(self.tids))==5,'Distinct static TIDs');self.roles={a['role']:a['tid'] for a in ready['actors']};self.baseline=actor_leases(self.child,self.tids,[]);self.report['baseline_leases']=self.baseline;self.report['role_local_tids']=self.roles
+        require(self.baseline['errors']==[],'Retained baseline lease errors')
+        require(all(o['image']==self.env['python_image'] and o['namespaces']==self.env['namespaces'] for o in self.baseline['observations'].values()) and ready['namespaces']==self.env['namespaces'] and len(ready['allowed_cpus'])>=2 and set(ready['allowed_cpus'])<=set(self.cpus),'Same image/namespaces/available CPUs')
+        self.report['ready']=ready;self.report['baseline_leases']=self.baseline;self.observe('actor_ready_independent_recheck')
+    def map_threads(self,gettid_format):
+        import fcntl
+        global_ids=[]
+        for tid in self.tids:
+            self.check_deadline('thread_mapping')
+            folder=self.path/('map-'+str(tid));folder.mkdir();attr=perf.attributes(gettid_format['event_id']);fd=None;ring=None;enabled=False;entry=dict(local_pid=self.child,local_tid=tid,attr_hex=bytes(attr).hex(),status='preparing');self.report['mapping'].append(entry)
+            try:
+                self.observe('before_map_open_'+str(tid));ctypes.set_errno(0);opened=self.native.libc.syscall(ctypes.c_long(298),ctypes.byref(attr),ctypes.c_int(tid),ctypes.c_int(-1),ctypes.c_int(-1),ctypes.c_ulong(8))
+                if opened<0:
+                    code=ctypes.get_errno();raise OSError(code,os.strerror(code))
+                require(type(opened)is int and 0<=opened<=2147483647,'Owned task mapping descriptor');fd=opened;entry['opened_fd']=fd;require(self.native.cloexec(fd) is True,'Owned task-attached mapping FD')
+                identity=bytearray(8);fcntl.ioctl(fd,0x80082407,identity,True);perf_id=struct.unpack('<Q',identity)[0];ring=mapping.Ring(fd,self.atomic);self.observe('after_map_disabled_open_'+str(tid))
+                entry['enable_before_ns']=time.monotonic_ns();fcntl.ioctl(fd,0x2400,0);enabled=True;entry['enable_after_ns']=time.monotonic_ns()
+                send(self.control,dict(op='map',case=self.name,tid=tid));result=mapping.recv(self.reply,min(self.deadline,time.monotonic()+5));entry['actor_result']=result
+                require(result['kind']=='map_result' and result['case']==self.name and result['pid']==self.child and result['tid']==result['gettid_return']==tid and result['armed_gettid_calls']==1 and result['before_monotonic_ns']>=entry['enable_after_ns'],'Exact mapped worker syscall, TGID distinct from TID')
+                self.observe('map_result_live_'+str(tid));entry['disable_before_ns']=time.monotonic_ns();fcntl.ioctl(fd,0x2401,0);enabled=False;entry['disable_after_ns']=time.monotonic_ns();raw,snapshot=ring.drain();self.write(folder/'records.raw.bin',raw)
+                one=self.native.read(fd);two=self.native.read(fd);self.write(folder/'read1.raw.bin',one);self.write(folder/'read2.raw.bin',two);require(one==two,'Stable mapping counter reads');values=mapping.counters(one);samples=mapping.decode_records(raw,gettid_format['event_id'])
+                global_tid=validate_thread_mapping(samples,values,perf_id,self.child,tid,result,self.cpus,entry['enable_after_ns']);sample=samples[0]
+                entry.update(status='mapped_one_live_thread',global_tid=sample['global_common_pid'],sample=sample,ring_terminal=snapshot,counters=values,perf_event_id=perf_id);global_ids.append(sample['global_common_pid']);self.observe('mapped_actor_revalidated_'+str(tid))
+            except BaseException as error:
+                entry.update(status='failed_closed',error_type=type(error).__name__,error=str(error));raise
+            finally:
+                errors=[]
+                if fd is not None and enabled:
+                    try:fcntl.ioctl(fd,0x2401,0)
+                    except BaseException as e:errors.append(repr(e))
+                if ring is not None:
+                    try:self.write(folder/'terminal-ring.raw.bin',bytes(ring.map))
+                    except BaseException as e:errors.append(repr(e))
+                    try:ring.close();entry['ring_closed']=True
+                    except BaseException as e:errors.append(repr(e))
+                if fd is not None:
+                    try:self.native.close(fd);entry['close_ack']=True;entry['closed_readback']=self.native.closed(fd);require(entry['closed_readback'] is True,'Mapping FD closure');entry['fd_closed']=True
+                    except BaseException as e:errors.append(repr(e))
+                if errors:entry['cleanup_errors']=errors;raise RuntimeError(repr(errors))
+        require(len(global_ids)==len(set(global_ids))==5,'Each live thread has distinct global mapping');self.global_by_local={entry['local_tid']:entry['global_tid'] for entry in self.report['mapping']};self.global_tids=sorted(global_ids);self.report['global_tids']=self.global_tids;self.observe('all_static_mappings_complete')
+    def prepare_channels(self):
+        import fcntl,resource
+        pages=1 if self.name=='negative' else 64;plan=planner.build_plan(self.formats,self.global_tids);self.json(self.path/'payload-plan.json',plan)
+        require((pages+1)*PAGE*len(self.cpus)*8<=resource.getrlimit(resource.RLIMIT_MEMLOCK)[0] or resource.getrlimit(resource.RLIMIT_MEMLOCK)[0]==resource.RLIM_INFINITY,'Declared mapping footprint within existing mlock limit, no host writes')
+        for cpu in self.cpus:
+            for specification in plan['fd_specifications']:
+                self.check_deadline('channel_open_filter_map')
+                event=specification['event'].split(':')[1];folder=self.path/(str(cpu)+'-'+event);folder.mkdir();attr=perf.attributes(specification['config']);channel=dict(cpu=cpu,event=event,fd=None,initially_disabled=True,enabled=False,filter_ack=False,ring_ready=False,folder=folder,records=[],chunks=[],sample_bytes=0);self.channels.append(channel)
+                ctypes.set_errno(0);opened=self.native.libc.syscall(ctypes.c_long(298),ctypes.byref(attr),ctypes.c_int(-1),ctypes.c_int(cpu),ctypes.c_int(-1),ctypes.c_ulong(8))
+                if opened<0:
+                    code=ctypes.get_errno();raise OSError(code,os.strerror(code))
+                require(type(opened)is int and 0<=opened<=2147483647,'Owned perCPU descriptor');fd=opened;channel['fd']=fd;channel['opened_fd']=fd;channel['attr_hex']=bytes(attr).hex();require(self.native.cloexec(fd) is True,'PerCPU FD CLOEXEC')
+                expression=specification['filter_expression'];channel['filter_expression']=expression;channel['filter_before_ns']=time.monotonic_ns();fcntl.ioctl(fd,0x40082406,expression.encode()+b'\0');channel['filter_after_ns']=time.monotonic_ns();channel['filter_ack']=True;channel['filter_readback']='unavailable_private_ioctl_ack_only'
+                identity=bytearray(8);fcntl.ioctl(fd,0x80082407,identity,True);channel['perf_event_id']=struct.unpack('<Q',identity)[0];require(channel['perf_event_id']>0,'Independent perFD event ID')
+                channel['ring']=ForwardRing(fd,pages,self.atomic);channel['ring_ready']=True;channel['pages']=pages;pre=self.native.read(fd);require(perf.decode_disabled_read(pre)['perf_event_id']==channel['perf_event_id'],'Fresh disabled counters and ID');self.write(folder/'disabled-read.raw.bin',pre);self.write(folder/'records.raw.bin',b'')
+        core.arm_guard(self.channels,self.cpus);self.observe('all_FDs_disabled_filtered_mapped_before_enable')
+    def enable(self):
+        import fcntl
+        core.arm_guard(self.channels,self.cpus)
+        self.active_deadline=min(self.deadline,time.monotonic()+30)
+        for channel in self.channels:
+            self.check_deadline('channel_enable')
+            channel['enable_before_ns']=time.monotonic_ns();fcntl.ioctl(channel['fd'],0x2400,0);channel['enabled']=True;channel['enable_after_ns']=time.monotonic_ns()
+        self.report['common_start_ns']=max(c['enable_after_ns'] for c in self.channels);self.observe('all_enable_ACK_before_actor_release');self.cadences=[];self.last_poll=None
+    def drain(self):
+        self.check_deadline('drain_poll');now=time.monotonic_ns()
+        if self.last_poll is not None:self.cadences.append(now-self.last_poll)
+        self.last_poll=now
+        for channel in self.channels:
+            raw,chunk=channel['ring'].copy()
+            if raw:
+                chunk['file_offset']=channel['sample_bytes'];channel['chunks'].append(chunk);channel['sample_bytes']+=len(raw);self.write(channel['folder']/'records.raw.bin',raw,True)
+    def phase(self,phase):
+        deadline=min(self.active_deadline,time.monotonic()+5);send(self.control,dict(op='phase',case=self.name,phase=phase));start=mapping.recv(self.reply,deadline);require(start['kind']=='phase_started' and start['case']==self.name and start['phase']==phase and start['before_monotonic_ns']>=self.report['common_start_ns'],'Actor released only after all-enable common start')
+        if phase=='negative_pressure':
+            until=time.monotonic()+.250
+            while time.monotonic()<until:
+                require(time.monotonic()<deadline,'Fixed negative withheld-drain window');time.sleep(min(.001,max(0,until-time.monotonic())))
+        while True:
+            require(time.monotonic()<deadline,'Fixed phase deadline');self.drain()
+            if select.select([self.reply],[],[],0)[0]:
+                result=mapping.recv(self.reply,deadline);self.report.setdefault('actor_messages',[]).append(result)
+                if result.get('kind')=='nonmember_spawned':
+                    self.report['nonmember_spawn_observation']=result
+                    require(phase=='nonmember_fork' and result['case']==self.name and result['parent_local_pid']==self.child and type(result['local_pid'])is int and result['local_pid']>0 and result['local_pid']not in self.tids and result['child_in_static_set'] is False,'Retained controlled nonmember scope, never acquire numeric ownership from this message')
+                    self.report['nonmember_cleanup']='pending_ordinary_parent_join';continue
+                break
+            time.sleep(.001)
+        require(result['kind']=='phase_result' and result['case']==self.name and result['phase']==phase and result['before_monotonic_ns']==start['before_monotonic_ns'] and result['after_monotonic_ns']>=result['before_monotonic_ns'],'Exact completed actor phase')
+        if phase in ['negative_pressure','handoff','yield','run','migrate']:
+            workers=result['workers'];expected_count={'negative_pressure':10000,'handoff':100,'yield':1000,'run':10000,'migrate':8}[phase];roles=['migrator'] if phase=='migrate' else ['A','B'];require(len(workers)==len(roles) and {w['tid'] for w in workers}=={self.roles[r] for r in roles},'Exact phase worker set')
+            expected_checksum=(17*expected_count*(expected_count-1)//2)%1000000007 if phase=='run' else expected_count
+            require(all(w['kind']=='worker_result' and type(w['count'])is int and w['count']==expected_count and type(w['checksum'])is int and w['checksum']==expected_checksum for w in workers),'Fixed declared count/checksum completed')
+            if phase=='migrate':
+                steps=workers[0]['migration_steps'];require(len(steps)==8 and all(step['index']==i and step['requested_cpu']==self.ready['allowed_cpus'][i%2] and step['affinity_readback']==[step['requested_cpu']] and step['before_monotonic_ns']<=step['after_monotonic_ns'] for i,step in enumerate(steps)),'All exact migration affinity/marker readbacks')
+        elif phase=='nonmember_fork':
+            require(result['child_joined'] is True and result['child_in_static_set'] is False and result['nonmember_local_pid']not in self.tids and result['nonmember_local_pid']==self.report['nonmember_spawn_observation']['local_pid'],'Controlled nonmember never enters static membership')
+            self.report['nonmember_cleanup']='reported_joined_by_ordinary_parent'
+        elif phase=='sacrifice':require(result['retired_local_tid']==self.roles['sacrificial'] and result['python_join_returned'] is True and result['native_death_proven'] is False,'Python join is not kernel death');self.retired=[self.roles['sacrificial']]
+        self.report['phases'].append(result);self.observe('after_'+phase);return result
+    def finish_channels(self):
+        import fcntl
+        for c in self.channels:
+            self.check_deadline('channel_disable')
+            c['disable_before_ns']=time.monotonic_ns();fcntl.ioctl(c['fd'],0x2401,0);c['enabled']=False;c['disable_after_ns']=time.monotonic_ns()
+        self.report['common_end_ns']=min(c['disable_before_ns'] for c in self.channels);self.drain()
+        errors=[]
+        for c in self.channels:
+            try:
+                self.check_deadline('terminal_counter_decode')
+                require(c['ring'].head()==c['ring'].tail(),'Full final drain head/tail equality');head=c['ring'].head();one=self.native.read(c['fd']);two=self.native.read(c['fd'])
+                self.write(c['folder']/'read1.raw.bin',one);self.write(c['folder']/'read2.raw.bin',two);self.write(c['folder']/'terminal-ring.raw.bin',bytes(c['ring'].map))
+                require(one==two and c['ring'].head()==head==c['ring'].tail(),'Disabled stable terminal counter/head/tail')
+                values=mapping.counters(one);c['values']=values;require(values['perf_event_id']==c['perf_event_id'],'Read ID equals owned perf FD')
+                raw=(c['folder']/'records.raw.bin').read_bytes();records=core.decode_records(raw,self.formats[c['event']],c['cpu'],self.global_tids)
+                for index,record in enumerate(records):record.update(event=c['event'],cpu_file=c['cpu'],record_index=index)
+                c.update(decoded=records,gate=core.counter_gate(values,records,self.name=='positive'),terminal_head=head,terminal_tail=c['ring'].tail())
+                require(all(a['time_ns']<=b['time_ns'] for a,b in zip(records,records[1:])),'Per-FD recorded timestamps monotonic; cross-CPU ties unassigned')
+            except BaseException as error:c['terminal_error']=repr(error);errors.append(dict(cpu=c['cpu'],event=c['event'],error=repr(error)))
+            self.json(c['folder']/'chunks.json',c['chunks'])
+        if errors:self.report['terminal_errors']=errors;raise RuntimeError(repr(errors))
+        self.report['poll_cadence_ns']=dict(requested=1000000,observed_count=len(self.cadences),minimum=min(self.cadences) if self.cadences else None,maximum=max(self.cadences) if self.cadences else None,total=sum(self.cadences));self.observe('after_disable_drain_counter_readbacks')
+    def gates(self):
+        if self.name=='negative':
+            require(sum(c['values']['lost'] for c in self.channels)>0,'Negative must demonstrate actual independent read LOST, no adaptive retry');self.report['negative_actual_lost']=sum(c['values']['lost'] for c in self.channels);return
+        by_event={name:[r for c in self.channels if c['event']==name for r in c['decoded']] for name in planner.EVENT_FIELDS}
+        analyzed=self.analysis.analyze_case(self.report,by_event,self.global_by_local);self.report['analysis']=analyzed
+        require(analyzed['passed'] is True,'Retained strict phase/state/lifecycle/unknown analysis gates')
+        self.report['wakeup_new_gate']='unexercised_unknown_static_precreation';self.report['all_eight_positive_delivery_proven']=False
+    def close_channels(self):
+        import fcntl
+        errors=[]
+        for c in self.channels:
+            if hasattr(self,'cleanup_deadline') and time.monotonic()>=self.cleanup_deadline:
+                errors.append('Cleanup deadline: resource closure remains unknown for '+str(c.get('opened_fd')));continue
+            fd=c.get('fd')
+            if fd is not None and c.get('enabled'):
+                try:fcntl.ioctl(fd,0x2401,0);c['enabled']=False
+                except BaseException as e:errors.append(repr(e))
+            ring=c.get('ring')
+            if ring is not None:
+                try:
+                    raw,chunk=ring.copy()
+                    if raw:
+                        chunk['file_offset']=c['sample_bytes'];c['chunks'].append(chunk);c['sample_bytes']+=len(raw);self.write(c['folder']/'records.raw.bin',raw,True)
+                except BaseException as e:c['cleanup_drain_error']=repr(e);errors.append(repr(e))
+                try:
+                    target=c['folder']/'terminal-ring.raw.bin'
+                    if not target.exists():self.write(target,bytes(ring.map))
+                except BaseException as e:c['cleanup_retention_error']=repr(e);errors.append(repr(e))
+                try:ring.close();c['ring']=None;c['ring_unmapped']=True
+                except BaseException as e:errors.append(repr(e))
+            try:self.json(c['folder']/'chunks.json',c['chunks'],replace=(c['folder']/'chunks.json').exists())
+            except BaseException as e:c['cleanup_chunk_retention_error']=repr(e);errors.append(repr(e))
+            if fd is not None:
+                try:self.write(c['folder']/'cleanup-read.raw.bin',self.native.read(fd))
+                except BaseException as e:c['cleanup_read_error']=repr(e);errors.append(repr(e))
+                c['fd']=None
+                try:self.native.close(fd);require(self.native.closed(fd) is True,'Closed owned perCPU FD');c['fd_closed']=True
+                except BaseException as e:errors.append(repr(e))
+        if errors:self.report['cleanup']['channel_errors']=errors;raise RuntimeError(repr(errors))
+    def cleanup(self):
+        errors=[];self.cleanup_deadline=min(self.started+60,time.monotonic()+3)
+        if self.report.get('nonmember_cleanup')=='pending_ordinary_parent_join':self.report['nonmember_cleanup']='unknown_parent_phase_incomplete'
+        try:self.close_channels()
+        except BaseException as e:errors.append(repr(e))
+        if self.child is not None:
+            try:
+                if self.pidfd is not None and hasattr(signal,'pidfd_send_signal'):signal.pidfd_send_signal(self.pidfd,9)
+                else:os.kill(self.child,9)
+            except ProcessLookupError:pass
+            except BaseException as e:errors.append(repr(e))
+            end=self.cleanup_deadline
+            while self.child is not None:
+                try:
+                    got,status=os.waitpid(self.child,os.WNOHANG)
+                    if got:self.child=None;self.report['cleanup']['child_joined']=True;break
+                    if time.monotonic()>=end:raise TimeoutError('Owned cleanup join')
+                    time.sleep(.001)
+                except BaseException as e:errors.append(repr(e));break
+        for fd in list(self.controls):
+            try:self.close_control(fd)
+            except BaseException as e:errors.append(repr(e))
+        if errors:self.report['cleanup']['errors']=errors;self.report['status']='failed_closed'
+        serial=[]
+        for c in self.channels:serial.append({k:v for k,v in c.items() if k not in ['ring','folder','decoded','records','chunks']})
+        self.report['channels']=serial;self.report['stream_bytes_tracked']=self.output_bytes;self.report['whole_attempt_output_bytes_before_manifest']=self.budget.total;self.json(self.path/'manifest.json',self.report)
+    def execute(self,gettid_format):
+        import resource
+        def usage():
+            value=resource.getrusage(resource.RUSAGE_SELF);return dict(user_seconds=value.ru_utime,system_seconds=value.ru_stime,maxrss_kib_linux=value.ru_maxrss,scope='Collector process cumulative observations, not target CPU or performance qualification')
+        previous=signal.getsignal(signal.SIGALRM)
+        def expired(signum,frame):raise TimeoutError('Absolute case/cleanup timer')
+        signal.signal(signal.SIGALRM,expired);signal.setitimer(signal.ITIMER_REAL,max(.001,self.deadline-time.monotonic()));self.report['collector_usage_before']=usage()
+        try:
+            self.start_actor();self.map_threads(gettid_format);self.prepare_channels();self.enable()
+            for phase in (['negative_pressure'] if self.name=='negative' else ['handoff','yield','run','migrate','nonmember_fork','sacrifice']):self.phase(phase)
+            if self.name=='positive':
+                tail_start=time.monotonic_ns();until=time.monotonic()+2;self.report['rcu_tail']={'before_monotonic_ns':tail_start,'declared_end_monotonic_ns':tail_start+2000000000,'requested_ns':2000000000}
+                while time.monotonic()<until:require(time.monotonic()<self.active_deadline,'Fixed RCU tail active deadline');self.drain();time.sleep(.001)
+                self.report['rcu_tail']['after_monotonic_ns']=time.monotonic_ns();snapshot=self.observe('after_fixed_2s_RCU_tail');require(self.roles['sacrificial']not in snapshot['leases']['actual_local_tids'],'Proc disappearance observed after fixed tail, not a native death timestamp')
+            self.finish_channels();self.gates();self.close_channels();self.observe('after_all_perf_resources_closed_before_actor_finish')
+            send(self.control,dict(op='finish',case=self.name));result=mapping.recv(self.reply,min(self.deadline,time.monotonic()+5));require(result==dict(kind='finished',case=self.name,pid=self.child,all_threads_joined=True),'Actor survivors joined after FD closure')
+            end=min(self.deadline,time.monotonic()+5)
+            while True:
+                got,status=os.waitpid(self.child,os.WNOHANG)
+                if got:
+                    reaped=self.child;self.child=None;self.report['cleanup']['child_joined']=True;self.report['child_exit']={'pid':reaped,'wait_status':status};require(os.waitstatus_to_exitcode(status)==0,'Owned actor process exit');break
+                require(time.monotonic()<end,'Owned join deadline');time.sleep(.001)
+            self.report['status']='bounded_static_observations_completed'
+        except BaseException as error:self.report.update(status='failed_closed',error_type=type(error).__name__,error=str(error),error_errno=getattr(error,'errno',None))
+        finally:
+            signal.setitimer(signal.ITIMER_REAL,max(.001,min(3,self.started+60-time.monotonic())))
+            try:self.cleanup()
+            except BaseException as error:self.report.update(status='failed_closed',cleanup_exception=repr(error))
+            finally:
+                signal.setitimer(signal.ITIMER_REAL,0);signal.signal(signal.SIGALRM,previous);self.report['collector_usage_after']=usage();self.report['case_finished_monotonic_ns']=time.monotonic_ns()
+                try:self.json(self.path/'manifest.json',self.report,replace=True)
+                except BaseException as error:self.report.update(status='failed_closed',manifest_exception=repr(error))
+        return self.report
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    for name in ['output','libatomic','expected-libatomic-sha256','expected-python-sha256','expected-kernel-release','expected-source-sha256','expected-core-sha256','expected-actor-sha256','expected-analysis-sha256','formats','expected-bundle-sha256','expected-gettid-format-sha256','expected-online']:p.add_argument('--'+name,required=True)
+    p.add_argument('--prepare-only',action='store_true')
+    p.add_argument('--execute-frozen-static',action='store_true');a=p.parse_args()
+    require(sys.platform=='linux' and platform.machine()=='x86_64' and os.getuid()==os.geteuid()==0 and os.sysconf('SC_PAGE_SIZE')==PAGE,'Declared root collector ABI')
+    require(sha(__file__)==a.expected_source_sha256 and sha(core.__file__)==a.expected_core_sha256 and sha(actor.__file__)==a.expected_actor_sha256 and all(sha(Path(__file__).parent/name)==digest for name,digest in PINS.items()),'All frozen executing source/import pins')
+    import scheduler_static_analysis as analysis
+    require(sha(analysis.__file__)==a.expected_analysis_sha256,'Root-frozen independent analysis source')
+    import fcntl # Load native control helper before any target/descriptor; portable imports stay passive.
+    require(a.execute_frozen_static!=a.prepare_only,'Exactly one passive preparation or separately frozen active mode required');out=Path(a.output);out.mkdir(parents=True,exist_ok=False);budget=OutputBudget()
+    report=dict(status='preparing',cases=[],preparation={},active_scheduler_ready=False,scope='Static owned synthetic populations only, no Roslyn/GC/progress/benchmark qualification')
+    for label,path in [('collector',__file__),('core',core.__file__),('actor',actor.__file__),('analysis',analysis.__file__),*[(name,Path(__file__).parent/name) for name in PINS]]:budget.write(out/(label+'.txt'),Path(path).read_bytes())
+    try:
+        initial_environment=environment_snapshot();report['preparation']['environment']=initial_environment;budget.json(out/'initial-environment.json',initial_environment);require(initial_environment['errors']==[],'Retained initial environment readbacks');env=initial_environment['values']
+        report['preparation']['kernel_release']=platform.release();require(report['preparation']['kernel_release']==a.expected_kernel_release,'Declared matching source-tag kernel release; not full binary attestation')
+        report['preparation']['python_sha256']=sha(env['python_image']);require(report['preparation']['python_sha256']==a.expected_python_sha256,'Frozen Python image');cpus=perf.parse_online(env['online']);require(cpus==perf.parse_online(a.expected_online),'Whole frozen online CPU set')
+        report['preparation']['resources']=resource_snapshot(cpus);validate_resources(report['preparation']['resources'])
+        lines=env['time_offsets'].splitlines();require(len(lines)==2 and {line.split()[0] for line in lines}=={'monotonic','boottime'} and all(len(line.split())==3 and all(int(v)==0 for v in line.split()[1:]) for line in lines),'Exact zero inherited time namespace offsets')
+        require(sha(a.formats)==a.expected_bundle_sha256,'Frozen format bundle');formats,format_hashes=planner.load_bundle(a.formats);report['preparation']['format_readbacks']={}
+        for name in formats:
+            raw=(Path('/sys/kernel/tracing/events/sched')/name/'format').read_bytes();entry={'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)};report['preparation']['format_readbacks'][name]=entry;budget.write(out/(name+'.format.txt'),raw)
+            require(entry['sha256']==next(v for k,v in format_hashes.items() if k.endswith('/'+name+'.format.txt')),'Eight exact live scheduler formats')
+        gettid_raw=Path('/sys/kernel/tracing/events/syscalls/sys_enter_gettid/format').read_bytes();report['preparation']['gettid_format_sha256']=hashlib.sha256(gettid_raw).hexdigest();require(report['preparation']['gettid_format_sha256']==a.expected_gettid_format_sha256,'Exact syscall bootstrap event only');budget.write(out/'sys_enter_gettid.format.txt',gettid_raw);gettid_format=mapping.parse_syscall_format(gettid_raw)
+        atomic=mapping.Atomics(a.libatomic,a.expected_libatomic_sha256);report['preparation']['libatomic_sha256']=sha(a.libatomic);report['preparation']['atomic_selftest']='passed_lockfree8_acquire2_release3';native=perf.NativeBackend();report['status']='prepared_no_actors_or_perf'
+        if a.prepare_only:
+            budget.json(out/'manifest.json',report,replace=True);print(json.dumps({'status':report['status'],'output':str(out),'actors':0,'perf_fds':0}));return 0
+        for name in ['negative','positive']:
+            require(mapping.environment_identity()==env,'Same parent execution environment');case=Session(out/name,name,native,atomic,env,cpus,formats,budget,analysis);result=case.execute(gettid_format);report['cases'].append(result);budget.json(out/'manifest.json',report,replace=True);require(result['status']=='bounded_static_observations_completed','Case gate failed; no fallback/autotuned retry or positive after negative failure')
+        post=dict(operations=[],errors=[]);report['postflight']=post
+        def capture(label,fn):
+            item=dict(field=label,before_monotonic_ns=time.monotonic_ns());post['operations'].append(item)
+            try:item['value']=fn();post[label]=item['value'];return item['value']
+            except BaseException as error:item.update(error_type=type(error).__name__,error=str(error));post['errors'].append(item);post[label]=None;return None
+            finally:item['after_monotonic_ns']=time.monotonic_ns()
+        capture('environment_readback',environment_snapshot);capture('source_sha256',lambda:sha(__file__));capture('core_sha256',lambda:sha(core.__file__));capture('actor_sha256',lambda:sha(actor.__file__));capture('analysis_sha256',lambda:sha(analysis.__file__));capture('python_sha256',lambda:sha(env['python_image']));capture('libatomic_sha256',lambda:sha(a.libatomic))
+        capture('kernel_release',platform.release);require(post['kernel_release']==a.expected_kernel_release,'Retained kernel release correspondence unchanged')
+        for name in PINS:capture('import_'+name,lambda name=name:sha(Path(__file__).parent/name))
+        for name in formats:capture('format_'+name,lambda name=name:sha(Path('/sys/kernel/tracing/events/sched')/name/'format'))
+        capture('gettid_format_sha256',lambda:sha(Path('/sys/kernel/tracing/events/syscalls/sys_enter_gettid/format')))
+        require(post['errors']==[] and post['environment_readback']['errors']==[] and post['environment_readback']['values']==env,'All retained environment/native post-readbacks succeeded and equal')
+        require(post['source_sha256']==a.expected_source_sha256 and post['core_sha256']==a.expected_core_sha256 and post['actor_sha256']==a.expected_actor_sha256 and post['analysis_sha256']==a.expected_analysis_sha256 and post['python_sha256']==a.expected_python_sha256 and post['libatomic_sha256']==a.expected_libatomic_sha256 and all(post['import_'+name]==digest for name,digest in PINS.items()),'Retained source/native/import hashes unchanged')
+        require(all(post['format_'+name]==next(v for k,v in format_hashes.items() if k.endswith('/'+name+'.format.txt')) for name in formats) and post['gettid_format_sha256']==a.expected_gettid_format_sha256,'Retained eight live ABI/syscall postreadbacks unchanged')
+        report['status']='bounded_static_cases_completed_newwake_unexercised'
+    except BaseException as e:report.update(status='failed_closed',error_type=type(e).__name__,error=str(e))
+    finally:budget.json(out/'manifest.json',report,replace=True)
+    print(json.dumps({'status':report['status'],'output':str(out)}));return 0 if report['status']=='bounded_static_cases_completed_newwake_unexercised' else 2
+if __name__=='__main__':raise SystemExit(main())

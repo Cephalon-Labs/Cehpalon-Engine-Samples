@@ -1,0 +1,87 @@
+"""ADR0029 pure static scheduler perf record and arm guards (no native actions)."""
+import struct
+import plan_scheduler_conformance as planner
+require=planner.require
+SAMPLE,LOST,THROTTLE,UNTHROTTLE,LOST_SAMPLES=9,2,5,6,13
+
+def align(value,alignment):return (value+alignment-1)//alignment*alignment
+
+def forward_bytes(data,head,tail):
+    require(type(data)is bytes and len(data)>=4096 and len(data)&(len(data)-1)==0,'Power-of-two whole forward data pages')
+    require(type(head)is int and type(tail)is int and 0<=tail<=head<=0xffffffffffffffff and head-tail<=len(data),'Monotonic uint64 head/tail, full publication drop is not overwrite')
+    size=head-tail;start=tail&(len(data)-1);return data[start:start+min(size,len(data)-start)]+data[:max(0,size-(len(data)-start))]
+
+def payload(raw,fmt):
+    require(type(raw)is bytes and type(fmt)is dict and fmt['name']in planner.EVENT_FIELDS,'Declared scheduler payload')
+    require(type(fmt.get('event_id'))is int and 0<fmt['event_id']<=65535,'Exact tracepoint event ID')
+    fields=fmt['fields'];planner.validate_fields(fmt['name'],fields)
+    end=max(f['offset']+f['size'] for f in fields.values());maxalign=max(1 if '['in f['declaration'] or '__data_loc'in f['declaration'] else min(f['size'],8) for f in fields.values());base=align(end,maxalign)
+    require(len(raw)>=base and raw[end:base]==bytes(base-end),'Complete fixed struct and source-zeroed terminal alignment')
+    values={};dynamic=[]
+    for name,item in fields.items():
+        pos,size=item['offset'],item['size'];blob=raw[pos:pos+size];decl=item['declaration']
+        if '__data_loc'in decl:
+            require(size==4 and '__data_loc char[] 'in decl,'Only declared dynamic comm strings')
+            loc=struct.unpack('<I',blob)[0];offset,length=loc&65535,loc>>16
+            require(1<=length<=256 and base<=offset<=len(raw) and offset+length<=len(raw),'Bounded nonempty dynamic string beyond fixed fields')
+            data=raw[offset:offset+length];require(data[-1:]==b'\0' and b'\0'not in data[:-1],'Exact single NUL-terminated dynamic string')
+            dynamic.append((offset,offset+length));values[name]={'data_loc':loc,'offset':offset,'length':length,'bytes_hex':data.hex(),'text':data[:-1].decode('utf-8',errors='backslashreplace')}
+        elif '['in decl:
+            require(size<=256 and 'char 'in decl and b'\0'in blob,'Bounded fixed comm string with NUL')
+            values[name]={'bytes_hex':blob.hex(),'text':blob.split(b'\0',1)[0].decode('utf-8',errors='backslashreplace')}
+        else:
+            require(size in (1,2,4,8),'Supported scalar ABI only');values[name]=int.from_bytes(blob,'little',signed=bool(item['signed']))
+    dynamic.sort();require(not dynamic or dynamic[0][0]==base and all(a[1]==b[0] for a,b in zip(dynamic,dynamic[1:])),'Contiguous disjoint dynamic data, no hidden gaps/overlap')
+    used=dynamic[-1][1] if dynamic else base;expected=align(used+4,8)-4
+    require(len(raw)==expected and raw[used:]==bytes(expected-used),'Exact source-derived perf raw padding, no extra payload')
+    require('group_dead'not in values or values['group_dead']in (0,1),'Boolean lifecycle group_dead field')
+    require(values['common_type']==fmt['event_id'],'Per-FD raw common_type/tracepoint ID parity')
+    return values
+
+def decode_records(raw,fmt,cpu,global_tids):
+    require(type(raw)is bytes and type(cpu)is int and cpu>=0,'Exact per-CPU raw stream')
+    require(type(global_tids)is list and 1<=len(global_tids)<=16 and all(type(t)is int and 0<t<=2147483647 for t in global_tids) and len(set(global_tids))==len(global_tids),'Exact mapped global static membership')
+    require(fmt['name']in planner.EVENT_FIELDS,'Declared scheduler event')
+    output=[];offset=0
+    while offset<len(raw):
+        require(len(raw)-offset>=8,'Complete terminal perf header');kind,misc,size=struct.unpack_from('<IHH',raw,offset)
+        require(size>=8 and size%8==0 and offset+size<=len(raw),'Complete aligned record without overwrite')
+        record=raw[offset:offset+size];result=dict(record_offset=offset,size=size,type=kind,misc=misc,record_hex=record.hex())
+        if kind==SAMPLE:
+            require(size>=36,'Complete TID/TIME/CPU/RAW fixed sample fields')
+            pid,tid,time_ns,record_cpu,reserved,raw_size=struct.unpack_from('<IIQIII',record,8)
+            require(record_cpu==cpu and reserved==0 and raw_size==size-36,'Per-FD CPU/reserved/raw size parity')
+            decoded=payload(record[36:],fmt)
+            require(any(decoded[field]in global_tids for field in planner.EVENT_FIELDS[fmt['name']]),'Actual payload filter target membership; never common_pid substitution')
+            result.update(local_header_pid=pid,local_header_tid=tid,time_ns=time_ns,cpu=record_cpu,payload=decoded)
+        else:
+            require(kind in (LOST,LOST_SAMPLES,THROTTLE,UNTHROTTLE),'No unrequested perf sideband/unknown record')
+            fixed=16 if kind==LOST else 8 if kind==LOST_SAMPLES else 24
+            require(size==8+fixed+24,'Exact sample_id_all TID/TIME/CPU trailer')
+            pid,tid,time_ns,record_cpu,reserved=struct.unpack_from('<IIQII',record,8+fixed)
+            require(record_cpu==cpu and reserved==0,'Loss/throttle per-FD CPU trailer')
+            result.update(local_header_pid=pid,local_header_tid=tid,time_ns=time_ns,cpu=record_cpu)
+            if kind==LOST:result.update(perf_event_id=struct.unpack_from('<Q',record,8)[0],lost=struct.unpack_from('<Q',record,16)[0])
+            elif kind==LOST_SAMPLES:result['lost_samples']=struct.unpack_from('<Q',record,8)[0]
+            else:result['throttle_body_hex']=record[8:32].hex()
+        output.append(result);offset+=size
+    return output
+
+def arm_guard(channels,cpus):
+    require(type(channels)is list and type(cpus)is list and cpus and all(type(c)is int and c>=0 for c in cpus) and len(set(cpus))==len(cpus),'Exact whole CPU set')
+    expected={(cpu,name) for cpu in cpus for name in planner.EVENT_FIELDS};actual=[]
+    for channel in channels:
+        require(type(channel)is dict and type(channel.get('cpu'))is int and channel.get('event')in planner.EVENT_FIELDS,'Exact declared channel')
+        actual.append((channel['cpu'],channel['event']))
+        require(type(channel.get('fd'))is int and 0<=channel['fd']<=2147483647 and channel.get('filter_ack')is True and channel.get('ring_ready')is True and channel.get('initially_disabled')is True and channel.get('enabled')is False,'Every FD disabled/filterACK/ringReady BEFORE any enable/release')
+    require(len({c['fd'] for c in channels})==len(channels),'Distinct owned channel descriptors')
+    require(len(actual)==len(set(actual)) and set(actual)==expected,'Exact all-onlineCPU/eight-event Cartesian set')
+    return True
+
+def counter_gate(values,records,positive):
+    require(type(positive)is bool and type(records)is list and all(type(r)is dict and type(r.get('type'))is int and r['type']in (SAMPLE,LOST,LOST_SAMPLES,THROTTLE,UNTHROTTLE) for r in records),'Exact counter gate mode and decoded records')
+    require(type(values)is dict and all(type(values.get(k))is int and 0<=values[k]<=0xffffffffffffffff for k in ['value','lost','perf_event_id','time_enabled','time_running']) and values['perf_event_id']>0 and values['time_running']<=values['time_enabled'],'Exact independent read-format counters')
+    require(all(r['perf_event_id']==values['perf_event_id'] for r in records if r['type']==LOST),'Emitted LOST ID matches independent read FD ID')
+    samples=sum(r['type']==SAMPLE for r in records);throttle=sum(r['type']in (THROTTLE,UNTHROTTLE) for r in records)
+    if positive:require(values['lost']==0 and values['value']==samples and all(r['type']==SAMPLE for r in records),'Conservative positive no-loss/count/sample/sideband gate')
+    return dict(samples=samples,terminal_read_lost=values['lost'],emitted_lost_reports=sum(r.get('lost',0) for r in records),emitted_lost_samples=sum(r.get('lost_samples',0) for r in records),throttle_records=throttle,scope='Loss dimensions retained separately, never add terminal and emitted reports as independent counts')

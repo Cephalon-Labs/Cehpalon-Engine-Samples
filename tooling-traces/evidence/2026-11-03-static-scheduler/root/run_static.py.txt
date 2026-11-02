@@ -1,0 +1,15 @@
+import hashlib,json,subprocess,time
+from pathlib import Path
+root=Path(__file__).parent
+freeze=json.loads((root/'static-freeze01.json').read_text())
+for item in freeze['files'].values():assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256']
+assert not (root/'static-attempt01').exists() and not (root/'static-invocation01.json').exists(),'Never overwrite/repeat this attempt'
+intent={'freeze_sha256':hashlib.sha256((root/'static-freeze01.json').read_bytes()).hexdigest(),'command':freeze['command'],'before_monotonic_ns':time.monotonic_ns()}
+with (root/'static-invocation-intent01.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(intent,f,indent=2);f.write('\n')
+run=subprocess.run(freeze['command'],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=180)
+for name,data in [('stdout',run.stdout),('stderr',run.stderr)]:
+    with (root/('static-attempt01-'+name+'.txt')).open('xb') as f:f.write(data)
+intent.update(exit_code=run.returncode,after_monotonic_ns=time.monotonic_ns(),stdout_sha256=hashlib.sha256(run.stdout).hexdigest(),stderr_sha256=hashlib.sha256(run.stderr).hexdigest())
+with (root/'static-invocation01.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(intent,f,indent=2);f.write('\n')
+path=root/'static-attempt01/manifest.json';result=json.loads(path.read_text()) if path.exists() else {'status':'no_structured_result','cases':[]}
+print(json.dumps({'exit_code':run.returncode,'status':result['status'],'error':result.get('error'),'cases':[{'case':c['case'],'status':c['status'],'error':c.get('error'),'channels':len(c['channels']),'mapped_threads':len(c['mapping']),'negative_actual_lost':c.get('negative_actual_lost'),'analysis_passed':c.get('analysis',{}).get('passed'),'analysis_failures':c.get('analysis',{}).get('failures'),'cleanup':c['cleanup']} for c in result['cases']]}))

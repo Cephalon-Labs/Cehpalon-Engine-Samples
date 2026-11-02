@@ -1,0 +1,17 @@
+from pathlib import Path
+root=Path(__file__).parents[2]
+p=root/'internal/memory/README.md';raw=p.read_bytes();old=b'Latest investigation: ';new=b'Latest investigation: [2026-11-03 static scheduler conformance](2026-11-03-static-scheduler.md), with fixed loss-negative and fresh positive static cases completed; owned new-wake and dynamic Roslyn coverage remain unqualified. Prior investigation: '
+assert raw.count(old)==1;p.write_bytes(raw.replace(old,new,1))
+p=root/'tasks/20.md';raw=p.read_bytes();assert b'### 2026-11-03 static scheduler conformance (ADR0029)' not in raw
+addition='''
+
+### 2026-11-03 static scheduler conformance (ADR0029)
+
+Engine remains `55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7`. One frozen ordered matrix completed: fresh five ordinary mappedTIDs/case,160CPU/event channels/case, everypayloadfilterACK beforeenable/actorrelease. Negativefixed10,000handoffs/250msnodrain/1page observed177samples,count103790,terminalLOST103613 but0emittedLOSTreports; noadaptivepressure/retry. Freshpositive64pages observed3211samples/count3211/lost0/throttle0,strictperFDstablecounter/drain/ID and0<running==enabled gates. Contexttime equality is not hostCPU/upstream-delivery proof.
+
+Positivefixedphase analysis retained119A/157B literal sleep/wakeup/in chains (notbusiness-round counts/durations),8migrationstepcandidates,parent-sidefork/nonmemberexclusion andsacrificialexit/terminalout/freecandidatewithinDECLARED2sRCUdeadline; postendrawunassigned/procabsence/cleanup/readbacks retained. Ownedwakeup_new remainsUNEXERCISED/UNKNOWN forprecreatedS; noall8positive/dynamicRoslyn/GCcausequalification. Allraw/source/fixture/preparationfailures retained. Core158/analysis56/independentedge18 plusmockcontrol16/resource14fixtures eachWindows/WSL pass; finalsource/preparationreview andactualrawaudit recorded. Primarycompletedtwo usage-limitedagents' remainingwork; reviewexecutionboundaries are explicit.
+
+NoEnginepatch/originalbenchmarkrun/GCflags/concurrency/hostconfigurationchange. Nextseparatelydeclare dynamicadmission/birth/coverage andsame-executionRoslyn/CLR/GC/schedulerjoins. Original#20metadata/dependencies/estimates/Planned Test+Benchmark/nullhours unchanged;#3entirerowBlocked/otherrows unchanged, oldCIpaymentprestep0steps/no billing/rerun/noWindows/provider/reference/production/releasepromotion. [Report and ADR0029](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/static-scheduler-conformance.md).
+'''
+p.write_bytes(raw+addition.replace('\n','\r\n').encode('utf-8'))
+print('Appended only ADR0029 body evidence; previous task bytes remain exact prefix')

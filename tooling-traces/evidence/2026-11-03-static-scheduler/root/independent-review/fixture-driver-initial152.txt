@@ -1,0 +1,200 @@
+"""Portable ADR0029 independent bytes/mock-only fixtures; never native operations."""
+import argparse
+import copy
+import hashlib
+import importlib
+import json
+from pathlib import Path
+import struct
+import sys
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--root', required=True)
+    p.add_argument('--formats', required=True)
+    p.add_argument('--output', required=True)
+    a = p.parse_args()
+    root = Path(a.root)
+    sys.path.insert(0, str(root / 'tools'))
+    core = importlib.import_module('scheduler_static_core')
+    planner = importlib.import_module('plan_scheduler_conformance')
+    formats, _ = planner.load_bundle(a.formats)
+    reports = []
+
+    def check(name, operation, reject=False):
+        try:
+            result = operation()
+            if reject:
+                raise AssertionError('Malformed input accepted')
+            if result is False:
+                raise AssertionError('Positive assertion false')
+        except (ValueError, TypeError, KeyError, struct.error) as exc:
+            if reject:
+                reports.append(dict(name=name, status='pass', rejection=str(exc)))
+                return
+            reports.append(dict(name=name, status='fail', error=repr(exc)))
+            return
+        except Exception as exc:
+            reports.append(dict(name=name, status='fail', error=repr(exc)))
+            return
+        reports.append(dict(name=name, status='pass'))
+
+    def payload(name, updates=None):
+        """Known LP64 source struct sizes; distinct from core's alignment calculation."""
+        fmt = formats[name]
+        base = dict(sched_switch=64, sched_waking=36, sched_wakeup=36,
+                    sched_wakeup_new=36, sched_migrate_task=28,
+                    sched_process_free=20, sched_process_fork=24,
+                    sched_process_exit=36)[name]
+        raw = bytearray(base)
+        values = dict(common_type=fmt['event_id'], common_flags=0,
+                      common_preempt_count=1, common_pid=900, prev_pid=700,
+                      next_pid=901, parent_pid=700, child_pid=902, pid=700,
+                      prev_state=0, prio=120, prev_prio=120, next_prio=120,
+                      target_cpu=2, orig_cpu=2, dest_cpu=3, group_dead=1)
+        values.update(updates or {})
+        for field, f in fmt['fields'].items():
+            off, size = f['offset'], f['size']
+            if '__data_loc' in f['declaration']:
+                text = (field + '-fixture').encode() + b'\0'
+                loc = len(raw) | (len(text) << 16)
+                raw[off:off + size] = struct.pack('<I', loc)
+                raw.extend(text)
+            elif '[' in f['declaration']:
+                raw[off:off + size] = b'owned\0'.ljust(size, b'\0')
+            else:
+                raw[off:off + size] = values[field].to_bytes(size, 'little', signed=bool(f['signed']))
+        padded = ((len(raw) + 4 + 7) // 8) * 8 - 4
+        raw.extend(bytes(padded - len(raw)))
+        return bytes(raw)
+
+    def sample(name='sched_wakeup', raw=None, cpu=2, emitter_pid=33, emitter_tid=34):
+        raw = payload(name) if raw is None else raw
+        return struct.pack('<IHHIIQIII', 9, 2, 36 + len(raw), emitter_pid,
+                           emitter_tid, 100, cpu, 0, len(raw)) + raw
+
+    def decode(raw, name='sched_wakeup', tids=None, cpu=2):
+        return core.decode_records(raw, formats[name], cpu, [700] if tids is None else tids)
+
+    def edit(raw, off, fmt, value):
+        data = bytearray(raw)
+        struct.pack_into(fmt, data, off, value)
+        return bytes(data)
+
+    def control(kind, body, perf_id=15):
+        if kind == 2:
+            body = struct.pack('<QQ', perf_id, body)
+        elif kind == 13:
+            body = struct.pack('<Q', body)
+        else:
+            body = struct.pack('<QQQ', 91, perf_id, 0)
+        trailer = struct.pack('<IIQII', 33, 34, 100, 2, 0)
+        return struct.pack('<IHH', kind, 0, 8 + len(body) + 24) + body + trailer
+
+    for name in formats:
+        check('valid_exact_ABI_' + name, lambda n=name: decode(sample(n), n)[0]['payload']['common_type'] == formats[n]['event_id'])
+        check('payload_emitter_not_target_' + name,
+              lambda n=name: decode(sample(n, raw=payload(n, {f: 701 for f in planner.EVENT_FIELDS[n]})), n), True)
+        check('payload_common_pid_not_membership_' + name,
+              lambda n=name: decode(sample(n, raw=payload(n, dict({f: 701 for f in planner.EVENT_FIELDS[n]}, common_pid=700))), n), True)
+        check('wrong_perFD_common_type_' + name,
+              lambda n=name: decode(sample(n, raw=payload(n, {'common_type': 999})), n), True)
+        check('wrong_perFD_CPU_' + name, lambda n=name: decode(sample(n, cpu=3), n), True)
+        check('extra_nonzero_RAW_tail_' + name,
+              lambda n=name: decode(sample(n, raw=payload(n) + bytes(7) + b'X'), n), True)
+    check('switch_next_side_membership', lambda: decode(sample('sched_switch', payload('sched_switch', {'prev_pid': 901, 'next_pid': 700})), 'sched_switch')[0]['payload']['next_pid'] == 700)
+    check('fork_child_side_membership', lambda: decode(sample('sched_process_fork', payload('sched_process_fork', {'parent_pid': 901, 'child_pid': 700})), 'sched_process_fork')[0]['payload']['child_pid'] == 700)
+    check('idle_emitter_header_zero_allowed', lambda: decode(sample(emitter_pid=0, emitter_tid=0))[0]['local_header_tid'] == 0)
+    check('nonleader_header_distinction_retained', lambda: decode(sample())[0]['local_header_pid'] != decode(sample())[0]['local_header_tid'])
+    for state in (0, 1, 2, 128, 256, -1):
+        check('raw_signed_state_preserved_' + str(state), lambda s=state: decode(sample('sched_switch', payload('sched_switch', {'prev_state': s})), 'sched_switch')[0]['payload']['prev_state'] == s)
+    for group_dead in (0, 1):
+        check('bool_group_dead_' + str(group_dead), lambda v=group_dead: decode(sample('sched_process_exit', payload('sched_process_exit', {'group_dead': v})), 'sched_process_exit')[0]['payload']['group_dead'] == v)
+    for group_dead in (2, 255):
+        check('reject_nonbool_group_dead_' + str(group_dead), lambda v=group_dead: decode(sample('sched_process_exit', payload('sched_process_exit', {'group_dead': v})), 'sched_process_exit'), True)
+    for name in ('sched_migrate_task', 'sched_process_free', 'sched_process_fork'):
+        locfield = 'parent_comm' if name == 'sched_process_fork' else 'comm'
+        locoff = formats[name]['fields'][locfield]['offset']
+        original = payload(name)
+        loc = struct.unpack_from('<I', original, locoff)[0]
+        start, length = loc & 65535, loc >> 16
+        for label, badloc in [('empty', start), ('fixed_overlap', (length << 16) | 8),
+                              ('beyond_raw', (length << 16) | len(original)),
+                              ('oversized', (257 << 16) | start)]:
+            check(name + '_dataloc_' + label, lambda n=name, b=badloc, o=locoff, r=original: decode(sample(n, edit(r, o, '<I', b)), n), True)
+        check(name + '_dynamic_missing_terminator', lambda n=name, r=original, s=start, l=length: decode(sample(n, r[:s + l - 1] + b'X' + r[s + l:]), n), True)
+        check(name + '_dynamic_embedded_NUL', lambda n=name, r=original, s=start: decode(sample(n, r[:s] + b'\0' + r[s + 1:]), n), True)
+    forkraw = payload('sched_process_fork')
+    check('fork_dynamic_overlap', lambda: decode(sample('sched_process_fork', edit(forkraw, 16, '<I', struct.unpack_from('<I', forkraw, 8)[0])), 'sched_process_fork'), True)
+    good = sample()
+    for label, raw in [('short_header', good[:7]), ('zero_length', edit(good, 6, '<H', 0)),
+                       ('unaligned', edit(good, 6, '<H', len(good) - 1)), ('truncated', good[:-1]),
+                       ('unknown_type', edit(good, 0, '<I', 123)), ('CPU_reserved', edit(good, 28, '<I', 1)),
+                       ('RAW_size_mismatch', edit(good, 32, '<I', 0)), ('trailing_fragment', good + b'X')]:
+        check('record_' + label, lambda r=raw: decode(r), True)
+    for tids in ([], [True], [700, 700], [0], [-1], [2147483648], [700.0], list(range(1, 18))):
+        check('membership_reject_' + repr(tids), lambda t=tids: decode(good, tids=t), True)
+    for kind in (2, 13, 5, 6):
+        raw = control(kind, 4)
+        check('control_record_' + str(kind), lambda r=raw, k=kind: decode(r)[0]['type'] == k)
+        check('control_CPU_mismatch_' + str(kind), lambda r=raw: decode(edit(r, len(r) - 8, '<I', 3)), True)
+        check('control_reserved_' + str(kind), lambda r=raw: decode(edit(r, len(r) - 4, '<I', 1)), True)
+    data = bytes(range(256)) * 16
+    check('ring_empty', lambda: core.forward_bytes(data, 4096, 4096) == b'')
+    check('ring_full', lambda: core.forward_bytes(data, 4096, 0) == data)
+    check('ring_wrap', lambda: core.forward_bytes(data, 4100, 4090) == data[4090:] + data[:4])
+    for head, tail in ((4097, 0), (0, 1), (-1, 0), (True, 0), (1, False), (2**64, 2**64)):
+        check('ring_invalid_' + repr((head, tail)), lambda h=head, t=tail: core.forward_bytes(data, h, t), True)
+    for bad in (bytearray(data), data[:2048], data + b'X'):
+        check('ring_invalid_buffer_' + str(len(bad)) + type(bad).__name__, lambda b=bad: core.forward_bytes(b, 0, 0), True)
+    def channels():
+        return [dict(cpu=cpu, event=name, fd=100 + i, filter_ack=True,
+                     ring_ready=True, initially_disabled=True, enabled=False)
+                for i, (cpu, name) in enumerate((c, n) for c in [2, 3] for n in planner.EVENT_FIELDS)]
+    check('arm_exact_cartesian', lambda: core.arm_guard(channels(), [2, 3]))
+    check('arm_missing_channel', lambda: core.arm_guard(channels()[:-1], [2, 3]), True)
+    check('arm_duplicate_channel', lambda: core.arm_guard(channels() + [channels()[0]], [2, 3]), True)
+    for key, value in [('filter_ack', False), ('filter_ack', 1), ('ring_ready', False),
+                       ('initially_disabled', False), ('enabled', True), ('fd', True), ('cpu', True)]:
+        def changed(k=key, v=value):
+            items = channels()
+            items[0][k] = v
+            return core.arm_guard(items, [2, 3])
+        check('arm_reject_' + key + '_' + repr(value), changed, True)
+    def duplicate_fd():
+        items = channels()
+        items[1]['fd'] = items[0]['fd']
+        return core.arm_guard(items, [2, 3])
+    check('arm_duplicate_live_FD', duplicate_fd, True)
+    for cpus in ([2, 2], [True], [], [2.0, 3], [-1]):
+        check('arm_invalid_CPU_' + repr(cpus), lambda cs=cpus: core.arm_guard(channels(), cs), True)
+    def counters(**kw):
+        value = dict(value=1, lost=0, perf_event_id=15, time_enabled=100, time_running=100)
+        value.update(kw)
+        return value
+    records = decode(good)
+    check('positive_counter_parity', lambda: core.counter_gate(counters(), records, True)['samples'] == 1)
+    for changes in [dict(value=2), dict(lost=1), dict(perf_event_id=0), dict(value=True),
+                    dict(time_running=101), dict(time_enabled=-1), dict(value=2**64)]:
+        check('positive_counter_invalid_' + repr(changes), lambda cs=changes: core.counter_gate(counters(**cs), records, True), True)
+    negative_records = decode(control(2, 4))
+    check('negative_loss_dimensions_separate', lambda: core.counter_gate(counters(value=5, lost=4), negative_records, False)['emitted_lost_reports'] == 4)
+    check('positive_reject_LOST_record', lambda: core.counter_gate(counters(value=0), negative_records, True), True)
+    check('negative_LOST_foreign_perFID', lambda: core.counter_gate(counters(value=5, lost=4, perf_event_id=99), negative_records, False), True)
+    for flag in (None, 0, 1, 'positive'):
+        check('exact_bool_positive_flag_' + repr(flag), lambda f=flag: core.counter_gate(counters(), records, f), True)
+    result = dict(status='pass' if all(r['status'] == 'pass' for r in reports) else 'fail',
+                  tests=len(reports), failures=sum(r['status'] == 'fail' for r in reports),
+                  core_sha256=hashlib.sha256((root / 'tools/scheduler_static_core.py').read_bytes()).hexdigest(),
+                  driver_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                  scope='Pure bytes and Python structures only; no native/perf/library/actor operations.', results=reports)
+    with Path(a.output).open('x', encoding='utf-8', newline='\n') as f:
+        json.dump(result, f, indent=2)
+        f.write('\n')
+    print(json.dumps({k: result[k] for k in ['status', 'tests', 'failures', 'core_sha256', 'driver_sha256']}))
+    return bool(result['failures'])
+
+
+if __name__ == '__main__':
+    sys.exit(main())

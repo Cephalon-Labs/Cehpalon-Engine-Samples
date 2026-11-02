@@ -1,0 +1,70 @@
+"""Independent literal-edge fixtures; pure Python, no native calls or actor."""
+import argparse
+import hashlib
+import importlib
+import json
+from pathlib import Path
+import sys
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--root', required=True)
+    p.add_argument('--output', required=True)
+    args = p.parse_args()
+    sys.path.insert(0, str(Path(args.root) / 'tools'))
+    a = importlib.import_module('scheduler_static_analysis')
+    checks = []
+
+    def out(t, state=1, target=700):
+        return dict(time_ns=t, cpu=0, record_offset=t * 128,
+                    payload=dict(prev_pid=target, next_pid=900, prev_state=state))
+
+    def incoming(t, target=700):
+        return dict(time_ns=t, cpu=1, record_offset=t * 128,
+                    payload=dict(prev_pid=900, next_pid=target, prev_state=0))
+
+    def wake(t, target=700):
+        return dict(time_ns=t, cpu=2, record_offset=t * 128, payload=dict(pid=target))
+
+    def case(name, rows, wakes, complete, minimum_unknown=0, low=0, high=100):
+        result = a.chains_for(700, rows, wakes, low, high)
+        ok = (len(result['complete_chains']) == complete and
+              len(result['unknown_edges']) >= minimum_unknown and
+              result['initial_state'] == result['final_state'] == 'unknown')
+        checks.append(dict(name=name, passed=ok, expected_complete=complete,
+                           expected_minimum_unknown=minimum_unknown, observed=result))
+
+    case('one_literal_sleep_wake_in', [out(10), incoming(30)], [wake(20)], 1)
+    case('strict_D_sleep_supported', [out(10, 2), incoming(30)], [wake(20)], 1)
+    case('preempt_marker_not_sleep', [out(10, 256), incoming(30)], [wake(20)], 0, 1)
+    case('R_not_sleep', [out(10, 0), incoming(30)], [wake(20)], 0, 1)
+    case('equal_wake_in_unordered', [out(10), incoming(20)], [wake(20)], 0, 1)
+    case('equal_out_wake_unordered', [out(10), incoming(30)], [wake(10)], 0, 1)
+    case('two_wakes_no_favorable_selection', [out(10), incoming(30)], [wake(20), wake(21)], 0, 1)
+    case('initial_in_unknown_then_complete', [incoming(5), out(10), incoming(30)], [wake(20)], 1, 1)
+    case('repeated_in_reports_missing_out', [out(10), incoming(30), incoming(35)], [wake(20)], 1, 1)
+    case('repeated_out_reports_missing_in', [out(5, 0), out(10), incoming(30)], [wake(20)], 1, 1)
+    case('new_sleep_replaces_incomplete_chain_unknown', [out(5), out(10), incoming(30)], [wake(20)], 1, 1)
+    case('pending_chain_at_end_unknown', [out(10)], [wake(20)], 0, 1)
+    case('sort_distinct_time_not_input_order', [incoming(30), out(10)], [wake(20)], 1)
+    case('other_actor_edges_do_not_poison', [out(10), incoming(30), incoming(20, 800)], [wake(20)], 1)
+    case('self_switch_is_tied_unknown', [dict(time_ns=10, cpu=0, record_offset=0,
+                                           payload=dict(prev_pid=700, next_pid=700, prev_state=1)), incoming(30)], [wake(20)], 0, 1)
+    case('out_on_boundary_remains_unassigned', [out(10), incoming(30)], [wake(20)], 0, 1, low=10)
+    case('in_on_boundary_remains_unassigned', [out(10), incoming(30)], [wake(20)], 0, 1, high=30)
+    case('empty_stream_unknown', [], [], 0)
+    report = dict(status='pass' if all(c['passed'] for c in checks) else 'fail',
+                  checks=len(checks), failures=sum(not c['passed'] for c in checks),
+                  analysis_sha256=hashlib.sha256(Path(a.__file__).read_bytes()).hexdigest(),
+                  driver_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                  scope='Independently authored pure edge fixtures; no actor/perf/native operation.', results=checks)
+    with Path(args.output).open('x', encoding='utf-8', newline='\n') as f:
+        json.dump(report, f, indent=2)
+        f.write('\n')
+    print(json.dumps({k: report[k] for k in ['status', 'checks', 'failures', 'analysis_sha256', 'driver_sha256']}))
+    return bool(report['failures'])
+
+
+if __name__ == '__main__':
+    sys.exit(main())

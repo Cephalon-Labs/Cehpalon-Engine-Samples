@@ -1,0 +1,34 @@
+{
+  "status": "source_accounting_scope_review_complete",
+  "scope": "Read-only exactsource/design; no nativeactors/perf/hostprobes",
+  "kernel_source": "kernel_events_core.c.txt",
+  "kernel_sha256": "9fd094dd33754c2b3a3a6e5d9dbbcd62570083fb5f0869a4fb81e574c20f795d",
+  "accounting": {
+    "core_lines": "708-735,1577-1587,2372-2403,2723-2750",
+    "enabled": "totaldelta while effectiveperfstate>=INACTIVE",
+    "running": "totaldelta whileeffectiveperfstate>=ACTIVE",
+    "clock": "perf_event_time returns(cgroup)contexttime, notnative usefulCPU orunconditionalwalltime",
+    "possible_gaps": "Enable/ACTIVE transitions, pmuaddfailure->INACTIVE, scheduleout, hotplug/context lifecycle canlegitimatelydistinguishenabled/running. Softwaretracepoint unlimitedPMUslots doesnotdeletegenericstateaccounting."
+  },
+  "recommendation": {
+    "positive_cpuwide_gate": "Canpredeclarestrict0<time_running==time_enabled perFD asconservative observedACTIVEaccounting gate beforefirstattempt. Gaps/zeros rejectorunknown; donotscale,normalizeaway orinfercodefailure.",
+    "not_universal": "Equalitynotproof ofallkerneltpevents/upstreamdelivery/allCPUwallcoverage/nohostvCPUdeschedule;contexttime canstop inunobservededges. Loss/clock/CPU/captureguards remainseparate.",
+    "bootstrap": "NevergeneralizeCPUwidegate intopertaskbootstrap sleepingtime/CPUcoverage interpretation; pertaskcontextschedule semantics differ."
+  },
+  "initial_current_code_review": {
+    "collector_sha256": "62c3c30771a84f35f31511753a44b37b0ab3c74094679ae69bbc47d4ec837ea8",
+    "core_sha256": "6f371d19f87fe73707235b41f911c32936d6308f2283ef34cb92c61ca927692b",
+    "raw_decoder": "Corepayload validates ABI/sourcepadding includingdynamic__data_loc bounds/NUL andfullrawretention. Commtextbackslashdecodekeepshex forlosslessproof; namesnotauthority.",
+    "phase_work_in_progress": "Parentstatescodeagentaddingphase-boundedstatechains/reuse/perturbation. Currentreadpoint global anyevent presence isnot acompletedphase chain/generationproof; finalsource mustbereviewed afterthosechanges.",
+    "counter_gate_work_in_progress": "Atreadpointpositivecountergatepermits zero/gaps; proposedstrictCPUwidegate mustbeexplicitlyadded beforefrozenattempt ifaccepted.",
+    "unchanged_limits": [
+      "newwakeunexercisedUNKNOWN",
+      "deadIDpostendrecordsunassigned/noreuseauthority",
+      "migratepayloadorig/destvsheaderCPUdistinct",
+      "guaranteedcommonarmwindow/prefixsuffixunknown",
+      "RCUtailfixedavailabilitynotfreeguarantee"
+    ]
+  },
+  "no_block_to_bounded_implementation": true,
+  "no_execution_approval_or_readiness_claim": true
+}

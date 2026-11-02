@@ -1,0 +1,90 @@
+"""Pure adverse recorded-state fixtures; no actor, native library or perf operation."""
+import argparse,copy,hashlib,json
+from pathlib import Path
+import scheduler_static_analysis as a
+
+def fixture():
+    roles={'controller':11,'A':12,'B':13,'migrator':14,'sacrificial':15};maps={v:v+1000 for v in roles.values()}
+    events={k:[] for k in a.EVENTS};index=0
+    def row(name,t,cpu=0,**payload):
+        nonlocal index
+        r={'type':9,'time_ns':t,'cpu':cpu,'record_offset':index*128,'payload':payload};index+=1;events[name].append(r);return r
+    for role,cpu,t in [('controller',1,210),('migrator',2,211),('sacrificial',3,212)]:
+        row('sched_switch',t,cpu,prev_pid=0,next_pid=maps[roles[role]],prev_state=0)
+    row('sched_switch',300,prev_pid=1012,next_pid=1013,prev_state=1)
+    row('sched_switch',330,prev_pid=1013,next_pid=0,prev_state=1)
+    row('sched_switch',400,prev_pid=0,next_pid=1012,prev_state=0)
+    row('sched_switch',420,prev_pid=1012,next_pid=1013,prev_state=0)
+    for tid,t in [(1011,205),(1014,206),(1015,207),(1012,350),(1013,355)]:
+        row('sched_waking',t-1,pid=tid);row('sched_wakeup',t,pid=tid)
+    steps=[]
+    for i in range(8):
+        start=1010+i*20;dest=i%2;steps.append({'index':i,'requested_cpu':dest,'affinity_readback':[dest],'before_monotonic_ns':start,'after_monotonic_ns':start+10})
+        row('sched_migrate_task',start+5,pid=1014,orig_cpu=2 if i==0 else 1-dest,dest_cpu=dest)
+    row('sched_process_fork',1450,parent_pid=1011,child_pid=2000)
+    row('sched_process_exit',1650,3,pid=1015)
+    row('sched_switch',1660,3,prev_pid=1015,next_pid=0,prev_state=16)
+    row('sched_process_free',1000002000,4,pid=1015)
+    for rows in events.values():rows.sort(key=lambda r:r['time_ns'])
+    report={'case':'positive','role_local_tids':roles,'common_start_ns':100,'common_end_ns':4000000000,'ready':{'allowed_cpus':[0,1]},
+      'phases':[{'phase':'handoff','before_monotonic_ns':200,'after_monotonic_ns':800,'workers':[{'tid':12,'before_monotonic_ns':220,'after_monotonic_ns':700},{'tid':13,'before_monotonic_ns':225,'after_monotonic_ns':750}]},
+        {'phase':'yield','before_monotonic_ns':810,'after_monotonic_ns':900},
+        {'phase':'run','before_monotonic_ns':910,'after_monotonic_ns':990},
+        {'phase':'migrate','before_monotonic_ns':1000,'after_monotonic_ns':1300,'workers':[{'tid':14,'migration_steps':steps}]},
+        {'phase':'nonmember_fork','before_monotonic_ns':1400,'after_monotonic_ns':1500,'child_joined':True,'child_in_static_set':False,'nonmember_local_pid':999},
+        {'phase':'sacrifice','before_monotonic_ns':1600,'after_monotonic_ns':1700,'retired_local_tid':15,'python_join_returned':True,'native_death_proven':False,'exit_marker':{'before_monotonic_ns':1620}}],
+      'rcu_tail':{'before_monotonic_ns':1800,'after_monotonic_ns':2000001800,'requested_ns':2000000000},
+      'observations':[{'monotonic_ns':2000001801,'leases':{'actual_local_tids':[11,12,13,14]}}]}
+    return report,events,maps
+
+def run():
+    results=[]
+    def case(name,mutate=None,want=False):
+        r,e,m=fixture()
+        if mutate:mutate(r,e,m)
+        out=a.analyze_case(r,e,m);ok=out['passed']is want
+        results.append({'name':name,'passed':ok,'observed':out['passed'],'failures':out['failures']})
+    case('complete_static_observation',want=True)
+    case('missing_wakeup',lambda r,e,m:e['sched_wakeup'].pop(3))
+    case('running_out_is_not_sleep',lambda r,e,m:e['sched_switch'][3]['payload'].update(prev_state=0))
+    # Find by actor/timestamp rather than relying on global raw concatenation order.
+    def state(value):
+        return lambda r,e,m:next(x for x in e['sched_switch'] if x['time_ns']==300)['payload'].update(prev_state=value)
+    for v in [0,256,257,-1,True,3]:case('sleep_out_state_'+str(v),state(v))
+    case('preempt_running_is_valid_runnable',lambda r,e,m:next(x for x in e['sched_switch'] if x['time_ns']==420)['payload'].update(prev_state=256),True)
+    for stamp in (300,400):case('equal_time_chain_unknown_'+str(stamp),lambda r,e,m,t=stamp:next(x for x in e['sched_wakeup'] if x['payload']['pid']==1012).update(time_ns=t))
+    def doublewake(r,e,m):
+        w=copy.deepcopy(next(x for x in e['sched_wakeup'] if x['payload']['pid']==1012));w.update(time_ns=360,record_offset=99999);e['sched_wakeup'].append(w);e['sched_wakeup'].sort(key=lambda x:x['time_ns'])
+    case('multiple_wakes_not_selected_favorably',doublewake)
+    case('wrong_migration_dest',lambda r,e,m:e['sched_migrate_task'][3]['payload'].update(dest_cpu=7))
+    case('missing_migration_step',lambda r,e,m:e['sched_migrate_task'].pop(5))
+    case('initial_affinity_already_matches',lambda r,e,m:e['sched_migrate_task'].pop(0),True)
+    case('migration_outside_step',lambda r,e,m:e['sched_migrate_task'][3].update(time_ns=900))
+    case('wrong_affinity_readback',lambda r,e,m:r['phases'][3]['workers'][0]['migration_steps'][2].update(affinity_readback=[7]))
+    case('unrelated_fork',lambda r,e,m:e['sched_process_fork'][0]['payload'].update(parent_pid=5000))
+    case('member_child_birth_poison',lambda r,e,m:e['sched_process_fork'][0]['payload'].update(child_pid=1012))
+    case('fork_outside_phase',lambda r,e,m:e['sched_process_fork'][0].update(time_ns=1350))
+    case('nonmember_admitted',lambda r,e,m:r['phases'][4].update(child_in_static_set=True))
+    case('missing_free',lambda r,e,m:e['sched_process_free'].clear())
+    case('wrong_free_generation',lambda r,e,m:e['sched_process_free'][0]['payload'].update(pid=1014))
+    case('free_before_exit',lambda r,e,m:e['sched_process_free'][0].update(time_ns=1640))
+    case('duplicate_exit_poison',lambda r,e,m:e['sched_process_exit'].append(copy.deepcopy(e['sched_process_exit'][0])))
+    case('missing_terminal_exit_switch',lambda r,e,m:e['sched_switch'][-1]['payload'].update(prev_state=0))
+    case('python_join_is_not_native_end',lambda r,e,m:r['phases'][-1].update(native_death_proven=True))
+    case('missing_posttail_proc_snapshot',lambda r,e,m:r['observations'].clear())
+    case('retired_tid_still_present',lambda r,e,m:r['observations'][0]['leases']['actual_local_tids'].append(15))
+    case('tail_shortened',lambda r,e,m:r['rcu_tail'].update(after_monotonic_ns=1900))
+    def newwake(r,e,m):e['sched_wakeup_new'].append({'type':9,'cpu':0,'time_ns':1800,'record_offset':0,'payload':{'pid':1015}})
+    case('new_generation_wakeup_poison',newwake)
+    case('phase_order_drift',lambda r,e,m:r['phases'].reverse())
+    case('missing_role',lambda r,e,m:r['role_local_tids'].pop('A'))
+    case('duplicate_global_mapping',lambda r,e,m:m.update({12:1011}))
+    case('boolean_global_identity',lambda r,e,m:m.update({12:True}))
+    case('positive_sideband_rejected',lambda r,e,m:e['sched_switch'].append({'type':2}))
+    return results
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser();p.add_argument('--output',required=True);args=p.parse_args();results=run()
+    out={'status':'passed' if all(x['passed'] for x in results) else 'failed','checks':len(results),'results':results,'source_sha256':hashlib.sha256(Path(a.__file__).read_bytes()).hexdigest(),'test_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'scope':'Pure adverse observation fixtures; no actor/native/perf operation'}
+    with Path(args.output).open('x',encoding='utf-8',newline='\n') as f:json.dump(out,f,indent=2);f.write('\n')
+    print(json.dumps({k:out[k] for k in ['status','checks','source_sha256']}));raise SystemExit(0 if out['status']=='passed' else 1)
