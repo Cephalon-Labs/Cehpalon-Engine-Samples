@@ -1,0 +1,137 @@
+{
+  "status": "conditional_candidate_for_separately_declared_synthetic_conformance_not_capture_ready",
+  "date_bangkok": "2026-11-02",
+  "scope": "Read-only identity/files/help/source review; no installs,mounts,sysctl,permissions,globaltraceconfig,capture,workload",
+  "observations": {
+    "ordinary": "UID1000 tom, no effective/permitted/ambient capabilities; perf_event_paranoid2 and kptr_restrict1; tracefs files denied",
+    "root_readonly": "wsl --user root id/file reads succeed UID0; all8exactformats accessible; no actualperf_event_open tested",
+    "kernel_perf": "6.18.54.1-microsoft-standard-WSL2; perf6.18.54.1.g26d1ceb55087",
+    "tracefs": "existing trace_clock local, current_tracer nop, tracing_on1; no values changed"
+  },
+  "host_inventory_sha256": "e72fec5ca6538c30aeadc9c72b6dcfca73b2fb8a057af59effe5326a0d7352ac",
+  "official_provenance_sha256": "c33d81f10abbd3444f4151cc47fbf32b3221fe327a9fc1e7cd2d9d6ea0bba14b",
+  "live_event_fields": {
+    "sched_switch": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:char prev_comm[16];\toffset:8;\tsize:16;\tsigned:0;",
+      "field:pid_t prev_pid;\toffset:24;\tsize:4;\tsigned:1;",
+      "field:int prev_prio;\toffset:28;\tsize:4;\tsigned:1;",
+      "field:long prev_state;\toffset:32;\tsize:8;\tsigned:1;",
+      "field:char next_comm[16];\toffset:40;\tsize:16;\tsigned:0;",
+      "field:pid_t next_pid;\toffset:56;\tsize:4;\tsigned:1;",
+      "field:int next_prio;\toffset:60;\tsize:4;\tsigned:1;"
+    ],
+    "sched_waking": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:char comm[16];\toffset:8;\tsize:16;\tsigned:0;",
+      "field:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;",
+      "field:int prio;\toffset:28;\tsize:4;\tsigned:1;",
+      "field:int target_cpu;\toffset:32;\tsize:4;\tsigned:1;"
+    ],
+    "sched_wakeup": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:char comm[16];\toffset:8;\tsize:16;\tsigned:0;",
+      "field:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;",
+      "field:int prio;\toffset:28;\tsize:4;\tsigned:1;",
+      "field:int target_cpu;\toffset:32;\tsize:4;\tsigned:1;"
+    ],
+    "sched_wakeup_new": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:char comm[16];\toffset:8;\tsize:16;\tsigned:0;",
+      "field:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;",
+      "field:int prio;\toffset:28;\tsize:4;\tsigned:1;",
+      "field:int target_cpu;\toffset:32;\tsize:4;\tsigned:1;"
+    ],
+    "sched_process_fork": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:__data_loc char[] parent_comm;\toffset:8;\tsize:4;\tsigned:0;",
+      "field:pid_t parent_pid;\toffset:12;\tsize:4;\tsigned:1;",
+      "field:__data_loc char[] child_comm;\toffset:16;\tsize:4;\tsigned:0;",
+      "field:pid_t child_pid;\toffset:20;\tsize:4;\tsigned:1;"
+    ],
+    "sched_process_exit": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:char comm[16];\toffset:8;\tsize:16;\tsigned:0;",
+      "field:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;",
+      "field:int prio;\toffset:28;\tsize:4;\tsigned:1;",
+      "field:bool group_dead;\toffset:32;\tsize:1;\tsigned:0;"
+    ],
+    "sched_process_free": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:__data_loc char[] comm;\toffset:8;\tsize:4;\tsigned:0;",
+      "field:pid_t pid;\toffset:12;\tsize:4;\tsigned:1;",
+      "field:int prio;\toffset:16;\tsize:4;\tsigned:1;"
+    ],
+    "sched_migrate_task": [
+      "field:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;",
+      "field:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;",
+      "field:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;",
+      "field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;",
+      "field:__data_loc char[] comm;\toffset:8;\tsize:4;\tsigned:0;",
+      "field:pid_t pid;\toffset:12;\tsize:4;\tsigned:1;",
+      "field:int prio;\toffset:16;\tsize:4;\tsigned:1;",
+      "field:int orig_cpu;\toffset:20;\tsize:4;\tsigned:1;",
+      "field:int dest_cpu;\toffset:24;\tsize:4;\tsigned:1;"
+    ]
+  },
+  "minimum_candidate": {
+    "collection": "Prefer scoped per-CPU perf_event tracepoint file descriptors or separately validated perf-record -a event filters. Do not write globaltracefs enable/filter/trace_clock or use global trace_pipe. No process -t/common_pid substitution for target-payload filters.",
+    "owned_population": "Fixed declared positive integer TID setS leased through owned target PID/image/proc birth and start barrier; no automatic descendant membership. Existingworker birth before recording stays partialgenerationproof.",
+    "filters": {
+      "sched_switch": "OR over t inS: prev_pid==t || next_pid==t",
+      "sched_waking/sched_wakeup/sched_wakeup_new": "OR over t inS: pid==t",
+      "sched_migrate_task": "OR over t inS: pid==t",
+      "sched_process_fork": "OR over t inS: parent_pid==t || child_pid==t",
+      "sched_process_exit/sched_process_free": "OR over t inS: pid==t"
+    },
+    "clock": "Request per-session CLOCK_MONOTONIC via perf_event_attr.use_clockid/clockid or perf-record --clockid; verify in recordedattrs. Do not change tracefs clock. Retain explicit cross-clockanchor uncertainty before managed/EventPipe joins.",
+    "sample_fields": "Exact eventID/version/liveformat, CPU, recordedtimestamp/headerTID and rawpayload fields; no callchain/kcore needed. No global process/mmap/buildid inventory needed; collector must avoid unrequested sideband. perf-record default synthetic/system metadata needs explicit suppression plus verification, not assumption.",
+    "birth_churn": "If child created afterfilterarm is notinS, fork identifies child butotherfiltered events omitit. Treatchild unknown/outofscope; rejectunexpectedeligibleTID growth or rearm onlyundernewdeclaredcompleteattempt. Reuse/loss/leaseviolations failclosed.",
+    "counterparty": "Switch includes unowned previous/next PID,comm,priority when theother side isowned; wake event header canidentifyunownedemitter. Keep minimal exactraw eventpayload needed bydeclaredproof; counterpartydoesnotbecomeowned orcausalactor."
+  },
+  "interpretation_rules": [
+    "sched_waking is guaranteed waking context; sched_wakeup is actualwoken/TASK_RUNNING event and notalways wakingcontext. Targetpayloadpid differsfromnativeeventheader/common_pid.",
+    "sched_switch prev_state R or preemption R+ means taskremainsrunnable; do notclassify anynonzero rawbit asblocked. Decode exactliveformat/reportmax andmatchingname source.",
+    "A switch-out nonrunnable doesnotidentify why it slept; a laterwakeup canbound recorded runnablewaiting untilswitch-in onlywith completeevents, stableidentity andcompatibleclock. A runnablepreemptedout mayneednosubsequentwakeup.",
+    "Migration canmovethread acrossCPUs; captureallCPUs, retainCPU/targetCPU/orig/dest, ties/unorderedcrossCPUedgesunknown. No fixedCPU assumption.",
+    "Guest switch-in/out spans are recorded guest scheduled intervals, not instruction-level usefulCPUwork: interrupts/kernelactivity/host-vCPUdescheduling are notseparated. WSLcannotisolate hoststarvation fromtheseeventsalone.",
+    "Filterssuppress unrelatedevents; eventabsence outsideownedpopulation orbefore/aftercapture isnotabsenceofwork. Prefix/suffix initialstateunknown; no prorating acrossmissingedges.",
+    "GCpause/taskownership/workerprogress stillneeds sameexecutiontasklineage+GCcontract+clockjoins; scheduler eventgaps alone do not establish Engine-rootcause."
+  ],
+  "conformance_gates": [
+    "Declare syntheticcases/filterset/versions/clock/buffer/stopdeadline/acceptance beforelaunch; sourcefreeze+testsonactualPythonfirst.",
+    "Demonstrate eventFD/filter application and complete startack beforeowned targetgate release; allfiltererrors orpartialCPUcoverage reject.",
+    "Validatepositive wake/sleep/preempt/runnableout/migration/lifecycle observations againstownedbarriermarkers; retainexpectedcases even noevent.",
+    "Retain exact perf attrs/liveformats/filterexpressions, captureexit/stderr, rawrecordcounts perCPU,eventID, lostrecords/counters and decode failures. No overwrite ringmode. Anyknownloss invalidates affectedcausalspan/fullfixedlane perdeclaredpolicy.",
+    "Zero reportedloss isnot universalcompleteness; validateexpectedpositive markers and lossaccounting support. Expose unavailablelosschannel asunknown.",
+    "Exerciseadversefixture initial/finalmissingedges, duplicate/reordered/equalcrossCPU timestamps, TIDreuse, unexpectedchild, filterdrift, missingwakeup/runningtransition and lossrecords; rejectphase attribution.",
+    "Runcompletepredeclaredsyntheticattempt onlyafterconcrete scopedrootcapture authorization/preflight; rootreadonlypermission itselfdoesnotauthorizeactivecollection."
+  ],
+  "decision": {
+    "go": "GO to prepare protocol, tooling and synthetic fixtures withincurrentauthorization; source/format evidence supports a candidate",
+    "no_go": "NO GO to claim ready or startkernelcollection fromthisreview. Ordinaryuser blocked; rootactiveperf permission, settings compatibility,eventdelivery, filters, loss, clocks/identity joins remainuntested.",
+    "benchmark": "No neworiginalbenchmark orEnginepatch justified;#3Blocked/originalgatesunchanged"
+  },
+  "source_limit": "Matching-name WSL tag andperfversion are correspondence, not immutableinstalledbinaryattestation"
+}

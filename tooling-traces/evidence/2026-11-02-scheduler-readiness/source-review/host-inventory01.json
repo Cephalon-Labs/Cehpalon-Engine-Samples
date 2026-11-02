@@ -1,0 +1,528 @@
+{
+  "timestamp_utc": "2026-11-02T02:07:59.235843+00:00",
+  "scope": "Passive ordinary/root identity and file reads only. Root readability is not capture authorization/readiness.",
+  "commands": [
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "id"
+      ],
+      "exit_code": 0,
+      "stdout": "uid=1000(tom) gid=1000(tom) groups=1000(tom),4(adm),8(mail),20(dialout),24(cdrom),25(floppy),27(sudo),29(audio),30(dip),44(video),46(plugdev),116(netdev),1001(docker)\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux TOM-NPC 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "perf",
+        "version"
+      ],
+      "exit_code": 0,
+      "stdout": "perf version 6.18.54.1.g26d1ceb55087\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_paranoid"
+      ],
+      "exit_code": 0,
+      "stdout": "2\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/kptr_restrict"
+      ],
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "sh",
+        "-c",
+        "grep Cap /proc/self/status"
+      ],
+      "exit_code": 0,
+      "stdout": "CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "ls",
+        "-ld",
+        "/sys/kernel/tracing"
+      ],
+      "exit_code": 0,
+      "stdout": "drwx------ 6 root root 0 Nov  2 09:07 /sys/kernel/tracing\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/trace_clock"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/trace_clock: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/current_tracer"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/current_tracer: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/tracing_on"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/tracing_on: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/buffer_size_kb"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/buffer_size_kb: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/available_events"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/available_events: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_switch/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_switch/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_waking/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_waking/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_wakeup/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_wakeup/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_wakeup_new/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_wakeup_new/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_process_fork/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_process_fork/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_process_exit/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_process_exit/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_process_free/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_process_free/format: Permission denied\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_migrate_task/format"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "cat: /sys/kernel/tracing/events/sched/sched_migrate_task/format: Permission denied\n"
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "id"
+      ],
+      "exit_code": 0,
+      "stdout": "uid=0(root) gid=0(root) groups=0(root)\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux TOM-NPC 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "perf",
+        "version"
+      ],
+      "exit_code": 0,
+      "stdout": "perf version 6.18.54.1.g26d1ceb55087\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_paranoid"
+      ],
+      "exit_code": 0,
+      "stdout": "2\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/proc/sys/kernel/kptr_restrict"
+      ],
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "sh",
+        "-c",
+        "grep Cap /proc/self/status"
+      ],
+      "exit_code": 0,
+      "stdout": "CapInh:\t0000000000000000\nCapPrm:\t000001ffffffffff\nCapEff:\t000001ffffffffff\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "ls",
+        "-ld",
+        "/sys/kernel/tracing"
+      ],
+      "exit_code": 0,
+      "stdout": "drwx------ 6 root root 0 Nov  2 09:07 /sys/kernel/tracing\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/trace_clock"
+      ],
+      "exit_code": 0,
+      "stdout": "[local] global counter uptime perf mono mono_raw boot tai x86-tsc\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/current_tracer"
+      ],
+      "exit_code": 0,
+      "stdout": "nop\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/tracing_on"
+      ],
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/buffer_size_kb"
+      ],
+      "exit_code": 0,
+      "stdout": "7 (expanded: 1408)\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/available_events"
+      ],
+      "exit_code": 0,
+      "stdout": "tls:tls_device_offload_set\ntls:tls_device_decrypted\ntls:tls_device_rx_resync_send\ntls:tls_device_rx_resync_nh_schedule\ntls:tls_device_rx_resync_nh_delay\ntls:tls_device_tx_resync_req\ntls:tls_device_tx_resync_send\nkvmmmu:kvm_mmu_pagetable_walk\nkvmmmu:kvm_mmu_paging_element\nkvmmmu:kvm_mmu_set_accessed_bit\nkvmmmu:kvm_mmu_set_dirty_bit\nkvmmmu:kvm_mmu_walker_error\nkvmmmu:kvm_mmu_get_page\nkvmmmu:kvm_mmu_sync_page\nkvmmmu:kvm_mmu_unsync_page\nkvmmmu:kvm_mmu_prepare_zap_page\nkvmmmu:mark_mmio_spte\nkvmmmu:handle_mmio_page_fault\nkvmmmu:fast_page_fault\nkvmmmu:kvm_mmu_zap_all_fast\nkvmmmu:check_mmio_spte\nkvmmmu:kvm_mmu_set_spte\nkvmmmu:kvm_mmu_spte_requested\nkvmmmu:kvm_tdp_mmu_spte_changed\nkvmmmu:kvm_mmu_split_huge_page\nkvm:kvm_entry\nkvm:kvm_hypercall\nkvm:kvm_hv_hypercall\nkvm:kvm_hv_hypercall_done\nkvm:kvm_xen_hypercall\nkvm:kvm_pio\nkvm:kvm_fast_mmio\nkvm:kvm_cpuid\nkvm:kvm_ioapic_set_irq\nkvm:kvm_ioapic_delayed_eoi_inj\nkvm:kvm_msi_set_irq\nkvm:kvm_apic\nkvm:kvm_exit\nkvm:kvm_inj_virq\nkvm:kvm_inj_exception\nkvm:kvm_page_fault\nkvm:kvm_msr\nkvm:kvm_cr\nkvm:kvm_pic_set_irq\nkvm:kvm_apic_ipi\nkvm:kvm_apic_accept_irq\nkvm:kvm_eoi\nkvm:kvm_pv_eoi\nkvm:kvm_nested_vmenter\nkvm:kvm_nested_intercepts\nkvm:kvm_nested_vmexit\nkvm:kvm_nested_vmexit_inject\nkvm:kvm_nested_intr_vmexit\nkvm:kvm_invlpga\nkvm:kvm_skinit\nkvm:kvm_emulate_insn\nkvm:vcpu_match_mmio\nkvm:kvm_write_tsc_offset\nkvm:kvm_update_master_clock\nkvm:kvm_track_tsc\nkvm:kvm_pml_full\nkvm:kvm_ple_window_update\nkvm:kvm_pvclock_update\nkvm:kvm_wait_lapic_expire\nkvm:kvm_smm_transition\nkvm:kvm_pi_irte_update\nkvm:kvm_hv_notify_acked_sint\nkvm:kvm_hv_synic_set_irq\nkvm:kvm_hv_synic_send_eoi\nkvm:kvm_hv_synic_set_msr\nkvm:kvm_hv_stimer_set_config\nkvm:kvm_hv_stimer_set_count\nkvm:kvm_hv_stimer_start_periodic\nkvm:kvm_hv_stimer_start_one_shot\nkvm:kvm_hv_stimer_callback\nkvm:kvm_hv_stimer_expiration\nkvm:kvm_hv_stimer_cleanup\nkvm:kvm_apicv_inhibit_changed\nkvm:kvm_apicv_accept_irq\nkvm:kvm_avic_incomplete_ipi\nkvm:kvm_avic_unaccelerated_access\nkvm:kvm_avic_ga_log\nkvm:kvm_avic_kick_vcpu_slowpath\nkvm:kvm_avic_doorbell\nkvm:kvm_hv_timer_state\nkvm:kvm_hv_flush_tlb\nkvm:kvm_hv_flush_tlb_ex\nkvm:kvm_hv_send_ipi\nkvm:kvm_hv_send_ipi_ex\nkvm:kvm_pv_tlb_flush\nkvm:kvm_nested_vmenter_failed\nkvm:kvm_hv_syndbg_set_msr\nkvm:kvm_hv_syndbg_get_msr\nkvm:kvm_vmgexit_enter\nkvm:kvm_vmgexit_exit\nkvm:kvm_vmgexit_msr_protocol_enter\nkvm:kvm_vmgexit_msr_protocol_exit\nkvm:kvm_rmp_fault\nkvm:kvm_userspace_exit\nkvm:kvm_vcpu_wakeup\nkvm:kvm_set_irq\nkvm:kvm_ack_irq\nkvm:kvm_mmio\nkvm:kvm_fpu\nkvm:kvm_try_async_get_page\nkvm:kvm_async_pf_repeated_fault\nkvm:kvm_async_pf_not_present\nkvm:kvm_async_pf_ready\nkvm:kvm_async_pf_completed\nkvm:kvm_halt_poll_ns\nkvm:kvm_dirty_ring_push\nkvm:kvm_dirty_ring_reset\nkvm:kvm_dirty_ring_exit\nkvm:kvm_unmap_hva_range\nkvm:kvm_age_hva\nkvm:kvm_test_age_hva\ninitcall:initcall_finish\ninitcall:initcall_start\ninitcall:initcall_level\nvsyscall:emulate_vsyscall\nhyperv:hyperv_send_ipi_one\nhyperv:hyperv_send_ipi_mask\nhyperv:hyperv_nested_flush_guest_mapping_range\nhyperv:hyperv_nested_flush_guest_mapping\nhyperv:hyperv_mmu_flush_tlb_multi\nsyscalls:sys_exit_rt_sigreturn\nsyscalls:sys_enter_rt_sigreturn\nirq_vectors:vector_free_moved\nirq_vectors:vector_setup\nirq_vectors:vector_teardown\nirq_vectors:vector_deactivate\nirq_vectors:vector_activate\nirq_vectors:vector_alloc_managed\nirq_vectors:vector_alloc\nirq_vectors:vector_reserve\nirq_vectors:vector_reserve_managed\nirq_vectors:vector_clear\nirq_vectors:vector_update\nirq_vectors:vector_config\nirq_vectors:thermal_apic_exit\nirq_vectors:thermal_apic_entry\nirq_vectors:deferred_error_apic_exit\nirq_vectors:deferred_error_apic_entry\nirq_vectors:threshold_apic_exit\nirq_vectors:threshold_apic_entry\nirq_vectors:call_function_single_exit\nirq_vectors:call_function_single_entry\nirq_vectors:call_function_exit\nirq_vectors:call_function_entry\nirq_vectors:reschedule_exit\nirq_vectors:reschedule_entry\nirq_vectors:irq_work_exit\nirq_vectors:irq_work_entry\nirq_vectors:x86_platform_ipi_exit\nirq_vectors:x86_platform_ipi_entry\nirq_vectors:error_apic_exit\nirq_vectors:error_apic_entry\nirq_vectors:spurious_apic_exit\nirq_vectors:spurious_apic_entry\nirq_vectors:local_timer_exit\nirq_vectors:local_timer_entry\nsyscalls:sys_exit_iopl\nsyscalls:sys_enter_iopl\nsyscalls:sys_exit_ioperm\nsyscalls:sys_enter_ioperm\nnmi:nmi_handler\nsyscalls:sys_exit_modify_ldt\nsyscalls:sys_enter_modify_ldt\nsyscalls:sys_exit_mmap\nsyscalls:sys_enter_mmap\nsyscalls:sys_exit_arch_prctl\nsyscalls:sys_enter_arch_prctl\nx86_fpu:x86_fpu_xstate_check_failed\nx86_fpu:x86_fpu_copy_dst\nx86_fpu:x86_fpu_dropped\nx86_fpu:x86_fpu_regs_deactivated\nx86_fpu:x86_fpu_regs_activated\nx86_fpu:x86_fpu_after_save\nx86_fpu:x86_fpu_before_save\nmce:mce_record\nsyscalls:sys_exit_uprobe\nsyscalls:sys_enter_uprobe\nsyscalls:sys_exit_uretprobe\nsyscalls:sys_enter_uretprobe\ntlb:tlb_flush\nexceptions:page_fault_kernel\nexceptions:page_fault_user\nsyscalls:sys_exit_unshare\nsyscalls:sys_enter_unshare\nsyscalls:sys_exit_clone3\nsyscalls:sys_enter_clone3\nsyscalls:sys_exit_clone\nsyscalls:sys_enter_clone\nsyscalls:sys_exit_vfork\nsyscalls:sys_enter_vfork\nsyscalls:sys_exit_fork\nsyscalls:sys_enter_fork\nsyscalls:sys_exit_set_tid_address\nsyscalls:sys_enter_set_tid_address\ntask:task_prctl_unknown\ntask:task_rename\ntask:task_newtask\nsyscalls:sys_exit_personality\nsyscalls:sys_enter_personality\ncpuhp:cpuhp_exit\ncpuhp:cpuhp_multi_enter\ncpuhp:cpuhp_enter\nsyscalls:sys_exit_wait4\nsyscalls:sys_enter_wait4\nsyscalls:sys_exit_waitid\nsyscalls:sys_enter_waitid\nsyscalls:sys_exit_exit_group\nsyscalls:sys_enter_exit_group\nsyscalls:sys_exit_exit\nsyscalls:sys_enter_exit\nirq:tasklet_exit\nirq:tasklet_entry\nirq:softirq_raise\nirq:softirq_exit\nirq:softirq_entry\nirq:irq_handler_exit\nirq:irq_handler_entry\nsyscalls:sys_exit_capset\nsyscalls:sys_enter_capset\nsyscalls:sys_exit_capget\nsyscalls:sys_enter_capget\nsyscalls:sys_exit_ptrace\nsyscalls:sys_enter_ptrace\nsyscalls:sys_exit_rt_sigsuspend\nsyscalls:sys_enter_rt_sigsuspend\nsyscalls:sys_exit_pause\nsyscalls:sys_enter_pause\nsyscalls:sys_exit_rt_sigaction\nsyscalls:sys_enter_rt_sigaction\nsyscalls:sys_exit_sigaltstack\nsyscalls:sys_enter_sigaltstack\nsyscalls:sys_exit_rt_tgsigqueueinfo\nsyscalls:sys_enter_rt_tgsigqueueinfo\nsyscalls:sys_exit_rt_sigqueueinfo\nsyscalls:sys_enter_rt_sigqueueinfo\nsyscalls:sys_exit_tkill\nsyscalls:sys_enter_tkill\nsyscalls:sys_exit_tgkill\nsyscalls:sys_enter_tgkill\nsyscalls:sys_exit_pidfd_send_signal\nsyscalls:sys_enter_pidfd_send_signal\nsyscalls:sys_exit_kill\nsyscalls:sys_enter_kill\nsyscalls:sys_exit_rt_sigtimedwait\nsyscalls:sys_enter_rt_sigtimedwait\nsyscalls:sys_exit_rt_sigpending\nsyscalls:sys_enter_rt_sigpending\nsyscalls:sys_exit_rt_sigprocmask\nsyscalls:sys_enter_rt_sigprocmask\nsyscalls:sys_exit_restart_syscall\nsyscalls:sys_enter_restart_syscall\nsignal:signal_deliver\nsignal:signal_generate\nsyscalls:sys_exit_sysinfo\nsyscalls:sys_enter_sysinfo\nsyscalls:sys_exit_getcpu\nsyscalls:sys_enter_getcpu\nsyscalls:sys_exit_prctl\nsyscalls:sys_enter_prctl\nsyscalls:sys_exit_umask\nsyscalls:sys_enter_umask\nsyscalls:sys_exit_getrusage\nsyscalls:sys_enter_getrusage\nsyscalls:sys_exit_setrlimit\nsyscalls:sys_enter_setrlimit\nsyscalls:sys_exit_prlimit64\nsyscalls:sys_enter_prlimit64\nsyscalls:sys_exit_getrlimit\nsyscalls:sys_enter_getrlimit\nsyscalls:sys_exit_setdomainname\nsyscalls:sys_enter_setdomainname\nsyscalls:sys_exit_sethostname\nsyscalls:sys_enter_sethostname\nsyscalls:sys_exit_newuname\nsyscalls:sys_enter_newuname\nsyscalls:sys_exit_setsid\nsyscalls:sys_enter_setsid\nsyscalls:sys_exit_getsid\nsyscalls:sys_enter_getsid\nsyscalls:sys_exit_getpgrp\nsyscalls:sys_enter_getpgrp\nsyscalls:sys_exit_getpgid\nsyscalls:sys_enter_getpgid\nsyscalls:sys_exit_setpgid\nsyscalls:sys_enter_setpgid\nsyscalls:sys_exit_times\nsyscalls:sys_enter_times\nsyscalls:sys_exit_getegid\nsyscalls:sys_enter_getegid\nsyscalls:sys_exit_getgid\nsyscalls:sys_enter_getgid\nsyscalls:sys_exit_geteuid\nsyscalls:sys_enter_geteuid\nsyscalls:sys_exit_getuid\nsyscalls:sys_enter_getuid\nsyscalls:sys_exit_getppid\nsyscalls:sys_enter_getppid\nsyscalls:sys_exit_gettid\nsyscalls:sys_enter_gettid\nsyscalls:sys_exit_getpid\nsyscalls:sys_enter_getpid\nsyscalls:sys_exit_setfsgid\nsyscalls:sys_enter_setfsgid\nsyscalls:sys_exit_setfsuid\nsyscalls:sys_enter_setfsuid\nsyscalls:sys_exit_getresgid\nsyscalls:sys_enter_getresgid\nsyscalls:sys_exit_setresgid\nsyscalls:sys_enter_setresgid\nsyscalls:sys_exit_getresuid\nsyscalls:sys_enter_getresuid\nsyscalls:sys_exit_setresuid\nsyscalls:sys_enter_setresuid\nsyscalls:sys_exit_setuid\nsyscalls:sys_enter_setuid\nsyscalls:sys_exit_setreuid\nsyscalls:sys_enter_setreuid\nsyscalls:sys_exit_setgid\nsyscalls:sys_enter_setgid\nsyscalls:sys_exit_setregid\nsyscalls:sys_enter_setregid\nsyscalls:sys_exit_getpriority\nsyscalls:sys_enter_getpriority\nsyscalls:sys_exit_setpriority\nsyscalls:sys_enter_setpriority\nworkqueue:workqueue_execute_end\nworkqueue:workqueue_execute_start\nworkqueue:workqueue_activate_work\nworkqueue:workqueue_queue_work\nsyscalls:sys_exit_pidfd_getfd\nsyscalls:sys_enter_pidfd_getfd\nsyscalls:sys_exit_pidfd_open\nsyscalls:sys_enter_pidfd_open\nsyscalls:sys_exit_setns\nsyscalls:sys_enter_setns\nnotifier:notifier_run\nnotifier:notifier_unregister\nnotifier:notifier_register\nsyscalls:sys_exit_reboot\nsyscalls:sys_enter_reboot\nsyscalls:sys_exit_setgroups\nsyscalls:sys_enter_setgroups\nsyscalls:sys_exit_getgroups\nsyscalls:sys_enter_getgroups\nipi:ipi_send_cpumask\nipi:ipi_send_cpu\nsched:sched_wake_idle_without_ipi\nsched:sched_process_hang\nsched:sched_pi_setprio\nsched:sched_stat_runtime\nsched:sched_prepare_exec\nsched:sched_process_exec\nsched:sched_process_fork\nsched:sched_process_wait\nsched:sched_wait_task\nsched:sched_process_exit\nsched:sched_process_free\nsched:sched_migrate_task\nsched:sched_switch\nsched:sched_wakeup_new\nsched:sched_wakeup\nsched:sched_waking\nsched:sched_kthread_work_execute_end\nsched:sched_kthread_work_execute_start\nsched:sched_kthread_work_queue_work\nsched:sched_kthread_stop_ret\nsched:sched_kthread_stop\nsyscalls:sys_exit_sched_rr_get_interval\nsyscalls:sys_enter_sched_rr_get_interval\nsyscalls:sys_exit_sched_get_priority_min\nsyscalls:sys_enter_sched_get_priority_min\nsyscalls:sys_exit_sched_get_priority_max\nsyscalls:sys_enter_sched_get_priority_max\nsyscalls:sys_exit_sched_yield\nsyscalls:sys_enter_sched_yield\nsyscalls:sys_exit_sched_getaffinity\nsyscalls:sys_enter_sched_getaffinity\nsyscalls:sys_exit_sched_setaffinity\nsyscalls:sys_enter_sched_setaffinity\nsyscalls:sys_exit_sched_getattr\nsyscalls:sys_enter_sched_getattr\nsyscalls:sys_exit_sched_getparam\nsyscalls:sys_enter_sched_getparam\nsyscalls:sys_exit_sched_getscheduler\nsyscalls:sys_enter_sched_getscheduler\nsyscalls:sys_exit_sched_setattr\nsyscalls:sys_enter_sched_setattr\nsyscalls:sys_exit_sched_setparam\nsyscalls:sys_enter_sched_setparam\nsyscalls:sys_exit_sched_setscheduler\nsyscalls:sys_enter_sched_setscheduler\nsyscalls:sys_exit_membarrier\nsyscalls:sys_enter_membarrier\nlock:contention_end\nlock:contention_begin\nsyscalls:sys_exit_syslog\nsyscalls:sys_enter_syslog\nprintk:console\nirq_matrix:irq_matrix_free\nirq_matrix:irq_matrix_alloc\nirq_matrix:irq_matrix_assign\nirq_matrix:irq_matrix_alloc_managed\nirq_matrix:irq_matrix_remove_managed\nirq_matrix:irq_matrix_reserve_managed\nirq_matrix:irq_matrix_assign_system\nirq_matrix:irq_matrix_remove_reserved\nirq_matrix:irq_matrix_reserve\nirq_matrix:irq_matrix_offline\nirq_matrix:irq_matrix_online\nrcu:rcu_stall_warning\nrcu:rcu_utilization\ndma:dma_sync_sg_for_device\ndma:dma_sync_sg_for_cpu\ndma:dma_sync_single_for_device\ndma:dma_sync_single_for_cpu\ndma:dma_unmap_sg\ndma:dma_map_sg_err\ndma:dma_map_sg\ndma:dma_free_sgt\ndma:dma_free_pages\ndma:dma_free\ndma:dma_alloc_sgt\ndma:dma_alloc_sgt_err\ndma:dma_alloc_pages\ndma:dma_alloc\ndma:dma_unmap_phys\ndma:dma_map_phys\nswiotlb:swiotlb_bounced\nraw_syscalls:sys_exit\nraw_syscalls:sys_enter\nsyscalls:sys_exit_finit_module\nsyscalls:sys_enter_finit_module\nsyscalls:sys_exit_init_module\nsyscalls:sys_enter_init_module\nsyscalls:sys_exit_delete_module\nsyscalls:sys_enter_delete_module\nmodule:module_request\nmodule:module_put\nmodule:module_get\nmodule:module_free\nmodule:module_load\nsyscalls:sys_exit_kcmp\nsyscalls:sys_enter_kcmp\nsyscalls:sys_exit_adjtimex\nsyscalls:sys_enter_adjtimex\nsyscalls:sys_exit_settimeofday\nsyscalls:sys_enter_settimeofday\nsyscalls:sys_exit_gettimeofday\nsyscalls:sys_enter_gettimeofday\nsyscalls:sys_exit_time\nsyscalls:sys_enter_time\ntimer:tick_stop\ntimer:itimer_expire\ntimer:itimer_state\ntimer:hrtimer_cancel\ntimer:hrtimer_expire_exit\ntimer:hrtimer_expire_entry\ntimer:hrtimer_start\ntimer:hrtimer_setup\ntimer:timer_base_idle\ntimer:timer_cancel\ntimer:timer_expire_exit\ntimer:timer_expire_entry\ntimer:timer_start\ntimer:timer_init\nsyscalls:sys_exit_nanosleep\nsyscalls:sys_enter_nanosleep\nalarmtimer:alarmtimer_cancel\nalarmtimer:alarmtimer_start\nalarmtimer:alarmtimer_fired\nalarmtimer:alarmtimer_suspend\nsyscalls:sys_exit_clock_nanosleep\nsyscalls:sys_enter_clock_nanosleep\nsyscalls:sys_exit_clock_getres\nsyscalls:sys_enter_clock_getres\nsyscalls:sys_exit_clock_adjtime\nsyscalls:sys_enter_clock_adjtime\nsyscalls:sys_exit_clock_gettime\nsyscalls:sys_enter_clock_gettime\nsyscalls:sys_exit_clock_settime\nsyscalls:sys_enter_clock_settime\nsyscalls:sys_exit_timer_delete\nsyscalls:sys_enter_timer_delete\nsyscalls:sys_exit_timer_settime\nsyscalls:sys_enter_timer_settime\nsyscalls:sys_exit_timer_getoverrun\nsyscalls:sys_enter_timer_getoverrun\nsyscalls:sys_exit_timer_gettime\nsyscalls:sys_enter_timer_gettime\nsyscalls:sys_exit_timer_create\nsyscalls:sys_enter_timer_create\nsyscalls:sys_exit_setitimer\nsyscalls:sys_enter_setitimer\nsyscalls:sys_exit_alarm\nsyscalls:sys_enter_alarm\nsyscalls:sys_exit_getitimer\nsyscalls:sys_enter_getitimer\ntimer_migration:tmigr_handle_remote\ntimer_migration:tmigr_update_events\ntimer_migration:tmigr_cpu_new_timer_idle\ntimer_migration:tmigr_cpu_idle\ntimer_migration:tmigr_handle_remote_cpu\ntimer_migration:tmigr_cpu_offline\ntimer_migration:tmigr_cpu_online\ntimer_migration:tmigr_cpu_active\ntimer_migration:tmigr_cpu_new_timer\ntimer_migration:tmigr_group_set_cpu_active\ntimer_migration:tmigr_group_set_cpu_inactive\ntimer_migration:tmigr_connect_cpu_parent\ntimer_migration:tmigr_connect_child_parent\ntimer_migration:tmigr_group_set\nsyscalls:sys_exit_futex_requeue\nsyscalls:sys_enter_futex_requeue\nsyscalls:sys_exit_futex_wait\nsyscalls:sys_enter_futex_wait\nsyscalls:sys_exit_futex_wake\nsyscalls:sys_enter_futex_wake\nsyscalls:sys_exit_futex_waitv\nsyscalls:sys_enter_futex_waitv\nsyscalls:sys_exit_futex\nsyscalls:sys_enter_futex\nsyscalls:sys_exit_get_robust_list\nsyscalls:sys_enter_get_robust_list\nsyscalls:sys_exit_set_robust_list\nsyscalls:sys_enter_set_robust_list\ncsd:csd_function_exit\ncsd:csd_function_entry\ncsd:csd_queue_cpu\nsyscalls:sys_exit_acct\nsyscalls:sys_enter_acct\nsyscalls:sys_exit_kexec_file_load\nsyscalls:sys_enter_kexec_file_load\ncgroup:cgroup_rstat_unlock\ncgroup:cgroup_rstat_locked\ncgroup:cgroup_rstat_lock_contended\ncgroup:cgroup_notify_frozen\ncgroup:cgroup_notify_populated\ncgroup:cgroup_transfer_tasks\ncgroup:cgroup_attach_task\ncgroup:cgroup_unfreeze\ncgroup:cgroup_freeze\ncgroup:cgroup_rename\ncgroup:cgroup_release\ncgroup:cgroup_rmdir\ncgroup:cgroup_mkdir\ncgroup:cgroup_remount\ncgroup:cgroup_destroy_root\ncgroup:cgroup_setup_root\nsyscalls:sys_exit_seccomp\nsyscalls:sys_enter_seccomp\nbpf_trace:bpf_trace_printk\nerror_report:error_report_end\npower:guest_halt_poll_ns\npower:dev_pm_qos_remove_request\npower:dev_pm_qos_update_request\npower:dev_pm_qos_add_request\npower:pm_qos_update_flags\npower:pm_qos_update_target\npower:pm_qos_remove_request\npower:pm_qos_update_request\npower:pm_qos_add_request\npower:wakeup_source_deactivate\npower:wakeup_source_activate\npower:suspend_resume\npower:device_pm_callback_end\npower:device_pm_callback_start\npower:cpu_frequency_limits\npower:cpu_frequency\npower:pstate_sample\npower:cpu_idle_miss\npower:cpu_idle\nrpm:rpm_status\nrpm:rpm_return_int\nrpm:rpm_usage\nrpm:rpm_idle\nrpm:rpm_resume\nrpm:rpm_suspend\nxdp:bpf_xdp_link_attach_failed\nxdp:mem_connect\nxdp:mem_disconnect\nxdp:xdp_devmap_xmit\nxdp:xdp_cpumap_enqueue\nxdp:xdp_cpumap_kthread\nxdp:xdp_redirect_err\nxdp:xdp_redirect\nxdp:xdp_bulk_tx\nxdp:xdp_exception\nsyscalls:sys_exit_bpf\nsyscalls:sys_enter_bpf\nsyscalls:sys_exit_perf_event_open\nsyscalls:sys_enter_perf_event_open\nsyscalls:sys_exit_rseq\nsyscalls:sys_enter_rseq\nrseq:rseq_ip_fixup\nrseq:rseq_update\nsyscalls:sys_exit_cachestat\nsyscalls:sys_enter_cachestat\nfilemap:file_check_and_advance_wb_err\nfilemap:filemap_set_wb_err\nfilemap:mm_filemap_fault\nfilemap:mm_filemap_map_pages\nfilemap:mm_filemap_get_pages\nfilemap:mm_filemap_add_to_page_cache\nfilemap:mm_filemap_delete_from_page_cache\nsyscalls:sys_exit_process_mrelease\nsyscalls:sys_enter_process_mrelease\noom:compact_retry\noom:skip_task_reaping\noom:finish_task_reaping\noom:start_task_reaping\noom:wake_reaper\noom:mark_victim\noom:reclaim_retry_zone\noom:oom_score_adj_update\nsyscalls:sys_exit_fadvise64\nsyscalls:sys_enter_fadvise64\nsyscalls:sys_exit_readahead\nsyscalls:sys_enter_readahead\nreadahead:page_cache_async_ra\nreadahead:page_cache_sync_ra\nreadahead:page_cache_ra_order\nreadahead:page_cache_ra_unbounded\npagemap:mm_lru_activate\npagemap:mm_lru_insertion\nvmscan:mm_vmscan_throttled\nvmscan:mm_vmscan_node_reclaim_end\nvmscan:mm_vmscan_node_reclaim_begin\nvmscan:mm_vmscan_lru_shrink_active\nvmscan:mm_vmscan_lru_shrink_inactive\nvmscan:mm_vmscan_reclaim_pages\nvmscan:mm_vmscan_write_folio\nvmscan:mm_vmscan_lru_isolate\nvmscan:mm_shrink_slab_end\nvmscan:mm_shrink_slab_start\nvmscan:mm_vmscan_memcg_softlimit_reclaim_end\nvmscan:mm_vmscan_memcg_reclaim_end\nvmscan:mm_vmscan_direct_reclaim_end\nvmscan:mm_vmscan_memcg_softlimit_reclaim_begin\nvmscan:mm_vmscan_memcg_reclaim_begin\nvmscan:mm_vmscan_direct_reclaim_begin\nvmscan:mm_vmscan_wakeup_kswapd\nvmscan:mm_vmscan_kswapd_wake\nvmscan:mm_vmscan_kswapd_sleep\npercpu:percpu_destroy_chunk\npercpu:percpu_create_chunk\npercpu:percpu_alloc_percpu_fail\npercpu:percpu_free_percpu\npercpu:percpu_alloc_percpu\nkmem:rss_stat\nkmem:mm_calculate_totalreserve_pages\nkmem:mm_setup_per_zone_lowmem_reserve\nkmem:mm_setup_per_zone_wmarks\nkmem:mm_page_alloc_extfrag\nkmem:mm_page_pcpu_drain\nkmem:mm_page_alloc_zone_locked\nkmem:mm_page_alloc\nkmem:mm_page_free_batched\nkmem:mm_page_free\nkmem:kmem_cache_free\nkmem:kfree\nkmem:kmalloc\nkmem:kmem_cache_alloc\ncompaction:mm_compaction_kcompactd_wake\ncompaction:mm_compaction_wakeup_kcompactd\ncompaction:mm_compaction_kcompactd_sleep\ncompaction:mm_compaction_defer_reset\ncompaction:mm_compaction_defer_compaction\ncompaction:mm_compaction_deferred\ncompaction:mm_compaction_suitable\ncompaction:mm_compaction_finished\ncompaction:mm_compaction_try_to_compact_pages\ncompaction:mm_compaction_end\ncompaction:mm_compaction_begin\ncompaction:mm_compaction_migratepages\ncompaction:mm_compaction_fast_isolate_freepages\ncompaction:mm_compaction_isolate_freepages\ncompaction:mm_compaction_isolate_migratepages\nmmap_lock:mmap_lock_acquire_returned\nmmap_lock:mmap_lock_released\nmmap_lock:mmap_lock_start_locking\nsyscalls:sys_exit_mincore\nsyscalls:sys_enter_mincore\nsyscalls:sys_exit_munlockall\nsyscalls:sys_enter_munlockall\nsyscalls:sys_exit_mlockall\nsyscalls:sys_enter_mlockall\nsyscalls:sys_exit_munlock\nsyscalls:sys_enter_munlock\nsyscalls:sys_exit_mlock2\nsyscalls:sys_enter_mlock2\nsyscalls:sys_exit_mlock\nsyscalls:sys_enter_mlock\nsyscalls:sys_exit_remap_file_pages\nsyscalls:sys_enter_remap_file_pages\nsyscalls:sys_exit_munmap\nsyscalls:sys_enter_munmap\nsyscalls:sys_exit_brk\nsyscalls:sys_enter_brk\nmmap:exit_mmap\nmmap:vm_unmapped_area\nsyscalls:sys_exit_pkey_free\nsyscalls:sys_enter_pkey_free\nsyscalls:sys_exit_pkey_alloc\nsyscalls:sys_enter_pkey_alloc\nsyscalls:sys_exit_pkey_mprotect\nsyscalls:sys_enter_pkey_mprotect\nsyscalls:sys_exit_mprotect\nsyscalls:sys_enter_mprotect\nsyscalls:sys_exit_mremap\nsyscalls:sys_enter_mremap\nsyscalls:sys_exit_msync\nsyscalls:sys_enter_msync\nmigrate:remove_migration_pte\nmigrate:set_migration_pte\nmigrate:mm_migrate_pages_start\nmigrate:mm_migrate_pages\nvmalloc:free_vmap_area_noflush\nvmalloc:purge_vmap_area_lazy\nvmalloc:alloc_vmap_area\nsyscalls:sys_exit_process_vm_writev\nsyscalls:sys_enter_process_vm_writev\nsyscalls:sys_exit_process_vm_readv\nsyscalls:sys_enter_process_vm_readv\nsyscalls:sys_exit_mseal\nsyscalls:sys_enter_mseal\nsyscalls:sys_exit_process_madvise\nsyscalls:sys_enter_process_madvise\nsyscalls:sys_exit_madvise\nsyscalls:sys_enter_madvise\nsyscalls:sys_exit_swapon\nsyscalls:sys_enter_swapon\nsyscalls:sys_exit_swapoff\nsyscalls:sys_enter_swapoff\nsyscalls:sys_exit_get_mempolicy\nsyscalls:sys_enter_get_mempolicy\nsyscalls:sys_exit_migrate_pages\nsyscalls:sys_enter_migrate_pages\nsyscalls:sys_exit_set_mempolicy\nsyscalls:sys_enter_set_mempolicy\nsyscalls:sys_exit_mbind\nsyscalls:sys_enter_mbind\nsyscalls:sys_exit_set_mempolicy_home_node\nsyscalls:sys_enter_set_mempolicy_home_node\nksm:ksm_advisor\nksm:ksm_remove_rmap_item\nksm:ksm_remove_ksm_page\nksm:ksm_merge_with_ksm_page\nksm:ksm_merge_one_page\nksm:ksm_exit\nksm:ksm_enter\nksm:ksm_stop_scan\nksm:ksm_start_scan\nsyscalls:sys_exit_move_pages\nsyscalls:sys_enter_move_pages\nthp:remove_migration_pmd\nthp:set_migration_pmd\nhuge_memory:mm_khugepaged_collapse_file\nhuge_memory:mm_khugepaged_scan_file\nhuge_memory:mm_collapse_huge_page_swapin\nhuge_memory:mm_collapse_huge_page_isolate\nhuge_memory:mm_collapse_huge_page\nhuge_memory:mm_khugepaged_scan_pmd\nmemcg:memcg_flush_stats\nmemcg:count_memcg_events\nmemcg:mod_memcg_lruvec_state\nmemcg:mod_memcg_state\npage_isolation:test_pages_isolated\nsyscalls:sys_exit_memfd_secret\nsyscalls:sys_enter_memfd_secret\nsyscalls:sys_exit_memfd_create\nsyscalls:sys_enter_memfd_create\nsyscalls:sys_exit_vhangup\nsyscalls:sys_enter_vhangup\nsyscalls:sys_exit_close\nsyscalls:sys_enter_close\nsyscalls:sys_exit_creat\nsyscalls:sys_enter_creat\nsyscalls:sys_exit_openat2\nsyscalls:sys_enter_openat2\nsyscalls:sys_exit_openat\nsyscalls:sys_enter_openat\nsyscalls:sys_exit_open\nsyscalls:sys_enter_open\nsyscalls:sys_exit_fchown\nsyscalls:sys_enter_fchown\nsyscalls:sys_exit_lchown\nsyscalls:sys_enter_lchown\nsyscalls:sys_exit_chown\nsyscalls:sys_enter_chown\nsyscalls:sys_exit_fchownat\nsyscalls:sys_enter_fchownat\nsyscalls:sys_exit_chmod\nsyscalls:sys_enter_chmod\nsyscalls:sys_exit_fchmodat\nsyscalls:sys_enter_fchmodat\nsyscalls:sys_exit_fchmodat2\nsyscalls:sys_enter_fchmodat2\nsyscalls:sys_exit_fchmod\nsyscalls:sys_enter_fchmod\nsyscalls:sys_exit_chroot\nsyscalls:sys_enter_chroot\nsyscalls:sys_exit_fchdir\nsyscalls:sys_enter_fchdir\nsyscalls:sys_exit_chdir\nsyscalls:sys_enter_chdir\nsyscalls:sys_exit_access\nsyscalls:sys_enter_access\nsyscalls:sys_exit_faccessat2\nsyscalls:sys_enter_faccessat2\nsyscalls:sys_exit_faccessat\nsyscalls:sys_enter_faccessat\nsyscalls:sys_exit_fallocate\nsyscalls:sys_enter_fallocate\nsyscalls:sys_exit_ftruncate\nsyscalls:sys_enter_ftruncate\nsyscalls:sys_exit_truncate\nsyscalls:sys_enter_truncate\nsyscalls:sys_exit_copy_file_range\nsyscalls:sys_enter_copy_file_range\nsyscalls:sys_exit_sendfile64\nsyscalls:sys_enter_sendfile64\nsyscalls:sys_exit_pwritev2\nsyscalls:sys_enter_pwritev2\nsyscalls:sys_exit_pwritev\nsyscalls:sys_enter_pwritev\nsyscalls:sys_exit_preadv2\nsyscalls:sys_enter_preadv2\nsyscalls:sys_exit_preadv\nsyscalls:sys_enter_preadv\nsyscalls:sys_exit_writev\nsyscalls:sys_enter_writev\nsyscalls:sys_exit_readv\nsyscalls:sys_enter_readv\nsyscalls:sys_exit_pwrite64\nsyscalls:sys_enter_pwrite64\nsyscalls:sys_exit_pread64\nsyscalls:sys_enter_pread64\nsyscalls:sys_exit_write\nsyscalls:sys_enter_write\nsyscalls:sys_exit_read\nsyscalls:sys_enter_read\nsyscalls:sys_exit_lseek\nsyscalls:sys_enter_lseek\nsyscalls:sys_exit_statx\nsyscalls:sys_enter_statx\nsyscalls:sys_exit_readlink\nsyscalls:sys_enter_readlink\nsyscalls:sys_exit_readlinkat\nsyscalls:sys_enter_readlinkat\nsyscalls:sys_exit_newfstat\nsyscalls:sys_enter_newfstat\nsyscalls:sys_exit_newfstatat\nsyscalls:sys_enter_newfstatat\nsyscalls:sys_exit_newlstat\nsyscalls:sys_enter_newlstat\nsyscalls:sys_exit_newstat\nsyscalls:sys_enter_newstat\nsyscalls:sys_exit_execveat\nsyscalls:sys_enter_execveat\nsyscalls:sys_exit_execve\nsyscalls:sys_enter_execve\nsyscalls:sys_exit_pipe\nsyscalls:sys_enter_pipe\nsyscalls:sys_exit_pipe2\nsyscalls:sys_enter_pipe2\nsyscalls:sys_exit_rename\nsyscalls:sys_enter_rename\nsyscalls:sys_exit_renameat\nsyscalls:sys_enter_renameat\nsyscalls:sys_exit_renameat2\nsyscalls:sys_enter_renameat2\nsyscalls:sys_exit_link\nsyscalls:sys_enter_link\nsyscalls:sys_exit_linkat\nsyscalls:sys_enter_linkat\nsyscalls:sys_exit_symlink\nsyscalls:sys_enter_symlink\nsyscalls:sys_exit_symlinkat\nsyscalls:sys_enter_symlinkat\nsyscalls:sys_exit_unlink\nsyscalls:sys_enter_unlink\nsyscalls:sys_exit_unlinkat\nsyscalls:sys_enter_unlinkat\nsyscalls:sys_exit_rmdir\nsyscalls:sys_enter_rmdir\nsyscalls:sys_exit_mkdir\nsyscalls:sys_enter_mkdir\nsyscalls:sys_exit_mkdirat\nsyscalls:sys_enter_mkdirat\nsyscalls:sys_exit_mknod\nsyscalls:sys_enter_mknod\nsyscalls:sys_exit_mknodat\nsyscalls:sys_enter_mknodat\nsyscalls:sys_exit_fcntl\nsyscalls:sys_enter_fcntl\nsyscalls:sys_exit_ioctl\nsyscalls:sys_enter_ioctl\nsyscalls:sys_exit_getdents64\nsyscalls:sys_enter_getdents64\nsyscalls:sys_exit_getdents\nsyscalls:sys_enter_getdents\nsyscalls:sys_exit_ppoll\nsyscalls:sys_enter_ppoll\nsyscalls:sys_exit_poll\nsyscalls:sys_enter_poll\nsyscalls:sys_exit_pselect6\nsyscalls:sys_enter_pselect6\nsyscalls:sys_exit_select\nsyscalls:sys_enter_select\ntimestamp:fill_mg_cmtime\ntimestamp:ctime_ns_xchg\ntimestamp:ctime_xchg_skip\ntimestamp:inode_set_ctime_to_ts\nsyscalls:sys_exit_dup\nsyscalls:sys_enter_dup\nsyscalls:sys_exit_dup2\nsyscalls:sys_enter_dup2\nsyscalls:sys_exit_dup3\nsyscalls:sys_enter_dup3\nsyscalls:sys_exit_close_range\nsyscalls:sys_enter_close_range\nsyscalls:sys_exit_sysfs\nsyscalls:sys_enter_sysfs\nsyscalls:sys_exit_listmount\nsyscalls:sys_enter_listmount\nsyscalls:sys_exit_statmount\nsyscalls:sys_enter_statmount\nsyscalls:sys_exit_open_tree_attr\nsyscalls:sys_enter_open_tree_attr\nsyscalls:sys_exit_mount_setattr\nsyscalls:sys_enter_mount_setattr\nsyscalls:sys_exit_pivot_root\nsyscalls:sys_enter_pivot_root\nsyscalls:sys_exit_move_mount\nsyscalls:sys_enter_move_mount\nsyscalls:sys_exit_fsmount\nsyscalls:sys_enter_fsmount\nsyscalls:sys_exit_mount\nsyscalls:sys_enter_mount\nsyscalls:sys_exit_open_tree\nsyscalls:sys_enter_open_tree\nsyscalls:sys_exit_umount\nsyscalls:sys_enter_umount\nsyscalls:sys_exit_fremovexattr\nsyscalls:sys_enter_fremovexattr\nsyscalls:sys_exit_lremovexattr\nsyscalls:sys_enter_lremovexattr\nsyscalls:sys_exit_removexattr\nsyscalls:sys_enter_removexattr\nsyscalls:sys_exit_removexattrat\nsyscalls:sys_enter_removexattrat\nsyscalls:sys_exit_flistxattr\nsyscalls:sys_enter_flistxattr\nsyscalls:sys_exit_llistxattr\nsyscalls:sys_enter_llistxattr\nsyscalls:sys_exit_listxattr\nsyscalls:sys_enter_listxattr\nsyscalls:sys_exit_listxattrat\nsyscalls:sys_enter_listxattrat\nsyscalls:sys_exit_fgetxattr\nsyscalls:sys_enter_fgetxattr\nsyscalls:sys_exit_lgetxattr\nsyscalls:sys_enter_lgetxattr\nsyscalls:sys_exit_getxattr\nsyscalls:sys_enter_getxattr\nsyscalls:sys_exit_getxattrat\nsyscalls:sys_enter_getxattrat\nsyscalls:sys_exit_fsetxattr\nsyscalls:sys_enter_fsetxattr\nsyscalls:sys_exit_lsetxattr\nsyscalls:sys_enter_lsetxattr\nsyscalls:sys_exit_setxattr\nsyscalls:sys_enter_setxattr\nsyscalls:sys_exit_setxattrat\nsyscalls:sys_enter_setxattrat\nwriteback:sb_clear_inode_writeback\nwriteback:sb_mark_inode_writeback\nwriteback:writeback_dirty_inode_enqueue\nwriteback:writeback_lazytime_iput\nwriteback:writeback_lazytime\nwriteback:writeback_single_inode\nwriteback:writeback_single_inode_start\nwriteback:writeback_sb_inodes_requeue\nwriteback:balance_dirty_pages\nwriteback:bdi_dirty_ratelimit\nwriteback:global_dirty_state\nwriteback:writeback_queue_io\nwriteback:wbc_writepage\nwriteback:writeback_bdi_register\nwriteback:writeback_wake_background\nwriteback:writeback_pages_written\nwriteback:writeback_wait\nwriteback:writeback_written\nwriteback:writeback_start\nwriteback:writeback_exec\nwriteback:writeback_queue\nwriteback:writeback_write_inode\nwriteback:writeback_write_inode_start\nwriteback:flush_foreign\nwriteback:track_foreign_dirty\nwriteback:inode_switch_wbs\nwriteback:inode_switch_wbs_queue\nwriteback:inode_foreign_history\nwriteback:writeback_dirty_inode\nwriteback:writeback_dirty_inode_start\nwriteback:writeback_mark_inode_dirty\nwriteback:folio_wait_writeback\nwriteback:writeback_dirty_folio\nsyscalls:sys_exit_tee\nsyscalls:sys_enter_tee\nsyscalls:sys_exit_splice\nsyscalls:sys_enter_splice\nsyscalls:sys_exit_vmsplice\nsyscalls:sys_enter_vmsplice\nsyscalls:sys_exit_sync_file_range\nsyscalls:sys_enter_sync_file_range\nsyscalls:sys_exit_fdatasync\nsyscalls:sys_enter_fdatasync\nsyscalls:sys_exit_fsync\nsyscalls:sys_enter_fsync\nsyscalls:sys_exit_syncfs\nsyscalls:sys_enter_syncfs\nsyscalls:sys_exit_sync\nsyscalls:sys_enter_sync\nsyscalls:sys_exit_utime\nsyscalls:sys_enter_utime\nsyscalls:sys_exit_utimes\nsyscalls:sys_enter_utimes\nsyscalls:sys_exit_futimesat\nsyscalls:sys_enter_futimesat\nsyscalls:sys_exit_utimensat\nsyscalls:sys_enter_utimensat\nsyscalls:sys_exit_getcwd\nsyscalls:sys_enter_getcwd\nsyscalls:sys_exit_ustat\nsyscalls:sys_enter_ustat\nsyscalls:sys_exit_fstatfs\nsyscalls:sys_enter_fstatfs\nsyscalls:sys_exit_statfs\nsyscalls:sys_enter_statfs\nsyscalls:sys_exit_fsconfig\nsyscalls:sys_enter_fsconfig\nsyscalls:sys_exit_fspick\nsyscalls:sys_enter_fspick\nsyscalls:sys_exit_fsopen\nsyscalls:sys_enter_fsopen\nsyscalls:sys_exit_file_setattr\nsyscalls:sys_enter_file_setattr\nsyscalls:sys_exit_file_getattr\nsyscalls:sys_enter_file_getattr\nsyscalls:sys_exit_inotify_rm_watch\nsyscalls:sys_enter_inotify_rm_watch\nsyscalls:sys_exit_inotify_add_watch\nsyscalls:sys_enter_inotify_add_watch\nsyscalls:sys_exit_inotify_init\nsyscalls:sys_enter_inotify_init\nsyscalls:sys_exit_inotify_init1\nsyscalls:sys_enter_inotify_init1\nsyscalls:sys_exit_fanotify_mark\nsyscalls:sys_enter_fanotify_mark\nsyscalls:sys_exit_fanotify_init\nsyscalls:sys_enter_fanotify_init\nsyscalls:sys_exit_epoll_pwait2\nsyscalls:sys_enter_epoll_pwait2\nsyscalls:sys_exit_epoll_pwait\nsyscalls:sys_enter_epoll_pwait\nsyscalls:sys_exit_epoll_wait\nsyscalls:sys_enter_epoll_wait\nsyscalls:sys_exit_epoll_ctl\nsyscalls:sys_enter_epoll_ctl\nsyscalls:sys_exit_epoll_create\nsyscalls:sys_enter_epoll_create\nsyscalls:sys_exit_epoll_create1\nsyscalls:sys_enter_epoll_create1\nsyscalls:sys_exit_signalfd\nsyscalls:sys_enter_signalfd\nsyscalls:sys_exit_signalfd4\nsyscalls:sys_enter_signalfd4\nsyscalls:sys_exit_timerfd_gettime\nsyscalls:sys_enter_timerfd_gettime\nsyscalls:sys_exit_timerfd_settime\nsyscalls:sys_enter_timerfd_settime\nsyscalls:sys_exit_timerfd_create\nsyscalls:sys_enter_timerfd_create\nsyscalls:sys_exit_eventfd\nsyscalls:sys_enter_eventfd\nsyscalls:sys_exit_eventfd2\nsyscalls:sys_enter_eventfd2\nsyscalls:sys_exit_userfaultfd\nsyscalls:sys_enter_userfaultfd\nsyscalls:sys_exit_io_pgetevents\nsyscalls:sys_enter_io_pgetevents\nsyscalls:sys_exit_io_getevents\nsyscalls:sys_enter_io_getevents\nsyscalls:sys_exit_io_cancel\nsyscalls:sys_enter_io_cancel\nsyscalls:sys_exit_io_submit\nsyscalls:sys_enter_io_submit\nsyscalls:sys_exit_io_destroy\nsyscalls:sys_enter_io_destroy\nsyscalls:sys_exit_io_setup\nsyscalls:sys_enter_io_setup\nfs_dax:dax_writeback_one\nfs_dax:dax_writeback_range_done\nfs_dax:dax_writeback_range\nfs_dax:dax_insert_pfn_mkwrite\nfs_dax:dax_insert_pfn_mkwrite_no_entry\nfs_dax:dax_load_hole\nfs_dax:dax_pte_fault_done\nfs_dax:dax_pte_fault\nfs_dax:dax_pmd_load_hole_fallback\nfs_dax:dax_pmd_load_hole\nfs_dax:dax_pmd_fault_done\nfs_dax:dax_pmd_fault\nsyscalls:sys_exit_flock\nsyscalls:sys_enter_flock\nfilelock:leases_conflict\nfilelock:generic_add_lease\nfilelock:time_out_leases\nfilelock:generic_delete_lease\nfilelock:break_lease_unblock\nfilelock:break_lease_block\nfilelock:break_lease_noblock\nfilelock:flock_lock_inode\nfilelock:locks_remove_posix\nfilelock:fcntl_setlk\nfilelock:posix_lock_inode\nfilelock:locks_get_lock_context\nsyscalls:sys_exit_open_by_handle_at\nsyscalls:sys_enter_open_by_handle_at\nsyscalls:sys_exit_name_to_handle_at\nsyscalls:sys_enter_name_to_handle_at\niomap:iomap_dio_complete\niomap:iomap_dio_rw_begin\niomap:iomap_iter\niomap:iomap_add_to_ioend\niomap:iomap_iter_srcmap\niomap:iomap_iter_dstmap\niomap:iomap_zero_iter\niomap:iomap_dio_rw_queued\niomap:iomap_dio_invalidate_fail\niomap:iomap_invalidate_folio\niomap:iomap_release_folio\niomap:iomap_writeback_folio\niomap:iomap_readahead\niomap:iomap_readpage\nsyscalls:sys_exit_quotactl_fd\nsyscalls:sys_enter_quotactl_fd\nsyscalls:sys_exit_quotactl\nsyscalls:sys_enter_quotactl\nnetfs:netfs_folioq\nnetfs:netfs_collect_stream\nnetfs:netfs_collect_gap\nnetfs:netfs_collect_state\nnetfs:netfs_collect_folio\nnetfs:netfs_collect_sreq\nnetfs:netfs_collect\nnetfs:netfs_copy2cache\nnetfs:netfs_write\nnetfs:netfs_write_iter\nnetfs:netfs_folio\nnetfs:netfs_sreq_ref\nnetfs:netfs_rreq_ref\nnetfs:netfs_failure\nnetfs:netfs_sreq\nnetfs:netfs_rreq\nnetfs:netfs_read\nfscache:fscache_resize\nfscache:fscache_invalidate\nfscache:fscache_relinquish\nfscache:fscache_acquire\nfscache:fscache_access\nfscache:fscache_access_volume\nfscache:fscache_access_cache\nfscache:fscache_active\nfscache:fscache_cookie\nfscache:fscache_volume\nfscache:fscache_cache\next4:ext4_update_sb\next4:ext4_fc_cleanup\next4:ext4_fc_track_range\next4:ext4_fc_track_inode\next4:ext4_fc_track_unlink\next4:ext4_fc_track_link\next4:ext4_fc_track_create\next4:ext4_fc_stats\next4:ext4_fc_commit_stop\next4:ext4_fc_commit_start\next4:ext4_fc_replay\next4:ext4_fc_replay_scan\next4:ext4_lazy_itable_init\next4:ext4_prefetch_bitmaps\next4:ext4_error\next4:ext4_shutdown\next4:ext4_getfsmap_mapping\next4:ext4_getfsmap_high_key\next4:ext4_getfsmap_low_key\next4:ext4_fsmap_mapping\next4:ext4_fsmap_high_key\next4:ext4_fsmap_low_key\next4:ext4_es_insert_delayed_extent\next4:ext4_es_shrink\next4:ext4_insert_range\next4:ext4_collapse_range\next4:ext4_es_shrink_scan_exit\next4:ext4_es_shrink_scan_enter\next4:ext4_es_shrink_count\next4:ext4_es_lookup_extent_exit\next4:ext4_es_lookup_extent_enter\next4:ext4_es_find_extent_range_exit\next4:ext4_es_find_extent_range_enter\next4:ext4_es_remove_extent\next4:ext4_es_cache_extent\next4:ext4_es_insert_extent\next4:ext4_ext_remove_space_done\next4:ext4_ext_remove_space\next4:ext4_ext_rm_idx\next4:ext4_ext_rm_leaf\next4:ext4_remove_blocks\next4:ext4_ext_show_extent\next4:ext4_get_implied_cluster_alloc_exit\next4:ext4_ext_handle_unwritten_extents\next4:ext4_trim_all_free\next4:ext4_trim_extent\next4:ext4_journal_start_reserved\next4:ext4_journal_start_inode\next4:ext4_journal_start_sb\next4:ext4_load_inode\next4:ext4_ext_load_extent\next4:ext4_ind_map_blocks_exit\next4:ext4_ext_map_blocks_exit\next4:ext4_ind_map_blocks_enter\next4:ext4_ext_map_blocks_enter\next4:ext4_ext_convert_to_initialized_fastpath\next4:ext4_ext_convert_to_initialized_enter\next4:ext4_truncate_exit\next4:ext4_truncate_enter\next4:ext4_unlink_exit\next4:ext4_unlink_enter\next4:ext4_fallocate_exit\next4:ext4_zero_range\next4:ext4_punch_hole\next4:ext4_fallocate_enter\next4:ext4_read_block_bitmap_load\next4:ext4_load_inode_bitmap\next4:ext4_mb_buddy_bitmap_load\next4:ext4_mb_bitmap_load\next4:ext4_da_release_space\next4:ext4_da_reserve_space\next4:ext4_da_update_reserve_space\next4:ext4_forget\next4:ext4_mballoc_free\next4:ext4_mballoc_discard\next4:ext4_mballoc_prealloc\next4:ext4_mballoc_alloc\next4:ext4_alloc_da_blocks\next4:ext4_sync_fs\next4:ext4_sync_file_exit\next4:ext4_sync_file_enter\next4:ext4_free_blocks\next4:ext4_allocate_blocks\next4:ext4_request_blocks\next4:ext4_mb_discard_preallocations\next4:ext4_discard_preallocations\next4:ext4_mb_release_group_pa\next4:ext4_mb_release_inode_pa\next4:ext4_mb_new_group_pa\next4:ext4_mb_new_inode_pa\next4:ext4_discard_blocks\next4:ext4_journalled_invalidate_folio\next4:ext4_invalidate_folio\next4:ext4_release_folio\next4:ext4_read_folio\next4:ext4_writepages_result\next4:ext4_da_write_pages_extent\next4:ext4_da_write_folios_end\next4:ext4_da_write_folios_start\next4:ext4_writepages\next4:ext4_da_write_end\next4:ext4_journalled_write_end\next4:ext4_write_end\next4:ext4_da_write_begin\next4:ext4_write_begin\next4:ext4_begin_ordered_truncate\next4:ext4_mark_inode_dirty\next4:ext4_nfs_commit_metadata\next4:ext4_drop_inode\next4:ext4_evict_inode\next4:ext4_allocate_inode\next4:ext4_request_inode\next4:ext4_free_inode\next4:ext4_other_inode_update_time\next2:ext2_dio_write_endio\next2:ext2_dio_read_end\next2:ext2_dio_read_begin\next2:ext2_dio_write_buff_end\next2:ext2_dio_write_end\next2:ext2_dio_write_begin\njbd2:jbd2_shrink_checkpoint_list\njbd2:jbd2_shrink_scan_exit\njbd2:jbd2_shrink_scan_enter\njbd2:jbd2_shrink_count\njbd2:jbd2_lock_buffer_stall\njbd2:jbd2_write_superblock\njbd2:jbd2_update_log_tail\njbd2:jbd2_checkpoint_stats\njbd2:jbd2_run_stats\njbd2:jbd2_handle_stats\njbd2:jbd2_handle_extend\njbd2:jbd2_handle_restart\njbd2:jbd2_handle_start\njbd2:jbd2_submit_inode_data\njbd2:jbd2_end_commit\njbd2:jbd2_drop_transaction\njbd2:jbd2_commit_logging\njbd2:jbd2_commit_flushing\njbd2:jbd2_commit_locking\njbd2:jbd2_start_commit\njbd2:jbd2_checkpoint\nhugetlbfs:hugetlbfs_fallocate\nhugetlbfs:hugetlbfs_setattr\nhugetlbfs:hugetlbfs_free_inode\nhugetlbfs:hugetlbfs_evict_inode\nhugetlbfs:hugetlbfs_alloc_inode\nfuse:fuse_request_end\nfuse:fuse_request_send\nxfs:xfs_freecounter_enospc\nxfs:xfs_freecounter_reserved\nxfs:xfs_growfs_check_rtgeom\nxfs:xfs_metafile_resv_init_error\nxfs:xfs_metafile_resv_critical\nxfs:xfs_metafile_resv_free_space\nxfs:xfs_metafile_resv_alloc_space\nxfs:xfs_metafile_resv_free\nxfs:xfs_metafile_resv_init\nxfs:xfs_metadir_lookup\nxfs:xfs_metadir_teardown\nxfs:xfs_metadir_link\nxfs:xfs_metadir_create\nxfs:xfs_metadir_try_create\nxfs:xfs_metadir_cancel\nxfs:xfs_metadir_commit\nxfs:xfs_metadir_start_link\nxfs:xfs_metadir_start_create\nxfs:xfs_getparents_end\nxfs:xfs_getparents_begin\nxfs:xfs_getparents_expand_lastrec\nxfs:xfs_getparents_put_listent\nxfs:xfs_exchmaps_delta_nextents\nxfs:xfs_exchmaps_delta_nextents_step\nxfs:xfs_exchmaps_recover\nxfs:xfs_exchmaps_defer\nxfs:xfs_exchmaps_final_estimate\nxfs:xfs_exchmaps_initial_estimate\nxfs:xfs_exchmaps_overhead\nxfs:xfs_exchrange_freshness\nxfs:xfs_exchrange_mappings\nxfs:xfs_exchrange_flush\nxfs:xfs_exchrange_prep\nxfs:xfs_exchrange_error\nxfs:xfs_exchrange_after\nxfs:xfs_exchrange_before\nxfs:xfs_exchmaps_update_inode_size\nxfs:xfs_exchmaps_mapping2\nxfs:xfs_exchmaps_mapping1\nxfs:xfs_exchmaps_mapping1_skip\nxfs:xfs_force_shutdown\nxfs:xfs_attr_defer_add\nxfs:xfs_attr_rmtval_remove_return\nxfs:xfs_attr_rmtval_alloc\nxfs:xfs_attr_node_addname_return\nxfs:xfs_attr_leaf_addname_return\nxfs:xfs_attr_set_iter_return\nxfs:xfs_attr_sf_addname_return\nxfs:xlog_iclog_write\nxfs:xlog_iclog_wait_on\nxfs:xlog_iclog_sync_done\nxfs:xlog_iclog_syncing\nxfs:xlog_iclog_sync\nxfs:xlog_iclog_switch\nxfs:xlog_iclog_release\nxfs:xlog_iclog_get_space\nxfs:xlog_iclog_force_lsn\nxfs:xlog_iclog_force\nxfs:xlog_iclog_callbacks_done\nxfs:xlog_iclog_callbacks_start\nxfs:xlog_iclog_callback\nxfs:xlog_iclog_clean\nxfs:xlog_iclog_activate\nxfs:xfs_blockgc_free_space\nxfs:xfs_ioc_free_eofblocks\nxfs:xfs_quota_expiry_range\nxfs:xfs_inode_timestamp_range\nxfs:xfs_btree_bload_block\nxfs:xfs_btree_bload_level_geometry\nxfs:xfs_btree_commit_ifakeroot\nxfs:xfs_btree_commit_afakeroot\nxfs:xfs_check_new_dalign\nxfs:xfs_pwork_init\nxfs:xfs_iwalk_ag_rec\nxfs:xfs_inode_unfixed_corruption\nxfs:xfs_inode_mark_healthy\nxfs:xfs_inode_mark_corrupt\nxfs:xfs_inode_mark_sick\nxfs:xfs_group_unfixed_corruption\nxfs:xfs_group_mark_healthy\nxfs:xfs_group_mark_corrupt\nxfs:xfs_group_mark_sick\nxfs:xfs_fs_unfixed_corruption\nxfs:xfs_fs_mark_healthy\nxfs:xfs_fs_mark_corrupt\nxfs:xfs_fs_mark_sick\nxfs:xfs_iunlink_remove\nxfs:xfs_iunlink\nxfs:xfs_inode_reload_unlinked_bucket\nxfs:xfs_iunlink_reload_next\nxfs:xfs_iunlink_update_dinode\nxfs:xfs_iunlink_update_bucket\nxfs:xfs_trans_free_items\nxfs:xfs_trans_commit_items\nxfs:xfs_trans_add_item\nxfs:xfs_trans_roll\nxfs:xfs_trans_free\nxfs:xfs_trans_dup\nxfs:xfs_trans_commit\nxfs:xfs_trans_cancel\nxfs:xfs_trans_alloc\nxfs:xfs_log_get_max_trans_res\nxfs:xfs_trans_resv_calc_minlogsize\nxfs:xfs_trans_resv_calc\nxfs:xfs_getfsmap_mapping\nxfs:xfs_getfsmap_high_key\nxfs:xfs_getfsmap_low_key\nxfs:xfs_fsmap_high_linear_key\nxfs:xfs_fsmap_low_linear_key\nxfs:xfs_fsmap_high_group_key\nxfs:xfs_fsmap_low_group_key\nxfs:xfs_fsmap_mapping\nxfs:xfs_swap_extent_rmap_error\nxfs:xfs_swap_extent_rmap_remap_piece\nxfs:xfs_swap_extent_rmap_remap\nxfs:xfs_reflink_cancel_cow\nxfs:xfs_reflink_end_cow_error\nxfs:xfs_reflink_cancel_cow_range_error\nxfs:xfs_reflink_cow_remap_skip\nxfs:xfs_reflink_cow_remap_to\nxfs:xfs_reflink_cow_remap_from\nxfs:xfs_reflink_end_cow\nxfs:xfs_reflink_cancel_cow_range\nxfs:xfs_reflink_convert_cow\nxfs:xfs_reflink_cow_found\nxfs:xfs_reflink_trim_around_shared\nxfs:xfs_reflink_unshare_error\nxfs:xfs_reflink_unshare\nxfs:xfs_reflink_remap_extent_dest\nxfs:xfs_reflink_remap_extent_src\nxfs:xfs_reflink_remap_extent_error\nxfs:xfs_reflink_remap_blocks_error\nxfs:xfs_reflink_update_inode_size_error\nxfs:xfs_reflink_set_inode_flag_error\nxfs:xfs_reflink_remap_range_error\nxfs:xfs_reflink_remap_range\nxfs:xfs_reflink_remap_blocks\nxfs:xfs_reflink_update_inode_size\nxfs:xfs_reflink_unset_inode_flag\nxfs:xfs_reflink_set_inode_flag\nxfs:xfs_iomap_invalid\nxfs:xfs_wb_data_iomap_invalid\nxfs:xfs_wb_cow_iomap_invalid\nxfs:xfs_refcount_finish_one_leftover\nxfs:xfs_refcount_deferred\nxfs:xfs_refcount_defer\nxfs:xfs_refcount_find_shared_error\nxfs:xfs_refcount_find_shared_result\nxfs:xfs_refcount_find_shared\nxfs:xfs_refcount_find_right_extent_error\nxfs:xfs_refcount_find_left_extent_error\nxfs:xfs_refcount_merge_right_extent_error\nxfs:xfs_refcount_merge_left_extent_error\nxfs:xfs_refcount_split_extent_error\nxfs:xfs_refcount_modify_extent_error\nxfs:xfs_refcount_merge_center_extents_error\nxfs:xfs_refcount_adjust_cow_error\nxfs:xfs_refcount_adjust_error\nxfs:xfs_refcount_find_right_extent\nxfs:xfs_refcount_find_left_extent\nxfs:xfs_refcount_merge_right_extent\nxfs:xfs_refcount_merge_left_extent\nxfs:xfs_refcount_split_extent\nxfs:xfs_refcount_modify_extent\nxfs:xfs_refcount_merge_center_extents\nxfs:xfs_refcount_cow_decrease\nxfs:xfs_refcount_cow_increase\nxfs:xfs_refcount_decrease\nxfs:xfs_refcount_increase\nxfs:xfs_refcount_update_error\nxfs:xfs_refcount_delete_error\nxfs:xfs_refcount_insert_error\nxfs:xfs_refcount_delete\nxfs:xfs_refcount_insert\nxfs:xfs_refcount_update\nxfs:xfs_refcount_get\nxfs:xfs_refcount_lookup\nxfs:xfs_ag_resv_init_error\nxfs:xfs_ag_resv_needed\nxfs:xfs_ag_resv_critical\nxfs:xfs_ag_resv_free_extent\nxfs:xfs_ag_resv_alloc_extent\nxfs:xfs_ag_resv_free\nxfs:xfs_ag_resv_init\nxfs:xfs_bmap_deferred\nxfs:xfs_bmap_defer\nxfs:xfs_rmap_find_left_neighbor_result\nxfs:xfs_rmap_find_right_neighbor_result\nxfs:xfs_rmap_lookup_le_range_result\nxfs:xfs_rmap_lookup_le_range\nxfs:xfs_rmap_lookup_le_range_candidate\nxfs:xfs_rmap_find_left_neighbor_query\nxfs:xfs_rmap_find_left_neighbor_candidate\nxfs:xfs_rmap_update_error\nxfs:xfs_rmap_delete_error\nxfs:xfs_rmap_insert_error\nxfs:xfs_rmap_delete\nxfs:xfs_rmap_insert\nxfs:xfs_rmap_update\nxfs:xfs_rmap_deferred\nxfs:xfs_rmap_defer\nxfs:xfs_rmap_convert_state\nxfs:xfs_rmap_convert_error\nxfs:xfs_rmap_convert_done\nxfs:xfs_rmap_convert\nxfs:xfs_rmap_map_error\nxfs:xfs_rmap_map_done\nxfs:xfs_rmap_map\nxfs:xfs_rmap_unmap_error\nxfs:xfs_rmap_unmap_done\nxfs:xfs_rmap_unmap\nxfs:xfs_defer_finish_item\nxfs:xfs_defer_cancel_item\nxfs:xfs_defer_add_item\nxfs:xfs_extent_free_deferred\nxfs:xfs_extent_free_defer\nxfs:xfs_agfl_free_deferred\nxfs:xfs_defer_item_unpause\nxfs:xfs_defer_item_pause\nxfs:xfs_defer_isolate_paused\nxfs:xfs_defer_relog_intent\nxfs:xfs_defer_pending_abort\nxfs:xfs_defer_pending_finish\nxfs:xfs_defer_cancel_list\nxfs:xfs_defer_create_intent\nxfs:xfs_defer_finish_error\nxfs:xfs_defer_trans_roll_error\nxfs:xfs_defer_finish_done\nxfs:xfs_defer_finish\nxfs:xfs_defer_trans_abort\nxfs:xfs_defer_trans_roll\nxfs:xfs_defer_cancel\nxfs:xfs_btree_free_block\nxfs:xfs_btree_alloc_block\nxfs:xfs_btree_overlapped_query_range\nxfs:xfs_btree_updkeys\nxfs:xfs_discard_rttoosmall\nxfs:xfs_discard_rtextent\nxfs:xfs_discard_busy\nxfs:xfs_discard_exclude\nxfs:xfs_discard_toosmall\nxfs:xfs_discard_extent\nxfs:xfs_log_recover_icreate_recover\nxfs:xfs_log_recover_icreate_cancel\nxfs:xfs_log_recover_inode_skip\nxfs:xfs_log_recover_inode_cancel\nxfs:xfs_log_recover_inode_recover\nxfs:xfs_log_recover_buf_dquot_buf\nxfs:xfs_log_recover_buf_reg_buf\nxfs:xfs_log_recover_buf_inode_buf\nxfs:xfs_log_recover_buf_skip\nxfs:xfs_log_recover_buf_recover\nxfs:xfs_log_recover_buf_cancel_ref_inc\nxfs:xfs_log_recover_buf_cancel_add\nxfs:xfs_log_recover_buf_cancel\nxfs:xfs_log_recover_buf_not_cancel\nxfs:xfs_log_recover_item_recover\nxfs:xfs_log_recover_item_reorder_tail\nxfs:xfs_log_recover_item_reorder_head\nxfs:xfs_log_recover_item_add_cont\nxfs:xfs_log_recover_item_add\nxfs:xfs_log_recover_record\nxfs:xfs_log_recover\nxfs:xfs_swap_extent_after\nxfs:xfs_swap_extent_before\nxfs:xfs_dir2_leafn_moveents\nxfs:xfs_dir2_shrink_inode\nxfs:xfs_dir2_grow_inode\nxfs:xfs_dir2_leafn_remove\nxfs:xfs_dir2_leafn_add\nxfs:xfs_da_path_shift\nxfs:xfs_da_fixhashpath\nxfs:xfs_da_shrink_inode\nxfs:xfs_da_grow_inode\nxfs:xfs_da_swap_lastblock\nxfs:xfs_da_node_toosmall\nxfs:xfs_da_node_unbalance\nxfs:xfs_da_node_rebalance\nxfs:xfs_da_node_remove\nxfs:xfs_da_node_split\nxfs:xfs_da_node_create\nxfs:xfs_da_node_add\nxfs:xfs_da_root_join\nxfs:xfs_da_root_split\nxfs:xfs_da_unlink_forward\nxfs:xfs_da_unlink_back\nxfs:xfs_da_link_after\nxfs:xfs_da_link_before\nxfs:xfs_da_join\nxfs:xfs_da_split\nxfs:xfs_attr_rmtval_get\nxfs:xfs_attr_node_replace\nxfs:xfs_attr_node_get\nxfs:xfs_attr_node_addname\nxfs:xfs_attr_leaf_toosmall\nxfs:xfs_attr_leaf_unbalance\nxfs:xfs_attr_leaf_rebalance\nxfs:xfs_attr_leaf_to_node\nxfs:xfs_attr_leaf_to_sf\nxfs:xfs_attr_leaf_flipflags\nxfs:xfs_attr_leaf_setflag\nxfs:xfs_attr_leaf_clearflag\nxfs:xfs_attr_leaf_split_after\nxfs:xfs_attr_leaf_split_before\nxfs:xfs_attr_leaf_split\nxfs:xfs_attr_leaf_removename\nxfs:xfs_attr_leaf_remove\nxfs:xfs_attr_leaf_replace\nxfs:xfs_attr_leaf_lookup\nxfs:xfs_attr_leaf_get\nxfs:xfs_attr_leaf_compact\nxfs:xfs_attr_leaf_create\nxfs:xfs_attr_leaf_add_work\nxfs:xfs_attr_leaf_add_new\nxfs:xfs_attr_leaf_add_old\nxfs:xfs_attr_leaf_add\nxfs:xfs_attr_sf_to_leaf\nxfs:xfs_attr_sf_remove\nxfs:xfs_attr_sf_lookup\nxfs:xfs_attr_sf_create\nxfs:xfs_attr_sf_addname\nxfs:xfs_attr_sf_add\nxfs:xfs_dir2_node_to_leaf\nxfs:xfs_dir2_node_removename\nxfs:xfs_dir2_node_replace\nxfs:xfs_dir2_node_lookup\nxfs:xfs_dir2_node_addname\nxfs:xfs_dir2_leaf_to_node\nxfs:xfs_dir2_leaf_to_block\nxfs:xfs_dir2_leaf_removename\nxfs:xfs_dir2_leaf_replace\nxfs:xfs_dir2_leaf_lookup\nxfs:xfs_dir2_leaf_addname\nxfs:xfs_dir2_block_to_leaf\nxfs:xfs_dir2_block_to_sf\nxfs:xfs_dir2_block_removename\nxfs:xfs_dir2_block_replace\nxfs:xfs_dir2_block_lookup\nxfs:xfs_dir2_block_addname\nxfs:xfs_dir2_sf_to_block\nxfs:xfs_dir2_sf_toino8\nxfs:xfs_dir2_sf_toino4\nxfs:xfs_dir2_sf_removename\nxfs:xfs_dir2_sf_replace\nxfs:xfs_dir2_sf_lookup\nxfs:xfs_dir2_sf_create\nxfs:xfs_dir2_sf_addname\nxfs:xfs_alloc_cur_check\nxfs:xfs_alloc_vextent_finish\nxfs:xfs_alloc_vextent_near_bno\nxfs:xfs_alloc_vextent_exact_bno\nxfs:xfs_alloc_vextent_first_ag\nxfs:xfs_alloc_vextent_start_ag\nxfs:xfs_alloc_vextent_this_ag\nxfs:xfs_alloc_vextent_allfailed\nxfs:xfs_alloc_vextent_loopfailed\nxfs:xfs_alloc_vextent_noagbp\nxfs:xfs_alloc_vextent_nofix\nxfs:xfs_alloc_vextent_skip_deadlock\nxfs:xfs_alloc_vextent_badargs\nxfs:xfs_alloc_small_error\nxfs:xfs_alloc_small_done\nxfs:xfs_alloc_small_notenough\nxfs:xfs_alloc_small_freelist\nxfs:xfs_alloc_size_busy\nxfs:xfs_alloc_size_error\nxfs:xfs_alloc_size_done\nxfs:xfs_alloc_size_nominleft\nxfs:xfs_alloc_size_noentry\nxfs:xfs_alloc_size_neither\nxfs:xfs_alloc_near_busy\nxfs:xfs_alloc_near_noentry\nxfs:xfs_alloc_cur_lookup_done\nxfs:xfs_alloc_cur_lookup\nxfs:xfs_alloc_cur_left\nxfs:xfs_alloc_cur_right\nxfs:xfs_alloc_cur\nxfs:xfs_alloc_near_first\nxfs:xfs_alloc_exact_error\nxfs:xfs_alloc_exact_notfound\nxfs:xfs_alloc_exact_done\nxfs:xfs_free_extent\nxfs:xfs_agfl_reset\nxfs:xfs_agf\nxfs:xfs_rtalloc_extent_busy_trim\nxfs:xfs_rtalloc_extent_busy\nxfs:xfs_extent_busy_trim\nxfs:xfs_extent_busy_clear\nxfs:xfs_extent_busy_reuse\nxfs:xfs_extent_busy_force\nxfs:xfs_extent_busy\nxfs:xfs_bunmap\nxfs:xfs_itruncate_extents_end\nxfs:xfs_itruncate_extents_start\nxfs:xfs_zoned_map_blocks\nxfs:xfs_file_splice_read\nxfs:xfs_end_io_direct_write\nxfs:xfs_zero_eof\nxfs:xfs_setfilesize\nxfs:xfs_unwritten_convert\nxfs:xfs_delalloc_enospc\nxfs:xfs_iomap_found\nxfs:xfs_iomap_alloc\nxfs:xfs_map_blocks_alloc\nxfs:xfs_map_blocks_found\nxfs:xfs_iomap_atomic_write_cow\nxfs:xfs_reflink_bounce_dio_write\nxfs:xfs_file_dax_write\nxfs:xfs_file_direct_write\nxfs:xfs_file_buffered_write\nxfs:xfs_file_dax_read\nxfs:xfs_file_direct_read\nxfs:xfs_file_buffered_read\nxfs:xfs_log_assign_tail_lsn\nxfs:xfs_ail_delete\nxfs:xfs_ail_move\nxfs:xfs_ail_insert\nxfs:xfs_ail_flushing\nxfs:xfs_ail_locked\nxfs:xfs_ail_pinned\nxfs:xfs_ail_push\nxfs:xfs_trans_free_abort\nxfs:xlog_ail_insert_abort\nxfs:xfs_cil_whiteout_unpin\nxfs:xfs_cil_whiteout_skip\nxfs:xfs_cil_whiteout_mark\nxfs:xfs_log_force\nxfs:xfs_log_cil_wait\nxfs:xfs_log_ticket_ungrant_exit\nxfs:xfs_log_ticket_ungrant_sub\nxfs:xfs_log_ticket_ungrant\nxfs:xfs_log_ticket_regrant_sub\nxfs:xfs_log_ticket_regrant_exit\nxfs:xfs_log_ticket_regrant\nxfs:xfs_log_regrant_exit\nxfs:xfs_log_regrant\nxfs:xfs_log_reserve_exit\nxfs:xfs_log_reserve\nxfs:xfs_log_grant_wake_up\nxfs:xfs_log_grant_wake\nxfs:xfs_log_grant_sleep\nxfs:xfs_log_umount_write\nxfs:xfs_trans_mod_dquot_after\nxfs:xfs_trans_mod_dquot_before\nxfs:xfs_trans_apply_dquot_deltas\nxfs:xfs_trans_mod_dquot\nxfs:xfs_trans_apply_dquot_deltas_after\nxfs:xfs_trans_apply_dquot_deltas_before\nxfs:xfs_dqflush_done\nxfs:xfs_dqflush_force\nxfs:xfs_dqflush\nxfs:xfs_dqrele\nxfs:xfs_dqput_free\nxfs:xfs_dqput\nxfs:xfs_dqget_dup\nxfs:xfs_dqget_freeing\nxfs:xfs_dqget_miss\nxfs:xfs_dqget_hit\nxfs:xfs_dqread_fail\nxfs:xfs_dqread\nxfs:xfs_dqtobp_read\nxfs:xfs_dqalloc\nxfs:xfs_dqattach_get\nxfs:xfs_dqattach_found\nxfs:xfs_dqreclaim_done\nxfs:xfs_dqreclaim_busy\nxfs:xfs_dqreclaim_want\nxfs:xfs_dqadjust\nxfs:xfs_rename\nxfs:xfs_symlink\nxfs:xfs_create\nxfs:xfs_lookup\nxfs:xfs_link\nxfs:xfs_remove\nxfs:xfs_inode_push_stale\nxfs:xfs_inode_push_pinned\nxfs:xfs_inode_unpin_nowait\nxfs:xfs_inode_unpin\nxfs:xfs_inode_pin\nxfs:xfs_irele\nxfs:xfs_irec_merge_post\nxfs:xfs_irec_merge_pre\nxfs:xfs_iomap_prealloc_size\nxfs:xfs_write_fault\nxfs:xfs_read_fault\nxfs:xfs_inode_inactivating\nxfs:xfs_inode_set_need_inactive\nxfs:xfs_inode_reclaiming\nxfs:xfs_inode_set_reclaimable\nxfs:xfs_inode_free_cowblocks_invalid\nxfs:xfs_inode_clear_cowblocks_tag\nxfs:xfs_inode_set_cowblocks_tag\nxfs:xfs_inode_free_eofblocks_invalid\nxfs:xfs_inode_clear_eofblocks_tag\nxfs:xfs_inode_set_eofblocks_tag\nxfs:xfs_dquot_dqdetach\nxfs:xfs_dquot_dqalloc\nxfs:xfs_update_time\nxfs:xfs_destroy_inode\nxfs:xfs_file_fsync\nxfs:xfs_dir_fsync\nxfs:xfs_ioctl_setattr\nxfs:xfs_file_compat_ioctl\nxfs:xfs_file_ioctl\nxfs:xfs_vm_bmap\nxfs:xfs_get_acl\nxfs:xfs_readdir\nxfs:xfs_insert_file_space\nxfs:xfs_collapse_file_space\nxfs:xfs_zero_file_space\nxfs:xfs_free_file_space\nxfs:xfs_alloc_file_space\nxfs:xfs_inactive_symlink\nxfs:xfs_readlink\nxfs:xfs_setattr\nxfs:xfs_getattr\nxfs:xfs_iget_miss\nxfs:xfs_iget_hit\nxfs:xfs_iget_recycle_fail\nxfs:xfs_iget_recycle\nxfs:xfs_iget_skip\nxfs:xfs_iunlock\nxfs:xfs_ilock_demote\nxfs:xfs_ilock_nowait\nxfs:xfs_ilock\nxfs:xfs_filestream_pick\nxfs:xfs_filestream_scan\nxfs:xfs_filestream_lookup\nxfs:xfs_filestream_free\nxfs:xfs_trans_binval\nxfs:xfs_trans_bhold_release\nxfs:xfs_trans_bhold\nxfs:xfs_trans_bjoin\nxfs:xfs_trans_bdetach\nxfs:xfs_trans_brelse\nxfs:xfs_trans_log_buf\nxfs:xfs_trans_read_buf_recur\nxfs:xfs_trans_read_buf\nxfs:xfs_trans_getsb_recur\nxfs:xfs_trans_getsb\nxfs:xfs_trans_get_buf_recur\nxfs:xfs_trans_get_buf\nxfs:xfs_buf_item_push\nxfs:xfs_buf_item_committed\nxfs:xfs_buf_item_release\nxfs:xfs_buf_item_unpin_stale\nxfs:xfs_buf_item_unpin\nxfs:xfs_buf_item_pin\nxfs:xfs_buf_item_ordered\nxfs:xfs_buf_item_format_stale\nxfs:xfs_buf_item_format\nxfs:xfs_buf_item_size_stale\nxfs:xfs_buf_item_size_ordered\nxfs:xfs_buf_item_size\nxfs:xfs_buf_ioerror\nxfs:xfs_buf_readahead\nxfs:xfs_buf_read\nxfs:xfs_buf_get\nxfs:xfs_buf_find\nxfs:xfs_reset_dqcounts\nxfs:xfs_btree_corrupt\nxfs:xfs_buf_backing_fallback\nxfs:xfs_buf_backing_vmalloc\nxfs:xfs_buf_backing_kmem\nxfs:xfs_buf_backing_folio\nxfs:xfs_trans_read_buf_shut\nxfs:xfs_buf_drain_buftarg\nxfs:xfs_buf_error_relse\nxfs:xfs_buf_iodone_async\nxfs:xfs_buf_item_relse\nxfs:xfs_buf_get_uncached\nxfs:xfs_buf_delwri_split\nxfs:xfs_buf_delwri_queued\nxfs:xfs_buf_delwri_queue\nxfs:xfs_buf_iowait_done\nxfs:xfs_buf_iowait\nxfs:xfs_buf_unlock\nxfs:xfs_buf_trylock\nxfs:xfs_buf_trylock_fail\nxfs:xfs_buf_lock_done\nxfs:xfs_buf_lock\nxfs:xfs_buf_submit\nxfs:xfs_buf_iodone\nxfs:xfs_buf_rele\nxfs:xfs_buf_hold\nxfs:xfs_buf_free\nxfs:xfs_buf_init\nxfs:xfs_write_extent\nxfs:xfs_read_extent\nxfs:xfs_bmap_post_update\nxfs:xfs_bmap_pre_update\nxfs:xfs_iext_remove\nxfs:xfs_iext_insert\nxfs:xfs_attr_list_node_descend\nxfs:xfs_ialloc_read_agi\nxfs:xfs_read_agi\nxfs:xfs_alloc_read_agf\nxfs:xfs_read_agf\nxfs:xfs_inodegc_shrinker_scan\nxfs:xfs_blockgc_flush_all\nxfs:xfs_blockgc_worker\nxfs:xfs_blockgc_stop\nxfs:xfs_blockgc_start\nxfs:xfs_fs_sync_fs\nxfs:xfs_inodegc_throttle\nxfs:xfs_inodegc_queue\nxfs:xfs_inodegc_stop\nxfs:xfs_inodegc_start\nxfs:xfs_inodegc_push\nxfs:xfs_inodegc_flush\nxfs:xfs_inodegc_worker\nxfs:xfs_zones_mount\nxfs:xfs_zone_gc_select_victim\nxfs:xfs_zone_alloc_blocks\nxfs:xfs_zone_skip_blocks\nxfs:xfs_zone_record_blocks\nxfs:xfs_zone_free_blocks\nxfs:xfs_zone_gc_target_opened\nxfs:xfs_zone_reset\nxfs:xfs_zone_opened\nxfs:xfs_zone_full\nxfs:xfs_zone_emptied\nxfs:xfs_group_rele\nxfs:xfs_group_grab_next_tag\nxfs:xfs_group_grab\nxfs:xfs_group_put\nxfs:xfs_group_hold\nxfs:xfs_group_get\nxfs:xfs_reclaim_inodes_count\nxfs:xfs_perag_clear_inode_tag\nxfs:xfs_perag_set_inode_tag\nxfs:xlog_intent_recovery_failed\nxfs:xfs_calc_max_atomic_write_log_geometry\nxfs:xfs_calc_max_atomic_write_fsblocks\nxfs:xfs_calc_atomic_write_unit_max\nxfs:xfs_attr_node_list\nxfs:xfs_attr_leaf_list\nxfs:xfs_attr_list_notfound\nxfs:xfs_attr_list_wrong_blk\nxfs:xfs_attr_list_add\nxfs:xfs_attr_list_full\nxfs:xfs_attr_list_leaf_end\nxfs:xfs_attr_list_leaf\nxfs:xfs_attr_list_sf_all\nxfs:xfs_attr_list_sf\nsyscalls:sys_exit_msgrcv\nsyscalls:sys_enter_msgrcv\nsyscalls:sys_exit_msgsnd\nsyscalls:sys_enter_msgsnd\nsyscalls:sys_exit_msgctl\nsyscalls:sys_enter_msgctl\nsyscalls:sys_exit_msgget\nsyscalls:sys_enter_msgget\nsyscalls:sys_exit_semop\nsyscalls:sys_enter_semop\nsyscalls:sys_exit_semtimedop\nsyscalls:sys_enter_semtimedop\nsyscalls:sys_exit_semctl\nsyscalls:sys_enter_semctl\nsyscalls:sys_exit_semget\nsyscalls:sys_enter_semget\nsyscalls:sys_exit_shmdt\nsyscalls:sys_enter_shmdt\nsyscalls:sys_exit_shmat\nsyscalls:sys_enter_shmat\nsyscalls:sys_exit_shmctl\nsyscalls:sys_enter_shmctl\nsyscalls:sys_exit_shmget\nsyscalls:sys_enter_shmget\nsyscalls:sys_exit_mq_getsetattr\nsyscalls:sys_enter_mq_getsetattr\nsyscalls:sys_exit_mq_notify\nsyscalls:sys_enter_mq_notify\nsyscalls:sys_exit_mq_timedreceive\nsyscalls:sys_enter_mq_timedreceive\nsyscalls:sys_exit_mq_timedsend\nsyscalls:sys_enter_mq_timedsend\nsyscalls:sys_exit_mq_unlink\nsyscalls:sys_enter_mq_unlink\nsyscalls:sys_exit_mq_open\nsyscalls:sys_enter_mq_open\nsyscalls:sys_exit_keyctl\nsyscalls:sys_enter_keyctl\nsyscalls:sys_exit_request_key\nsyscalls:sys_enter_request_key\nsyscalls:sys_exit_add_key\nsyscalls:sys_enter_add_key\ncapability:cap_capable\nsyscalls:sys_exit_lsm_list_modules\nsyscalls:sys_enter_lsm_list_modules\nsyscalls:sys_exit_lsm_get_self_attr\nsyscalls:sys_enter_lsm_get_self_attr\nsyscalls:sys_exit_lsm_set_self_attr\nsyscalls:sys_enter_lsm_set_self_attr\navc:selinux_audited\nsyscalls:sys_exit_landlock_restrict_self\nsyscalls:sys_enter_landlock_restrict_self\nsyscalls:sys_exit_landlock_add_rule\nsyscalls:sys_enter_landlock_add_rule\nsyscalls:sys_exit_landlock_create_ruleset\nsyscalls:sys_enter_landlock_create_ruleset\nblock:blk_zone_wplug_bio\nblock:disk_zone_wplug_add_bio\nblock:blkdev_zone_mgmt\nblock:block_rq_remap\nblock:block_bio_remap\nblock:block_split\nblock:block_unplug\nblock:block_plug\nblock:blk_zone_append_update_request_bio\nblock:block_getrq\nblock:block_bio_queue\nblock:block_bio_frontmerge\nblock:block_bio_backmerge\nblock:block_bio_complete\nblock:block_io_done\nblock:block_io_start\nblock:block_rq_merge\nblock:block_rq_issue\nblock:block_rq_insert\nblock:block_rq_error\nblock:block_rq_complete\nblock:block_rq_requeue\nblock:block_dirty_buffer\nblock:block_touch_buffer\nsyscalls:sys_exit_ioprio_get\nsyscalls:sys_enter_ioprio_get\nsyscalls:sys_exit_ioprio_set\nsyscalls:sys_enter_ioprio_set\nkyber:kyber_throttled\nkyber:kyber_adjust\nkyber:kyber_latency\nsyscalls:sys_exit_io_uring_setup\nsyscalls:sys_enter_io_uring_setup\nsyscalls:sys_exit_io_uring_enter\nsyscalls:sys_enter_io_uring_enter\nio_uring:io_uring_local_work_run\nio_uring:io_uring_short_write\nio_uring:io_uring_task_work_run\nio_uring:io_uring_cqe_overflow\nio_uring:io_uring_req_failed\nio_uring:io_uring_task_add\nio_uring:io_uring_poll_arm\nio_uring:io_uring_submit_req\nio_uring:io_uring_complete\nio_uring:io_uring_fail_link\nio_uring:io_uring_cqring_wait\nio_uring:io_uring_link\nio_uring:io_uring_defer\nio_uring:io_uring_queue_async_work\nio_uring:io_uring_file_get\nio_uring:io_uring_register\nio_uring:io_uring_create\nsyscalls:sys_exit_io_uring_register\nsyscalls:sys_enter_io_uring_register\nmsr:rdpmc\nmsr:write_msr\nmsr:read_msr\ngpio:gpio_value\ngpio:gpio_direction\npwm:pwm_get\npwm:pwm_apply\npwm:pwm_write_waveform\npwm:pwm_read_waveform\npwm:pwm_round_waveform_fromhw\npwm:pwm_round_waveform_tohw\nclk:clk_rate_request_done\nclk:clk_rate_request_start\nclk:clk_set_duty_cycle_complete\nclk:clk_set_duty_cycle\nclk:clk_set_phase_complete\nclk:clk_set_phase\nclk:clk_set_parent_complete\nclk:clk_set_parent\nclk:clk_set_rate_range\nclk:clk_set_max_rate\nclk:clk_set_min_rate\nclk:clk_set_rate_complete\nclk:clk_set_rate\nclk:clk_unprepare_complete\nclk:clk_unprepare\nclk:clk_prepare_complete\nclk:clk_prepare\nclk:clk_disable_complete\nclk:clk_disable\nclk:clk_enable_complete\nclk:clk_enable\nsyscalls:sys_exit_getrandom\nsyscalls:sys_enter_getrandom\nintel_iommu:cache_tag_flush_range_np\nintel_iommu:cache_tag_flush_range\nintel_iommu:cache_tag_unassign\nintel_iommu:cache_tag_assign\nintel_iommu:prq_report\nintel_iommu:qi_submit\niommu:io_page_fault\niommu:unmap\niommu:map\niommu:attach_device_to_domain\niommu:remove_device_from_group\niommu:add_device_to_group\ndrm:drm_vblank_event_delivered\ndrm:drm_vblank_event_queued\ndrm:drm_vblank_event\nregmap:regcache_drop_region\nregmap:regmap_async_complete_done\nregmap:regmap_async_complete_start\nregmap:regmap_async_io_complete\nregmap:regmap_async_write_start\nregmap:regmap_cache_bypass\nregmap:regmap_cache_only\nregmap:regcache_sync\nregmap:regmap_hw_write_done\nregmap:regmap_hw_write_start\nregmap:regmap_hw_read_done\nregmap:regmap_hw_read_start\nregmap:regmap_bulk_read\nregmap:regmap_bulk_write\nregmap:regmap_reg_read_cache\nregmap:regmap_reg_read\nregmap:regmap_reg_write\ndev:devres_log\ndma_fence:dma_fence_wait_end\ndma_fence:dma_fence_wait_start\ndma_fence:dma_fence_signaled\ndma_fence:dma_fence_enable_signal\ndma_fence:dma_fence_destroy\ndma_fence:dma_fence_init\ndma_fence:dma_fence_emit\nscsi:scsi_eh_wakeup\nscsi:scsi_dispatch_cmd_timeout\nscsi:scsi_dispatch_cmd_done\nscsi:scsi_dispatch_cmd_error\nscsi:scsi_dispatch_cmd_start\niscsi:iscsi_dbg_trans_conn\niscsi:iscsi_dbg_trans_session\niscsi:iscsi_dbg_sw_tcp\niscsi:iscsi_dbg_tcp\niscsi:iscsi_dbg_eh\niscsi:iscsi_dbg_session\niscsi:iscsi_dbg_conn\nsd:scsi_zone_wp_update\nsd:scsi_prepare_zone_append\nnvme:nvme_sq\nnvme:nvme_async_event\nnvme:nvme_complete_rq\nnvme:nvme_setup_cmd\nmdio:mdio_access\nnetvsc:nvsp_recv\nnetvsc:nvsp_send_pkt\nnetvsc:nvsp_send\nnetvsc:rndis_recv\nnetvsc:rndis_send\nrtc:rtc_timer_fired\nrtc:rtc_timer_dequeue\nrtc:rtc_timer_enqueue\nrtc:rtc_read_offset\nrtc:rtc_set_offset\nrtc:rtc_alarm_irq_enable\nrtc:rtc_irq_set_state\nrtc:rtc_irq_set_freq\nrtc:rtc_read_alarm\nrtc:rtc_set_alarm\nrtc:rtc_read_time\nrtc:rtc_set_time\ni2c:i2c_result\ni2c:i2c_reply\ni2c:i2c_read\ni2c:i2c_write\nsmbus:smbus_result\nsmbus:smbus_reply\nsmbus:smbus_read\nsmbus:smbus_write\nhwmon:hwmon_attr_show_string\nhwmon:hwmon_attr_store\nhwmon:hwmon_attr_show\nthermal:thermal_zone_trip\nthermal:cdev_update\nthermal:thermal_temperature\nwatchdog:watchdog_set_timeout\nwatchdog:watchdog_stop\nwatchdog:watchdog_ping\nwatchdog:watchdog_start\namd_cpu:amd_pstate_epp_perf\namd_cpu:amd_pstate_perf\nhyperv:vmbus_on_event\nhyperv:vmbus_setevent\nhyperv:vmbus_chan_sched\nhyperv:vmbus_send_modifychannel\nhyperv:vmbus_send_tl_connect_request\nhyperv:vmbus_release_relid\nhyperv:vmbus_negotiate_version\nhyperv:vmbus_teardown_gpadl\nhyperv:vmbus_establish_gpadl_body\nhyperv:vmbus_establish_gpadl_header\nhyperv:vmbus_close_internal\nhyperv:vmbus_open\nhyperv:vmbus_request_offers\nhyperv:vmbus_onversion_response\nhyperv:vmbus_ongpadl_torndown\nhyperv:vmbus_onmodifychannel_response\nhyperv:vmbus_ongpadl_created\nhyperv:vmbus_onopen_result\nhyperv:vmbus_onoffer_rescind\nhyperv:vmbus_onoffer\nhyperv:vmbus_on_message\nhyperv:vmbus_on_msg_dpc\nhyperv:balloon_status\ndevfreq:devfreq_monitor\ndevfreq:devfreq_frequency\nras:memory_failure_event\nras:aer_event\nras:non_standard_event\nras:arm_event\nras:mc_event\nsyscalls:sys_exit_recvmmsg\nsyscalls:sys_enter_recvmmsg\nsyscalls:sys_exit_recvmsg\nsyscalls:sys_enter_recvmsg\nsyscalls:sys_exit_sendmmsg\nsyscalls:sys_enter_sendmmsg\nsyscalls:sys_exit_sendmsg\nsyscalls:sys_enter_sendmsg\nsyscalls:sys_exit_shutdown\nsyscalls:sys_enter_shutdown\nsyscalls:sys_exit_getsockopt\nsyscalls:sys_enter_getsockopt\nsyscalls:sys_exit_setsockopt\nsyscalls:sys_enter_setsockopt\nsyscalls:sys_exit_recvfrom\nsyscalls:sys_enter_recvfrom\nsyscalls:sys_exit_sendto\nsyscalls:sys_enter_sendto\nsyscalls:sys_exit_getpeername\nsyscalls:sys_enter_getpeername\nsyscalls:sys_exit_getsockname\nsyscalls:sys_enter_getsockname\nsyscalls:sys_exit_connect\nsyscalls:sys_enter_connect\nsyscalls:sys_exit_accept\nsyscalls:sys_enter_accept\nsyscalls:sys_exit_accept4\nsyscalls:sys_enter_accept4\nsyscalls:sys_exit_listen\nsyscalls:sys_enter_listen\nsyscalls:sys_exit_bind\nsyscalls:sys_enter_bind\nsyscalls:sys_exit_socketpair\nsyscalls:sys_enter_socketpair\nsyscalls:sys_exit_socket\nsyscalls:sys_enter_socket\nneigh:neigh_cleanup_and_release\nneigh:neigh_event_send_dead\nneigh:neigh_event_send_done\nneigh:neigh_timer_handler\nneigh:neigh_update_done\nneigh:neigh_update\nneigh:neigh_create\npage_pool:page_pool_update_nid\npage_pool:page_pool_state_hold\npage_pool:page_pool_state_release\npage_pool:page_pool_release\nbridge:br_mdb_full\nbridge:br_fdb_update\nbridge:fdb_delete\nbridge:br_fdb_external_learn_add\nbridge:br_fdb_add\nqdisc:qdisc_create\nqdisc:qdisc_destroy\nqdisc:qdisc_reset\nqdisc:qdisc_enqueue\nqdisc:qdisc_dequeue\nfib:fib_table_lookup\ntcp:tcp_ao_handshake_failure\ntcp:tcp_hash_ao_required\ntcp:tcp_hash_md5_mismatch\ntcp:tcp_hash_md5_unexpected\ntcp:tcp_hash_md5_required\ntcp:tcp_hash_bad_header\ntcp:tcp_cong_state_set\ntcp:tcp_bad_csum\ntcp:tcp_probe\ntcp:tcp_sendmsg_locked\ntcp:tcp_retransmit_synack\ntcp:tcp_rcvbuf_grow\ntcp:tcp_rcv_space_adjust\ntcp:tcp_destroy_sock\ntcp:tcp_receive_reset\ntcp:tcp_send_reset\ntcp:tcp_retransmit_skb\nudp:udp_fail_queue_rcv_skb\nsock:sock_recv_length\nsock:sock_send_length\nsock:sk_data_ready\nsock:inet_sk_error_report\nsock:inet_sock_set_state\nsock:sock_exceed_buf_limit\nsock:sock_rcvqueue_full\nnapi:dql_stall_detected\nnapi:napi_poll\nnet:netif_receive_skb_list_exit\nnet:netif_rx_exit\nnet:netif_receive_skb_exit\nnet:napi_gro_receive_exit\nnet:napi_gro_frags_exit\nnet:netif_rx_entry\nnet:netif_receive_skb_list_entry\nnet:netif_receive_skb_entry\nnet:napi_gro_receive_entry\nnet:napi_gro_frags_entry\nnet:netif_rx\nnet:netif_receive_skb\nnet:net_dev_queue\nnet:net_dev_xmit_timeout\nnet:net_dev_xmit\nnet:net_dev_start_xmit\nskb:skb_copy_datagram_iovec\nskb:consume_skb\nskb:kfree_skb\nnetlink:netlink_extack\nbpf_test_run:bpf_test_finish\nbpf_test_run:bpf_trigger_tp\nicmp:icmp_send\nfib6:fib6_table_lookup\ndevlink:devlink_trap_report\ndevlink:devlink_health_reporter_state_update\ndevlink:devlink_health_recover_aborted\ndevlink:devlink_health_report\ndevlink:devlink_hwerr\ndevlink:devlink_hwmsg\n9p:9p_fid_ref\n9p:9p_protocol_dump\n9p:9p_client_res\n9p:9p_client_req\nhandshake:tls_alert_recv\nhandshake:tls_alert_send\nhandshake:tls_contenttype\nhandshake:handshake_cmd_done_err\nhandshake:handshake_cmd_done\nhandshake:handshake_cmd_accept_err\nhandshake:handshake_cmd_accept\nhandshake:handshake_notify_err\nhandshake:handshake_complete\nhandshake:handshake_destruct\nhandshake:handshake_cancel_busy\nhandshake:handshake_cancel_none\nhandshake:handshake_cancel\nhandshake:handshake_submit_err\nhandshake:handshake_submit\nmaple_tree:ma_write\nmaple_tree:ma_read\nmaple_tree:ma_op\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_switch/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_switch\nID: 268\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:char prev_comm[16];\toffset:8;\tsize:16;\tsigned:0;\n\tfield:pid_t prev_pid;\toffset:24;\tsize:4;\tsigned:1;\n\tfield:int prev_prio;\toffset:28;\tsize:4;\tsigned:1;\n\tfield:long prev_state;\toffset:32;\tsize:8;\tsigned:1;\n\tfield:char next_comm[16];\toffset:40;\tsize:16;\tsigned:0;\n\tfield:pid_t next_pid;\toffset:56;\tsize:4;\tsigned:1;\n\tfield:int next_prio;\toffset:60;\tsize:4;\tsigned:1;\n\nprint fmt: \"prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s%s ==> next_comm=%s next_pid=%d next_prio=%d\", REC->prev_comm, REC->prev_pid, REC->prev_prio, (REC->prev_state & ((((0x00000000 | 0x00000001 | 0x00000002 | 0x00000004 | 0x00000008 | 0x00000010 | 0x00000020 | 0x00000040) + 1) << 1) - 1)) ? __print_flags(REC->prev_state & ((((0x00000000 | 0x00000001 | 0x00000002 | 0x00000004 | 0x00000008 | 0x00000010 | 0x00000020 | 0x00000040) + 1) << 1) - 1), \"|\", { 0x00000001, \"S\" }, { 0x00000002, \"D\" }, { 0x00000004, \"T\" }, { 0x00000008, \"t\" }, { 0x00000010, \"X\" }, { 0x00000020, \"Z\" }, { 0x00000040, \"P\" }, { 0x00000080, \"I\" }) : \"R\", REC->prev_state & (((0x00000000 | 0x00000001 | 0x00000002 | 0x00000004 | 0x00000008 | 0x00000010 | 0x00000020 | 0x00000040) + 1) << 1) ? \"+\" : \"\", REC->next_comm, REC->next_pid, REC->next_prio\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_waking/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_waking\nID: 271\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:char comm[16];\toffset:8;\tsize:16;\tsigned:0;\n\tfield:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;\n\tfield:int prio;\toffset:28;\tsize:4;\tsigned:1;\n\tfield:int target_cpu;\toffset:32;\tsize:4;\tsigned:1;\n\nprint fmt: \"comm=%s pid=%d prio=%d target_cpu=%03d\", REC->comm, REC->pid, REC->prio, REC->target_cpu\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_wakeup/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_wakeup\nID: 270\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:char comm[16];\toffset:8;\tsize:16;\tsigned:0;\n\tfield:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;\n\tfield:int prio;\toffset:28;\tsize:4;\tsigned:1;\n\tfield:int target_cpu;\toffset:32;\tsize:4;\tsigned:1;\n\nprint fmt: \"comm=%s pid=%d prio=%d target_cpu=%03d\", REC->comm, REC->pid, REC->prio, REC->target_cpu\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_wakeup_new/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_wakeup_new\nID: 269\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:char comm[16];\toffset:8;\tsize:16;\tsigned:0;\n\tfield:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;\n\tfield:int prio;\toffset:28;\tsize:4;\tsigned:1;\n\tfield:int target_cpu;\toffset:32;\tsize:4;\tsigned:1;\n\nprint fmt: \"comm=%s pid=%d prio=%d target_cpu=%03d\", REC->comm, REC->pid, REC->prio, REC->target_cpu\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_process_fork/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_process_fork\nID: 262\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:__data_loc char[] parent_comm;\toffset:8;\tsize:4;\tsigned:0;\n\tfield:pid_t parent_pid;\toffset:12;\tsize:4;\tsigned:1;\n\tfield:__data_loc char[] child_comm;\toffset:16;\tsize:4;\tsigned:0;\n\tfield:pid_t child_pid;\toffset:20;\tsize:4;\tsigned:1;\n\nprint fmt: \"comm=%s pid=%d child_comm=%s child_pid=%d\", __get_str(parent_comm), REC->parent_pid, __get_str(child_comm), REC->child_pid\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_process_exit/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_process_exit\nID: 265\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:char comm[16];\toffset:8;\tsize:16;\tsigned:0;\n\tfield:pid_t pid;\toffset:24;\tsize:4;\tsigned:1;\n\tfield:int prio;\toffset:28;\tsize:4;\tsigned:1;\n\tfield:bool group_dead;\toffset:32;\tsize:1;\tsigned:0;\n\nprint fmt: \"comm=%s pid=%d prio=%d group_dead=%s\", REC->comm, REC->pid, REC->prio, REC->group_dead ? \"true\" : \"false\"\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_process_free/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_process_free\nID: 266\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:__data_loc char[] comm;\toffset:8;\tsize:4;\tsigned:0;\n\tfield:pid_t pid;\toffset:12;\tsize:4;\tsigned:1;\n\tfield:int prio;\toffset:16;\tsize:4;\tsigned:1;\n\nprint fmt: \"comm=%s pid=%d prio=%d\", __get_str(comm), REC->pid, REC->prio\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/kernel/tracing/events/sched/sched_migrate_task/format"
+      ],
+      "exit_code": 0,
+      "stdout": "name: sched_migrate_task\nID: 267\nformat:\n\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n\n\tfield:__data_loc char[] comm;\toffset:8;\tsize:4;\tsigned:0;\n\tfield:pid_t pid;\toffset:12;\tsize:4;\tsigned:1;\n\tfield:int prio;\toffset:16;\tsize:4;\tsigned:1;\n\tfield:int orig_cpu;\toffset:20;\tsize:4;\tsigned:1;\n\tfield:int dest_cpu;\toffset:24;\tsize:4;\tsigned:1;\n\nprint fmt: \"comm=%s pid=%d prio=%d orig_cpu=%d dest_cpu=%d\", __get_str(comm), REC->pid, REC->prio, REC->orig_cpu, REC->dest_cpu\n",
+      "stderr": ""
+    }
+  ]
+}

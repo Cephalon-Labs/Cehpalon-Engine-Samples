@@ -1,0 +1,56 @@
+"""Independent passive ABI/source/filter-truth audit; no planner imports or host operations."""
+import argparse
+from collections import Counter
+import hashlib,itertools,json,re
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--plan',type=Path,required=True);P.add_argument('--bundle',type=Path,required=True);P.add_argument('--inventory',type=Path,required=True);P.add_argument('--source',type=Path,required=True);P.add_argument('--output',type=Path,required=True);a=P.parse_args()
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+plan=read(a.plan);bundle=read(a.bundle);inventory=read(a.inventory);checks=0;failures=[]
+def check(ok,message):
+ global checks
+ checks+=1
+ if not ok:failures.append(message)
+expected={'sched_switch':['prev_pid','next_pid'],'sched_waking':['pid'],'sched_wakeup':['pid'],'sched_wakeup_new':['pid'],'sched_migrate_task':['pid'],'sched_process_fork':['parent_pid','child_pid'],'sched_process_exit':['pid'],'sched_process_free':['pid']}
+check(plan['source_sha256']==sha(a.source),'Final planner source hash')
+check(plan['bundle_sha256']==sha(a.bundle),'Complete ABI bundle hash')
+check(bundle['inventory_sha256']==sha(a.inventory),'Original ordinary/root inventory hash')
+check(plan['active_capture_ready']is False and plan['opens_fds']is False and plan['launches_processes']is False and plan['global_tracefs_or_permission_writes']is False,'Planning cannot authorize collection or host mutation')
+check(all(v=='untested'for v in plan['gates'].values()),'Every active conformance gate stays untested')
+check('not a live'in plan['target_tid_scope']and'No automatic ownership expansion'in plan['future_children'],'Static examples never prove live or dynamic membership')
+check('ordinary-user'in plan['proposed_identity_split']and'collector only'in plan['proposed_identity_split'],'Target and privileged collector identities separate')
+specs={s['event'].split(':')[1]:s for s in plan['fd_specifications']};check(set(specs)==set(bundle['events'])==set(expected)and len(plan['fd_specifications'])==8,'Exactly eight events')
+tids=plan['declared_example_tids'];check(tids==[4001,4002,4003]and all(type(t)is int for t in tids),'Declared fictional positive native TIDs')
+ids={}
+for event,fields in expected.items():
+ item=bundle['events'][event];path=a.bundle.parent/item['path'];raw=path.read_bytes();check(len(raw)==item['bytes']and sha(path)==item['sha256']==plan['format_hashes'][item['path']],'Exact preserved format bytes '+event)
+ root=[c for c in inventory['commands']if c['identity']=='root-readonly'and c['command'][-1]=='/sys/kernel/tracing/events/sched/'+event+'/format'];ordinary=[c for c in inventory['commands']if c['identity']=='ordinary'and c['command'][-1]=='/sys/kernel/tracing/events/sched/'+event+'/format']
+ check(len(root)==1 and root[0]['exit_code']==0 and raw==root[0]['stdout'].encode('utf-8'),'Exact root stdout provenance '+event)
+ check(len(ordinary)==1 and ordinary[0]['exit_code']!=0 and'Permission denied'in ordinary[0]['stderr'],'Ordinary access remains denied '+event)
+ text=raw.decode('utf-8');names=re.findall(r'^name:\s*(\w+)\s*$',text,re.M);eventids=re.findall(r'^ID:\s*(\d+)\s*$',text,re.M);check(names==[event]and len(eventids)==1 and int(eventids[0])==item['event_id'],'Exact event identity '+event);ids[event]=int(eventids[0])
+ parsed={}
+ for line in text.splitlines():
+  if not line.lstrip().startswith('field:'):continue
+  m=re.fullmatch(r'\s*field:(.+);\s*offset:(\d+);\s*size:(\d+);\s*signed:([01]);\s*',line);check(m is not None,'Every live ABI field parses '+event)
+  if not m:continue
+  declaration,offset,size,signed=m.groups();key=re.search(r'([A-Za-z_]\w*)(?:\[[^]]*\])?$',declaration).group(1);check(key not in parsed,'No duplicate live ABI field '+event+'/'+key);parsed[key]=(declaration,int(offset),int(size),int(signed))
+ for field in ['common_pid']+fields:check(field in parsed and parsed[field][2:]==(4,1),'Signed32 exact target/emitter '+event+'/'+field)
+ for field in (['prev_state']if event=='sched_switch'else['target_cpu']if event in ['sched_waking','sched_wakeup','sched_wakeup_new']else['orig_cpu','dest_cpu']if event=='sched_migrate_task'else[]):check(field in parsed and parsed[field][2:]==(8 if field=='prev_state'else 4,1),'Required state/CPU ABI '+event+'/'+field)
+ spec=specs[event];check(spec['observed_event_id']==ids[event]and spec['filter_fields']==fields,'Observed ABI/finite field filter plan '+event)
+ check(spec['clockid']=='CLOCK_MONOTONIC'and spec['use_clockid']is True and spec['sample_period']==1 and spec['sample_id_all']is True,'Per-session explicit clock/sample fields '+event)
+ check(spec['sample_type_names']==['TID','TIME','CPU','RAW']and spec['mmap_comm_task_metadata_requested']is False and spec['callchains_requested']is False and spec['overwrite_mode_requested']is False,'No extra sideband/overwrite request '+event)
+ check(spec['pid_argument']==-1 and'every online CPU'in spec['placement'],'PerCPU event payload collection proposed '+event)
+ if 'initially_disabled'in spec:check(spec['initially_disabled']is True,'No open-before-filter collection '+event)
+ expr=spec['filter_expression'];check(expr.startswith('(')and expr.endswith(')')and'common_pid'not in expr,'Finite payload-only OR expression '+event);terms=[]
+ for term in expr[1:-1].split(' || '):
+  m=re.fullmatch(r'([a-z_]+) == ([1-9][0-9]*)',term);check(m is not None,'No arbitrary filter syntax '+event)
+  if m:terms.append((m.group(1),int(m.group(2))))
+ check(set(terms)==set(itertools.product(fields,tids))and len(terms)==len(fields)*len(tids),'Every and only declared target term '+event)
+ domain=tids+[0,100,9999]
+ for values in itertools.product(domain,repeat=len(fields)):
+  for header in [4001,9999]:
+   payload=dict(zip(fields,values));payload['common_pid']=header;actual=any(payload.get(field)==tid for field,tid in terms);wanted=any(value in tids for value in values);check(actual is wanted,'Independent external-emitter/counterparty filter truth '+event)
+check(len(set(ids.values()))==8,'Unique actual eight eventIDs')
+report={'status':'passed_independent_passive_plan_audit'if not failures else'failed','checks':checks,'failures':failures,'events':8,'event_ids':ids,'active_capture_ready':False,'planner_source_sha256':plan['source_sha256'],'plan_sha256':sha(a.plan),'bundle_sha256':sha(a.bundle),'inventory_sha256':sha(a.inventory),'audit_source_sha256':sha(Path(__file__)),'limits':['Read-only comparison of retained inventory and planning data; no perfFD or target operation.','Static declared example population does not qualify future dynamic Roslyn ThreadPool membership.','Future FDs must open disabled, filter/clock/CPU application must be proven before enabling/ready barrier.','Root file readability never establishes actual collection/loss/clock/lease readiness.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps(report));raise SystemExit(0 if not failures else 1)

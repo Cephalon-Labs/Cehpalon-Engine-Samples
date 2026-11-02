@@ -1,0 +1,39 @@
+{
+  "status": "passed",
+  "checks": 32,
+  "role": "8formats hash,size,name,ID checks; noactivecollection",
+  "event_formats_sha256": "57be98e3e34887d2b0cfcea16b82850425869a2f455afabb79a8108f640ddb4e",
+  "official_primary_evidence": [
+    {
+      "file": "tools_perf_Documentation_perf-record.txt.txt",
+      "lines": "111-122",
+      "supports": "--filter follows specific event selector; tracepointfilter parsedinkernel; separatefromBPFfilter"
+    },
+    {
+      "file": "tools_perf_Documentation_perf-record.txt.txt",
+      "lines": "522-526",
+      "supports": "per-session --clockid specifiesclock for perf records; globaltrace_clock neednotchange"
+    },
+    {
+      "file": "Documentation_userspace-api_perf_ring_buffer.rst.txt",
+      "lines": "275-324,480-485",
+      "supports": "perCPUrings; forward nonoverwrite overflow losesdata; PERF_RECORD_LOST emittedlaterwhenbufferhasroom. Nozero-losscompleteness claim solelyfromabsentLOST, especiallyterminaledge."
+    },
+    {
+      "file": "include_uapi_linux_perf_event.h.txt",
+      "lines": "902-910,352-370,453,499",
+      "supports": "lostrecordid/count; optional readformatlostcounter andrequestedclock fields needactualconformance"
+    },
+    {
+      "file": "tools_perf_Documentation_perf-script.txt.txt",
+      "lines": "358-359",
+      "supports": "--show-lost-events exposes PERF_RECORD_LOST duringdecode"
+    },
+    {
+      "file": "include_trace_events_sched.h.txt",
+      "lines": "139-187,190-265,272-303,396-421",
+      "supports": "Targetpid distinctemitter; waking vswakeupcontext; preemptionflag; migration/lifecyclepayload fields. Switch includesprev/next counterpartcomm/pid/prio beyondownedtask."
+    }
+  ],
+  "remaining_gates": "No syscall/perf FD enable/filter/capture test; rootidentity fileaccess notauthorization oractive readiness. Preparedprotocol only."
+}

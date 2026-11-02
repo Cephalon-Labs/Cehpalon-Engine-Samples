@@ -1,0 +1,92 @@
+"""ADR0026 offline scheduler FD/filter specification. Never opens perf or launches targets."""
+import argparse,hashlib,json,re
+from pathlib import Path
+EVENT_FIELDS = {
+    'sched_switch': ('prev_pid','next_pid'),
+    'sched_waking': ('pid',), 'sched_wakeup': ('pid',), 'sched_wakeup_new': ('pid',),
+    'sched_migrate_task': ('pid',), 'sched_process_fork': ('parent_pid','child_pid'),
+    'sched_process_exit': ('pid',), 'sched_process_free': ('pid',)}
+GATES = ('owned_target_uid_pid_tid_birth_leases', 'static_threads_ready_before_arm',
+         'perf_event_open_permission_and_filter_delivery', 'complete_raw_abi_and_cpu_topology',
+         'CLOCK_MONOTONIC_attrs_and_marker_brackets', 'switch_wakeup_state_and_migration_conformance',
+         'loss_overrun_throttle_and_terminal_drain_coverage', 'bounded_owned_cleanup_and_no_extra_data',
+         'collector_perturbation_and_trace_source_freeze')
+
+def require(ok,message):
+    if not ok: raise ValueError(message)
+
+def parse_format(text,name):
+    require(type(text)is str and type(name)is str, 'Format text/name types')
+    names=re.findall(r'^name:\s*(\w+)\s*$',text,re.M)
+    ids=re.findall(r'^ID:\s*(\d+)\s*$',text,re.M)
+    require(names==[name] and len(ids)==1 and int(ids[0])>0,'Exact event name and one positive ID')
+    fields={}
+    for decl,offset,size,signed in re.findall(r'field:([^;]+);\s*offset:(\d+);\s*size:(\d+);\s*signed:([01]);',text):
+        match=re.search(r'(\w+)(?:\[[^\]]*\])?$',decl.strip())
+        require(match is not None,'Supported field declaration')
+        key=match.group(1);require(key not in fields,'Unique ABI field')
+        fields[key]=dict(declaration=decl.strip(),offset=int(offset),size=int(size),signed=int(signed))
+    require('common_pid'in fields,'Common emitter header retained')
+    return dict(name=name,event_id=int(ids[0]),fields=fields)
+
+def payload_filter(name,tids,fields):
+    require(name in EVENT_FIELDS,'Declared event only')
+    require(type(tids)is list and 1<=len(tids)<=16 and all(type(t)is int and 0<t<=2147483647 for t in tids), 'One to sixteen exact positive native TIDs')
+    require(len(set(tids))==len(tids),'No duplicate declared TID')
+    for key in EVENT_FIELDS[name]:
+        item=fields.get(key)
+        require(type(item)is dict and item.get('size')==4 and type(item.get('size'))is int
+                and type(item.get('signed'))is int and item['signed']==1,'Signed32 payload target field '+key)
+    terms=[key+' == '+str(t) for key in EVENT_FIELDS[name] for t in sorted(tids)]
+    result='('+' || '.join(terms)+')'
+    require(len(result)<4096 and 'common_pid'not in result,'Bounded payload-only filter')
+    return result
+
+def build_plan(formats,tids):
+    require(type(formats)is dict and set(formats)==set(EVENT_FIELDS),'All eight required events, no substitution')
+    ids=[];specs=[]
+    for name in EVENT_FIELDS:
+        fmt=formats[name];require(type(fmt)is dict and fmt.get('name')==name and type(fmt.get('event_id'))is int and fmt['event_id']>0,'Exact format identity')
+        ids.append(fmt['event_id']);expression=payload_filter(name,tids,fmt['fields'])
+        specs.append(dict(event='sched:'+name,observed_event_id=fmt['event_id'],filter_expression=expression,
+            filter_fields=list(EVENT_FIELDS[name]),placement='one FD on every online CPU; topology must be snapshotted/guarded',
+            pid_argument=-1,clockid='CLOCK_MONOTONIC',use_clockid=True,sample_period=1,
+            sample_type_names=['TID','TIME','CPU','RAW'],sample_id_all=True,
+            mmap_comm_task_metadata_requested=False,callchains_requested=False,overwrite_mode_requested=False))
+    require(len(set(ids))==8,'Distinct observed event IDs')
+    return dict(status='offline_specification_only_not_capture_ready',declared_example_tids=sorted(tids),
+        target_tid_scope='caller supplied native TIDs; not a live process/owner/birth lease',
+        proposed_identity_split='ordinary-user owned synthetic target; one-shot privileged collector only',
+        fd_specifications=specs,active_capture_ready=False,opens_fds=False,launches_processes=False,
+        global_tracefs_or_permission_writes=False,unowned_counterparty_metadata_retained=True,
+        data_scope='Switch/fork raw counterparts and waking common-header emitters may be unowned. Filters do not erase counterpart metadata.',
+        future_children='No automatic ownership expansion; a new/reused/unknown TID invalidates affected static scope.',
+        gates={key:'untested' for key in GATES},
+        limitations=['Readable formats or root identity do not prove perf permission, delivery, loss or clocks.',
+                     'Payload target PID differs from common_pid/emitter; process-only attachment can miss remote wakeups.',
+                     'No initial/final state is inferred; raw prev_state/preemption encoding needs exact-source decoder.',
+                     'No LOST records is insufficient at terminal buffer edge; validate all accounting/drain limits.',
+                     'Generic perf record metadata may exceed sample filters; prefer explicitly audited FD attributes.',
+                     'No CPU, blocked/runqueue/GC attribution or platform/provider/production qualification.'])
+
+def load_bundle(path):
+    path=Path(path);bundle=json.loads(path.read_text(encoding='utf-8-sig'));events=bundle.get('events')
+    require(type(events)is dict and set(events)==set(EVENT_FIELDS),'Exact eight-event bundle')
+    formats={};hashes={}
+    for name,item in events.items():
+        require(type(item)is dict and type(item.get('path'))is str,'Declared relative format path')
+        target=path.parent/item['path'];resolved=target.resolve()
+        require(not target.is_symlink() and resolved.is_relative_to(path.parent.resolve()),'Format path stays inside bundle')
+        raw=target.read_bytes();digest=hashlib.sha256(raw).hexdigest()
+        require(type(item.get('bytes'))is int and len(raw)==item['bytes'] and digest==item.get('sha256'),'Format size/hash unchanged')
+        fmt=parse_format(raw.decode('utf-8'),name);require(type(item.get('event_id'))is int and fmt['event_id']==item['event_id'],'Bundle ABI ID parity')
+        formats[name]=fmt;hashes[item['path']]=digest
+    return formats,hashes
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--formats',required=True);p.add_argument('--example-tids',nargs='+',type=int,required=True);p.add_argument('--output',required=True);a=p.parse_args()
+    source=Path(__file__).read_bytes();formats,hashes=load_bundle(a.formats);result=build_plan(formats,a.example_tids)
+    result.update(source_sha256=hashlib.sha256(source).hexdigest(),bundle_sha256=hashlib.sha256(Path(a.formats).read_bytes()).hexdigest(),format_hashes=hashes)
+    with Path(a.output).open('x',encoding='utf-8',newline='\n')as f:json.dump(result,f,indent=2);f.write('\n')
+    print(json.dumps(dict(status=result['status'],events=len(result['fd_specifications']),active_capture_ready=False)))
+if __name__=='__main__':main()
