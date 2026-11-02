@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date_bangkok": "2026-11-02",
+  "stage": "ADR0027_B1_disabled_single_FD_only",
+  "scope": "No actors, enable/filter/mmap, recording or benchmark; source/format checks and disabled open/read/close only",
+  "files": {
+    "main": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-conformance\\tools\\preflight_scheduler_perf.py",
+      "sha256": "19b0490e23d8e626a7bb773852c1474017171c867383ffd97c78cf7c4efa01f5"
+    },
+    "test": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-conformance\\tools\\test_preflight_scheduler_perf.py",
+      "sha256": "55869f00b7a55f024814d5fcddba3fb9bff8a54c270268106df86a7aad1c0da2"
+    },
+    "planner": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-conformance\\tools\\plan_scheduler_conformance.py",
+      "sha256": "afb6155303bc9bba21124ef3a63e6012e86952def167cf038c566e1c45e81a50"
+    },
+    "bundle": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\scheduler-readiness02\\source-review\\event-formats.json",
+      "sha256": "57be98e3e34887d2b0cfcea16b82850425869a2f455afabb79a8108f640ddb4e"
+    },
+    "protocol": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\scheduler-conformance01\\preflight-protocol.md",
+      "sha256": "74f7700812183a6cbcc9ab3d0a9820a36197562d01157a6979ef2ad3eab7dfee"
+    },
+    "adr": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\internal\\adr\\ADR-0027-owned-scheduler-conformance.md",
+      "sha256": "0a8a5dcadc7bb0d066315df56e967f362b837c06410d65d3f580f6b21f61695e"
+    }
+  },
+  "command": [
+    "wsl",
+    "--user",
+    "root",
+    "--",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "30s",
+    "/usr/bin/python3",
+    "/mnt/d/Cephalon/.worktrees/scheduler-conformance/tools/preflight_scheduler_perf.py",
+    "--formats",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-readiness02/source-review/event-formats.json",
+    "--expected-bundle-sha256",
+    "57be98e3e34887d2b0cfcea16b82850425869a2f455afabb79a8108f640ddb4e",
+    "--expected-source-sha256",
+    "19b0490e23d8e626a7bb773852c1474017171c867383ffd97c78cf7c4efa01f5",
+    "--expected-online",
+    "0-19",
+    "--output",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-conformance01/b1-attempt01",
+    "--execute-disabled-preflight"
+  ],
+  "process_timeout_seconds": 30,
+  "allowed_calls": {
+    "perf_event_open": 1,
+    "read_disabled_fd": 1,
+    "enable": 0,
+    "filter": 0,
+    "mmap": 0,
+    "actors": 0
+  },
+  "all_active_capture_gates": "untested"
+}

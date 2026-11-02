@@ -1,0 +1,16 @@
+import hashlib,json,subprocess,time
+from pathlib import Path
+root=Path(__file__).parent
+frozen=json.loads((root/'b1-freeze.json').read_text())
+for item in frozen['files'].values():assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256']
+assert not (root/'b1-attempt01').exists() and not (root/'b1-invocation.json').exists(),'Never repeat/overwrite this attempt'
+intent={'freeze_sha256':hashlib.sha256((root/'b1-freeze.json').read_bytes()).hexdigest(),'command':frozen['command'],'before_monotonic_ns':time.monotonic_ns()}
+with (root/'b1-invocation-intent.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(intent,f,indent=2);f.write('\n')
+run=subprocess.run(frozen['command'],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=45)
+for name,raw in [('stdout',run.stdout),('stderr',run.stderr)]:
+    with (root/('b1-'+name+'.txt')).open('xb') as f:f.write(raw)
+intent.update(exit_code=run.returncode,after_monotonic_ns=time.monotonic_ns(),stdout_sha256=hashlib.sha256(run.stdout).hexdigest(),stderr_sha256=hashlib.sha256(run.stderr).hexdigest())
+with (root/'b1-invocation.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(intent,f,indent=2);f.write('\n')
+result_path=root/'b1-attempt01/result.json'
+result=json.loads(result_path.read_text()) if result_path.exists() else {'status':'no_structured_result'}
+print(json.dumps({'exit_code':run.returncode,'status':result['status'],'stage':result.get('stage'),'opens':result.get('opens_succeeded'),'error_errno':result.get('error_errno'),'cleanup':result.get('cleanup')}))

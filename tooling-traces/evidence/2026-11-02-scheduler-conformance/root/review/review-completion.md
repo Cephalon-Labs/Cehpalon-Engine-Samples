@@ -1,0 +1,5 @@
+# Reviewer execution boundary
+
+The independent agent inspected final19b049 source before B1 and reported no execution blocker, completed72 portable mocked checks each Windows/WSL, and authored audit_b1_attempt.py. It then hit a usage limit before completing the actual artifact audit. Root completed execution; there is no independent-agent final approval of the actual B1 audit.
+
+The first root-run agent-authored artifact audit failed before reporting because a literal single-tab search did not match the upstream multi-tab UAPI declaration. Its source/log are retained as audit01-source.py.txt/audit01.log. Root corrected that search to whitespace matching and bound pre-invocation frozen document bytes rather than the ADR file after its intentionally appended execution outcome. Root's corrected audit02 passed179 checks against retained bytes/source/actual attributes/read/close and19source hashes/28commands. These are audit preparation corrections, not another perf invocation or a changed test/capture gate. Actual preflight, sources, attrs and raw output are unchanged.

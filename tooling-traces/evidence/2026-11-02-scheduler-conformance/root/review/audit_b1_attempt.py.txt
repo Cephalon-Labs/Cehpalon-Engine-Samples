@@ -1,0 +1,77 @@
+"""Independent retained-byte/UAPI/B1 audit. No native calls or host probes."""
+import argparse,hashlib,json,re,struct
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--folder',type=Path,required=True);P.add_argument('--output',type=Path,required=True);a=P.parse_args();root=a.folder;attempt=root/'b1-attempt01';sources=root/'source-review'
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def typed_equal(x,y):
+ if type(x)is not type(y):return False
+ if type(x)is dict:return set(x)==set(y)and all(typed_equal(x[k],y[k])for k in x)
+ if type(x)is list:return len(x)==len(y)and all(typed_equal(a,b)for a,b in zip(x,y))
+ return x==y
+checks=0;failures=[]
+def check(ok,msg):
+ global checks
+ checks+=1
+ if not ok:failures.append(msg)
+provenance=read(sources/'provenance-final.json');check(len(provenance)==19 and len({x['path']for x in provenance})==19,'Nineteen unique official retained sources')
+for item in provenance:
+ path=sources/item['path'];check(item['status']==200 and item['url'].startswith('https://raw.githubusercontent.com/microsoft/WSL2-Linux-Kernel/linux-msft-wsl-6.18.54.1/'),'Exact official matching-tag URL/status '+item['path']);check(path.stat().st_size==item['bytes'],'Source exact bytecount '+item['path']);check(sha(path)==item['sha256'],'Source exact SHA '+item['path'])
+findings=read(sources/'findings-final.json');check(findings['sources']['sha256']==sha(sources/'provenance-final.json'),'Source manifest bound by findings')
+uapi=(sources/'include_uapi_linux_perf_event.h.txt').read_text();clock=(sources/'include_uapi_linux_time.h.txt').read_text();syscalls=(sources/'arch_x86_entry_syscalls_syscall_64.tbl.txt').read_text()
+check(re.search(r'PERF_TYPE_TRACEPOINT\s*=\s*2',uapi)is not None,'UAPI tracepoint type2')
+for name,bit in [('PERF_SAMPLE_TID',1),('PERF_SAMPLE_TIME',2),('PERF_SAMPLE_CPU',7),('PERF_SAMPLE_RAW',10),('PERF_FORMAT_TOTAL_TIME_ENABLED',0),('PERF_FORMAT_TOTAL_TIME_RUNNING',1),('PERF_FORMAT_ID',2),('PERF_FORMAT_LOST',4)]:check(re.search(name+r'\s*=\s*1U?L?\s*<<\s*'+str(bit)+r'\b',uapi)is not None,'UAPI '+name+' bit')
+check(re.search(r'PERF_FLAG_FD_CLOEXEC\s+\(1UL\s*<<\s*3\)',uapi)is not None,'UAPI FD CLOEXEC flag8')
+check(re.search(r'#define\s+PERF_ATTR_SIZE_VER7\s+128',uapi)is not None,'UAPI fixed VER7 subset128')
+check(re.search(r'#define\s+CLOCK_MONOTONIC\s+1\b',clock)is not None,'UAPI CLOCK_MONOTONIC1')
+check(re.search(r'^298\s+common\s+perf_event_open\s+',syscalls,re.M)is not None,'x86_64 syscall298')
+flag_start=re.search(r'__u64\s+disabled\s*:',uapi);check(flag_start is not None,'Exactly located UAPI disabled bitfield declaration')
+flag_section=uapi[flag_start.start():];flag_section=flag_section[:flag_section.index(';')];positions={};position=0
+for name,width in re.findall(r'(\w+)\s*:\s*(\d+)',flag_section):positions[name]=position;position+=int(width)
+for name,bit in [('disabled',0),('inherit',1),('sample_id_all',18),('use_clockid',25),('write_backward',27)]:check(positions.get(name)==bit,'Exact UAPI attrflags '+name)
+def commands(value):
+ if type(value)is dict:
+  if 'command'in value and 'exit_code'in value:return [value]
+  if 'commands'in value:return commands(value['commands'])
+ if type(value)is list:return [c for x in value for c in commands(x)]
+ return []
+probe_files=findings['resources']['files'];probes=[c for name in probe_files for c in commands(read(sources/name))];check(len(probes)==findings['resources']['raw_commands']==28,'All28 separately retained read-only source/resource/namespace commands')
+for c in probes:check(type(c['command'])is list and all(type(x)is str for x in c['command'])and type(c['exit_code'])is int and type(c['stdout'])is str and type(c['stderr'])is str,'Command argv/exit/stdout/stderr shape retained')
+freeze=read(root/'b1-freeze.json');intent=read(root/'b1-invocation-intent.json');invoke=read(root/'b1-invocation.json');result=read(attempt/'result.json');metadata=read(attempt/'intent.json')
+check(intent['freeze_sha256']==invoke['freeze_sha256']==sha(root/'b1-freeze.json'),'Exact declaration frozen before invocation')
+check(typed_equal(freeze['command'],intent['command'])and typed_equal(intent['command'],invoke['command']),'Actual command identical to frozen command')
+check(invoke['exit_code']==0 and'30s'in invoke['command']and'--kill-after=2s'in invoke['command'],'One declared deadline success')
+check(invoke['before_monotonic_ns']==intent['before_monotonic_ns']and 0<invoke['after_monotonic_ns']-invoke['before_monotonic_ns']<32_000_000_000,'Bounded operator-wrapper monotonic interval, separate from WSLclock')
+for key,info in freeze['files'].items():
+ snapshot=root/('frozen-'+key+'.txt')
+ check(sha(snapshot if snapshot.exists() else Path(info['path']))==info['sha256'],'Retained pre-invocation frozen file hash '+key)
+ if key!='adr':check(sha(Path(info['path']))==info['sha256'],'Executing tool/input source still unchanged '+key)
+check(sha(root/'b1-stdout.txt')==invoke['stdout_sha256']and sha(root/'b1-stderr.txt')==invoke['stderr_sha256'],'Retained stdout/stderr hashes')
+check((root/'b1-stderr.txt').read_bytes()==b''and typed_equal(json.loads((root/'b1-stdout.txt').read_text()),result),'No error stderr and exact stdout/result parity')
+for key,value in metadata.items():check(key in result and typed_equal(value,result[key]),'Exact pre-open intent/result metadata '+key)
+check(result['status']=='disabled_open_read_observed_only'and result['stage']=='complete_preflight','Only B1 observation success')
+check(result['uid']==result['euid']==0 and type(result['pid'])is int and result['pid']>0,'Actual privileged collector identity only')
+check(result['online']=='0-19'and result['cpus']==list(range(20))and result['cpu_argument']==0,'Entire declared topology and first CPU')
+check(result['pid_argument']==result['group_argument']==-1 and result['syscall']==298 and result['syscall_flags']==8,'Exact single syscall arguments')
+check(result['opens_attempted']==result['opens_succeeded']==result['reads_attempted']==1,'Exactly one observed open/read attempt')
+check(result['active_capture_ready']is False and all(result[k]==0 for k in ['enables','maps','filters','actors_launched','records_collected'])and result['filter_delivery_loss_clock_gates']=='untested','No filter/map/enable/actor/capture or readiness promotion')
+check(result['source_sha256']==freeze['files']['main']['sha256']==sha(attempt/'source.py.txt'),'Exact executing main bytes retained')
+check(result['planner_sha256']==freeze['files']['planner']['sha256']==sha(attempt/'planner.py.txt'),'Exact pinned planner bytes retained')
+bundle_path=Path(freeze['files']['bundle']['path']);bundle=read(bundle_path);check(result['bundle_sha256']==sha(bundle_path),'Frozen bundle hash')
+expected=bytearray(128)
+for offset,fmt,value in [(0,'I',2),(4,'I',128),(8,'Q',bundle['events']['sched_switch']['event_id']),(16,'Q',1),(24,'Q',1158),(32,'Q',23),(40,'Q',0x02040001),(48,'I',1),(92,'i',1)]:struct.pack_into('<'+fmt,expected,offset,value)
+check(bytes.fromhex(result['attr_bytes_hex'])==bytes(expected)and result['attr_size']==128,'Every requested attr byte matches independent disabled-only UAPI oracle')
+for name,offset in [('type',0),('size',4),('config',8),('sample_period',16),('sample_type',24),('read_format',32),('flags',40),('clockid',92)]:check(result['attr_offsets'][name]==offset,'Observed compiled ctypes ABI offset '+name)
+check(result['sample_type']==1158 and result['read_format']==23 and result['flags_word']==0x02040001 and result['clockid']==1,'Fixed flags/read/sample/clock values')
+raw=bytes.fromhex(result['read_bytes_hex']);check(len(raw)==result['read_bytes']==40,'Exact raw disabled read length40')
+values=struct.unpack('<QQQQQ',raw);check(values[0]==values[1]==values[2]==values[4]==0 and values[3]>0,'Fresh disabled value/enabled/running/lost zeros and positive perfFDidentifier')
+check(typed_equal(result['read_values'],dict(zip(['value','time_enabled','time_running','perf_event_id','lost'],values))),'Independent tuple decode exactly equals retained interpretation')
+check(result['tracepoint_config']==bundle['events']['sched_switch']['event_id']and'not the tracepoint'in result['read_id_scope'],'Tracepoint config is not perfFDidentifier')
+check(result['close_on_exec_observed']is True and result['close_acknowledged']is True and result['closed_fd_check']is True and result['cleanup']=='owned_fd_closed','Actual CLOEXEC/close/EBADF observations')
+check(result['open_before_monotonic_ns']<=result['open_after_monotonic_ns']<=result['finished_monotonic_ns'],'Same-process monotonic brackets ordered')
+check(result['source_topology_format_freeze']=='passed','Same invocation source/image/topology/format/boot/time/ns postchecks reported passed')
+for name,item in bundle['events'].items():check(sha(attempt/(name+'.format.txt'))==item['sha256']==result['live_formats_sha256']['/sys/kernel/tracing/events/sched/'+name+'/format'],'All eight actual live formats exact frozen bytes '+name)
+check('not a global actor payload PID oracle'in result['identity_scope']and'not positive active LOST'in result['gates_scope'],'Namespace and zero-loss scope stay limited')
+report={'status':'passed_independent_B1_disabled_only_audit'if not failures else'failed','checks':checks,'failures':failures,'official_sources':19,'retained_readonly_commands':28,'actual_opens':1,'actual_reads':1,'actual_capture_ready':False,'source_sha256':result['source_sha256'],'perf_fd_identifier':values[3],'tracepoint_config':result['tracepoint_config'],'inputs_sha256':{'freeze':sha(root/'b1-freeze.json'),'invocation':sha(root/'b1-invocation.json'),'actual_result':sha(attempt/'result.json'),'provenance':sha(sources/'provenance-final.json')},'audit_source_sha256':sha(Path(__file__)),'limits':['No new host syscall/probe by reviewer; retained byte artifacts audited.','Permission/readlayout success only for one disabled FD on one CPU; no filter/delivery/positive loss/clock/ns actor proof.','Across-invocation boot/ns metadata not fused; B2 global payload PID mapping remains blocked.','No actors/builds/sampling/rings/capture/benchmark or Engine causal/qualification claim.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps(report));raise SystemExit(0 if not failures else 1)

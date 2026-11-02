@@ -1,0 +1,28 @@
+import json, subprocess
+from pathlib import Path
+out=Path(__file__).parent
+repos={}
+for name in ('Cehpalon-Engine','Cehpalon-Engine-Docs','Cehpalon-Engine-Samples'):
+    root=Path('D:/Cephalon')/name
+    def git(*args):
+        return subprocess.check_output(['git','-C',str(root),*args],text=True).strip()
+    raw=subprocess.check_output(['gh','api','repos/Cephalon-Labs/'+name])
+    r=json.loads(raw)
+    repos[name]={'head':git('rev-parse','HEAD'),'remote':git('ls-remote','origin','refs/heads/main').split()[0],
+      'status':git('status','--short'),'private':r['private'],'license':r['license']['spdx_id'],
+      'identity':[git('config','user.name'),git('config','user.email')]}
+    assert repos[name]['private'] and repos[name]['license']=='MIT'
+ci=[]
+for run in (40993252408,40993252420):
+    r=json.loads(subprocess.check_output(['gh','api',f'repos/Cephalon-Labs/Cehpalon-Engine/actions/runs/{run}']))
+    j=json.loads(subprocess.check_output(['gh','api',f'repos/Cephalon-Labs/Cehpalon-Engine/actions/runs/{run}/jobs']))
+    jobs=[{'id':i['id'],'conclusion':i['conclusion'],'steps':len(i['steps'])} for i in j['jobs']]
+    annotations=[]
+    for i in j['jobs']:
+        check=i['check_run_url'].rsplit('/',1)[1]
+        a=json.loads(subprocess.check_output(['gh','api',f'repos/Cephalon-Labs/Cehpalon-Engine/check-runs/{check}/annotations']))
+        annotations.extend(a)
+    ci.append({'id':run,'head_sha':r['head_sha'],'status':r['status'],'conclusion':r['conclusion'],'jobs':jobs,'annotations':annotations})
+result={'account':subprocess.check_output(['gh','api','user','--jq','.login'],text=True).strip(),'repos':repos,'ci':ci}
+with (out/'context-before.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(result,f,indent=2);f.write('\n')
+print(json.dumps({'repositories':len(repos),'ci_runs':len(ci),'ci_steps':sum(j['steps'] for r in ci for j in r['jobs'])}))

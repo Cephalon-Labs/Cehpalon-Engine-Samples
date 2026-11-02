@@ -1,0 +1,296 @@
+{
+  "timestamp_utc": "2026-11-02T03:13:43.626595+00:00",
+  "scope": "Read-only; no nativecollector builds/perf opens/captures",
+  "commands": [
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "id"
+      ],
+      "exit_code": 0,
+      "stdout": "uid=1000(tom) gid=1000(tom) groups=1000(tom),4(adm),8(mail),20(dialout),24(cdrom),25(floppy),27(sudo),29(audio),30(dip),44(video),46(plugdev),116(netdev),1001(docker)\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux TOM-NPC 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "sh",
+        "-c",
+        "grep -E \"^(Cap|Cpus_allowed|Mems_allowed|NSpid|NStgid)\" /proc/self/status"
+      ],
+      "exit_code": 0,
+      "stdout": "NStgid:\t749\nNSpid:\t749\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\nCpus_allowed:\tfffff\nCpus_allowed_list:\t0-19\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/devices/system/cpu/online"
+      ],
+      "exit_code": 0,
+      "stdout": "0-19\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/sys/devices/system/cpu/possible"
+      ],
+      "exit_code": 0,
+      "stdout": "0-19\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "sh",
+        "-c",
+        "command -v gcc; gcc --version | head -1; command -v python3; python3 --version; getconf PAGESIZE; getconf _NPROCESSORS_ONLN"
+      ],
+      "exit_code": 0,
+      "stdout": "/usr/bin/python3\nPython 3.10.12\n4096\n20\n",
+      "stderr": "sh: 1: gcc: not found\n"
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "sh",
+        "-c",
+        "readlink /proc/self/ns/pid /proc/self/ns/pid_for_children /proc/self/ns/time /proc/self/ns/time_for_children /proc/self/ns/user; cat /proc/self/timens_offsets"
+      ],
+      "exit_code": 0,
+      "stdout": "pid:[4026532212]\npid:[4026532212]\ntime:[4026531834]\ntime:[4026531834]\nuser:[4026531837]\nmonotonic           0         0\nboottime            0         0\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/self/limits"
+      ],
+      "exit_code": 0,
+      "stdout": "Limit                     Soft Limit           Hard Limit           Units     \nMax cpu time              unlimited            unlimited            seconds   \nMax file size             unlimited            unlimited            bytes     \nMax data size             unlimited            unlimited            bytes     \nMax stack size            8388608              unlimited            bytes     \nMax core file size        0                    unlimited            bytes     \nMax resident set          unlimited            unlimited            bytes     \nMax processes             127833               127833               processes \nMax open files            10240                1048576              files     \nMax locked memory         67108864             67108864             bytes     \nMax address space         unlimited            unlimited            bytes     \nMax file locks            unlimited            unlimited            locks     \nMax pending signals       127833               127833               signals   \nMax msgqueue size         819200               819200               bytes     \nMax nice priority         0                    0                    \nMax realtime priority     0                    0                    \nMax realtime timeout      unlimited            unlimited            us        \n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_mlock_kb"
+      ],
+      "exit_code": 0,
+      "stdout": "516\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_max_sample_rate"
+      ],
+      "exit_code": 0,
+      "stdout": "100000\n",
+      "stderr": ""
+    },
+    {
+      "identity": "ordinary",
+      "command": [
+        "wsl",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_paranoid"
+      ],
+      "exit_code": 0,
+      "stdout": "2\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "id"
+      ],
+      "exit_code": 0,
+      "stdout": "uid=0(root) gid=0(root) groups=0(root)\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux TOM-NPC 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "sh",
+        "-c",
+        "grep -E \"^(Cap|Cpus_allowed|Mems_allowed|NSpid|NStgid)\" /proc/self/status"
+      ],
+      "exit_code": 0,
+      "stdout": "NStgid:\t856\nNSpid:\t856\nCapInh:\t0000000000000000\nCapPrm:\t000001ffffffffff\nCapEff:\t000001ffffffffff\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\nCpus_allowed:\tfffff\nCpus_allowed_list:\t0-19\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/devices/system/cpu/online"
+      ],
+      "exit_code": 0,
+      "stdout": "0-19\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/sys/devices/system/cpu/possible"
+      ],
+      "exit_code": 0,
+      "stdout": "0-19\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "sh",
+        "-c",
+        "command -v gcc; gcc --version | head -1; command -v python3; python3 --version; getconf PAGESIZE; getconf _NPROCESSORS_ONLN"
+      ],
+      "exit_code": 0,
+      "stdout": "/usr/bin/python3\nPython 3.10.12\n4096\n20\n",
+      "stderr": "sh: 1: gcc: not found\n"
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "sh",
+        "-c",
+        "readlink /proc/self/ns/pid /proc/self/ns/pid_for_children /proc/self/ns/time /proc/self/ns/time_for_children /proc/self/ns/user; cat /proc/self/timens_offsets"
+      ],
+      "exit_code": 0,
+      "stdout": "pid:[4026532212]\npid:[4026532212]\ntime:[4026531834]\ntime:[4026531834]\nuser:[4026531837]\nmonotonic           0         0\nboottime            0         0\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/proc/self/limits"
+      ],
+      "exit_code": 0,
+      "stdout": "Limit                     Soft Limit           Hard Limit           Units     \nMax cpu time              unlimited            unlimited            seconds   \nMax file size             unlimited            unlimited            bytes     \nMax data size             unlimited            unlimited            bytes     \nMax stack size            8388608              unlimited            bytes     \nMax core file size        0                    unlimited            bytes     \nMax resident set          unlimited            unlimited            bytes     \nMax processes             127833               127833               processes \nMax open files            10240                1048576              files     \nMax locked memory         67108864             67108864             bytes     \nMax address space         unlimited            unlimited            bytes     \nMax file locks            unlimited            unlimited            locks     \nMax pending signals       127833               127833               signals   \nMax msgqueue size         819200               819200               bytes     \nMax nice priority         0                    0                    \nMax realtime priority     0                    0                    \nMax realtime timeout      unlimited            unlimited            us        \n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_mlock_kb"
+      ],
+      "exit_code": 0,
+      "stdout": "516\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_max_sample_rate"
+      ],
+      "exit_code": 0,
+      "stdout": "100000\n",
+      "stderr": ""
+    },
+    {
+      "identity": "root-readonly",
+      "command": [
+        "wsl",
+        "--user",
+        "root",
+        "--",
+        "cat",
+        "/proc/sys/kernel/perf_event_paranoid"
+      ],
+      "exit_code": 0,
+      "stdout": "2\n",
+      "stderr": ""
+    }
+  ]
+}

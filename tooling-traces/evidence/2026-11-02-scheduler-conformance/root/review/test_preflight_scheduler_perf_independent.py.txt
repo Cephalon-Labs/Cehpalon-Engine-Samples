@@ -1,0 +1,68 @@
+"""Independent portable ADR0027 B1 mocks/byte ABI only; never creates NativeBackend."""
+import argparse,ctypes,errno,hashlib,json,struct,sys
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);P.add_argument('--output',type=Path,required=True);a=P.parse_args();sys.path.insert(0,str(a.root/'tools'));import preflight_scheduler_perf as tool
+checks=[]
+def check(name,fn):
+ try:assert fn();checks.append(dict(name=name,status='passed'))
+ except Exception as e:checks.append(dict(name=name,status='failed',error=repr(e)))
+def raises(fn):
+ try:fn()
+ except (ValueError,TypeError):return True
+ return False
+expected=bytearray(128)
+for offset,fmt,value in [(0,'I',2),(4,'I',128),(8,'Q',268),(16,'Q',1),(24,'Q',1158),(32,'Q',23),(40,'Q',0x02040001),(48,'I',1),(92,'i',1)]:struct.pack_into('<'+fmt,expected,offset,value)
+attr=tool.attributes(268)
+check('entire_128byte_VER7_attribute_matches_independent_UAPI_oracle',lambda:bytes(attr)==bytes(expected))
+check('disabled_sampleidall_clock_flags_only',lambda:attr.flags==0x02040001 and attr.sample_type==1158 and attr.read_format==23)
+check('native_layout_offsets_40_and_92',lambda:ctypes.sizeof(tool.PerfAttr)==128 and tool.PerfAttr.flags.offset==40 and tool.PerfAttr.clockid.offset==92)
+for bad in [True,False,0,-1,268.0,'268',2**64]:check('config_exact_positive_uint64_'+repr(bad),lambda bad=bad:raises(lambda:tool.attributes(bad)))
+check('topology_entire_20CPUs',lambda:tool.parse_online('0-19\n')==list(range(20)))
+check('topology_noncontiguous_ordered',lambda:tool.parse_online('0-1,4,6-7')==[0,1,4,6,7])
+for bad in ['',None,'1,0','0,0','0-32','2-1','0, 1','１','-1','0-1-2','4096']:
+ check('bad_cpu_topology_'+repr(bad),lambda bad=bad:raises(lambda:tool.parse_online(bad)))
+def raw(**change):
+ values={'value':0,'time_enabled':0,'time_running':0,'perf_event_id':987654,'lost':0};values.update(change);return struct.pack('<QQQQQ',*values.values())
+check('disabled_read_perf_identifier_not_tracepoint_config',lambda:tool.decode_disabled_read(raw())['perf_event_id']==987654)
+for bad in [b'',b'0'*39,b'0'*41,b'0'*48,bytearray(raw()),'0'*40]:check('read_exact_bytes40_'+repr(type(bad))+str(len(bad)),lambda bad=bad:raises(lambda:tool.decode_disabled_read(bad)))
+for field in ['value','time_enabled','time_running','lost']:
+ check('disabled_nonzero_'+field+'_fails',lambda field=field:raises(lambda:tool.decode_disabled_read(raw(**{field:1}))))
+check('zero_perf_identifier_rejected',lambda:raises(lambda:tool.decode_disabled_read(raw(perf_event_id=0))))
+class Fake:
+ def __init__(self,fd=17,cloexec=True,read_value=None,closed=True,fail=None):self.fd=fd;self.ce=cloexec;self.rv=raw()if read_value is None else read_value;self.cv=closed;self.fail=fail or{};self.calls=[]
+ def op(self,name):
+  self.calls.append(name)
+  if name in self.fail:raise self.fail[name]
+ def open(self,attr,cpu):self.op('open');return self.fd
+ def cloexec(self,fd):self.op('cloexec');return self.ce
+ def read(self,fd):self.op('read');return self.rv
+ def close(self,fd):self.op('close')
+ def closed(self,fd):self.op('closed');return self.cv
+fake=Fake();r=tool.run_preflight(fake,tool.attributes(268),0)
+check('single_disabled_open_read_close_success',lambda:r['status']=='disabled_open_read_observed_only'and r['opens_attempted']==r['opens_succeeded']==r['reads_attempted']==1 and fake.calls==['open','cloexec','read','close','closed'])
+check('successful_B1_never_active_capture',lambda:r['active_capture_ready']is False and all(r[k]==0 for k in ['enables','maps','filters','actors_launched','records_collected'])and r['filter_delivery_loss_clock_gates']=='untested')
+check('read_ID_distinct_from_tracepoint_config_recorded',lambda:r['tracepoint_config']==268 and r['read_values']['perf_event_id']==987654 and'not the tracepoint'in r['read_id_scope'])
+check('close_and_EBADF_proof_order',lambda:r['cleanup']=='owned_fd_closed'and r['close_acknowledged']is True and r['closed_fd_check']is True and fake.calls[-2:]==['close','closed'])
+for fd in [False,-1,2**31]:
+ f=Fake(fd=fd);x=tool.run_preflight(f,tool.attributes(268),0);check('invalid_FD_result_'+repr(fd),lambda x=x,f=f:x['status']=='failed_closed'and f.calls==['open']and x['cleanup']=='no_fd_opened')
+for flag in [False,1,None]:
+ f=Fake(cloexec=flag);x=tool.run_preflight(f,tool.attributes(268),0);check('cloexec_exact_bool_'+repr(flag),lambda x=x,f=f:x['status']=='failed_closed'and'not_read_dummy'not in f.calls and'read'not in f.calls and f.calls[-2:]==['close','closed'])
+for flag in [False,1,None]:
+ f=Fake(closed=flag);x=tool.run_preflight(f,tool.attributes(268),0);check('closure_exact_bool_'+repr(flag),lambda x=x:x['status']=='failed_closed'and x['cleanup']=='closure_unproven')
+for op in ['open','cloexec','read','close','closed']:
+ f=Fake(fail={op:OSError(errno.EINTR,'mock interruption')});x=tool.run_preflight(f,tool.attributes(268),0)
+ check('failure_'+op+'_never_retry',lambda x=x,f=f,op=op:x['status']=='failed_closed'and f.calls.count(op)==1)
+ if op in ['cloexec','read']:check('owned_close_after_'+op+'_error',lambda f=f:f.calls.count('close')==1 and f.calls[-1]=='closed')
+ if op=='open':check('no_unknown_descriptor_closed_after_open_error',lambda f=f:'close'not in f.calls)
+ if op=='close':check('close_EINTR_not_retried_on_reused_number',lambda f=f:f.calls.count('close')==1 and'closed'not in f.calls)
+f=Fake(fail={'read':OSError(errno.EIO,'mock read'),'close':OSError(errno.EINTR,'mock close')});x=tool.run_preflight(f,tool.attributes(268),0)
+check('execution_and_cleanup_errors_both_retained',lambda:x['status']=='failed_closed'and x['error_errno']==errno.EIO and'Interrupted'in x.get('cleanup_error','')or x['status']=='failed_closed'and x['error_errno']==errno.EIO and'mock close'in x.get('cleanup_error',''))
+for data in [b'0'*39,raw(lost=1),bytearray(raw())]:
+ f=Fake(read_value=data);x=tool.run_preflight(f,tool.attributes(268),0);check('bad_read_still_closes_owned_FD_'+repr(type(data))+str(len(data)),lambda x=x,f=f:x['status']=='failed_closed'and x['cleanup']=='owned_fd_closed'and f.calls.count('read')==1)
+for cpu in [True,-1,4096,0.0]:
+ f=Fake();check('bad_CPU_before_open_'+repr(cpu),lambda cpu=cpu,f=f:raises(lambda:tool.run_preflight(f,tool.attributes(268),cpu))and not f.calls)
+for field,value in [('flags',0),('flags',0x02040201),('size',64),('sample_type',0),('read_format',7),('clockid',0),('config1',1)]:
+ at=tool.attributes(268);setattr(at,field,value);f=Fake();check('mutated_attr_before_open_'+field+str(value),lambda at=at,f=f:raises(lambda:tool.run_preflight(f,at,0))and not f.calls)
+report={'status':'passed'if all(c['status']=='passed'for c in checks)else'failed','checks':len(checks),'failed':sum(c['status']!='passed'for c in checks),'results':checks,'source_sha256':hashlib.sha256(Path(tool.__file__).read_bytes()).hexdigest(),'fixture_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'active_perf_opens':0,'all_backend_operations_mocked':True,'limits':['Disabled-FD byte/ABI/error/cleanup mocks only; no native perf operation, target, sampling or capture by reviewer.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['results','limits']}));raise SystemExit(0 if not report['failed']else 1)

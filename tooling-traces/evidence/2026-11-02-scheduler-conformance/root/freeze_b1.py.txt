@@ -1,0 +1,29 @@
+import hashlib,json
+from pathlib import Path
+root=Path(__file__).parent
+files={
+ 'main':Path('D:/Cephalon/.worktrees/scheduler-conformance/tools/preflight_scheduler_perf.py'),
+ 'test':Path('D:/Cephalon/.worktrees/scheduler-conformance/tools/test_preflight_scheduler_perf.py'),
+ 'planner':Path('D:/Cephalon/.worktrees/scheduler-conformance/tools/plan_scheduler_conformance.py'),
+ 'bundle':Path('D:/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-readiness02/source-review/event-formats.json'),
+ 'protocol':root/'preflight-protocol.md',
+ 'adr':Path('D:/Cephalon/Cehpalon-Engine-Docs/internal/adr/ADR-0027-owned-scheduler-conformance.md')}
+hashes={k:hashlib.sha256(p.read_bytes()).hexdigest() for k,p in files.items()}
+assert hashes['main']=='19b0490e23d8e626a7bb773852c1474017171c867383ffd97c78cf7c4efa01f5'
+assert hashes['test']=='55869f00b7a55f024814d5fcddba3fb9bff8a54c270268106df86a7aad1c0da2'
+for platform in ('windows','wsl'):
+    t=json.loads(Path(f'D:/Cephalon/.worktrees/scheduler-conformance/.local/tests-{platform}03.json').read_text())
+    assert t['status']=='passed' and t['checks']==98 and t['source_sha256']==hashes['main']
+command=['wsl','--user','root','--','/usr/bin/timeout','--signal=TERM','--kill-after=2s','30s','/usr/bin/python3',
+ '/mnt/d/Cephalon/.worktrees/scheduler-conformance/tools/preflight_scheduler_perf.py',
+ '--formats','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-readiness02/source-review/event-formats.json',
+ '--expected-bundle-sha256',hashes['bundle'],'--expected-source-sha256',hashes['main'],'--expected-online','0-19',
+ '--output','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-conformance01/b1-attempt01','--execute-disabled-preflight']
+record={'schema_version':1,'date_bangkok':'2026-11-02','stage':'ADR0027_B1_disabled_single_FD_only',
+ 'scope':'No actors, enable/filter/mmap, recording or benchmark; source/format checks and disabled open/read/close only',
+ 'files':{k:{'path':str(p),'sha256':hashes[k]} for k,p in files.items()},'command':command,'process_timeout_seconds':30,
+ 'allowed_calls':{'perf_event_open':1,'read_disabled_fd':1,'enable':0,'filter':0,'mmap':0,'actors':0},'all_active_capture_gates':'untested'}
+for key,p in files.items():
+    if key in ('main','test','planner','protocol','adr'):(root/('frozen-'+key+'.txt')).write_bytes(p.read_bytes())
+with (root/'b1-freeze.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(record,f,indent=2);f.write('\n')
+print(json.dumps({'status':'frozen_not_executed','source':hashes['main'],'command':command}))

@@ -1,0 +1,110 @@
+{
+  "status": "bounded_readonly_source_review_complete",
+  "scope": "ADR0027 collector design; no builds/target/perf descriptors/namespace entry/config changes/capture",
+  "sources": {
+    "count": 19,
+    "provenance_file": "provenance-final.json",
+    "sha256": "2878220223387c2384ce937040ce7865e059cf38e9318a4d5f1a6652b6466819",
+    "matching_tag": "linux-msft-wsl-6.18.54.1; correspondence not installedbinaryattestation"
+  },
+  "resources": {
+    "files": [
+      "host-resources01.json",
+      "host-alternatives02.json",
+      "pid-mapping-observations03.json",
+      "namespace-parent04.json",
+      "namespace-self-translation05.json"
+    ],
+    "raw_commands": 28,
+    "ordinary": "UID1000; no effective capabilities; CPUs0-19 allowed/online,Python3.10.12,4096pages",
+    "compiler": "gcc/cc/clang/clang18/clang19/make not found in ordinary/root PATH; no installs/builds attempted",
+    "limits": "nofile soft10240/hard1048576,mlock64MiB,perf_event_mlock_kb516; perFD/ring total resources still require actual open/mmap proof",
+    "namespace": "Root/ordinary source snapshots samePID/time/userns within batch, but later probes show namespace/bootID changes; never fuse identities across those snapshots. Capture-time actors/collector need oneexecution stableboot/ns/topology snapshot."
+  },
+  "uapi": {
+    "type_tracepoint": 2,
+    "syscall_x86_64": 298,
+    "syscall_source": "arch_x86_entry_syscalls_syscall_64.tbl.txt",
+    "clock_monotonic": 1,
+    "attr_flags_offset": 40,
+    "disabled_bit": 0,
+    "inherit_bit": 1,
+    "sample_id_all_bit": 18,
+    "use_clockid_bit": 25,
+    "write_backward_bit": 27,
+    "clockid_signed_offset": 92,
+    "minimum_size_for_clockid": 96,
+    "recommended_declared_attr_size": 128,
+    "sample_type_bits": {
+      "TID": 1,
+      "TIME": 2,
+      "CPU": 7,
+      "RAW": 10
+    },
+    "sample_type_combined": 1158,
+    "read_format_bits": {
+      "TOTAL_TIME_ENABLED": 0,
+      "TOTAL_TIME_RUNNING": 1,
+      "ID": 2,
+      "LOST": 4
+    },
+    "read_format_combined_with_allfour": 23,
+    "fd_cloexec_flag": 8,
+    "filter_ioctl_x86_64": "0x40082406 _IOW($,6,char*)",
+    "id_ioctl_x86_64": "0x80082407 _IOR($,7,__u64*)",
+    "enable_ioctl": "0x2400",
+    "disable_ioctl": "0x2401",
+    "sources": [
+      "include_uapi_linux_perf_event.h.txt:409-455,499,572-579,1296",
+      "kernel_events_core.c.txt:13422-13456,13638-13639"
+    ]
+  },
+  "clock": {
+    "finding": "CLOCK_MONOTONIC selects ktime_get_mono_fast_ns. Per-session choice does not change globaltrace_clock. Actor user monotonic mayhave timenamespace offsets; observed0 offsets are snapshots only.",
+    "limitations": "Successful disabled open tests attribute acceptance only, not eventtimestamp delivery/crossCPU monotonic joins."
+  },
+  "loss": {
+    "read_semantics": "Ungrouped read returns value then optional enabled,running,id,lost in this fixed order. Group layout is different and must not be used accidentally. Read length/error/ID must be checked.",
+    "terminal": "kernel core perf_read_one reads atomic event->lost_samples. ringfull/paused path increments it even when finalPERF_RECORD_LOST is not emitted. Disable every FD, drain tostablehead/tail, perform checkedterminalreads beforeclose; no group sharedring ambiguity if ownringperFD. Stable no-knownloss is scoped, not universalcompleteness.",
+    "reset": "PERF_EVENT_IOC_RESET resets eventcount, not lost_samples in this source; do not treat RESET as lost-counter reset. FreshFD perattempt avoids crossattemptcarry.",
+    "sources": [
+      "kernel_events_core.c.txt:6058-6078,6174-6179",
+      "kernel_events_ring_buffer.c.txt:174-195,248-265",
+      "include_uapi_linux_perf_event.h.txt:352-370,902-910"
+    ]
+  },
+  "namespace": {
+    "payload": "sched.h p->pid/parent->pid/child->pid are global initialnamespaceTIDs; task_pid_nr returns tsk->pid. Do notsubstitute task_pid_vnr or common_pid for target.",
+    "header": "Perf TID/PID sampleheader uses __task_pid_nr_ns(...event->ns); event->ns captured from task_active_pid_ns atcreation. Payload and header can differ legitimately.",
+    "proc": "Exact proc_sched_show_task uses task_pid_nr_ns(p,procnamespace), so /proc/PID/sched is not globalTIDoracle; NSpid is alsoprocnamespace-relative.",
+    "parent": "NS_GET_PARENT on own activePIDnamespace returnsEPERM by source visibility rule, not necessarily absentparent. It cannot bootstrap an upward walk fromownactive namespace evenUID0.",
+    "translation": "NS_GET_PID_IN_PIDNS ioctl0x8004b708 maps ownvisiblevpid into namespace represented by alreadyopenFD. Sameexecution read-onlyselftranslation succeeds702->702 in namespace4026532212; noinitialnamespaceFD acquired, noglobalmapping established.",
+    "next_requirement": "B2 remainsunknown until a separately reviewed available initialPIDnamespaceFD/proven namespace mapping or other explicitlydeclared boundedmapping mechanism exists. No alternate mounts/setns/unfiltered/commbootstrap capture is authorized by this review.",
+    "initial_inode_constant": "Do notinferinitial solelyfrom EPERM or arbitrarycurrentinode. This review didnotindependentlylocate initialinodeconstant in downloadedfiles.",
+    "sources": [
+      "include_trace_events_sched.h.txt:139-187,233-243,396-421",
+      "include_linux_pid.h.txt:169-182,234-246",
+      "kernel_events_core.c.txt:1421-1445,13030",
+      "kernel_sched_debug.c.txt:1152-1158",
+      "kernel_pid_namespace.c.txt:427-445",
+      "fs_nsfs.c.txt:247-282",
+      "include_uapi_linux_nsfs.h.txt:20-26"
+    ]
+  },
+  "design": [
+    "B1 disabledFD attribute/resource probe is independent of target globalTIDmapping; report only tested opens/readformat/close outcome and sameexecutionboot/ns/topology. No broadcapabilityclaim.",
+    "For laterB2, open pid=-1,cpu=eachonlineCPU,group_fd=-1, CLOEXEC, disabled. ApplyexactperFDpayloadfiltersbeforeenable. No mmap/comm/task/contextswitch/namespaces sideband, callchains orglobaltracefs writes.",
+    "Use fresh FD and own forward nonoverwritemmapring per CPU/event; verify datasize/offset/pagepower2, exactrecordheaderbounds/wrap and required acquire/release headtail ordering for actualimplementation/platform. Pythonctypes alone isnot a declaration of crossarchitecture memorybarrier correctness.",
+    "EnableallFDs withbrackets, actorreleaseafterlastenable, prefix/finalschedulerstateunknown. All unknown child/reuse/ns/topology changes rejectscope; no favorablepartialselection.",
+    "Raw prev_state preempt marker TASK_REPORT_MAX is notsleep: preempted isRUNNING/R+; decode exact ABI/source. Nonrunnable state doesnotidentify reason.",
+    "CounterpartyPID/comm in switch/fork andwakeheader remainsinfilteredpayload. Retain boundeddeclaredscope, avoid genericperf unrequestedhostmetadata.",
+    "No sourcefunction/UID/capability/file-readability establishes activeeventdelivery/filter/loss/clock or Enginecausality."
+  ],
+  "remaining_unknowns": [
+    "Actual perf_event_open/filter/mmap/enable permissions and kernel acceptance untested by this agent",
+    "No target initialPIDnamespace mapping",
+    "Terminal loss/schedulerchains/eventdecode/crossCPU clock observations notcollected",
+    "Kernel/perf tagversion mapping not immutablebinaryattestation",
+    "WSL guest scheduling cannotbyitselfresolve hostvCPUstarvation, usefulCPUwork or GC pause cause"
+  ]
+}

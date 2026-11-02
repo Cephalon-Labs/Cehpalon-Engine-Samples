@@ -1,0 +1,30 @@
+[
+  {
+    "identity": "ordinary",
+    "command": [
+      "wsl",
+      "--",
+      "sh",
+      "-c",
+      "for x in gcc cc clang clang-18 clang-19 make; do command -v \"$x\" || true; done; ls -l /proc/1/ns/pid /proc/1/ns/time; cat /proc/1/status | grep -E \"^(Name|NSpid|NStgid):\""
+    ],
+    "exit_code": 0,
+    "stdout": "lrwxrwxrwx 1 root root 0 Nov  2 10:15 /proc/1/ns/pid\nlrwxrwxrwx 1 root root 0 Nov  2 10:15 /proc/1/ns/time\nName:\tsystemd\nNStgid:\t1\nNSpid:\t1\n",
+    "stderr": "ls: cannot read symbolic link '/proc/1/ns/pid': Permission denied\nls: cannot read symbolic link '/proc/1/ns/time': Permission denied\n"
+  },
+  {
+    "identity": "root-readonly",
+    "command": [
+      "wsl",
+      "--user",
+      "root",
+      "--",
+      "sh",
+      "-c",
+      "for x in gcc cc clang clang-18 clang-19 make; do command -v \"$x\" || true; done; ls -l /proc/1/ns/pid /proc/1/ns/time; cat /proc/1/status | grep -E \"^(Name|NSpid|NStgid):\""
+    ],
+    "exit_code": 0,
+    "stdout": "lrwxrwxrwx 1 root root 0 Nov  2 10:15 /proc/1/ns/pid -> pid:[4026532212]\nlrwxrwxrwx 1 root root 0 Nov  2 10:15 /proc/1/ns/time -> time:[4026531834]\nName:\tsystemd\nNStgid:\t1\nNSpid:\t1\n",
+    "stderr": ""
+  }
+]

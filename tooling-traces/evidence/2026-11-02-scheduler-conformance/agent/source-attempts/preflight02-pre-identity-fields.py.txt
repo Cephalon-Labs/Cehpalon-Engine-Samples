@@ -1,0 +1,135 @@
+"""ADR0027 B1: exactly one initially-disabled perf FD; never enables or captures."""
+import argparse,ctypes,errno,hashlib,json,os,platform,struct,sys,time
+from pathlib import Path
+import plan_scheduler_conformance as planner
+PLANNER_SHA='afb6155303bc9bba21124ef3a63e6012e86952def167cf038c566e1c45e81a50'
+SAMPLE_TYPE=(1<<1)|(1<<2)|(1<<7)|(1<<10)
+READ_FORMAT=(1<<0)|(1<<1)|(1<<2)|(1<<4)
+ATTR_FLAGS=(1<<0)|(1<<18)|(1<<25)
+PERF_FLAG_FD_CLOEXEC=1<<3
+require=planner.require
+
+class PerfAttr(ctypes.Structure):
+    _fields_=[('type',ctypes.c_uint32),('size',ctypes.c_uint32),('config',ctypes.c_uint64),
+      ('sample_period',ctypes.c_uint64),('sample_type',ctypes.c_uint64),('read_format',ctypes.c_uint64),
+      ('flags',ctypes.c_uint64),('wakeup_events',ctypes.c_uint32),('bp_type',ctypes.c_uint32),
+      ('config1',ctypes.c_uint64),('config2',ctypes.c_uint64),('branch_sample_type',ctypes.c_uint64),
+      ('sample_regs_user',ctypes.c_uint64),('sample_stack_user',ctypes.c_uint32),('clockid',ctypes.c_int32),
+      ('sample_regs_intr',ctypes.c_uint64),('aux_watermark',ctypes.c_uint32),('sample_max_stack',ctypes.c_uint16),
+      ('reserved2',ctypes.c_uint16),('aux_sample_size',ctypes.c_uint32),('reserved3',ctypes.c_uint32),('sig_data',ctypes.c_uint64)]
+
+def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def attributes(config):
+    require(type(config)is int and 0<config<=0xffffffffffffffff,'Positive exact tracepoint ID')
+    require(ctypes.sizeof(PerfAttr)==128 and PerfAttr.flags.offset==40 and PerfAttr.clockid.offset==92,'Native PERF_ATTR_SIZE_VER7 layout')
+    result=PerfAttr();result.type=2;result.size=128;result.config=config;result.sample_period=1
+    result.sample_type=SAMPLE_TYPE;result.read_format=READ_FORMAT;result.flags=ATTR_FLAGS
+    result.wakeup_events=1;result.clockid=1
+    return result
+
+def parse_online(text):
+    require(type(text)is str and text.strip(),'Nonempty CPU topology')
+    cpus=[]
+    for term in text.strip().split(','):
+        parts=term.split('-');require(len(parts)in(1,2) and all(p.isascii() and p.isdecimal() for p in parts),'Exact CPU list syntax')
+        lo=int(parts[0]);hi=int(parts[-1]);require(0<=lo<=hi<=4095,'Bounded CPU range')
+        cpus.extend(range(lo,hi+1));require(len(cpus)<=32,'At most32onlineCPUs; never silently subset')
+    require(cpus==sorted(set(cpus)),'Sorted unique CPU topology')
+    return cpus
+
+def decode_disabled_read(raw):
+    require(type(raw)is bytes and len(raw)==40,'Exactly five ungrouped uint64 read values; no retry/shortread acceptance')
+    values=dict(zip(('value','time_enabled','time_running','event_id','lost'),struct.unpack('<QQQQQ',raw)))
+    require(values['event_id']>0,'Positive independent event ID')
+    require(all(values[k]==0 for k in ('value','time_enabled','time_running','lost')),'Fresh disabled FD counters must remain zero')
+    return values
+
+class NativeBackend:
+    def __init__(self):
+        require(sys.platform=='linux' and platform.machine()=='x86_64' and sys.byteorder=='little','Only declared Linuxx86_64 little-endian ABI')
+        self.libc=ctypes.CDLL(None,use_errno=True);self.libc.syscall.restype=ctypes.c_long
+    def open(self,attr,cpu):
+        ctypes.set_errno(0)
+        fd=self.libc.syscall(ctypes.c_long(298),ctypes.byref(attr),ctypes.c_int(-1),ctypes.c_int(cpu),ctypes.c_int(-1),ctypes.c_ulong(PERF_FLAG_FD_CLOEXEC))
+        if fd<0:
+            code=ctypes.get_errno();raise OSError(code,os.strerror(code))
+        return int(fd)
+    def cloexec(self,fd):
+        import fcntl
+        return bool(fcntl.fcntl(fd,fcntl.F_GETFD)&fcntl.FD_CLOEXEC)
+    def read(self,fd):return os.read(fd,40)
+    def close(self,fd):os.close(fd)
+    def closed(self,fd):
+        import fcntl
+        try:fcntl.fcntl(fd,fcntl.F_GETFD)
+        except OSError as e:
+            if e.errno==errno.EBADF:return True
+            raise
+        return False
+
+def run_preflight(backend,attr,cpu):
+    require(type(cpu)is int and 0<=cpu<=4095 and type(attr)is PerfAttr,'Exact configured preflight CPU and attrs')
+    expected=attributes(int(attr.config));require(bytes(attr)==bytes(expected),'No undeclared attribute/sideband/enable mutation')
+    result=dict(status='started',stage='disabled_open',pid_argument=-1,cpu_argument=cpu,group_argument=-1,syscall=298,syscall_flags=PERF_FLAG_FD_CLOEXEC,
+        attr_bytes_hex=bytes(attr).hex(),attr_size=ctypes.sizeof(attr),attr_offsets={name:getattr(PerfAttr,name).offset for name,_ in PerfAttr._fields_},
+        sample_type=SAMPLE_TYPE,read_format=READ_FORMAT,flags_word=ATTR_FLAGS,clockid=1,opens_attempted=0,opens_succeeded=0,reads_attempted=0,
+        enables=0,maps=0,filters=0,actors_launched=0,records_collected=0,active_capture_ready=False,filter_delivery_loss_clock_gates='untested',cleanup='no_fd_opened')
+    fd=None
+    try:
+        result['open_before_monotonic_ns']=time.monotonic_ns();result['opens_attempted']=1
+        opened=backend.open(attr,cpu);result['open_after_monotonic_ns']=time.monotonic_ns()
+        require(type(opened)is int and opened>=0,'Valid owned FD result');fd=opened
+        result['opens_succeeded']=1;result['returned_fd']=fd;result['cleanup']='pending'
+        result['stage']='close_on_exec_readback';result['close_on_exec_observed']=backend.cloexec(fd);require(result['close_on_exec_observed'],'Actual FD is close-on-exec')
+        result['stage']='disabled_read';result['reads_attempted']=1
+        raw=backend.read(fd);result['read_bytes_hex']=raw.hex();result['read_bytes']=len(raw)
+        result['read_values']=decode_disabled_read(raw)
+        result.update(status='disabled_open_read_observed_only',stage='complete_preflight')
+    except Exception as error:
+        result.update(status='failed_closed',error_type=type(error).__name__,error=str(error),error_errno=getattr(error,'errno',None),error_errno_name=errno.errorcode.get(getattr(error,'errno',None)))
+    finally:
+        if fd is not None:
+            try:
+                backend.close(fd);result['close_acknowledged']=True;result['closed_fd_check']=backend.closed(fd)
+                require(result['closed_fd_check'],'Owned descriptor closure observed')
+                result['cleanup']='owned_fd_closed'
+            except Exception as error:result.update(status='failed_closed',cleanup='closure_unproven',cleanup_error=repr(error))
+        result['finished_monotonic_ns']=time.monotonic_ns()
+    return result
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    for name in ['formats','expected-bundle-sha256','expected-source-sha256','expected-online','output']:parser.add_argument('--'+name,required=True)
+    parser.add_argument('--execute-disabled-preflight',action='store_true');a=parser.parse_args()
+    require(a.execute_disabled_preflight,'Explicit frozen B1 execution flag required')
+    require(sys.platform=='linux' and platform.machine()=='x86_64' and os.getuid()==os.geteuid()==0,'Declared one-shot root collector only')
+    source=Path(__file__).read_bytes();require(hashlib.sha256(source).hexdigest()==a.expected_source_sha256,'Exact root-frozen executing main source bytes')
+    require(sha(planner.__file__)==PLANNER_SHA and sha(a.formats)==a.expected_bundle_sha256,'Pinned planner and exact root-frozen format bundle')
+    formats,hashes=planner.load_bundle(a.formats)
+    expected=parse_online(a.expected_online);online_path=Path('/sys/devices/system/cpu/online');online=online_path.read_text().strip();cpus=parse_online(online)
+    require(cpus==expected,'Exact declared entire online topology')
+    out=Path(a.output);out.mkdir(parents=True,exist_ok=False);(out/'source.py.txt').write_bytes(source);(out/'planner.py.txt').write_bytes(Path(planner.__file__).read_bytes())
+    live_hashes={};live_paths=[]
+    for name in planner.EVENT_FIELDS:
+        path=Path('/sys/kernel/tracing/events/sched')/name/'format';raw=path.read_bytes();parsed=planner.parse_format(raw.decode('utf-8'),name)
+        require(parsed==formats[name],'Exact eight live observed ABI layouts/IDs')
+        declared=next(value for key,value in hashes.items() if key.endswith('/'+name+'.format.txt'))
+        require(hashlib.sha256(raw).hexdigest()==declared,'Exact live format bytes unchanged')
+        (out/(name+'.format.txt')).write_bytes(raw);live_hashes[str(path)]=hashlib.sha256(raw).hexdigest();live_paths.append(path)
+    attr=attributes(formats['sched_switch']['event_id'])
+    metadata=dict(role='ADR0027_B1_disabled_only_permission_read_ABI_not_capture',uid=os.getuid(),euid=os.geteuid(),pid=os.getpid(),platform=platform.platform(),
+       namespaces={n:os.readlink('/proc/self/ns/'+n) for n in ['pid','pid_for_children','time','time_for_children','user']},boot_id=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),online=online,cpus=cpus,
+       identity_scope='Same-execution root namespaces only; not a global actor payload PID oracle or cross-invocation actor lease',
+       source_sha256=hashlib.sha256(source).hexdigest(),planner_sha256=PLANNER_SHA,bundle_sha256=a.expected_bundle_sha256,live_formats_sha256=live_hashes,
+       gates_scope='Permission and disabled read-layout observation only; zero counter is not positive active LOST-delivery validation',
+       source_scope='Direct script bytes and pinned imported planner; not immutable execution or loaded-globals attestation')
+    (out/'intent.json').write_text(json.dumps(metadata,indent=2)+'\n',encoding='utf-8',newline='\n')
+    result=run_preflight(NativeBackend(),attr,cpus[0]);result.update(metadata)
+    try:
+        require(sha(__file__)==a.expected_source_sha256 and sha(planner.__file__)==PLANNER_SHA and sha(a.formats)==a.expected_bundle_sha256,'Source/bundle hashes unchanged')
+        require(online_path.read_text().strip()==online and all(sha(path)==live_hashes[str(path)] for path in live_paths),'Topology and formats unchanged after single preflight')
+        result['source_topology_format_freeze']='passed'
+    except Exception as error:result.update(status='failed_closed',postcheck_error=repr(error))
+    (out/'result.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n')
+    print(json.dumps(result));return 0 if result['status']=='disabled_open_read_observed_only' else 2
+if __name__=='__main__':raise SystemExit(main())

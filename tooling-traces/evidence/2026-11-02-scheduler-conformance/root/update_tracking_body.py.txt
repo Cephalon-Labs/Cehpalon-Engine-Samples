@@ -1,0 +1,19 @@
+from pathlib import Path
+root=Path(__file__).parents[2]
+p=root/'internal/memory/README.md'
+raw=p.read_bytes();old=b'Latest investigation: '
+new=b'Latest investigation: [2026-11-02 disabled scheduler perf preflight](2026-11-02-scheduler-conformance.md), with one successful disabled open/read/close and unresolved initial-namespace actor mapping; no active capture readiness. Prior investigation: '
+assert raw.count(old)==1;p.write_bytes(raw.replace(old,new,1))
+p=root/'tasks/20.md';raw=p.read_bytes();assert b'### 2026-11-02 disabled scheduler perf preflight (ADR0027)' not in raw
+addition='''
+
+### 2026-11-02 disabled scheduler perf preflight (ADR0027)
+
+Engine remains `55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7`. Implemented a bounded B1 preflight: one actual initially-disabled sched_switch FD accepted CPU0/config268/CLOEXEC/CLOCK_MONOTONIC attrs and read_format23; exact40byte read showed zero counters and independent perfFD-ID3; close ACK plus EBADF verified. No filter/mmap/enable/actor/recording/build/original benchmark/Engine patch or host configuration change. Zero counters before any enable do not prove active lossless delivery or sample clock; active_capture_ready=false.
+
+98offline fixtures pass eachWindows/WSL, with independent review of ABI/source and actual preflight artifacts. All failed/source/test/probe/raw attempts retained.19matching-tag official source snapshots/28read-only commands show scheduler payload globalTIDs differ in scope from namespace-relative perf/proc IDs. NS_GET_PARENT EPERM and own-namespace selftranslation do not establish global actor mapping. B2 collector/actor work remains gated on a reviewed same-execution initial-namespace mapping, then full frozen overflow-negative/positive filter/lifecycle/migration/clock/loss/drain/cleanup conformance. Static actors do not qualify dynamicRoslynThreadPool.
+
+Original metadata/dependencies/estimates/Planned Test+Benchmark/null hours unchanged;#3 entire row Blocked. Existing hosted CI pre-step payment/spending rejection remains separate; no billing/rerun, optimization/speedup or qualification claim. [Report and ADR0027](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/scheduler-conformance.md).
+'''
+p.write_bytes(raw+addition.replace('\n','\r\n').encode('utf-8'))
+print('Added only ADR0027 body evidence; prior task bytes preserved as exact prefix')

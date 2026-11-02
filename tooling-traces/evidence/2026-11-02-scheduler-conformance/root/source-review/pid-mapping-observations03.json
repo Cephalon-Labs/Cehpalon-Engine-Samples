@@ -1,0 +1,30 @@
+[
+  {
+    "identity": "ordinary",
+    "command": [
+      "wsl",
+      "--",
+      "sh",
+      "-c",
+      "head -3 /proc/self/sched; head -3 /proc/thread-self/sched; cat /proc/self/status | grep NSpid; readlink /proc/self/ns/pid; ls -ld /proc/self/root/proc"
+    ],
+    "exit_code": 0,
+    "stdout": "head (730, #threads: 1)\n-------------------------------------------------------------------\nse.exec_start                                :         58152.312709\nhead (731, #threads: 1)\n-------------------------------------------------------------------\nse.exec_start                                :         58153.220169\nNSpid:\t732\npid:[4026532214]\ndr-xr-xr-x 347 root root 0 Nov  2 10:16 /proc/self/root/proc\n",
+    "stderr": ""
+  },
+  {
+    "identity": "root-readonly",
+    "command": [
+      "wsl",
+      "--user",
+      "root",
+      "--",
+      "sh",
+      "-c",
+      "head -3 /proc/self/sched; head -3 /proc/thread-self/sched; cat /proc/self/status | grep NSpid; readlink /proc/self/ns/pid; ls -ld /proc/self/root/proc"
+    ],
+    "exit_code": 0,
+    "stdout": "head (797, #threads: 1)\n-------------------------------------------------------------------\nse.exec_start                                :         58540.303111\nhead (798, #threads: 1)\n-------------------------------------------------------------------\nse.exec_start                                :         58541.084148\nNSpid:\t799\npid:[4026532214]\ndr-xr-xr-x 350 root root 0 Nov  2 10:16 /proc/self/root/proc\n",
+    "stderr": ""
+  }
+]

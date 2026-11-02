@@ -1,0 +1,15 @@
+{
+  "command": [
+    "wsl",
+    "--user",
+    "root",
+    "--",
+    "python3",
+    "-c",
+    "import os,fcntl,json\nfd=os.open(\"/proc/self/ns/pid\",os.O_RDONLY);pid=os.getpid();r={\"pid\":pid,\"namespace_inode\":os.fstat(fd).st_ino,\"namespace\":os.readlink(\"/proc/self/ns/pid\"),\"boot_id\":open(\"/proc/sys/kernel/random/boot_id\").read().strip(),\"ioctl_hex\":\"0x8004b708\",\"ioctl_semantics\":\"NS_GET_PID_IN_PIDNS own live vpid into alreadyopen ownnamespace\"}\ntry:r[\"translated_pid\"]=fcntl.ioctl(fd,0x8004b708,pid);r[\"status\"]=\"success\"\nexcept OSError as e:r.update(status=\"failed\",errno=e.errno,error=e.strerror)\nfinally:os.close(fd)\nprint(json.dumps(r))"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"pid\": 702, \"namespace_inode\": 4026532212, \"namespace\": \"pid:[4026532212]\", \"boot_id\": \"5d7d165c-5e8a-41bb-b5b2-83f5a58f195c\", \"ioctl_hex\": \"0x8004b708\", \"ioctl_semantics\": \"NS_GET_PID_IN_PIDNS own live vpid into alreadyopen ownnamespace\", \"translated_pid\": 702, \"status\": \"success\"}\n",
+  "stderr": "",
+  "scope": "readonly pidnamespace translation; no setns/create/perf descriptors"
+}

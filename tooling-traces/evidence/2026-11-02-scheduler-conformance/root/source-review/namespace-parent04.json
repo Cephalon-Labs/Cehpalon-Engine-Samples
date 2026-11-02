@@ -1,0 +1,15 @@
+{
+  "command": [
+    "wsl",
+    "--user",
+    "root",
+    "--",
+    "python3",
+    "-c",
+    "import os,fcntl,json,errno\nr={\"pid\":os.getpid(),\"uid\":os.getuid(),\"boot_id\":open(\"/proc/sys/kernel/random/boot_id\").read().strip(),\"online\":open(\"/sys/devices/system/cpu/online\").read().strip(),\"pid_namespace\":os.readlink(\"/proc/self/ns/pid\"),\"time_namespace\":os.readlink(\"/proc/self/ns/time\"),\"time_offsets\":open(\"/proc/self/timens_offsets\").read(),\"parent_chain\":[]}\nfds=[]\ntry:\n fd=os.open(\"/proc/self/ns/pid\",os.O_RDONLY);fds.append(fd)\n for _ in range(8):\n  item={\"inode\":os.fstat(fd).st_ino,\"link\":os.readlink(\"/proc/self/fd/\"+str(fd))}\n  try:\n   parent=fcntl.ioctl(fd,0xb702);fds.append(parent);item[\"parent_read_status\"]=\"opened\";item[\"parent_inode\"]=os.fstat(parent).st_ino;fd=parent\n  except OSError as e:item.update(parent_read_status=\"denied_or_initial\",errno=e.errno,error=e.strerror);r[\"parent_chain\"].append(item);break\n  r[\"parent_chain\"].append(item)\nfinally:\n for fd in reversed(fds):os.close(fd)\nprint(json.dumps(r))"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"pid\": 687, \"uid\": 0, \"boot_id\": \"afa83375-8a54-4a53-9c52-bbff506a0e75\", \"online\": \"0-19\", \"pid_namespace\": \"pid:[4026532212]\", \"time_namespace\": \"time:[4026531834]\", \"time_offsets\": \"monotonic           0         0\\nboottime            0         0\\n\", \"parent_chain\": [{\"inode\": 4026532212, \"link\": \"pid:[4026532212]\", \"parent_read_status\": \"denied_or_initial\", \"errno\": 1, \"error\": \"Operation not permitted\"}]}\n",
+  "stderr": "",
+  "scope": "read-only NS_GET_PARENT; no setns, no unshare, no perf descriptors"
+}
