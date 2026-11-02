@@ -1,0 +1,17 @@
+from pathlib import Path
+root=Path(__file__).parents[2]
+p=root/'internal/memory/README.md';raw=p.read_bytes();old=b'Latest investigation: ';new=b'Latest investigation: [2026-11-02 owned task PID mapping](2026-11-02-scheduler-pid-mapping.md), with one actual local738-to-global1056 owned syscall sample; full scheduler/dynamic coverage remains unqualified. Prior investigation: '
+assert raw.count(old)==1;p.write_bytes(raw.replace(old,new,1))
+p=root/'tasks/20.md';raw=p.read_bytes();assert b'### 2026-11-02 owned task PID mapping (ADR0028)' not in raw
+addition='''
+
+### 2026-11-02 owned task PID mapping (ADR0028)
+
+Engine remains `55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7`. One separately frozen actual task-attached syscalls:sys_enter_gettid attempt positively maps ordinary owned localTID738/gettid-return738 to kernel globalcommon_pid1056. One FD/config208, one56byte SAMPLE/20raw, count1/lost0/two stable40byte reads, atomic terminal head/tail drain, syscall marker clock and child/FD/ring cleanup passed. No fullscheduler/Roslynlane, Engine patch or original benchmark ran. The actor exited; its IDs are not future membership.
+
+Existinglibatomic absence retained; before acquisition preparation amended for a private signedUbuntu artifact only, verified signature/index/package/ELF/export/license provenance; no systeminstall/loadercache/hostconfiguration change.97portable fixtures pass eachWindows/WSL,16ordinary nativeatomic scratchchecks, independent source/dependency/finaldiff review and rawartifact audit retained with every failure/source/attempt. Postlease/environment equality checks are source-enforced; individual postread snapshots were not separately serialized, so immutable/hostilehost attestation is not claimed.
+
+Next: map each live staticactor in the sameexecution, then separately declare/run allCPU/eightevent payloadfiltered scheduler collector with fixedoverflownegative/positive lifecycle/migration/clock/loss/drain/cleanup gates. Oneactorbootstrap is not dynamicRoslyn coverage, scheduler/GCduration or causaloptimization. Original metadata/dependencies/estimates/Planned Test+Benchmark/nullhours unchanged;#3 entire row Blocked; existingCIpaymentprestep rejection remains separate, no billing/rerun or qualification. [Report and ADR0028](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/scheduler-pid-mapping.md).
+'''
+p.write_bytes(raw+addition.replace('\n','\r\n').encode('utf-8'))
+print('Added ADR0028 body evidence; prior task bytes preserved as exact prefix')

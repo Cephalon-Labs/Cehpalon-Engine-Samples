@@ -1,0 +1,101 @@
+{
+  "status": "code_offline_and_scratch_ready_pending_root_single_active_invocation",
+  "new_files": [
+    "tools/collect_scheduler_mapping.py",
+    "tools/scheduler_mapping_actor.py",
+    "tools/test_scheduler_mapping.py"
+  ],
+  "sources_sha256": {
+    "tools\\collect_scheduler_mapping.py": "8609eb6f1430fdb20fe818bc523d5886f0e90db7d1f6aec0af401067bc37ebdc",
+    "tools\\scheduler_mapping_actor.py": "1ade911f86188e65cb891b6b23d94a945c3427884f8abc61e37a8b437df5cb2f",
+    "tools\\test_scheduler_mapping.py": "b79e311371bfa57be001bc7c302f5be33f1fc793bdd756092c050ea7f5dfd413"
+  },
+  "fixtures_each_windows_wsl": 97,
+  "ordinary_scratch_checks": 16,
+  "private_library_sha256": "d4a3c900a38ad280bb34003fbf8326fff53229d4bc4fc368bd48783b74680a36",
+  "agent_actor_launches": 0,
+  "agent_perf_opens": 0,
+  "agent_builds": 0,
+  "source_recovery_needed": false,
+  "test_reports": [
+    {
+      "path": ".local/atomic-scratch01.json",
+      "status": "passed",
+      "checks": 16,
+      "source": ".local/source-attempts/mapping06-tested-before-python-pin.py.txt"
+    },
+    {
+      "path": ".local/atomic-scratch02.json",
+      "status": "passed",
+      "checks": 16,
+      "source": "tools/collect_scheduler_mapping.py"
+    },
+    {
+      "path": ".local/fixtures-windows01.json",
+      "status": "failed",
+      "checks": 97,
+      "source": ".local/source-attempts/mapping05-tested-format-declaration-gap.py.txt"
+    },
+    {
+      "path": ".local/fixtures-windows02.json",
+      "status": "passed",
+      "checks": 97,
+      "source": ".local/source-attempts/mapping06-tested-before-python-pin.py.txt"
+    },
+    {
+      "path": ".local/fixtures-windows03.json",
+      "status": "passed",
+      "checks": 97,
+      "source": "tools/collect_scheduler_mapping.py"
+    },
+    {
+      "path": ".local/fixtures-wsl01.json",
+      "status": "failed",
+      "checks": 97,
+      "source": ".local/source-attempts/mapping05-tested-format-declaration-gap.py.txt"
+    },
+    {
+      "path": ".local/fixtures-wsl02.json",
+      "status": "passed",
+      "checks": 97,
+      "source": ".local/source-attempts/mapping06-tested-before-python-pin.py.txt"
+    },
+    {
+      "path": ".local/fixtures-wsl03.json",
+      "status": "passed",
+      "checks": 97,
+      "source": "tools/collect_scheduler_mapping.py"
+    }
+  ],
+  "source_version_index": {
+    "0ea23d61806c408359f47547102bdd252a4698f86d34287a1ed5e77a735a33cd": ".local/source-attempts/mapping01-initial.py.txt",
+    "721c1ab85ba232e8e86f0e513cddd2b44259367c4b2f4fab1b30f617595f6606": ".local/source-attempts/mapping02-pre-root-review.py.txt",
+    "6e03bbfcd846612dedc732aa1bde2e510e7a6b76637b7a7bdbd35fac4f801d50": ".local/source-attempts/mapping03-pre-atomic-lockfree.py.txt",
+    "a7f9fd6d5979f9c9060ba701a769a17f9785e587425ac73c0feed2127497974d": ".local/source-attempts/mapping04-pre-lifecycle-capability-guards.py.txt",
+    "22dca3142d8c7afa500b3e774abb2ed360afb47cf1b16e4197cfa096c87fe628": ".local/source-attempts/mapping05-tested-format-declaration-gap.py.txt",
+    "3f62c5f7f18561fc5bd305541b3d2021b40982142d396e3926bf579ce10c8828": ".local/source-attempts/mapping06-tested-before-python-pin.py.txt",
+    "8609eb6f1430fdb20fe818bc523d5886f0e90db7d1f6aec0af401067bc37ebdc": "tools/collect_scheduler_mapping.py",
+    "1ade911f86188e65cb891b6b23d94a945c3427884f8abc61e37a8b437df5cb2f": "tools/scheduler_mapping_actor.py",
+    "b79e311371bfa57be001bc7c302f5be33f1fc793bdd756092c050ea7f5dfd413": "tools/test_scheduler_mapping.py"
+  },
+  "scope": "One leased ordinary actor + one task-attached specific gettid FD/ring only if root separately frozen active call; not full scheduler collector",
+  "raw_abi": {
+    "event_name": "syscalls:sys_enter_gettid",
+    "tracepoint_id": 208,
+    "raw_size": 20,
+    "sample_record_size": 56,
+    "zero_padding": [
+      12,
+      20
+    ],
+    "mmap_bytes": 8192,
+    "read_format": 23,
+    "sample_type": 1158
+  },
+  "limitations": [
+    "Global PID mapping is one same-live actor source-correspondence observation, never future ID authority",
+    "No full scheduler/dynamic actor/remote wakeup/GC/progress/CPU or loss qualification",
+    "Root-only operator/integrator/remote writer",
+    "All failed fixture/source attempts retained; no active reruns by agent"
+  ]
+}

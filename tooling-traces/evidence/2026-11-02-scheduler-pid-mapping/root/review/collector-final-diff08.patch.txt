@@ -1,0 +1,84 @@
+--- retaineda7f9
++++ final8609
+@@ -18,6 +18,8 @@
+     result=planner.parse_format(raw.decode('utf-8'),'sys_enter_gettid')
+     fields=result['fields'];expected={'common_type':(0,2,0),'common_flags':(2,1,0),'common_preempt_count':(3,1,0),'common_pid':(4,4,1),'__syscall_nr':(8,4,1)}
+     require(set(fields)==set(expected),'Exactly five zero-argument syscall fields, no argument-register capture')
++    declarations={'common_type':'unsigned short common_type','common_flags':'unsigned char common_flags','common_preempt_count':'unsigned char common_preempt_count','common_pid':'int common_pid','__syscall_nr':'int __syscall_nr'}
++    require(all(fields[k]['declaration']==value for k,value in declarations.items()),'Exact declared scalar types, no contradictory ABI declaration')
+     require(all(tuple(fields[k][x] for x in ['offset','size','signed'])==v for k,v in expected.items()),'Exact declared Linuxx86_64 syscall ABI')
+     require(0<result['event_id']<=65535,'Trace common_type fits uint16')
+     return result
+@@ -60,7 +62,8 @@
+     require(all(type(counts.get(k))is int and counts[k]>=0 for k in ['value','time_enabled','time_running','perf_event_id','lost']),'Exact decoded counter types')
+     require(type(cpus)is list and all(type(c)is int and c>=0 for c in cpus),'Exact online CPU list')
+     require(all(type(ready.get(k))is int and ready[k]>0 for k in ['pid','tid']) and type(result.get('gettid_return'))is int,'Exact local actor identity types')
+-    s=samples[0];require(all(type(s.get(k))is int and s[k]>=0 for k in ['local_pid','local_tid','time_ns','cpu','global_common_pid']),'Exact decoded sample identity/clock types')
++    s=samples[0];require(all(type(s.get(k))is int and s[k]>=0 for k in ['local_pid','local_tid','time_ns','cpu','global_common_pid']) and all(s[k]>0 for k in ['local_pid','local_tid','global_common_pid']),'Exact positive decoded sample identity/clock types')
++    require(counts['perf_event_id']>0 and counts['time_running']<=counts['time_enabled'],'Valid decoded perf ID/read clocks')
+     require(type(ready.get('prearm_gettid_calls'))is int and ready['prearm_gettid_calls']==1 and type(result.get('armed_gettid_calls'))is int and result['armed_gettid_calls']==1,'Exactly one prearm and one armed explicit syscall')
+     require(s['local_pid']==ready['pid']==ready['tid']==s['local_tid']==result['gettid_return'],'Exact owned local PID/TID/return mapping')
+     require(type(result['before_monotonic_ns'])is int and type(result['after_monotonic_ns'])is int and result['before_monotonic_ns']<=s['time_ns']<=result['after_monotonic_ns'],'Sample session clock inside actor monotonic syscall bracket')
+@@ -77,9 +80,9 @@
+         value=ctypes.c_uint64(0);address=ctypes.addressof(value);require(address%8==0,'Aligned uint64 atomics')
+         require(self.check(8,address) is True,'Lock-free8byte atomics required; no process-private lock fallback')
+         self.store(address,0x123456789abcdef0,3);require(self.load(address,2)==0x123456789abcdef0,'Declared acquire/release exports positive check')
+-    def lock_free(self,address):require(type(address)is int and address%8==0,'Aligned lock-free query');return self.check(8,address)
+-    def acquire(self,address):require(type(address)is int and address%8==0,'Aligned atomic acquire');return int(self.load(address,2))
+-    def release(self,address,value):require(type(address)is int and address%8==0 and type(value)is int and 0<=value<=0xffffffffffffffff,'Aligned bounded atomic release');self.store(address,value,3)
++    def lock_free(self,address):require(type(address)is int and 0<address<=0xfffffffffffffff8 and address%8==0,'Aligned lock-free query');return self.check(8,address)
++    def acquire(self,address):require(type(address)is int and 0<address<=0xfffffffffffffff8 and address%8==0,'Aligned atomic acquire');return int(self.load(address,2))
++    def release(self,address,value):require(type(address)is int and 0<address<=0xfffffffffffffff8 and address%8==0 and type(value)is int and 0<=value<=0xffffffffffffffff,'Aligned bounded atomic release');self.store(address,value,3)
+ 
+ class Ring:
+     def __init__(self,fd,atomics):
+@@ -117,9 +120,9 @@
+     root=Path('/proc')/str(pid);status={line.split(':',1)[0]:line.split(':',1)[1].strip() for line in (root/'status').read_text().splitlines() if ':'in line}
+     raw=(root/'stat').read_text();parts=raw[raw.rfind(')')+2:].split();taskraw=(root/'task'/str(pid)/'stat').read_text();tp=taskraw[taskraw.rfind(')')+2:].split()
+     require(parts[0]not in ['Z','X','x'] and tp[0]not in ['Z','X','x'] and int(parts[19])==int(tp[19]),'One live actor leader birth')
+-    require([int(x) for x in status['Uid'].split()]==[1000]*4 and [int(x) for x in status['Gid'].split()]==[1000]*4 and status['Groups']=='' and int(status['CapEff'],16)==0,'Ordinary actor credentials and capabilities')
++    require([int(x) for x in status['Uid'].split()]==[1000]*4 and [int(x) for x in status['Gid'].split()]==[1000]*4 and status['Groups']=='' and all(int(status[key],16)==0 for key in ['CapEff','CapPrm','CapAmb','CapInh']),'Ordinary actor credentials and capabilities')
+     require([p.name for p in (root/'task').iterdir()]==[str(pid)],'One precreated actor native thread')
+-    return dict(pid=pid,tid=pid,starttime_ticks=int(parts[19]),uid=status['Uid'],gid=status['Gid'],groups=status['Groups'],cap_eff=status['CapEff'],nspid=status.get('NSpid'),image=str((root/'exe').resolve()),
++    return dict(pid=pid,tid=pid,starttime_ticks=int(parts[19]),uid=status['Uid'],gid=status['Gid'],groups=status['Groups'],cap_eff=status['CapEff'],cap_prm=status['CapPrm'],cap_amb=status['CapAmb'],cap_inh=status['CapInh'],cap_bnd=status['CapBnd'],nspid=status.get('NSpid'),image=str((root/'exe').resolve()),
+         namespaces={name:os.readlink(root/'ns'/name) for name in ['pid','time','user']})
+ 
+ def environment_identity():
+@@ -128,7 +131,7 @@
+ def main():
+     invocation_start=time.monotonic()
+     p=argparse.ArgumentParser(description=__doc__)
+-    for name in ['libatomic','expected-libatomic-sha256','expected-source-sha256','expected-actor-sha256','expected-format-sha256','output']:p.add_argument('--'+name,required=True)
++    for name in ['libatomic','expected-libatomic-sha256','expected-python-sha256','expected-source-sha256','expected-actor-sha256','expected-format-sha256','output']:p.add_argument('--'+name,required=True)
+     p.add_argument('--execute-frozen-mapping',action='store_true');a=p.parse_args()
+     require(sys.platform=='linux' and platform.machine()=='x86_64' and os.getuid()==os.geteuid()==0 and sys.byteorder=='little' and os.sysconf('SC_PAGE_SIZE')==PAGE,'Declared root collector Linuxx86_64/4Kpages only')
+     import fcntl
+@@ -139,7 +142,7 @@
+     child=None;pidfd=None;fd=None;ring=None;enabled=False;cmd=None;reply=None;owned_controls=set();deadline=invocation_start+25
+     save(out/'manifest.json',report)
+     try:
+-        initial=environment_identity();python_sha=sha(initial['python_image']);report['python_binary_sha256']=python_sha;report['environment_before']=initial;cpus=perf.parse_online(initial['online'])
++        initial=environment_identity();python_sha=sha(initial['python_image']);require(python_sha==a.expected_python_sha256,'Actual interpreter matches externally frozen binary hash before actor');report['python_binary_sha256']=python_sha;report['environment_before']=initial;cpus=perf.parse_online(initial['online'])
+         for line in initial['time_offsets'].splitlines():
+             parts=line.split();require(len(parts)==3 and int(parts[1])==int(parts[2])==0,'Zero inherited time-namespace offsets for CLOCK_MONOTONIC comparison')
+         fmt_path=Path('/sys/kernel/tracing/events/syscalls/sys_enter_gettid/format');fmt_raw=fmt_path.read_bytes();require(hashlib.sha256(fmt_raw).hexdigest()==a.expected_format_sha256,'Exact frozen syscall-specific format only')
+@@ -186,7 +189,9 @@
+         join_deadline=min(deadline,time.monotonic()+5)
+         while True:
+             got,status=os.waitpid(child,os.WNOHANG)
+-            if got:require(os.waitstatus_to_exitcode(status)==0,'Owned child exited successfully');report['cleanup']['child_joined']=True;child=None;break
++            if got:
++                joined_pid=child;child=None;report['cleanup']['child_joined']=True;report['child_exit']={'pid':joined_pid,'wait_status':status,'exit_code':os.waitstatus_to_exitcode(status)}
++                require(report['child_exit']['exit_code']==0,'Owned child exited successfully');break
+             require(time.monotonic()<join_deadline,'Owned child join deadline');time.sleep(.001)
+         require(environment_identity()==initial and sha(initial['python_image'])==python_sha and sha(__file__)==a.expected_source_sha256 and sha(actor_tool.__file__)==a.expected_actor_sha256 and sha(perf.__file__)==PERF_SHA and sha(planner.__file__)==PLANNER_SHA and sha(a.libatomic)==a.expected_libatomic_sha256 and hashlib.sha256(fmt_path.read_bytes()).hexdigest()==a.expected_format_sha256,'Source/library/format/boot/namespaces/time/topology stable')
+         report.update(status='one_owned_actor_mapping_observed',mapping=mapping,cleanup={'child_joined':True,'perf_fd_closed':True,'ring_unmapped':True})
+@@ -215,7 +220,7 @@
+             try:
+                 while True:
+                     got,status=os.waitpid(child,os.WNOHANG)
+-                    if got:report['cleanup']['child_joined']=True;break
++                    if got:child=None;report['cleanup']['child_joined']=True;break
+                     if time.monotonic()>=cleanup_deadline:raise TimeoutError('Owned child final cleanup deadline')
+                     time.sleep(.001)
+             except BaseException as error:report['cleanup']['child_join_error']=repr(error);report['status']='failed_closed'

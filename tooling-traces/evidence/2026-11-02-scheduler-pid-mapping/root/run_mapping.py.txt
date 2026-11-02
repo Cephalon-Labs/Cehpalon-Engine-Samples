@@ -1,0 +1,16 @@
+import hashlib,json,subprocess,time
+from pathlib import Path
+root=Path(__file__).parent
+frozen=json.loads((root/'mapping-freeze.json').read_text())
+for info in frozen['files'].values():assert hashlib.sha256(Path(info['path']).read_bytes()).hexdigest()==info['sha256']
+assert not (root/'mapping-attempt01').exists() and not (root/'mapping-invocation.json').exists(),'No repeat or overwrite'
+intent={'freeze_sha256':hashlib.sha256((root/'mapping-freeze.json').read_bytes()).hexdigest(),'command':frozen['command'],'before_monotonic_ns':time.monotonic_ns()}
+with (root/'mapping-invocation-intent.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(intent,f,indent=2);f.write('\n')
+r=subprocess.run(frozen['command'],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=45)
+for name,raw in [('stdout',r.stdout),('stderr',r.stderr)]:
+    with (root/('mapping-'+name+'.txt')).open('xb') as f:f.write(raw)
+intent.update(exit_code=r.returncode,after_monotonic_ns=time.monotonic_ns(),stdout_sha256=hashlib.sha256(r.stdout).hexdigest(),stderr_sha256=hashlib.sha256(r.stderr).hexdigest())
+with (root/'mapping-invocation.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(intent,f,indent=2);f.write('\n')
+result_path=root/'mapping-attempt01/manifest.json'
+result=json.loads(result_path.read_text()) if result_path.exists() else {'status':'no_structured_result'}
+print(json.dumps({'exit_code':r.returncode,'status':result['status'],'mapping':result.get('mapping'),'actors':result.get('actor_launches'),'perf_opens':result.get('perf_opens'),'records':result.get('records'),'cleanup':result.get('cleanup'),'error':result.get('error')}))

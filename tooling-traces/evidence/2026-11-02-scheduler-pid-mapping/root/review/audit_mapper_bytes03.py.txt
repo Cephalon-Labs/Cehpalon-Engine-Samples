@@ -1,0 +1,43 @@
+from pathlib import Path
+import ast,struct,json,hashlib,types
+source=Path(r'D:/Cephalon/.worktrees/scheduler-mapping/tools/collect_scheduler_mapping.py');raw=source.read_bytes();tree=ast.parse(raw)
+def require(ok,msg):
+ if not ok:raise ValueError(msg)
+ns=dict(require=require,struct=struct,PAGE=4096,SAMPLE=9)
+selected=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in ['forward_bytes','decode_records','counters','validate_mapping']]
+exec(compile(ast.Module(body=selected,type_ignores=[]),str(source),'exec'),ns)
+checks=[]
+def check(name,fn):
+ require(fn(),name);checks.append(name)
+def rejects(fn):
+ try:fn();return False
+ except (ValueError,struct.error):return True
+payload=struct.pack('<HBBii',208,0,0,3456,186)+b'\0'*8
+sample=struct.pack('<IHHIIQIII',9,2,56,12,12,150,1,0,20)+payload
+check('one sample exactlayout',lambda:ns['decode_records'](sample,208)[0]['global_common_pid']==3456)
+check('truncated header rejects',lambda:rejects(lambda:ns['decode_records'](sample[:7],208)))
+check('truncated record rejects',lambda:rejects(lambda:ns['decode_records'](sample[:-1],208)))
+check('LOST rejects',lambda:rejects(lambda:ns['decode_records'](struct.pack('<I',2)+sample[4:],208)))
+check('sideband rejects',lambda:rejects(lambda:ns['decode_records'](struct.pack('<I',3)+sample[4:],208)))
+check('wrong tracepoint rejects',lambda:rejects(lambda:ns['decode_records'](sample,209)))
+check('rawsize12 rejects',lambda:rejects(lambda:ns['decode_records'](sample[:32]+struct.pack('<I',12)+sample[36:],208)))
+check('negative globalPID rejects',lambda:rejects(lambda:ns['decode_records'](sample[:40]+struct.pack('<i',-1)+sample[44:],208)))
+check('nonzeroCPUreserved rejects',lambda:rejects(lambda:ns['decode_records'](sample[:28]+struct.pack('<I',1)+sample[32:],208)))
+page=bytearray(4096);page[-8:]=sample[:8];page[:48]=sample[8:]
+check('ring wrap exactbytes',lambda:ns['forward_bytes'](bytes(page),4096+48,4096-8)==sample)
+check('ring overrun rejects',lambda:rejects(lambda:ns['forward_bytes'](bytes(page),4097,0)))
+check('backwards head rejects',lambda:rejects(lambda:ns['forward_bytes'](bytes(page),1,2)))
+check('nongroup counter read exact',lambda:ns['counters'](struct.pack('<QQQQQ',1,100,99,7,0))['perf_event_id']==7)
+check('counter shortread rejects',lambda:rejects(lambda:ns['counters'](bytes(32))))
+check('counter time inconsistency rejects',lambda:rejects(lambda:ns['counters'](struct.pack('<QQQQQ',1,99,100,7,0))))
+samples=ns['decode_records'](sample,208);counts=ns['counters'](struct.pack('<QQQQQ',1,100,99,7,0));ready=dict(pid=12,tid=12);result=dict(gettid_return=12,before_monotonic_ns=100,after_monotonic_ns=200)
+check('single tuple accepted',lambda:ns['validate_mapping'](samples,counts,ready,result,[0,1])['observed_global_tid']==3456)
+check('extra sample notselected',lambda:rejects(lambda:ns['validate_mapping'](samples*2,counts,ready,result,[1])))
+check('missing sample unknown',lambda:rejects(lambda:ns['validate_mapping']([],counts,ready,result,[1])))
+check('nonzero terminal lost rejects',lambda:rejects(lambda:ns['validate_mapping'](samples,dict(counts,lost=1),ready,result,[1])))
+check('count mismatch rejects',lambda:rejects(lambda:ns['validate_mapping'](samples,dict(counts,value=2),ready,result,[1])))
+check('wrong localTID rejects',lambda:rejects(lambda:ns['validate_mapping'](samples,counts,dict(pid=13,tid=13),result,[1])))
+check('clock bracket mismatch rejects',lambda:rejects(lambda:ns['validate_mapping'](samples,counts,ready,dict(result,before_monotonic_ns=151),[1])))
+check('offlineCPU rejects',lambda:rejects(lambda:ns['validate_mapping'](samples,counts,ready,result,[0])))
+r=dict(status='passed',checks=len(checks),names=checks,source_sha256=hashlib.sha256(raw).hexdigest(),scope='Pure extracted byte/ring/tuple functions only; no collector module import, nativecall, actor/perf/libraryload')
+out=Path(__file__).with_suffix('.json');out.write_text(json.dumps(r,indent=2)+'\n',encoding='utf-8',newline='\n');print(json.dumps(r))

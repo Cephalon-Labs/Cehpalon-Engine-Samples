@@ -1,0 +1,83 @@
+{
+  "status": "source_supported_candidate_for_separately_declared_owned_task_bootstrap_only",
+  "date_bangkok": "2026-11-02",
+  "scope": "Sourcefeasibility only; no hostprobes/perfopens/actors/config/build/capture",
+  "sources_count": 8,
+  "source_provenance_sha256": "1a871b49b218fdad67e366d73045c6f3dd7b2fed957d7784e6505fb046b6ca3f",
+  "source_refs": [
+    {
+      "path": "kernel_events_core.c.txt",
+      "lines": "4936-4952,13601-13607",
+      "finding": "perf_event_open positivepid resolves caller-visible vpid to task reference; cpu=-1 permits per-task context rather than systemwide targetpayload filter"
+    },
+    {
+      "path": "kernel_events_core.c.txt",
+      "lines": "2392,2746,2960-3115,4181;10955-10983",
+      "finding": "Tracepoint PMU is task-context capable. Context scheduling invokes PMUadd/del, placing event on current CPU while attached task executes."
+    },
+    {
+      "path": "kernel_trace_trace_event_perf.c.txt",
+      "lines": "352-395",
+      "finding": "Default tracepoint add enqueues event on perCPUhlist; delete removes it. With per-task context, task scheduling controls this membership."
+    },
+    {
+      "path": "kernel_events_core.c.txt",
+      "lines": "10995-11017,11080-11136",
+      "finding": "Event filtering/stopped state checked before sampling. Common entryupdated before filters/sample. Optional remote targetdelivery only if explicit taskargument supplied anddifferentcurrent; do notgeneralize taskattachmentto remote-wakeup coverage."
+    },
+    {
+      "path": "include_linux_trace_events.h.txt",
+      "lines": "173-181",
+      "finding": "Generic raw trace entry common_pid is current->pid, initialnamespaceID; cannot be mistaken for namespace-relative sampleheader."
+    },
+    {
+      "path": "kernel_trace_trace_event_perf.c.txt",
+      "lines": "425-430",
+      "finding": "perf_trace_buf_update invokes generic entryupdate on rawrecord."
+    },
+    {
+      "path": "kernel_events_core.c.txt",
+      "lines": "1421-1445,7769-7770,13030",
+      "finding": "Sampleheaderpid/tid iscurrenttask represented in event creatorPIDnamespace, captured atFDcreation."
+    },
+    {
+      "path": "include_trace_events_syscalls.h.txt",
+      "lines": "3,18-42",
+      "finding": "raw_syscalls:sys_enter payload holds syscallid plus sixargumentregisters; generic entryis emittercurrenttask. rawsyscallfilter id==186 isx86_64gettid per pinned syscalltable."
+    },
+    {
+      "path": "kernel_trace_trace_syscalls.c.txt",
+      "lines": "611-649,652-676",
+      "finding": "Specificsyscall enter metadata uses its own event andargumentcount. Availability/layout must be inspected later, notassumed fromsource."
+    },
+    {
+      "path": "arch_x86_entry_syscalls_syscall_64.tbl.txt",
+      "lines": "198",
+      "finding": "x86_64native syscall186=gettid. Rejectotherarch/compatibilityABI withoutseparate mapping."
+    }
+  ],
+  "proposed_contract": {
+    "population": "One ordinaryuser owned nativeTID, heldalive atreadybarrier; collector/targetPIDnamespace equality + UID/proc starttime/image validated before/afterFDopen andaftercapture. Positivepid localTID is resolved bysyscall incollectorPIDnamespace; not globalTID yet.",
+    "fd": "One per-task tracepoint FD pid=leasedlocalTID,cpu=-1,group=-1,CLOEXEC,inheritoff,initiallydisabled,one ownforwardnonoverwrite ring; explicitsampleTID/TIME/CPU/RAW,ID/LOSTreadformat; sideband/task/mmap/comm/context_switch/namespaces/callchains alloff. No unrestricted CPUwide trace.",
+    "event": "Prefer exactlive syscalls:sys_enter_gettid noargument event ifavailable. Otherwise raw_syscalls:sys_enter withper-FD id==186 filter andexplicitordinaryactor syscall(186,0,0,0,0,0,0) soextraargumentregisterscopeisdeclared. No silenteventfallback afterfailedliveattempt.",
+    "arm": "Snapshotrawformat/source/attrs/filter, applyfilterdisabled, validatelease, mmap/enablewithbrackets, acknowledgearm beforeexactlyone controlledgettid. Actor holdsfinalbarrier untilcollector disables/drains/readsloss/closes.",
+    "mapping": "Requireonecompletevalidfilteredrawsample, exacteventtype/syscallid, sampleheaderTID==leasedlocalTID andheaderPID==ownedprocess incollectorPIDnamespace, rawcommon_pid positive. Rawcommon_pid isprovisional initialnamespaceID for that SAME liveleasedthread. Revalidatelease/generation beforeusingmapping; retainlocal-to-initial pair andcapturedproof.",
+    "validation": "Requireactualgettidreturn==leasedlocalTID,markerclockbrackets, onecount/noextras/no-loss/drain completeness, rawABI exactfieldoffsets/types andnamespace/bootidentity. Missing/duplicate/malformed/filter-late/eventunsupported/shortread/loss/reuse/nsdrift reject. Do notchoosebestrecord frommultipleunexpectedcalls."
+  },
+  "pitfalls": [
+    "Per-taskcontext is adequate for a syscall emitted bythat samecurrentthread; itdoesnotprovidethe laterfullschedulerremote-wakeupcoverage. KeepCPUwidepayloadfiltered scheduler design separate.",
+    "Rawsyscallarguments maycontainunusedregistervalues evengettidhasnoarguments; prefermetadata-specificeventor explicitzeroall6args andretainboundedrawscope.",
+    "A source path is not proof of actual event availability, perf permission, filters, buffers, loss/clock delivery or loadedkernelbinaryattestation.",
+    "NSpid/gettid remainnamespace-relative; rawcommon_pid ismappingobservation onlywhenpairedwith scopedperfheader andliveownership.",
+    "Leasechecks boundobservedidentity, notunconditionalprocesssandbox/atomicPIDreuseproof. Holdingtargetalive plus exactprocpre/postguards reduces butdoesnoteliminate hostileexternalrace.",
+    "Othertracepointusers/BPFprograms mayperturb/suppress eventdelivery; zeroLOSTcounters do not proveallupstreamtraceevents delivered.",
+    "Capturecount mustrejectunexpectedadditionalgettid events fromruntime/libraryactivity ratherthanselect favorableone.",
+    "Clock andringmemoryordering/terminalLOST validation mustreuse reviewednativecollectorconformance, notinfer success fromreadablefiles.",
+    "No originalgenerator/Engineworkload/schedulercausalclaim follows frombootstrap."
+  ],
+  "decision": {
+    "design": "GO as source-supported minimal owned-task namespacebootstrap proposal for a separatelydeclaredconformance phase.",
+    "active_collection": "NOTRUN/NOTAUTHORIZED by this source-only assignment; readiness remainsuntested.",
+    "after_positive": "Only same-live-TID mapping mayfeedlaterstaticpayloadfilters; fullscheduler/GC/taskprogress remainunqualified."
+  }
+}

@@ -1,0 +1,58 @@
+"""ADR0028 private dependency preparation; never installs or launches a target/perf FD."""
+import hashlib,json,lzma,subprocess,tarfile,urllib.request,io
+from pathlib import Path
+root=Path(__file__).parent/'dependency01';root.mkdir(exist_ok=False)
+base='https://archive.ubuntu.com/ubuntu/'
+log=[]
+def sha(raw):return hashlib.sha256(raw).hexdigest()
+def fetch(url,name):
+    request=urllib.request.Request(url,headers={'User-Agent':'Cehpalon-ADR0028-dependency-provenance'})
+    with urllib.request.urlopen(request,timeout=45) as r:
+        raw=r.read();entry={'url':url,'status':r.status,'final_url':r.url,'path':name,'bytes':len(raw),'sha256':sha(raw)}
+    with (root/name).open('xb') as f:f.write(raw)
+    log.append(entry);(root/'downloads.json').write_text(json.dumps(log,indent=2)+'\n',encoding='utf-8')
+    return raw
+release=fetch(base+'dists/jammy-updates/InRelease','InRelease')
+linux='/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/dependency01'
+(root/'gpg-home').mkdir()
+command=['wsl','--user','tom','--','/usr/bin/gpgv','--homedir',linux+'/gpg-home','--status-fd','1','--keyring','/usr/share/keyrings/ubuntu-archive-keyring.gpg',linux+'/InRelease']
+g=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=30)
+(root/'gpgv-stdout.txt').write_bytes(g.stdout);(root/'gpgv-stderr.txt').write_bytes(g.stderr)
+(root/'gpgv-command.json').write_text(json.dumps({'command':command,'exit_code':g.returncode},indent=2)+'\n',encoding='utf-8')
+assert g.returncode==0 and b'[GNUPG:] VALIDSIG ' in g.stdout,'Official archive signature must verify'
+key=subprocess.check_output(['wsl','--user','tom','--','/usr/bin/cat','/usr/share/keyrings/ubuntu-archive-keyring.gpg'],timeout=30)
+(root/'ubuntu-archive-keyring.gpg').write_bytes(key)
+lines=release.decode('utf-8').splitlines();start=lines.index('SHA256:')+1;checks={}
+for line in lines[start:]:
+    if not line.startswith(' '):break
+    digest,length,path=line.split();assert len(digest)==64 and path not in checks;checks[path]=(digest,int(length))
+index_path='main/binary-amd64/Packages.xz';index=fetch(base+'dists/jammy-updates/'+index_path,'Packages.xz')
+assert (sha(index),len(index))==checks[index_path],'Signed index hash/length'
+text=lzma.decompress(index).decode('utf-8');stanzas=[]
+for block in text.split('\n\n'):
+    if block.startswith('Package: libatomic1\n'):
+        fields={}
+        for line in block.splitlines():
+            if line.startswith(' '):continue
+            k,v=line.split(': ',1);assert k not in fields;fields[k]=v
+        stanzas.append((fields,block))
+assert len(stanzas)==1
+p,stanza=stanzas[0];assert p['Architecture']=='amd64' and p['Version']=='12.3.0-1ubuntu1~22.04.3'
+(root/'package-stanza.txt').write_text(stanza+'\n',encoding='utf-8',newline='\n')
+raw=fetch(base+p['Filename'],'libatomic1.deb');assert sha(raw)==p['SHA256'] and len(raw)==int(p['Size'])
+command=['wsl','--user','tom','--','/usr/bin/dpkg-deb','--fsys-tarfile',linux+'/libatomic1.deb']
+t=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=30);assert t.returncode==0
+(root/'dpkg-deb-stderr.txt').write_bytes(t.stderr)
+with tarfile.open(fileobj=io.BytesIO(t.stdout),mode='r:') as archive:
+    candidates=[m for m in archive.getmembers() if m.isfile() and m.name.startswith('./usr/lib/x86_64-linux-gnu/libatomic.so.')]
+    assert len(candidates)==1
+    member=candidates[0];elf=archive.extractfile(member).read()
+    assert elf[:6]==b'\x7fELF\x02\x01' and int.from_bytes(elf[18:20],'little')==62
+    (root/'libatomic.so.1.2.0').write_bytes(elf)
+    members=[{'name':m.name,'type':m.type.decode('ascii'),'size':m.size,'linkname':m.linkname} for m in archive.getmembers()]
+    (root/'archive-members.json').write_text(json.dumps(members,indent=2)+'\n',encoding='utf-8')
+license_url='https://changelogs.ubuntu.com/changelogs/pool/main/g/gcc-12/gcc-12_12.3.0-1ubuntu1~22.04.3/copyright'
+license_bytes=fetch(license_url,'copyright.txt');assert b'GCC Runtime Library Exception' in license_bytes
+result={'status':'private_artifact_verified_not_installed','package':p,'release_sha256':sha(release),'signed_index_sha256':sha(index),'library_sha256':sha(elf),'library_bytes':len(elf),'library_elf_class':'ELF64 little-endian x86_64','library_path':str(root/'libatomic.so.1.2.0'),'trusted_keyring_sha256':sha(key),'signature_status':g.stdout.decode(),'host_installation':False,'loader_cache_writes':False,'actors':0,'perf_fds':0}
+(root/'result.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n')
+print(json.dumps({k:result[k] for k in ['status','library_sha256','library_bytes','library_path']}))

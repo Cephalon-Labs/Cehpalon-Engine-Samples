@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "date_bangkok": "2026-11-02",
+  "stage": "ADR0028_one_owned_task_gettid_mapping_only",
+  "files": {
+    "collector": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-mapping\\tools\\collect_scheduler_mapping.py",
+      "sha256": "8609eb6f1430fdb20fe818bc523d5886f0e90db7d1f6aec0af401067bc37ebdc"
+    },
+    "actor": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-mapping\\tools\\scheduler_mapping_actor.py",
+      "sha256": "1ade911f86188e65cb891b6b23d94a945c3427884f8abc61e37a8b437df5cb2f"
+    },
+    "test": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-mapping\\tools\\test_scheduler_mapping.py",
+      "sha256": "b79e311371bfa57be001bc7c302f5be33f1fc793bdd756092c050ea7f5dfd413"
+    },
+    "perf": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-mapping\\tools\\preflight_scheduler_perf.py",
+      "sha256": "19b0490e23d8e626a7bb773852c1474017171c867383ffd97c78cf7c4efa01f5"
+    },
+    "planner": {
+      "path": "D:\\Cephalon\\.worktrees\\scheduler-mapping\\tools\\plan_scheduler_conformance.py",
+      "sha256": "afb6155303bc9bba21124ef3a63e6012e86952def167cf038c566e1c45e81a50"
+    },
+    "format": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\scheduler-mapping-feasibility01\\sys_enter_gettid.format.txt",
+      "sha256": "131c037d79bf5f715c59da961ed134b5910782756dcc1a5d6c418103377a7576"
+    },
+    "library": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\scheduler-mapping-feasibility01\\dependency01\\libatomic.so.1.2.0",
+      "sha256": "d4a3c900a38ad280bb34003fbf8326fff53229d4bc4fc368bd48783b74680a36"
+    },
+    "protocol": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\scheduler-mapping-feasibility01\\mapping-protocol.md",
+      "sha256": "92f1674f0fc87289d6ac0dd59f1ea5a2fafc3ca84a15814b4cbf00cb2b157aef"
+    },
+    "adr": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\internal\\adr\\ADR-0028-owned-task-pid-mapping.md",
+      "sha256": "5b228e609c8f00c87cc9e38044f6f4ff0288e698ef45bbefa023e6f9277d4f00"
+    }
+  },
+  "command": [
+    "wsl",
+    "--user",
+    "root",
+    "--",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "30s",
+    "/usr/bin/python3",
+    "/mnt/d/Cephalon/.worktrees/scheduler-mapping/tools/collect_scheduler_mapping.py",
+    "--libatomic",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/dependency01/libatomic.so.1.2.0",
+    "--expected-libatomic-sha256",
+    "d4a3c900a38ad280bb34003fbf8326fff53229d4bc4fc368bd48783b74680a36",
+    "--expected-python-sha256",
+    "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "--expected-source-sha256",
+    "8609eb6f1430fdb20fe818bc523d5886f0e90db7d1f6aec0af401067bc37ebdc",
+    "--expected-actor-sha256",
+    "1ade911f86188e65cb891b6b23d94a945c3427884f8abc61e37a8b437df5cb2f",
+    "--expected-format-sha256",
+    "131c037d79bf5f715c59da961ed134b5910782756dcc1a5d6c418103377a7576",
+    "--output",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/mapping-attempt01",
+    "--execute-frozen-mapping"
+  ],
+  "python_binary_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+  "resources": {
+    "actors": 1,
+    "perf_fds": 1,
+    "mmap_bytes": 8192,
+    "data_pages": 1,
+    "target_uid_gid": 1000,
+    "explicit_gettid_calls": {
+      "prearm": 1,
+      "armed": 1
+    }
+  },
+  "gates": {
+    "sample_records": 1,
+    "count": 1,
+    "lost": 0,
+    "raw_bytes": 20,
+    "sample_record_bytes": 56,
+    "counter_read_bytes": 40,
+    "counter_reads": 2,
+    "padding_12_to_19_zero": true
+  },
+  "deadlines_seconds": {
+    "ready": 5,
+    "active": 10,
+    "join": 5,
+    "internal": 25,
+    "cleanup": 3,
+    "native_timeout": 30,
+    "forced_kill_grace": 2
+  },
+  "scheduler_capture_ready": false
+}

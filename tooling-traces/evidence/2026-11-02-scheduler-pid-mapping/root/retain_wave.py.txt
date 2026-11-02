@@ -1,0 +1,20 @@
+import gzip,hashlib,json
+from pathlib import Path
+base=Path('D:/Cephalon/Cehpalon-Engine-Samples/tooling-traces/evidence/2026-11-02-scheduler-pid-mapping')
+sources=[('root',Path(__file__).parent),('agent',Path('D:/Cephalon/.worktrees/scheduler-mapping/.local'))]
+assert not base.exists(),'No overwrite of retained wave'
+base.mkdir(parents=True);entries=[]
+for label,root in sources:
+    for p in sorted(root.rglob('*')):
+        if not p.is_file() or p.is_symlink() or any(x in p.parts for x in ('__pycache__','bin','obj','.git')):continue
+        rel=p.relative_to(root);raw=p.read_bytes();target=Path(label)/rel
+        if p.suffix in ('.py','.cs','.c','.cpp','.ps1'):target=Path(str(target)+'.txt')
+        stored=raw
+        if len(raw)>262144:target=Path(str(target)+'.gz');stored=gzip.compress(raw,compresslevel=9,mtime=0)
+        dest=base/target;dest.parent.mkdir(parents=True,exist_ok=True)
+        with dest.open('xb') as f:f.write(stored)
+        back=gzip.decompress(dest.read_bytes()) if str(target).endswith('.gz') else dest.read_bytes();assert back==raw
+        entries.append({'source':label+'/'+rel.as_posix(),'path':target.as_posix(),'original_bytes':len(raw),'stored_bytes':len(stored),'original_sha256':hashlib.sha256(raw).hexdigest(),'stored_sha256':hashlib.sha256(stored).hexdigest()})
+result={'schema_version':1,'date_bangkok':'2026-11-02','scope':'ADR0028 one owned task mapping; every source/preparation/failed/test/dependency/raw/review/tracking artifact before retention; no full scheduler/benchmark','count':len(entries),'original_bytes':sum(i['original_bytes'] for i in entries),'stored_bytes':sum(i['stored_bytes'] for i in entries),'entries':entries}
+(base/'retention.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n')
+print(json.dumps({k:result[k] for k in ('count','original_bytes','stored_bytes')}))

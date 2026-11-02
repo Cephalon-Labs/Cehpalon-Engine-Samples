@@ -1,0 +1,67 @@
+"""Independent ADR0028 byte/bounds/mocked-ring tests; never actor/perf/library loading."""
+import argparse,ctypes,hashlib,json,struct,sys,types
+from copy import deepcopy
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);P.add_argument('--output',type=Path,required=True);a=P.parse_args();sys.path.insert(0,str(a.root/'tools'));import collect_scheduler_mapping as tool
+checks=[]
+def check(name,fn):
+ try:assert fn();checks.append(dict(name=name,status='passed'))
+ except Exception as e:checks.append(dict(name=name,status='failed',error=repr(e)))
+def raises(fn):
+ try:fn()
+ except (ValueError,TypeError,KeyError,AttributeError):return True
+ return False
+format_text='name: sys_enter_gettid\nID: 208\nformat:\n'+''.join('field:'+decl+'; offset:'+str(off)+'; size:'+str(size)+'; signed:'+str(sign)+';\n'for decl,off,size,sign in [('unsigned short common_type',0,2,0),('unsigned char common_flags',2,1,0),('unsigned char common_preempt_count',3,1,0),('int common_pid',4,4,1),('int __syscall_nr',8,4,1)])+'print fmt: "fixture"\n'
+check('exact_five_zeroargument_format',lambda:tool.parse_syscall_format(format_text.encode())['event_id']==208)
+for label,text in [('extraarg',format_text+'field:unsigned long args[6]; offset:12; size:48; signed:0;\n'),('wrong_nr_type',format_text.replace('int __syscall_nr','long __syscall_nr')),('wrong_nr_offset',format_text.replace('offset:8;','offset:9;')),('wrong_event_name',format_text.replace('name: sys_enter_gettid','name: raw_syscalls')),('id_outside_raw_u16',format_text.replace('ID: 208','ID: 65536'))]:check('format_reject_'+label,lambda text=text:raises(lambda:tool.parse_syscall_format(text.encode())))
+raw=struct.pack('<IHHIIQIII',9,2,56,101,101,1234,2,0,20)+struct.pack('<HBBii',208,0,1,1056,186)+bytes(8)
+check('independent_single56byte_sample_fixture',lambda:len(raw)==56 and tool.decode_records(raw,208)[0]['global_common_pid']==1056)
+check('local_header_and_global_commonpid_not_conflated',lambda:tool.decode_records(raw,208)[0]['local_tid']==101 and tool.decode_records(raw,208)[0]['global_common_pid']==1056)
+def replace(offset,code,value):
+ b=bytearray(raw);struct.pack_into('<'+code,b,offset,value);return bytes(b)
+for name,mutated in [('LOST',replace(0,'I',2)),('THROTTLE',replace(0,'I',5)),('unknown',replace(0,'I',99)),('zero_size',replace(6,'H',0)),('unaligned_size',replace(6,'H',55)),('oversized',replace(6,'H',64)),('RAWsize16',replace(32,'I',16)),('foreign_type',replace(36,'H',209)),('foreign_syscall',replace(44,'i',187)),('negative_global',replace(40,'i',-1)),('zero_localPID',replace(8,'I',0)),('CPU_reserved',replace(28,'I',1)),('nonzero_padding',raw[:-1]+b'1'),('short_record',raw[:-1]),('trailing_partial',raw+b'0')]:check('record_reject_'+name,lambda mutated=mutated:raises(lambda:tool.decode_records(mutated,208)))
+page=bytes(range(256))*16
+check('forward_wrap_copy_exact',lambda:tool.forward_bytes(page,4106,4090)==page[4090:]+page[:10])
+check('empty_forward_interval_retained',lambda:tool.forward_bytes(page,7,7)==b'')
+for head,tail in [(4097,0),(0,1),(True,0),(2**64,0)]:check('forward_invalid_'+repr((head,tail)),lambda head=head,tail=tail:raises(lambda:tool.forward_bytes(page,head,tail)))
+check('forward_page_exactbytes_only',lambda:raises(lambda:tool.forward_bytes(bytearray(page),0,0)))
+counter_raw=struct.pack('<QQQQQ',1,10,10,999,0);counts=tool.counters(counter_raw)
+check('counter_ID_not_tracepointID',lambda:counts['perf_event_id']==999 and counts['value']==1)
+for name,data in [('short',counter_raw[:-1]),('extra',counter_raw+b'0'),('group',counter_raw+bytes(8)),('zeroID',struct.pack('<QQQQQ',1,10,10,0,0)),('running_exceeds_enabled',struct.pack('<QQQQQ',1,10,11,999,0))]:check('counter_reject_'+name,lambda data=data:raises(lambda:tool.counters(data)))
+samples=tool.decode_records(raw,208);ready={'pid':101,'tid':101,'prearm_gettid_calls':1};result={'gettid_return':101,'armed_gettid_calls':1,'before_monotonic_ns':1200,'after_monotonic_ns':1300};cpus=[0,1,2]
+check('one_owned_mapping_only',lambda:tool.validate_mapping(samples,counts,ready,result,cpus)['observed_global_tid']==1056)
+check('extra_sample_never_selected',lambda:raises(lambda:tool.validate_mapping(tool.decode_records(raw+raw,208),counts,ready,result,cpus)))
+check('missing_sample_not_zero_activity',lambda:raises(lambda:tool.validate_mapping([],counts,ready,result,cpus)))
+for field,bad in [('value',0),('value',True),('lost',1),('perf_event_id',0)]:
+ c={**counts,field:bad};check('mapping_counter_'+field+repr(bad),lambda c=c:raises(lambda:tool.validate_mapping(samples,c,ready,result,cpus)))
+for field,bad in [('local_pid',True),('local_tid',102),('global_common_pid',0),('cpu',99),('time_ns',1199),('time_ns',1301)]:
+ s=deepcopy(samples);s[0][field]=bad;check('mapping_sample_'+field+repr(bad),lambda s=s:raises(lambda:tool.validate_mapping(s,counts,ready,result,cpus)))
+for field,bad in [('armed_gettid_calls',2),('armed_gettid_calls',True),('gettid_return',101.0),('before_monotonic_ns',1301)]:
+ r={**result,field:bad};check('mapping_actor_'+field+repr(bad),lambda r=r:raises(lambda:tool.validate_mapping(samples,counts,ready,r,cpus)))
+atomic=object.__new__(tool.Atomics);calls=[];atomic.load=lambda address,order:(calls.append(('load',address,order))or 7);atomic.store=lambda address,value,order:calls.append(('store',address,value,order));atomic.check=lambda width,address:True
+check('atomic_acquire_order2_requested',lambda:atomic.acquire(8)==7 and calls[-1]==('load',8,2))
+atomic.release(8,9);check('atomic_release_order3_requested',lambda:calls[-1]==('store',8,9,3))
+for address in [0,True,9,-8]:check('atomic_address_guard_'+repr(address),lambda address=address:raises(lambda:atomic.acquire(address)))
+for value in [True,-1,2**64]:check('atomic_value_guard_'+repr(value),lambda value=value:raises(lambda:atomic.release(8,value)))
+# Mock mmap with a page-aligned PRIVATE ctypes allocation, never a native/perf mmap.
+class PrivateMap(ctypes.Array):
+ _type_=ctypes.c_ubyte;_length_=8192
+ def close(self):self.closed=True
+class FakeAtomics:
+ def __init__(self,m,base,lock=True):self.m=m;self.base=base;self.lock=lock;self.stores=0
+ def lock_free(self,address):return self.lock
+ def acquire(self,address):return struct.unpack_from('<Q',self.m,address-self.base)[0]
+ def release(self,address,value):self.stores+=1;struct.pack_into('<Q',self.m,address-self.base,value)
+def mocked_ring_case(case):
+ backing=ctypes.create_string_buffer(8192+4096);address=(ctypes.addressof(backing)+4095)&~4095;m=PrivateMap.from_address(address);m.owner=backing;m.closed=False;struct.pack_into('<QQ',m,1040,4096,4096 if case!='badlayout'else 8192);fake=FakeAtomics(m,address,case!='notlockfree');previous=tool.mmap;tool.mmap=types.SimpleNamespace(mmap=lambda *a,**k:m,MAP_SHARED=1,PROT_READ=1,PROT_WRITE=2)
+ try:
+  if case in ['badlayout','notlockfree']:
+   rejected=raises(lambda:tool.Ring(99,fake));return rejected and m.closed
+  ring=tool.Ring(99,fake);m[4096:4096+56]=raw;struct.pack_into('<Q',m,1024,56);copied,snapshot=ring.drain();ring.close();return copied==raw and snapshot['head_after']==snapshot['tail_after']==56 and fake.stores==1 and m.closed
+ finally:tool.mmap=previous
+check('mocked_ring_atomic_drain_exact_and_closed',lambda:mocked_ring_case('normal'))
+check('ring_constructor_badlayout_closes_owned_mapping',lambda:mocked_ring_case('badlayout'))
+check('ring_constructor_lockfree_failure_closes_owned_mapping',lambda:mocked_ring_case('notlockfree'))
+report={'status':'passed'if all(c['status']=='passed'for c in checks)else'failed','checks':len(checks),'failed':sum(c['status']!='passed'for c in checks),'results':checks,'collector_source_sha256':hashlib.sha256(Path(tool.__file__).read_bytes()).hexdigest(),'fixture_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'native_actor_perf_or_library_operations':0,'limits':['Byte fixtures and private-memory/mocked ring operations only; no actor/fork/perf/native atomic-library load/capture by reviewer.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['results','limits']}));raise SystemExit(0 if not report['failed']else 1)

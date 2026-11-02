@@ -1,0 +1,219 @@
+"""ADR0028: one explicitly leased ordinary actor and syscall-specific mapping sample."""
+import argparse,ctypes,errno,hashlib,json,mmap,os,platform,select,signal,struct,sys,time
+from pathlib import Path
+import preflight_scheduler_perf as perf
+import plan_scheduler_conformance as planner
+import scheduler_mapping_actor as actor_tool
+PERF_SHA='19b0490e23d8e626a7bb773852c1474017171c867383ffd97c78cf7c4efa01f5'
+PLANNER_SHA='afb6155303bc9bba21124ef3a63e6012e86952def167cf038c566e1c45e81a50'
+require=planner.require
+PAGE=4096
+HEAD,TAIL,DATA_OFFSET,DATA_SIZE=1024,1032,1040,1048
+SAMPLE=9
+
+def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def save(path,value):Path(path).write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8',newline='\n')
+def parse_syscall_format(raw):
+    require(type(raw)is bytes,'Exact raw ABI bytes')
+    result=planner.parse_format(raw.decode('utf-8'),'sys_enter_gettid')
+    fields=result['fields'];expected={'common_type':(0,2,0),'common_flags':(2,1,0),'common_preempt_count':(3,1,0),'common_pid':(4,4,1),'__syscall_nr':(8,4,1)}
+    require(set(fields)==set(expected),'Exactly five zero-argument syscall fields, no argument-register capture')
+    require(all(tuple(fields[k][x] for x in ['offset','size','signed'])==v for k,v in expected.items()),'Exact declared Linuxx86_64 syscall ABI')
+    require(0<result['event_id']<=65535,'Trace common_type fits uint16')
+    return result
+
+def forward_bytes(data,head,tail):
+    require(type(data)is bytes and len(data)==PAGE,'Exactly one forward data page')
+    require(type(head)is int and type(tail)is int and 0<=tail<=head<=0xffffffffffffffff and head-tail<=len(data),'Monotonic uint64 head/tail without overrun')
+    count=head-tail;start=tail&(len(data)-1);return data[start:start+min(count,len(data)-start)]+data[:max(0,count-(len(data)-start))]
+
+def decode_records(raw,event_id):
+    require(type(raw)is bytes and type(event_id)is int and 0<event_id<=65535,'Exact raw records and tracepoint ID')
+    records=[];offset=0
+    while offset<len(raw):
+        require(len(raw)-offset>=8,'No incomplete terminal perf header')
+        kind,misc,size=struct.unpack_from('<IHH',raw,offset)
+        require(size>=8 and size%8==0 and size<=len(raw)-offset,'Complete aligned bounded forward record')
+        blob=raw[offset:offset+size];require(kind==SAMPLE,'Only SAMPLE allowed; LOST/LOST_SAMPLES/throttle/sideband/unknown invalidates mapping')
+        require(size>=36,'Complete sample fixed header')
+        pid,tid,stamp,cpu,reserved,raw_size=struct.unpack_from('<IIQIII',blob,8)
+        # sizeof(syscall_trace_enter)=16, zero args; ALIGN(16+4,8)-4=20.
+        require(raw_size==20 and size==56,'Exact pinned zero-arg syscall raw alignment, no unexplained trailing bytes')
+        payload=blob[36:56];require(payload[12:]==bytes(8),'Exact source-zeroed alignment padding retained');common_type,common_flags,preempt,common_pid,syscall_nr=struct.unpack_from('<HBBii',payload)
+        require(common_type==event_id and syscall_nr==186 and common_pid>0,'Exact event/syscall/global current header')
+        require(pid>0 and tid>0 and reserved==0,'Positive local header and reserved CPU field')
+        records.append(dict(record_offset=offset,record_size=size,record_type=kind,misc=misc,local_pid=pid,local_tid=tid,time_ns=stamp,cpu=cpu,
+            common_type=common_type,common_flags=common_flags,common_preempt_count=preempt,global_common_pid=common_pid,syscall_nr=syscall_nr,
+            raw_payload_hex=payload.hex(),kernel_padding_hex=payload[12:].hex(),record_hex=blob.hex()))
+        offset+=size
+    return records
+
+def counters(raw):
+    require(type(raw)is bytes and len(raw)==40,'Exact ungrouped read-format23 bytes')
+    values=dict(zip(['value','time_enabled','time_running','perf_event_id','lost'],struct.unpack('<QQQQQ',raw)))
+    require(values['perf_event_id']>0 and values['time_running']<=values['time_enabled'],'Independent PERF_FORMAT_ID and enabled/running clocks')
+    return values
+
+def validate_mapping(samples,counts,ready,result,cpus):
+    require(type(samples)is list and len(samples)==1,'Exactly one sample, never select from extras')
+    require(counts['value']==1 and counts['lost']==0,'One counted event and zero independent LOST; not general loss qualification')
+    require(all(type(counts.get(k))is int and counts[k]>=0 for k in ['value','time_enabled','time_running','perf_event_id','lost']),'Exact decoded counter types')
+    require(type(cpus)is list and all(type(c)is int and c>=0 for c in cpus),'Exact online CPU list')
+    require(all(type(ready.get(k))is int and ready[k]>0 for k in ['pid','tid']) and type(result.get('gettid_return'))is int,'Exact local actor identity types')
+    s=samples[0];require(s['local_pid']==ready['pid']==ready['tid']==s['local_tid']==result['gettid_return'],'Exact owned local PID/TID/return mapping')
+    require(type(result['before_monotonic_ns'])is int and type(result['after_monotonic_ns'])is int and result['before_monotonic_ns']<=s['time_ns']<=result['after_monotonic_ns'],'Sample session clock inside actor monotonic syscall bracket')
+    require(s['cpu']in cpus,'Recorded sample CPU remains online')
+    return dict(local_pid=s['local_pid'],local_tid=s['local_tid'],observed_global_tid=s['global_common_pid'],scope='One same-execution actor only; no cross-invocation/dynamic/static scheduler membership authority')
+
+class Atomics:
+    def __init__(self,path,expected):
+        path=Path(path);require(path.is_absolute() and path.is_file() and sha(path)==expected,'Explicit existing frozen libatomic, no search/download/fallback')
+        header=path.read_bytes()[:20];require(header[:6]==b'\x7fELF\x02\x01' and struct.unpack_from('<H',header,18)[0]==62,'Linuxx86_64 little-endian library')
+        self.lib=ctypes.CDLL(str(path));self.load=getattr(self.lib,'__atomic_load_8');self.store=getattr(self.lib,'__atomic_store_8')
+        self.load.argtypes=[ctypes.c_void_p,ctypes.c_int];self.load.restype=ctypes.c_uint64
+        self.store.argtypes=[ctypes.c_void_p,ctypes.c_uint64,ctypes.c_int];self.store.restype=None
+        value=ctypes.c_uint64(0);address=ctypes.addressof(value);require(address%8==0,'Aligned uint64 atomics')
+        self.store(address,0x123456789abcdef0,3);require(self.load(address,2)==0x123456789abcdef0,'Declared acquire/release exports positive check')
+    def acquire(self,address):require(type(address)is int and address%8==0,'Aligned atomic acquire');return int(self.load(address,2))
+    def release(self,address,value):require(type(address)is int and address%8==0 and type(value)is int and 0<=value<=0xffffffffffffffff,'Aligned bounded atomic release');self.store(address,value,3)
+
+class Ring:
+    def __init__(self,fd,atomics):
+        self.map=mmap.mmap(fd,2*PAGE,flags=mmap.MAP_SHARED,prot=mmap.PROT_READ|mmap.PROT_WRITE,offset=0)
+        self.address=ctypes.addressof(ctypes.c_char.from_buffer(self.map));self.atomics=atomics
+        try:
+            require(self.address%PAGE==0,'Page-aligned owned mapping')
+            require(struct.unpack_from('<QQ',self.map,DATA_OFFSET)==(PAGE,PAGE),'Exactly metadata+one data page ABI')
+            require(self.head()==0 and self.tail()==0,'Fresh disabled forward ring')
+        except BaseException:
+            self.map.close();raise
+    def head(self):return self.atomics.acquire(self.address+HEAD)
+    def tail(self):return self.atomics.acquire(self.address+TAIL)
+    def drain(self):
+        head,tail=self.head(),self.tail();data=bytes(self.map[PAGE:2*PAGE]);raw=forward_bytes(data,head,tail)
+        self.atomics.release(self.address+TAIL,head)
+        final_head,final_tail=self.head(),self.tail();require(final_head==head==final_tail,'Disabled stable complete terminal head/tail drain')
+        return raw,dict(head_before=head,tail_before=tail,head_after=final_head,tail_after=final_tail,data_page_hex=data.hex())
+    def close(self):self.map.close()
+
+def recv(fd,deadline):
+    packet=b'';wanted=4
+    while len(packet)<wanted:
+        left=deadline-time.monotonic();require(left>0,'Bounded actor pipe deadline')
+        require(select.select([fd],[],[],left)[0],'Actor pipe readiness deadline')
+        part=os.read(fd,wanted-len(packet));require(bool(part),'No actor pipe EOF');packet+=part
+        if len(packet)==4 and wanted==4:
+            size=struct.unpack('<I',packet)[0];require(0<size<=65536,'Bounded actor report length');wanted=4+size
+    return json.loads(packet[4:].decode('utf-8'))
+
+def lease(pid):
+    require(type(pid)is int and pid>0,'Owned local PID')
+    root=Path('/proc')/str(pid);status={line.split(':',1)[0]:line.split(':',1)[1].strip() for line in (root/'status').read_text().splitlines() if ':'in line}
+    raw=(root/'stat').read_text();parts=raw[raw.rfind(')')+2:].split();taskraw=(root/'task'/str(pid)/'stat').read_text();tp=taskraw[taskraw.rfind(')')+2:].split()
+    require(parts[0]not in ['Z','X','x'] and tp[0]not in ['Z','X','x'] and int(parts[19])==int(tp[19]),'One live actor leader birth')
+    require([int(x) for x in status['Uid'].split()]==[1000]*4 and [int(x) for x in status['Gid'].split()]==[1000]*4 and status['Groups']=='' and int(status['CapEff'],16)==0,'Ordinary actor credentials and capabilities')
+    require([p.name for p in (root/'task').iterdir()]==[str(pid)],'One precreated actor native thread')
+    return dict(pid=pid,tid=pid,starttime_ticks=int(parts[19]),uid=status['Uid'],gid=status['Gid'],groups=status['Groups'],cap_eff=status['CapEff'],nspid=status.get('NSpid'),image=str((root/'exe').resolve()),
+        namespaces={name:os.readlink(root/'ns'/name) for name in ['pid','time','user']})
+
+def environment_identity():
+    return dict(boot_id=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),namespaces={n:os.readlink('/proc/self/ns/'+n) for n in ['pid','time','user']},time_offsets=Path('/proc/self/timens_offsets').read_text(),online=Path('/sys/devices/system/cpu/online').read_text().strip(),python_image=str(Path('/proc/self/exe').resolve()))
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    for name in ['libatomic','expected-libatomic-sha256','expected-source-sha256','expected-actor-sha256','expected-format-sha256','output']:p.add_argument('--'+name,required=True)
+    p.add_argument('--execute-frozen-mapping',action='store_true');a=p.parse_args()
+    require(sys.platform=='linux' and platform.machine()=='x86_64' and os.getuid()==os.geteuid()==0 and sys.byteorder=='little' and os.sysconf('SC_PAGE_SIZE')==PAGE,'Declared root collector Linuxx86_64/4Kpages only')
+    import fcntl
+    source=Path(__file__).read_bytes();require(hashlib.sha256(source).hexdigest()==a.expected_source_sha256 and sha(actor_tool.__file__)==a.expected_actor_sha256 and sha(perf.__file__)==PERF_SHA and sha(planner.__file__)==PLANNER_SHA,'All root-frozen source/import pins')
+    out=Path(a.output);out.mkdir(parents=True,exist_ok=False)
+    for label,path in [('collector',__file__),('actor',actor_tool.__file__),('perf',perf.__file__),('planner',planner.__file__)]: (out/(label+'.py.txt')).write_bytes(Path(path).read_bytes())
+    report=dict(status='preparing',role='ADR0028_owned_gettid_mapping_only',active_scheduler_ready=False,perf_opens=0,actor_launches=0,enables=0,records=0,cleanup={},limitations=['One mapping sample, not general loss/clock/scheduler conformance.','Source/hash/lease checks are observational, not immutable execution or hostile-host sandbox.','Actor exits at final acknowledgment; never reuse its observed global ID in later executions.'])
+    child=None;pidfd=None;fd=None;ring=None;enabled=False;cmd=None;reply=None;owned_controls=set();deadline=time.monotonic()+30
+    save(out/'manifest.json',report)
+    try:
+        initial=environment_identity();report['environment_before']=initial;cpus=perf.parse_online(initial['online'])
+        for line in initial['time_offsets'].splitlines():
+            parts=line.split();require(len(parts)==3 and int(parts[1])==int(parts[2])==0,'Zero inherited time-namespace offsets for CLOCK_MONOTONIC comparison')
+        fmt_path=Path('/sys/kernel/tracing/events/syscalls/sys_enter_gettid/format');fmt_raw=fmt_path.read_bytes();require(hashlib.sha256(fmt_raw).hexdigest()==a.expected_format_sha256,'Exact frozen syscall-specific format only')
+        fmt=parse_syscall_format(fmt_raw);(out/'sys_enter_gettid.format.txt').write_bytes(fmt_raw)
+        # Mandatory dependency/selftest BEFORE any actor or perf FD; never substitute Python reads.
+        atomic=Atomics(a.libatomic,a.expected_libatomic_sha256);report['atomics']='declared_library_exports_selftest_passed';report['libatomic_sha256']=sha(a.libatomic)
+        save(out/'manifest.json',report);require(a.execute_frozen_mapping,'Explicit root-frozen active invocation required')
+        native=perf.NativeBackend();syscall=native.libc.syscall
+        cr,cw=os.pipe2(os.O_CLOEXEC);owned_controls.update([cr,cw]);rr,rw=os.pipe2(os.O_CLOEXEC);owned_controls.update([rr,rw])
+        spawned=os.fork()
+        if spawned==0:
+            try:
+                os.close(cw);os.close(rr);actor_tool.actor(cr,rw,syscall)
+            finally:os._exit(1)
+        child=spawned;require(type(child)is int and child>0,'Owned fork child identity')
+        report['actor_launches']=1;report['child_pid']=child
+        for control in [cr,rw]:owned_controls.remove(control);os.close(control)
+        cmd=cw;reply=rr
+        if hasattr(os,'pidfd_open'):pidfd=os.pidfd_open(child,0);owned_controls.add(pidfd);report['pidfd']='owned_child_handle_opened'
+        ready=recv(reply,deadline);report['actor_ready']=ready;require(ready['kind']=='ready' and ready['pid']==ready['tid']==child and ready['uid']==ready['gid']==[1000]*3 and ready['groups']==[] and ready['prearm_gettid_calls']==1,'Exact ordinary ready actor')
+        before=lease(child);report['lease_before']=before;require(before['namespaces']==initial['namespaces']==ready['namespaces'] and before['image']==initial['python_image']==ready['python_image'],'Same live image/PID/time/user namespace lease')
+        attr=perf.attributes(fmt['event_id']);report['attr_hex']=bytes(attr).hex();report['tracepoint_id']=fmt['event_id'];report['syscall_open']={'pid':child,'cpu':-1,'group':-1,'flags':8}
+        report['perf_opens']=1
+        ctypes.set_errno(0)
+        opened=native.libc.syscall(ctypes.c_long(298),ctypes.byref(attr),ctypes.c_int(child),ctypes.c_int(-1),ctypes.c_int(-1),ctypes.c_ulong(8))
+        if opened<0:
+            code=ctypes.get_errno();raise OSError(code,os.strerror(code))
+        require(type(opened)is int and 0<=opened<=2147483647,'Exact owned perf descriptor');fd=opened;require(native.cloexec(fd) is True,'Owned perf FD CLOEXEC')
+        require(lease(child)==before,'Lease unchanged after disabled task attachment')
+        ring=Ring(fd,atomic);report['ring_bytes']=2*PAGE
+        require(environment_identity()==initial,'Same execution environment before enable')
+        report['enable_before_monotonic_ns']=time.monotonic_ns();fcntl.ioctl(fd,0x2400,0);enabled=True;report['enables']=1;report['enable_after_monotonic_ns']=time.monotonic_ns()
+        active_deadline=min(deadline,time.monotonic()+10);os.write(cmd,b'G');result=recv(reply,active_deadline);report['actor_result']=result
+        require(result['kind']=='result' and result['pid']==result['tid']==child and result['armed_gettid_calls']==1 and result['before_monotonic_ns']>=report['enable_after_monotonic_ns'],'Exact post-arm syscall result/marker')
+        require(lease(child)==before,'Same living actor at final barrier')
+        report['disable_before_monotonic_ns']=time.monotonic_ns();fcntl.ioctl(fd,0x2401,0);enabled=False;report['disable_after_monotonic_ns']=time.monotonic_ns()
+        raw,snapshot=ring.drain();(out/'records.raw.bin').write_bytes(raw);report['ring_terminal']=snapshot
+        read1=native.read(fd);read2=native.read(fd);(out/'read1.raw.bin').write_bytes(read1);(out/'read2.raw.bin').write_bytes(read2);require(read1==read2,'Stable disabled terminal counter reads')
+        values=counters(read1);samples=decode_records(raw,fmt['event_id']);report['records']=len(samples);report['samples']=samples;report['read_values']=values
+        mapping=validate_mapping(samples,values,ready,result,cpus);require(lease(child)==before,'Revalidated same-live actor mapping before final acknowledgment')
+        ring.close();ring=None;closing_fd=fd;fd=None;native.close(closing_fd);require(native.closed(closing_fd) is True,'Owned perf FD closure')
+        os.write(cmd,b'X');ack=recv(reply,deadline);require(ack==dict(kind='joined_barrier',pid=child),'Final actor acknowledgment after perf closure')
+        while True:
+            got,status=os.waitpid(child,os.WNOHANG)
+            if got:require(os.waitstatus_to_exitcode(status)==0,'Owned child exited successfully');report['cleanup']['child_joined']=True;child=None;break
+            require(time.monotonic()<deadline,'Owned child join deadline');time.sleep(.001)
+        require(environment_identity()==initial and sha(__file__)==a.expected_source_sha256 and sha(actor_tool.__file__)==a.expected_actor_sha256 and sha(perf.__file__)==PERF_SHA and sha(planner.__file__)==PLANNER_SHA and sha(a.libatomic)==a.expected_libatomic_sha256 and hashlib.sha256(fmt_path.read_bytes()).hexdigest()==a.expected_format_sha256,'Source/library/format/boot/namespaces/time/topology stable')
+        report.update(status='one_owned_actor_mapping_observed',mapping=mapping,cleanup={'child_joined':True,'perf_fd_closed':True,'ring_unmapped':True})
+    except BaseException as error:
+        report.update(status='failed_closed',error_type=type(error).__name__,error=str(error),error_errno=getattr(error,'errno',None))
+    finally:
+        if fd is not None and enabled:
+            try:fcntl.ioctl(fd,0x2401,0);enabled=False;report['cleanup']['perf_disabled']=True
+            except BaseException as error:report['cleanup']['disable_error']=repr(error);report['status']='failed_closed'
+        if ring is not None:
+            try:(out/'rejected-ring.raw.bin').write_bytes(bytes(ring.map))
+            except BaseException as error:report['cleanup']['ring_retention_error']=repr(error);report['status']='failed_closed'
+            try:ring.close();ring=None;report['cleanup']['ring_unmapped']=True
+            except BaseException as error:report['cleanup']['ring_close_error']=repr(error);report['status']='failed_closed'
+        if fd is not None:
+            closing_fd=fd;fd=None
+            try:os.close(closing_fd);require(native.closed(closing_fd) is True,'Perf FD closed');report['cleanup']['perf_fd_closed']=True
+            except BaseException as error:report['cleanup']['perf_close_error']=repr(error);report['status']='failed_closed'
+        if child is not None:
+            try:
+                if pidfd is not None and hasattr(signal,'pidfd_send_signal'):signal.pidfd_send_signal(pidfd,signal.SIGKILL)
+                else:os.kill(child,signal.SIGKILL)
+            except ProcessLookupError:pass
+            except BaseException as error:report['cleanup']['child_signal_error']=repr(error)
+            try:
+                while True:
+                    got,status=os.waitpid(child,os.WNOHANG)
+                    if got:report['cleanup']['child_joined']=True;break
+                    if time.monotonic()>=deadline:raise TimeoutError('Owned child final cleanup deadline')
+                    time.sleep(.001)
+            except BaseException as error:report['cleanup']['child_join_error']=repr(error);report['status']='failed_closed'
+        for control in list(owned_controls):
+            owned_controls.remove(control)
+            if control is not None:
+                try:os.close(control)
+                except BaseException as error:report['cleanup']['control_close_error']=repr(error);report['status']='failed_closed'
+        save(out/'manifest.json',report)
+    print(json.dumps(report));return 0 if report['status']=='one_owned_actor_mapping_observed' else 2
+if __name__=='__main__':raise SystemExit(main())

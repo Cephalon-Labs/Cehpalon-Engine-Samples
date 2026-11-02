@@ -1,0 +1,16 @@
+from pathlib import Path
+import ctypes,hashlib,json,os,sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
+import collect_scheduler_mapping as t
+library='/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/dependency01/libatomic.so.1.2.0'
+expected='d4a3c900a38ad280bb34003fbf8326fff53229d4bc4fc368bd48783b74680a36'
+source=t.sha(t.__file__);actor=t.sha(t.actor_tool.__file__)
+a=t.Atomics(library,expected);scratch=(ctypes.c_uint64*1024)();base=ctypes.addressof(scratch);checks=0
+for offset in [0,t.HEAD,t.TAIL]:
+ assert a.lock_free(base+offset) is True;checks+=1
+ for value in [0,1,0x123456789abcdef0,0xffffffffffffffff]:
+  a.release(base+offset,value);assert a.acquire(base+offset)==value;checks+=1
+assert t.sha(t.__file__)==source and t.sha(t.actor_tool.__file__)==actor and t.sha(library)==expected;checks+=1
+r=dict(status='passed',checks=checks,uid=os.getuid(),source_sha256=source,actor_source_sha256=actor,library_sha256=expected,atomic_order_load=2,atomic_order_store=3,lock_free_8=True,actors=0,perf_opens=0,mmap=0,scope='Ordinary existing process aligned scratchmemory only; no actor/perf/ring capture')
+with Path(sys.argv[1]).open('x',encoding='utf-8') as f:json.dump(r,f,indent=2)
+print(json.dumps(r))

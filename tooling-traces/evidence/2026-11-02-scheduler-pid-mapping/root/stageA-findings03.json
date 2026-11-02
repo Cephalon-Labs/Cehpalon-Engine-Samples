@@ -1,0 +1,84 @@
+{
+  "status": "StageA_exact_event_ready_atomic_library_gate_unavailable",
+  "scope": "ADR0028 passiveinventory/source review only; no actors/perfFD/mmapcollection/config/setns",
+  "inventory_file": "stageA-inventory01.json",
+  "inventory_sha256": "b19b5440567a1df09961901ffca1b94baf02a6808ebc4428881c144967ec59c9",
+  "format_bundle_file": "stageA-format-bundle.json",
+  "format_bundle_sha256": "cabbb0be7ca80a35809f3e99ede8e8212ea85b41aaeb0aee5106c27965c290a9",
+  "event": {
+    "name": "syscalls:sys_enter_gettid",
+    "id": 208,
+    "format_bytes": 356,
+    "format_sha256": "131c037d79bf5f715c59da961ed134b5910782756dcc1a5d6c418103377a7576",
+    "field_end": 12,
+    "argument_fields": 0
+  },
+  "library": {
+    "status": "notlocated_existing_libatomic_gate_failed",
+    "CDLL_name": "libatomic.so.1",
+    "ordinary": {
+      "status": "unavailable",
+      "error": "OSError('libatomic.so.1: cannot open shared object file: No such file or directory')"
+    },
+    "root": {
+      "status": "unavailable",
+      "error": "OSError('libatomic.so.1: cannot open shared object file: No such file or directory')"
+    },
+    "standard_search": "stageA-libatomic-search02.json; /usr/lib,/lib,/usr/local/lib andldconfig readcache returnednone; notglobalfilesystemabsenceproof",
+    "exports": "__atomic_load_8/__atomic_store_8 notresolved; noSHA/pathproof available",
+    "decision": "No actual actor/perf launch underdeclaredADR28 until independentlyverifiedexistinglibrary orseparatelyauthorizedreviewedprerequisite exists; no memoryorderingfallback"
+  },
+  "resources": {
+    "python": "3.10.12",
+    "machine": "x86_64",
+    "kernel": "6.18.54.1-microsoft-standard-WSL2",
+    "boot_id": "bec24fa5-6890-471e-b598-f118313e9ec8",
+    "namespaces": {
+      "pid": "pid:[4026532212]",
+      "time": "time:[4026531834]",
+      "user": "user:[4026531837]"
+    },
+    "time_offsets": "monotonic           0         0\nboottime            0         0\n",
+    "allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "cpus_online": "0-19",
+    "pagesize": 4096,
+    "proof_scope": "Passiveinventory isnotfutureactorlease; refreshsameexecutiontarget/collector propertiesbeforeanyfrozeninvocation"
+  },
+  "raw_layout_derivation": {
+    "platform": "Declared x86_64little-endian LP64 only",
+    "struct_source": "kernel_trace_trace.h.txt:141-145",
+    "base": "trace_entry8 + intnr4 + flexibleunsignedlongarray alignment8 gives sizeof16",
+    "size_source": "kernel_trace_trace_syscalls.c.txt:628-630",
+    "size_formula": "ALIGN(sizeofrec16+0args+sizeofu32(4),sizeofu64(8))-sizeofu32(4)=20",
+    "padding_source": "kernel_trace_trace_event_perf.c.txt:418-419",
+    "padding": "Final8bytes offset12..19 zeroed bysourceallocator; preserve allrawbytes, do nottreatpadding as syscallarguments. Exactsize20 mustbevalidatedonactualdeclaredABI.",
+    "sample_size": "8recordheader+8TID+8TIME+8CPU+4rawsize+20raw=56 bytes for declaredsampleflags. Extra/shortrecords reject. Eventconfig208 versus read-ID/perf uniqueID aredifferent identityfields.",
+    "read_counter": "read_format23 withoutGROUP gives value,enabled,running,id,lost =5u64/40bytes; exactreadcount/error/ID/lost/count validate. Disabled+drainedterminal lossread beforeclose; resetcount doesnotresetloss.",
+    "ring_ordering": "Acquire __atomic_load_8 head with model2, copy boundedwholecommittedrecords includingwrap, publish consumedtail viarelease __atomic_store_8 model3. Actualexports+libraryimage/ABI required; Pythonplainload/store orsilentx86fallback notapproved."
+  },
+  "source_provenance_file": "provenance03.json",
+  "source_count": 11,
+  "source_provenance_sha256": "d3e4c72e483a9137bee853a96f67b4a8e57dd5ac0d2e28c7e49efa733593789d",
+  "final": "Offlinedevelopment/adversetests remainauthorized. Actualmapping notestablished andblockedbylibraryprerequisite; nofallbackrawsyscalls, favorableattemptselection, Engine/benchmarkgatechanges."
+}

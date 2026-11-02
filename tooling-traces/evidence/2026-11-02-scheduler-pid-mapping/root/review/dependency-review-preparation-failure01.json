@@ -1,0 +1,18 @@
+{
+  "status": "preparation_failed",
+  "step": "Python3.11 tarfile attempted data.tar.zst",
+  "error": "tarfile.ReadError: file could not be opened successfully; gz/bz2/xz/tar notsupported for zstd payload",
+  "checks_reached": [
+    "downloadbytesSHA",
+    "signedReleaseIndex",
+    "packageStanza",
+    "signedPackageSHA",
+    "arMagic/memberheaders"
+  ],
+  "package_ar_members": [
+    "debian-binary",
+    "control.tar.zst",
+    "data.tar.zst"
+  ],
+  "correction": "Use alreadyavailable dpkg-deb --fsys-tarfile for offline decompression, retaining command/results; no installs/downloads/actor/perf"
+}

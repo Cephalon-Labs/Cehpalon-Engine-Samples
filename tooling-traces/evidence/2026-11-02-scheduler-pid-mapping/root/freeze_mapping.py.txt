@@ -1,0 +1,19 @@
+import hashlib,json
+from pathlib import Path
+root=Path(__file__).parent;work=Path('D:/Cephalon/.worktrees/scheduler-mapping/tools')
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+files={'collector':work/'collect_scheduler_mapping.py','actor':work/'scheduler_mapping_actor.py','test':work/'test_scheduler_mapping.py','perf':work/'preflight_scheduler_perf.py','planner':work/'plan_scheduler_conformance.py','format':root/'sys_enter_gettid.format.txt','library':root/'dependency01/libatomic.so.1.2.0','protocol':root/'mapping-protocol.md','adr':root.parents[1]/'internal/adr/ADR-0028-owned-task-pid-mapping.md'}
+h={k:sha(p) for k,p in files.items()}
+assert h['collector']=='8609eb6f1430fdb20fe818bc523d5886f0e90db7d1f6aec0af401067bc37ebdc'
+assert h['actor']=='1ade911f86188e65cb891b6b23d94a945c3427884f8abc61e37a8b437df5cb2f'
+assert h['library']=='d4a3c900a38ad280bb34003fbf8326fff53229d4bc4fc368bd48783b74680a36'
+for name in ('windows','wsl'):
+    t=json.loads((work.parent/f'.local/fixtures-{name}03.json').read_text());assert t['status']=='passed' and t['checks']==97 and t['source_sha256']==h['collector']
+atomic=json.loads((work.parent/'.local/atomic-scratch02.json').read_text());assert atomic['status']=='passed' and atomic['checks']==16 and atomic['source_sha256']==h['collector']
+python_sha=(root/'python-image-before.txt').read_text(encoding='utf-8-sig').split()[0];assert python_sha=='d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49'
+command=['wsl','--user','root','--','/usr/bin/timeout','--signal=TERM','--kill-after=2s','30s','/usr/bin/python3','/mnt/d/Cephalon/.worktrees/scheduler-mapping/tools/collect_scheduler_mapping.py','--libatomic','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/dependency01/libatomic.so.1.2.0','--expected-libatomic-sha256',h['library'],'--expected-python-sha256',python_sha,'--expected-source-sha256',h['collector'],'--expected-actor-sha256',h['actor'],'--expected-format-sha256',h['format'],'--output','/mnt/d/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-mapping-feasibility01/mapping-attempt01','--execute-frozen-mapping']
+record={'schema_version':1,'date_bangkok':'2026-11-02','stage':'ADR0028_one_owned_task_gettid_mapping_only','files':{k:{'path':str(p),'sha256':h[k]} for k,p in files.items()},'command':command,'python_binary_sha256':python_sha,'resources':{'actors':1,'perf_fds':1,'mmap_bytes':8192,'data_pages':1,'target_uid_gid':1000,'explicit_gettid_calls':{'prearm':1,'armed':1}},'gates':{'sample_records':1,'count':1,'lost':0,'raw_bytes':20,'sample_record_bytes':56,'counter_read_bytes':40,'counter_reads':2,'padding_12_to_19_zero':True},'deadlines_seconds':{'ready':5,'active':10,'join':5,'internal':25,'cleanup':3,'native_timeout':30,'forced_kill_grace':2},'scheduler_capture_ready':False}
+for k,p in files.items():
+    if k!='library':(root/('frozen-'+k+'.txt')).write_bytes(p.read_bytes())
+with (root/'mapping-freeze.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(record,f,indent=2);f.write('\n')
+print(json.dumps({'status':'frozen_not_executed','collector_sha256':h['collector'],'actor_sha256':h['actor'],'format_sha256':h['format']}))

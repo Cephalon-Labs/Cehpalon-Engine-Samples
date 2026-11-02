@@ -1,0 +1,86 @@
+"""Independent ADR0028 retained-byte/sample/counter/provenance audit, no collector imports."""
+import argparse,hashlib,json,lzma,re,struct
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--folder',type=Path,required=True);P.add_argument('--output',type=Path,required=True);a=P.parse_args();root=a.folder;out=root/'mapping-attempt01';dep=root/'dependency01'
+def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def equal(a,b):
+ if type(a)is not type(b):return False
+ if type(a)is dict:return set(a)==set(b)and all(equal(a[k],b[k])for k in a)
+ if type(a)is list:return len(a)==len(b)and all(equal(x,y)for x,y in zip(a,b))
+ return a==b
+checks=0;failures=[]
+def check(ok,message):
+ global checks
+ checks+=1
+ if not ok:failures.append(message)
+freeze=read(root/'mapping-freeze.json');intent=read(root/'mapping-invocation-intent.json');invoke=read(root/'mapping-invocation.json');m=read(out/'manifest.json')
+check(intent['freeze_sha256']==invoke['freeze_sha256']==sha(root/'mapping-freeze.json'),'Declaration frozen before actual invocation')
+check(equal(freeze['command'],invoke['command'])and equal(intent['command'],invoke['command']),'Actual argv equals frozen argv')
+check(invoke['exit_code']==0 and'30s'in invoke['command']and'--kill-after=2s'in invoke['command'],'Bounded declared operator command exited0')
+check(invoke['before_monotonic_ns']==intent['before_monotonic_ns']and 0<invoke['after_monotonic_ns']-invoke['before_monotonic_ns']<32_000_000_000,'Separate wrapper clock bounded, not joined to WSLclock')
+for key,item in freeze['files'].items():
+ frozen=root/('frozen-'+key+'.txt');path=frozen if frozen.exists()else Path(item['path']);check(sha(path)==item['sha256'],'Frozen source/input file '+key)
+for name,freeze_key in [('collector','collector'),('actor','actor'),('perf','perf'),('planner','planner')]:check(sha(out/(name+'.py.txt'))==freeze['files'][freeze_key]['sha256'],'Exact actual source snapshot '+name)
+check(sha(root/'mapping-stdout.txt')==invoke['stdout_sha256']and sha(root/'mapping-stderr.txt')==invoke['stderr_sha256'],'Raw stdio hashes')
+check((root/'mapping-stderr.txt').read_bytes()==b''and equal(json.loads((root/'mapping-stdout.txt').read_text()),m),'No error stderr and exact stdout/manifest parity')
+check(m['status']=='one_owned_actor_mapping_observed'and m['role']=='ADR0028_owned_gettid_mapping_only','Bounded mapping success only')
+check(m['active_scheduler_ready']is False and m['perf_opens']==m['actor_launches']==m['enables']==m['records']==1,'One actor/FD/enable/record, scheduler readiness false')
+ready=m['actor_ready'];result=m['actor_result'];lease=m['lease_before'];pid=m['child_pid'];env=m['environment_before']
+check(all(type(x)is int and x>0 for x in [pid,ready['pid'],ready['tid'],lease['pid'],lease['tid'],result['pid'],result['tid']])and len({pid,ready['pid'],ready['tid'],lease['pid'],lease['tid'],result['pid'],result['tid']})==1,'Single ordinary owned local process/thread')
+check(ready['uid']==ready['gid']==[1000]*3 and ready['groups']==[],'Actor real/effective/saved credentials/groups')
+check([int(x)for x in lease['uid'].split()]==[1000]*4 and[int(x)for x in lease['gid'].split()]==[1000]*4 and lease['groups']=='','Independent proc FS/real/effective/saved credentials')
+for field in ['cap_eff','cap_prm','cap_amb','cap_inh']:check(int(lease[field],16)==0,'Actor capability zero '+field)
+check(lease['namespaces']==ready['namespaces']==env['namespaces'],'Same-execution PID/time/user namespace lease')
+check(lease['image']==ready['python_image']==env['python_image']and m['python_binary_sha256']==freeze['python_binary_sha256'],'Externally pinned actual Python image conditionalcheck')
+check(type(lease['starttime_ticks'])is int and lease['starttime_ticks']>0 and lease['nspid']==str(pid),'Recorded live local birth and namespace-relative NSpid, not globaloracle')
+check(all([int(v)for v in line.split()[1:]]==[0,0]for line in env['time_offsets'].splitlines()),'Zero inherited time offsets')
+check(m['syscall_open']=={'pid':pid,'cpu':-1,'group':-1,'flags':8},'Task-attached local PID, not systemwide scheduler capture')
+check(ready['prearm_gettid_calls']==result['armed_gettid_calls']==1 and result['gettid_return']==pid,'One explicit prearm and one armed gettid return')
+fmt=(out/'sys_enter_gettid.format.txt').read_text();check(sha(out/'sys_enter_gettid.format.txt')==freeze['files']['format']['sha256'],'Actual syscall-specific format freeze')
+fields={}
+for declaration,offset,size,signed in re.findall(r'field:([^;]+);\s*offset:(\d+);\s*size:(\d+);\s*signed:([01]);',fmt):
+ name=declaration.strip().split()[-1];fields[name]=(int(offset),int(size),int(signed))
+check(fields=={'common_type':(0,2,0),'common_flags':(2,1,0),'common_preempt_count':(3,1,0),'common_pid':(4,4,1),'__syscall_nr':(8,4,1)},'Exact five fields, no syscall argument-register payload')
+event_id=int(re.search(r'^ID:\s*(\d+)',fmt,re.M).group(1));check(event_id==m['tracepoint_id']==208,'Actual eventID208, syscall-specific only')
+expected=bytearray(128)
+for offset,code,value in [(0,'I',2),(4,'I',128),(8,'Q',event_id),(16,'Q',1),(24,'Q',1158),(32,'Q',23),(40,'Q',0x02040001),(48,'I',1),(92,'i',1)]:struct.pack_into('<'+code,expected,offset,value)
+check(bytes.fromhex(m['attr_hex'])==bytes(expected),'All128 attr bytes disabled/noinherit/nosideband/clock/read23')
+raw=(out/'records.raw.bin').read_bytes();check(len(raw)==56,'Exactly one56byte raw sample')
+kind,misc,size=struct.unpack_from('<IHH',raw);local_pid,local_tid,stamp,cpu,reserved,raw_size=struct.unpack_from('<IIQIII',raw,8);common_type,flags,preempt,global_tid,syscall_nr=struct.unpack_from('<HBBii',raw,36)
+check(kind==9 and size==len(raw)==56 and raw_size==20,'Literal PERF_RECORD_SAMPLE/fixed56/RAW20 ABI')
+check(local_pid==local_tid==pid and reserved==0,'Local perfheader owned identity and CPU reserved0')
+check(common_type==event_id and syscall_nr==186 and 0<global_tid<=2147483647,'Literal initial-namespace common_pid and syscall186')
+check(raw[48:56]==bytes(8),'All8 raw alignment/long-id high padding bytes zero')
+check(result['before_monotonic_ns']<=stamp<=result['after_monotonic_ns'],'Literal sample clock within actor syscall bracket')
+check(m['enable_before_monotonic_ns']<=m['enable_after_monotonic_ns']<=result['before_monotonic_ns']<=result['after_monotonic_ns']<=m['disable_before_monotonic_ns']<=m['disable_after_monotonic_ns'],'Enable before actor release; disable after final barrier')
+check(0<m['disable_after_monotonic_ns']-m['enable_before_monotonic_ns']<10_000_000_000,'Fixed active deadline respected')
+cpus=[]
+for part in env['online'].split(','):
+ pair=part.split('-');cpus.extend(range(int(pair[0]),int(pair[-1])+1))
+check(cpu in cpus,'Recorded CPU in same-execution online set')
+snapshot=m['ring_terminal'];page=bytes.fromhex(snapshot['data_page_hex']);check(m['ring_bytes']==8192 and len(page)==4096,'One metadata page plus one4096 data page')
+check(snapshot['head_before']==snapshot['head_after']==snapshot['tail_after']==56 and snapshot['tail_before']==0,'Stable disabled drain exactly56bytes and consumed tail')
+check(page[:56]==raw and page[56:]==bytes(4096-56),'Whole retained data page exactly sample pluszero unused bytes')
+read1=(out/'read1.raw.bin').read_bytes();read2=(out/'read2.raw.bin').read_bytes();check(len(read1)==len(read2)==40 and read1==read2,'Two stable exact terminal read23 buffers')
+count,enabled,running,perf_id,lost=struct.unpack('<QQQQQ',read1);check(count==1 and lost==0 and 0<running<=enabled and perf_id==m['perf_event_id_ioctl'],'Independent count1/lost0/ownedperfID/readclocks')
+check(equal(m['read_values'],dict(zip(['value','time_enabled','time_running','perf_event_id','lost'],[count,enabled,running,perf_id,lost]))),'Exact independent counter decode')
+sample=dict(record_offset=0,record_size=56,record_type=kind,misc=misc,local_pid=local_pid,local_tid=local_tid,time_ns=stamp,cpu=cpu,common_type=common_type,common_flags=flags,common_preempt_count=preempt,global_common_pid=global_tid,syscall_nr=syscall_nr,raw_payload_hex=raw[36:].hex(),kernel_padding_hex=raw[48:].hex(),record_hex=raw.hex())
+check(equal(m['samples'],[sample]),'Every sample field equals independent raw decode, no selection')
+check(m['mapping']['local_pid']==m['mapping']['local_tid']==pid and m['mapping']['observed_global_tid']==global_tid and'One same-execution'in m['mapping']['scope'],'Mapping is only current actor, not future membership')
+check(m['cleanup']=={'child_joined':True,'perf_fd_closed':True,'ring_unmapped':True}and m['child_exit']['pid']==pid and m['child_exit']['wait_status']==m['child_exit']['exit_code']==0,'Reported successful barrier/owned resource cleanup/join')
+# Independently bind the private package chain using retained bytes and recorded signed verifier outcome.
+d=read(dep/'result.json');downloads=read(dep/'downloads.json');check(d['status']=='private_artifact_verified_not_installed'and d['host_installation']is False and d['loader_cache_writes']is False,'Private dependency, no installation/loadercache writes')
+for item in downloads:check(item['status']==200 and sha(dep/item['path'])==item['sha256']and(dep/item['path']).stat().st_size==item['bytes'],'Exact retained official download '+item['path'])
+check(sha(dep/'ubuntu-archive-keyring.gpg')==d['trusted_keyring_sha256'],'Retained trusted keyring hash')
+check(read(dep/'gpgv-command.json')['exit_code']==0 and'[GNUPG:] VALIDSIG F6ECB3762474EDA9D21B7022871920D1991BC93C'in(dep/'gpgv-stdout.txt').read_text()and'BADSIG'not in(dep/'gpgv-stdout.txt').read_text(),'Recorded signed-index verifier success/fingerprint, not reverified crypto execution')
+check(sha(dep/'InRelease')==d['release_sha256']and sha(dep/'Packages.xz')==d['signed_index_sha256'],'Exact signed release/index bytes')
+index_line=re.findall(r'^\s*([0-9a-f]{64})\s+(\d+)\s+main/binary-amd64/Packages.xz\s*$',(dep/'InRelease').read_text(),re.M);check(any(h==sha(dep/'Packages.xz')and int(n)==(dep/'Packages.xz').stat().st_size for h,n in index_line),'Signed release exact index digest/size entry')
+index=lzma.decompress((dep/'Packages.xz').read_bytes()).decode();stanza=(dep/'package-stanza.txt').read_text().strip();check(stanza in index and'Package: libatomic1'in stanza and'Architecture: amd64'in stanza,'Package stanza belongs to signed index')
+check(sha(dep/'libatomic1.deb')==d['package']['SHA256']and(dep/'libatomic1.deb').stat().st_size==int(d['package']['Size']),'Signed-index package SHA/size')
+check(sha(dep/'libatomic.so.1.2.0')==d['library_sha256']==freeze['files']['library']['sha256']==m['libatomic_sha256'],'Exact private library hash frozen and observed')
+elf=(dep/'libatomic.so.1.2.0').read_bytes();check(elf[:6]==b'\x7fELF\x02\x01'and struct.unpack_from('<H',elf,18)[0]==62,'Exact ELF64LE x86_64 library')
+check(m['atomics']=='declared_library_exports_selftest_passed'and bool(m['libatomic_mappings'])and all(line.split(maxsplit=5)[5]==m['libatomic_path']for line in m['libatomic_mappings']),'Reported same-process pinned-library mapping/selftest')
+report={'status':'passed_independent_owned_mapping_audit'if not failures else'failed','checks':checks,'failures':failures,'local_actor_tid':pid,'observed_global_tid':global_tid,'raw_sample_bytes':56,'raw_payload_bytes':20,'terminal_counter_bytes':40,'terminal_count':count,'terminal_lost':lost,'active_scheduler_ready':False,'collector_source_sha256':freeze['files']['collector']['sha256'],'actor_source_sha256':freeze['files']['actor']['sha256'],'inputs_sha256':{'freeze':sha(root/'mapping-freeze.json'),'invocation':sha(root/'mapping-invocation.json'),'manifest':sha(out/'manifest.json'),'raw_sample':sha(out/'records.raw.bin'),'read1':sha(out/'read1.raw.bin'),'read2':sha(out/'read2.raw.bin')},'audit_source_sha256':sha(Path(__file__)),'limits':['No reviewer native syscall/actor/capture; only retained bytes audited.','Post-lease/environment/image/atomic-lockfree/ring-layout rechecks and resource close assertions are enforced by frozen collector, not separately serialized post-snapshot bytes.','Recorded gpgv result audited; no new signature verification, package installation or library loading by reviewer.','One ordinary actor mapping only; actor has exited and globalID must not become future membership.','No general loss/filter/allCPU scheduler/overflow/GC/cause/performance or production qualification.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps(report));raise SystemExit(0 if not failures else 1)
