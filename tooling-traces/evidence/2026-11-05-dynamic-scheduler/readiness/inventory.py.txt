@@ -1,0 +1,33 @@
+import os,sys,platform,hashlib,json,shutil,subprocess,stat,struct,time
+from pathlib import Path
+out=Path(sys.argv[1]);label=sys.argv[2]
+r=dict(role='ADR0030_passive_inventory_no_BPF_operations',label=label,started_monotonic_ns=time.monotonic_ns(),uid=os.getuid(),euid=os.geteuid(),uname=list(os.uname()),python=sys.version,executable=str(Path(sys.executable).resolve()),bpf_syscalls=0,perf_opens=0,actors=0,builds=0,config_writes=False,files={},tools={},commands=[])
+paths=['/proc/self/status','/proc/self/limits','/proc/self/timens_offsets','/proc/sys/kernel/random/boot_id','/proc/sys/kernel/unprivileged_bpf_disabled','/proc/sys/kernel/perf_event_paranoid','/proc/sys/kernel/kptr_restrict','/proc/sys/kernel/bpf_stats_enabled','/sys/devices/system/cpu/online','/sys/kernel/btf/vmlinux','/proc/config.gz','/boot/config-'+platform.release(),'/lib/modules/'+platform.release()+'/build/.config','/sys/kernel/security/lockdown']
+for name in paths:
+ p=Path(name)
+ try:
+  b=p.read_bytes();s=p.stat();item=dict(status='readable',bytes=len(b),sha256=hashlib.sha256(b).hexdigest(),mode=oct(stat.S_IMODE(s.st_mode)),uid=s.st_uid,gid=s.st_gid)
+  if name.endswith('vmlinux'):
+   item['head_hex']=b[:32].hex();item['container']='BTF-not-ELF' if b[:2]in[b'\x9f\xeb',b'\xeb\x9f'] else 'ELF' if b[:4]==b'\x7fELF' else 'unknown'
+  elif name.endswith('.gz'):
+   import gzip
+   txt=gzip.decompress(b).decode();(out/(label+'-kernel-config.txt')).write_text(txt);item['config_relevant']=[line for line in txt.splitlines() if any(k in line for k in ['CONFIG_BPF','CONFIG_DEBUG_INFO_BTF','CONFIG_KPROBE','CONFIG_FTRACE','CONFIG_TRACEPOINT','CONFIG_PERF_EVENTS','CONFIG_IKCONFIG'])]
+  else:item['text']=b.decode(errors='backslashreplace')[:65536]
+  r['files'][name]=item
+ except Exception as e:r['files'][name]=dict(status='unreadable',error_type=type(e).__name__,error=str(e))
+r['namespaces']={n:os.readlink('/proc/self/ns/'+n) for n in ['pid','user','time','mnt','net']}
+for name in ['clang','clang-18','clang-17','clang-16','clang-15','clang-14','llc','bpftool','gcc','cc','llvm-objdump','llvm-readelf','readelf','objdump','pahole']:
+ p=shutil.which(name)
+ if not p:r['tools'][name]=dict(status='not_on_PATH');continue
+ q=Path(p).resolve();item=dict(status='present',path=p,resolved=str(q),sha256=hashlib.sha256(q.read_bytes()).hexdigest())
+ command=[p,'version'] if name=='bpftool' else [p,'--version']
+ try:
+  c=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10);item.update(version_argv=command,exit=c.returncode,stdout=c.stdout.decode(errors='backslashreplace')[:32768],stderr=c.stderr.decode(errors='backslashreplace')[:32768])
+ except Exception as e:item['version_error']=repr(e)
+ r['tools'][name]=item
+for name in ['/usr/lib/x86_64-linux-gnu/libbpf.so','/usr/lib/x86_64-linux-gnu/libbpf.so.1','/lib/x86_64-linux-gnu/libbpf.so.1','/usr/local/lib/libbpf.so','/usr/local/bin/clang','/opt/llvm/bin/clang']:
+ p=Path(name);r['files'][name]=dict(status='present' if p.is_file() else 'missing',resolved=str(p.resolve()))
+p=Path('/sbin/ldconfig')
+if p.is_file():
+ c=subprocess.run([str(p),'-p'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10);r['commands'].append(dict(argv=[str(p),'-p'],exit=c.returncode,stdout=c.stdout.decode(errors='backslashreplace'),stderr=c.stderr.decode(errors='backslashreplace')))
+(out/(label+'.json')).write_text(json.dumps(r,indent=2)+'\n');print(json.dumps(dict(label=label,uid=r['uid'],kernel=platform.release(),btf=r['files']['/sys/kernel/btf/vmlinux'],tools={n:x['status'] for n,x in r['tools'].items()})))

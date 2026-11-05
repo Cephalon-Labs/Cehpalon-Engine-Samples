@@ -1,0 +1,51 @@
+import gzip
+import hashlib
+import json
+from pathlib import Path
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+root = Path(__file__).parent
+samples = Path("D:/Cephalon/Cehpalon-Engine-Samples")
+base = samples / "tooling-traces/evidence/2026-11-05-dynamic-scheduler"
+base.mkdir(parents=True)
+entries = []
+for path in sorted(root.rglob("*")):
+    if not path.is_file() or path.is_symlink() or "__pycache__" in path.parts:
+        continue
+    relative = path.relative_to(root)
+    raw = path.read_bytes()
+    target = base / relative
+    if path.suffix in {".py", ".c", ".h"}:
+        target = target.with_name(target.name + ".txt")
+    compressed = len(raw) > 262144
+    if compressed:
+        target = target.with_name(target.name + ".gz")
+    stored = gzip.compress(raw, compresslevel=9, mtime=0) if compressed else raw
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("xb") as stream:
+        stream.write(stored)
+    actual = target.read_bytes()
+    assert (gzip.decompress(actual) if compressed else actual) == raw
+    entries.append({
+        "source": relative.as_posix(),
+        "path": target.relative_to(base).as_posix(),
+        "original_bytes": len(raw), "original_sha256": sha(raw),
+        "stored_bytes": len(actual), "stored_sha256": sha(actual),
+    })
+
+manifest = {
+    "schema_version": 1,
+    "date_bangkok": "2026-11-05",
+    "scope": "ADR0030 passive inventory, source review, offline checks and one unattached verifier probe",
+    "count": len(entries),
+    "original_bytes": sum(item["original_bytes"] for item in entries),
+    "stored_bytes": sum(item["stored_bytes"] for item in entries),
+    "entries": entries,
+}
+(base / "retention.json").write_text(json.dumps(manifest, indent=2) + "\n",
+                                    encoding="utf-8", newline="\n")
+print({key: manifest[key] for key in ("count", "original_bytes", "stored_bytes")})

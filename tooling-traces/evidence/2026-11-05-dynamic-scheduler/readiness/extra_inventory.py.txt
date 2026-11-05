@@ -1,0 +1,22 @@
+import os,sys,json,hashlib,platform,struct
+from pathlib import Path
+out=Path(sys.argv[1]);r={'role':'ADR0030_passive_extra_inventory','bpf_syscalls':0,'perf_opens':0,'actors':0,'builds':0,'files':{}}
+for name in ['/boot/vmlinux-'+platform.release(),'/lib/modules/'+platform.release()+'/vmlinux','/sys/kernel/notes','/sys/kernel/btf/vmlinux']:
+ p=Path(name)
+ try:
+  b=p.read_bytes();item={'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'head_hex':b[:32].hex(),'ELF':b[:4]==b'\x7fELF'}
+  if name=='/sys/kernel/btf/vmlinux':
+   item['raw_btf_header']=dict(zip(['magic','version','flags','hdr_len','type_off','type_len','str_off','str_len'],struct.unpack('<HBBIIIII',b[:24])));(out/'vmlinux.btf').write_bytes(b)
+  elif name=='/sys/kernel/notes':
+   (out/'kernel.notes').write_bytes(b);notes=[];pos=0
+   while pos<len(b):
+    if len(b)-pos<12: raise ValueError('truncated note')
+    namesz,descsz,kind=struct.unpack_from('<III',b,pos);pos+=12
+    name_bytes=b[pos:pos+namesz];pos=(pos+namesz+3)&~3
+    desc=b[pos:pos+descsz];pos=(pos+descsz+3)&~3
+    if pos>len(b):raise ValueError('note overrun')
+    notes.append({'name_hex':name_bytes.hex(),'type':kind,'desc_hex':desc.hex()})
+   item['notes']=notes;item['identity_scope']='notes are readable kernel build-id evidence, not full kernel ELF attestation'
+  r['files'][name]=item
+ except Exception as e:r['files'][name]={'error_type':type(e).__name__,'error':str(e)}
+(out/'extra01.json').write_text(json.dumps(r,indent=2)+'\n');print(json.dumps(r))

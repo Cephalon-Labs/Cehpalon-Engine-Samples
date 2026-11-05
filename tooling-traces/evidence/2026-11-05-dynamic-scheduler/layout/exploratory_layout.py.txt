@@ -1,0 +1,35 @@
+import struct
+from pathlib import Path
+p=Path("D:/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-dynamic01/readiness/vmlinux.btf")
+b=p.read_bytes()
+_,_,_,h,_,tl,so,sl=struct.unpack_from('<HBB5I',b)
+strings=b[h+so:h+so+sl]
+def name(n):
+    return strings[n:strings.index(b'\0',n)].decode()
+records=[None]
+pos=h
+while pos < h+tl:
+    n,info,x=struct.unpack_from('<3I',b,pos)
+    pos+=12
+    k=(info>>24)&31
+    l=info&65535
+    extra={1:4,3:12,4:12*l,5:12*l,6:8*l,13:8*l,14:4,15:12*l,17:4,19:12*l}.get(k,0)
+    records.append((name(n),k,l,x,info>>31,b[pos:pos+extra]))
+    pos+=extra
+fields={'task_struct':{'pid','tgid','start_boottime','thread_pid'},'pid':{'level','numbers'},'upid':{'nr','ns'},'pid_namespace':{'ns'},'ns_common':{'inum'}}
+def show(ref):
+    n,k,l,x,f,data=records[ref]
+    if k in (2,8,9,10,11,18):
+        return (ref,n,k,show(x))
+    if k==3:
+        el,idx,count=struct.unpack('<3I',data)
+        return (ref,n,k,count,show(el),show(idx))
+    return (ref,n,k,x,data.hex() if k==1 else '')
+for i,record in enumerate(records[1:],1):
+    n,k,l,x,f,data=record
+    if k==4 and n in fields:
+        print(i,n,l,x,f)
+        for j,(mn,ref,off) in enumerate(struct.iter_unpack('<3I',data)):
+            if name(mn) in fields[n]:
+                print(j,name(mn),hex(off),show(ref))
+print('total',len(records)-1,'types',set(r[1] for r in records[1:]))

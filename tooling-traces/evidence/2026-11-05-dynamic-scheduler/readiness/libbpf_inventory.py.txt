@@ -1,0 +1,6 @@
+import os,sys,hashlib,json,subprocess
+from pathlib import Path
+out=Path(sys.argv[1]);p=Path('/lib/x86_64-linux-gnu/libbpf.so.0');q=p.resolve();b=q.read_bytes();r={'role':'passive-existing-libbpf-identity-no-CDLL-or-BPF-call','path':str(p),'resolved':str(q),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'ELF_header_hex':b[:64].hex(),'commands':[]}
+for cmd in [['/usr/bin/readelf','-h','-n','-d','-Ws',str(q)],['/usr/bin/dpkg-query','-S',str(p),str(q)],['/usr/bin/dpkg-query','-W','-f=${Package} ${Version} ${Architecture}\n','libbpf0']]:
+ c=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10);r['commands'].append({'argv':cmd,'exit':c.returncode,'stdout':c.stdout.decode(errors='backslashreplace'),'stderr':c.stderr.decode(errors='backslashreplace')})
+(out/'libbpf01.json').write_text(json.dumps(r,indent=2)+'\n');print(json.dumps({k:v for k,v in r.items() if k!='commands'}));print(r['commands'][-1]['stdout'])
