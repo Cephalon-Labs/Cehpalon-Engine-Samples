@@ -1,0 +1,102 @@
+{
+  "date_bangkok": "2026-11-05",
+  "protocol_sha256": "e9cc814a1384af7db91251136c6e659e559383b2385f08b2d5981e6224d81029",
+  "source_hashes": {
+    "tools/preflight_scheduler_dynamic_verifier.py": "0b5e6a3d08243476a73f8b1536678d1dd6b6d1e6bf5591e53500eedf95fff63a",
+    "tools/scheduler_dynamic_btf.py": "4ae1c845f02cb115fbc0d0cb1e7339637bca7c0686f585dc533db6b93c6dd408",
+    "tools/preflight_scheduler_task_storage.py": "8304158b6befb2619b4a2e9880a7b0d53a14e2b911331c729dceb6ed68cdb13f",
+    "tools/test_preflight_scheduler_task_storage.py": "56fab5e7054092ad97638e2febe1da83ceccb62b28530a31d024d3baebb6d111",
+    "tools/preflight_scheduler_target_cpu.py": "2e83d9383897ad62c3dbc051636c24c53e5bfa71d4c9bec6feca7685c3d2e149",
+    "tools/test_preflight_scheduler_target_cpu.py": "9c30267dd1d6ab590e80816e8225fc1e1e7ac33ad38653d5d858f95ba3ac4a01",
+    "tools/preflight_scheduler_pidfd_seed.py": "ecaec0d2b3cc2a13bb6538509941e09c5658038a155a91165ccea63974dbbdc7",
+    "tools/test_preflight_scheduler_pidfd_seed.py": "8e30de44d8679bb7a5849482b761275314c028868428a2148dd0e2a2b19ef9ff"
+  },
+  "templates": {
+    "map_btf": {
+      "sha256": "4821dc1e813fc887da9bd6c6d6c021bf6fb72656fe79da13806e2c6639800a15",
+      "hex": "9feb01001800000000000000200000002000000009000000010000000000000104000000200000010500000000000001080000004000000000696e740075363400"
+    },
+    "map_attr_zero_fd": {
+      "sha256": "1754beb09810753bb553f55ae93f4ce2081ab5b57b90eed9d929e5bd76e09839",
+      "hex": "1d000000040000000800000000000000010000000000000000000000636570685f7461736b5f7365656400000000000000000000010000000200000000000000"
+    },
+    "storage_program_zero_fd": {
+      "sha256": "5c9f28bf7817ea027295ce4fc0f9f8edaaee94abefb025150aedd73681423aac",
+      "hex": "850000009e000000bf0200000000000018110000000000000000000000000000b703000000000000b704000000000000850000009c00000015000100000000007901000000000000b7000000000000009500000000000000"
+    },
+    "target_program": {
+      "sha256": "51151b443267978100ec189474c1dd230e9af8cad13d32c0ba517c1515b0685c",
+      "hex": "79130000000000000703000014000000bfa100000000000007010000f8ffffffb7020000040000008500000071000000b7000000000000009500000000000000"
+    }
+  },
+  "commands": {
+    "task_storage": [
+      "wsl",
+      "-d",
+      "Ubuntu",
+      "-u",
+      "root",
+      "--cd",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "--",
+      "/usr/bin/python3",
+      "-B",
+      "tools/preflight_scheduler_task_storage.py",
+      "--load-unattached"
+    ],
+    "pidfd_seed": [
+      "wsl",
+      "-d",
+      "Ubuntu",
+      "-u",
+      "root",
+      "--cd",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "--",
+      "/usr/bin/python3",
+      "-B",
+      "tools/preflight_scheduler_pidfd_seed.py",
+      "--prove-held-owner"
+    ],
+    "target_cpu": [
+      "wsl",
+      "-d",
+      "Ubuntu",
+      "-u",
+      "root",
+      "--cd",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "--",
+      "/usr/bin/python3",
+      "-B",
+      "tools/preflight_scheduler_target_cpu.py",
+      "--load-unattached"
+    ]
+  },
+  "target_layout": {
+    "btf_bytes": 6018902,
+    "btf_sha256": "1c1326be5d6ca0e60ad8790971b6765bba91cc8a3ab897a94794177484c8c9b9",
+    "cpu_member": {
+      "kind": "integer",
+      "offset": 20,
+      "signed": false,
+      "size": 4
+    },
+    "intended_tracepoint": "sched_waking",
+    "target_arg_slot_from_source": 0,
+    "task_cpu_offset": 20,
+    "task_struct_size": 3328,
+    "thread_info_member": {
+      "kind": "struct",
+      "offset": 0,
+      "size": 24,
+      "target": "thread_info"
+    },
+    "type_ids": {
+      "task_struct": 184,
+      "thread_info": 342
+    }
+  },
+  "one_attempt_per_probe": true,
+  "attachment": false
+}

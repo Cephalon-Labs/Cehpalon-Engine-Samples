@@ -1,0 +1,68 @@
+import gzip
+import hashlib
+import json
+from pathlib import Path
+import re
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+root = Path(__file__).parent
+samples = Path("D:/Cephalon/Cehpalon-Engine-Samples")
+base = samples / "tooling-traces/evidence/2026-11-05-dynamic-scheduler-native-preflight"
+raw_storage = root / "task_storage-attempt01.stdout.json"
+original = raw_storage.read_bytes()
+storage = json.loads(original)
+log = bytes.fromhex(storage["verifier_log_hex"])
+pointer = rb"(?i)0xffff[0-9a-f]{12}\b"
+assert len(set(re.findall(pointer, log))) == 1
+safe_log, count = re.subn(pointer, b"[KERNEL-ADDR-0000]", log)
+assert count == 2 and len(safe_log) == len(log)
+storage["verifier_log_hex"] = safe_log.hex()
+redacted = original.replace(log.hex().encode(), safe_log.hex().encode(), 1)
+assert json.loads(redacted) == storage
+protocol = root.parents[1] / "internal/validation/dynamic-scheduler-native-preflight.md"
+assert sha(protocol.read_bytes()) == json.loads((root / "native-freeze01.json").read_bytes())["protocol_sha256"]
+base.mkdir(parents=True)
+entries = []
+for path in sorted(root.rglob("*")):
+    if not path.is_file() or path.is_symlink() or "__pycache__" in path.parts:
+        continue
+    target = path.relative_to(root)
+    if path == raw_storage:
+        content = redacted
+        target = target.with_name("task_storage-attempt01.stdout.redacted.json")
+    else:
+        content = path.read_bytes()
+    if path.suffix == ".py":
+        target = target.with_name(target.name + ".txt")
+    compressed = len(content) > 262144
+    if compressed:
+        target = target.with_name(target.name + ".gz")
+    payload = gzip.compress(content, compresslevel=9, mtime=0) if compressed else content
+    destination = base / target
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("xb") as stream:
+        stream.write(payload)
+    stored = destination.read_bytes()
+    assert (gzip.decompress(stored) if compressed else stored) == content
+    entries.append({"path": target.as_posix(), "source": path.relative_to(root).as_posix(),
+                    "payload_sha256": sha(content), "payload_bytes": len(content),
+                    "stored_sha256": sha(stored), "stored_bytes": len(stored)})
+
+result = {
+    "schema_version": 1,
+    "date_bangkok": "2026-11-05",
+    "scope": "Three bounded WSL native preflight probes under ADR0030",
+    "retained_payloads": len(entries),
+    "redaction": {"raw_file_local": raw_storage.name, "raw_sha256": sha(original),
+                  "decoded_log_sha256": sha(log), "occurrences": count,
+                  "reason": "Kernel map pointer in verifier rendering",
+                  "replacement": "[KERNEL-ADDR-0000]",
+                  "shared_file": "task_storage-attempt01.stdout.redacted.json"},
+    "entries": entries,
+}
+(base / "retention.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n")
+print(f"{len(entries)} retained payloads, 2 address literals redacted in one shared copy")
