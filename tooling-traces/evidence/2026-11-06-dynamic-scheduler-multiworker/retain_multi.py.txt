@@ -1,0 +1,72 @@
+import gzip
+import hashlib
+import json
+from pathlib import Path
+import re
+
+
+def sha(blob):
+    return hashlib.sha256(blob).hexdigest()
+
+
+root = Path(__file__).parent
+base = Path("D:/Cephalon/Cehpalon-Engine-Samples/tooling-traces/evidence/2026-11-06-dynamic-scheduler-multiworker")
+pointer = rb"(?i)0xffff[0-9a-f]{12}\b"
+base.mkdir(parents=True)
+entries = []
+redactions = []
+for path in sorted(root.rglob("*")):
+    if not path.is_file() or path.is_symlink() or "__pycache__" in path.parts:
+        continue
+    target = path.relative_to(root)
+    raw = path.read_bytes()
+    payload = raw
+    if path.name.endswith(".stdout.json"):
+        original = json.loads(raw)
+        programs = []
+        for program in original.get("programs", []):
+            log = bytes.fromhex(program["verifier_log_hex"])
+            changed, count = re.subn(pointer, b"[KERNEL-ADDR-0000]", log)
+            if count:
+                assert len(log) == len(changed)
+                payload = payload.replace(log.hex().encode(), changed.hex().encode(), 1)
+                program["verifier_log_hex"] = changed.hex()
+                programs.append({"hook": program["hook"], "occurrences": count,
+                                 "original_log_sha256": sha(log)})
+        assert json.loads(payload) == original
+        assert not any(re.search(pointer, bytes.fromhex(row["verifier_log_hex"]))
+                       for row in original.get("programs", []))
+        if programs:
+            target = target.with_name(target.name.replace(".stdout.json", ".stdout.redacted.json"))
+            redactions.append({"local_raw_file": path.name, "original_sha256": sha(raw),
+                               "shared_file": target.as_posix(), "programs": programs})
+    if path.suffix == ".py":
+        target = target.with_name(target.name + ".txt")
+    compressed = len(payload) > 131072
+    if compressed:
+        target = target.with_name(target.name + ".gz")
+    stored = gzip.compress(payload, compresslevel=9, mtime=0) if compressed else payload
+    output = base / target
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("xb") as stream:
+        stream.write(stored)
+    assert (gzip.decompress(output.read_bytes()) if compressed else output.read_bytes()) == payload
+    entries.append({"path": target.as_posix(), "source": path.relative_to(root).as_posix(),
+                    "payload_sha256": sha(payload), "payload_bytes": len(payload),
+                    "stored_sha256": sha(stored), "stored_bytes": len(stored)})
+
+stored_paths = {item["source"]: item["path"] for item in entries}
+for item in redactions:
+    item["shared_file"] = stored_paths[item["local_raw_file"]]
+
+manifest = {
+    "schema_version": 1,
+    "date_bangkok": "2026-11-06",
+    "scope": "ADR0030 fixed multiworker loss-negative and positive matrix",
+    "retained_payloads": len(entries),
+    "redactions": redactions,
+    "entries": entries,
+}
+(base / "retention.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
+print(f"{len(entries)} payloads, {len(redactions)} redacted copies, "
+      f"{sum(row['occurrences'] for item in redactions for row in item['programs'])} address literals masked")

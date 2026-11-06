@@ -1,0 +1,321 @@
+"""Independently audit retained multiworker fixture bytes without running native code."""
+
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import struct
+
+
+ROOT = Path(__file__).parent
+ROW = struct.Struct("<IIIIQIIII")
+NAMES = (None, "birth", "wake_new", "switch_in", "switch_out", "waking",
+         "wakeup", "exit", "free")
+LABELS = ("A", "B", "C")
+EXPECTED_PROBES = ("exec", "wake_new", "switch_in", "switch_out", "waking",
+                   "wakeup", "exit", "free", "birth")
+EXPECTED_HOOKS = ("sched_prepare_exec", "sched_wakeup_new", "sched_switch",
+                  "sched_switch", "sched_waking", "sched_wakeup", "sched_process_exit",
+                  "sched_process_free", "task_newtask")
+COUNTS = Counter()
+
+
+def check(condition, label):
+    if not condition:
+        raise ValueError(label)
+    COUNTS[label] += 1
+
+
+def read(name):
+    return (ROOT / name).read_bytes()
+
+
+def get(name):
+    return json.loads(read(name))
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_program(program, template, probe, namespace, fds):
+    code = bytes.fromhex(program["program_hex"])
+    fixed = bytes.fromhex(template["hex"])
+    check(len(code) == len(fixed) == template["instructions"] * 8, "program length")
+    check(sha(fixed) == template["sha256"], "frozen template hash")
+    check(program["recursion_before"] == program["recursion_after"] == 0,
+          "reported zero recursion misses")
+    occurrences = {
+        "seed": ("storage",),
+        "exec": ("storage", "members", "counts"),
+        "free": ("members", "members", "counts", "records", "counts"),
+        "birth": ("storage", "members", "counts", "members", "members", "counts",
+                  "records", "counts"),
+    }.get(probe, ("members", "counts", "records", "counts"))
+    current_fds = []
+    namespace_fields = 0
+    for offset in range(0, len(code), 8):
+        expected = fixed[offset:offset + 8]
+        observed = code[offset:offset + 8]
+        if expected[:2] == b"\x18\x11":
+            check(expected[4:] == bytes(4) and observed[:4] == expected[:4],
+                  "declared zero pseudo-map FD relocation")
+            fd = int.from_bytes(observed[4:], "little")
+            check(2 < fd <= 1024, "bounded relocated map FD")
+            current_fds.append(fd)
+        elif probe == "birth" and expected[0] == 0x56:
+            check(expected[4:] == bytes(4) and observed[:4] == expected[:4]
+                  and observed[4:] == namespace.to_bytes(4, "little"),
+                  "declared bound namespace immediate")
+            namespace_fields += 1
+        else:
+            check(observed == expected, "all non-relocated instruction bytes")
+    check(namespace_fields == (probe == "birth"), "namespace relocation count")
+    check(len(current_fds) == len(occurrences), "map relocation count")
+    for role, fd in zip(occurrences, current_fds):
+        check(fds.setdefault(role, fd) == fd, "consistent map role within actor")
+
+
+def check_actor(report, namespace):
+    pid = report["ready"]["pid"]
+    lease = report["lease"]
+    check(report["ready"]["main_tid"] == lease["local_pid"] == pid
+          and lease["pid_namespace_inode"] == namespace and lease["start_ticks"] > 0,
+          "ready and lease identify the same owner")
+    check(lease["pidfd_mappings"] == [{"pid": pid, "nspid": [pid]}] * 2,
+          "both reported owner pidfds match")
+    check(lease["credentials"] == {"uid": [1000] * 4, "gid": [1000] * 4}
+          and all(value == 0 for value in lease["capabilities"].values()),
+          "ordinary actor credentials")
+    receipts = report["seed_map_receipts"]
+    check([row["stage"] for row in receipts] ==
+          ["unseeded_owner", "seed_owner", "unseeded_collector", "seed_unchanged_after_nonmember",
+           "kernel_ack", "delete_owner", "owner_absent_after_delete"], "exact seed controls")
+    check([row["errno"] for row in receipts] == [2, None, 2, None, None, None, 2],
+          "seed and nonmember outcomes")
+    check(receipts[3]["value"] == 0x43455048414C4F4E and receipts[4]["value"] == 0x43455048,
+          "matching cookie and kernel acknowledgement")
+    check(report["owner_unseeded_marker"]["local_tid"] == report["owner_seeded_marker"]["local_tid"] == pid,
+          "owner marker TIDs")
+    check(report["nonmember_fork"]["exit_code"] == 0 and report["after_fork_counts"] == [0] * 5,
+          "reported foreign process fork exclusion")
+    check(report["closed_fds"] == 28 and not report["cleanup_errors"] and not report["forced_cleanup"]
+          and report["actor_exit_code"] == 0, "reported all owned descriptors closed and actor reaped")
+    check(report["finished"]["pid"] == pid and report["finished"]["joined_labels"] == list(LABELS),
+          "finished receipt covers all worker labels")
+    return pid
+
+
+def check_controls(report, pid, capacity):
+    workers = report["workers"]
+    check(set(workers) == set(LABELS), "declared A/B/C control population")
+    local = {}
+    for label in LABELS:
+        worker = workers[label]
+        parked, oracle, joined = [worker[field] for field in ("parked", "park_oracle", "joined")]
+        check(parked["label"] == joined["label"] == label, "matching worker control labels")
+        check(parked["worker_tid"] == joined["worker_tid"] != pid and parked["worker_tid"] > 0,
+              "matching independent worker TID receipts")
+        local[label] = parked["worker_tid"]
+        check(parked["worker_cpu"] == oracle["worker_cpu"] == joined["worker_cpu"] == 1
+              and joined["main_cpu"] == 0, "fixed CPUs in independent worker controls")
+        check((oracle["syscall"], oracle["fd"], oracle["count"], oracle["state"])
+              == (0, parked["park_read_fd"], 1, "S"), "worker blocked in its expected pipe read")
+        check(worker["run_before_ns"] <= parked["mono_ns"] <= oracle["mono_ns"]
+              < joined["write_before_ns"] <= min(joined["write_after_ns"], joined["worker_read_return_ns"])
+              <= max(joined["write_after_ns"], joined["worker_read_return_ns"]) <= joined["joined_ns"]
+              <= worker["free_ack"]["mono_ns"] <= joined["joined_ns"] + 2_000_000_000,
+              "worker userspace control and free deadline order")
+    check(workers["A"]["parked"]["creator_tid"] == workers["C"]["parked"]["creator_tid"] == pid
+          and workers["B"]["parked"]["creator_tid"] == local["A"], "independent nested creator receipts")
+    check(local["A"] != local["B"] and
+          max(workers[label]["park_oracle"]["mono_ns"] for label in ("A", "B"))
+          < workers["A"]["joined"]["write_before_ns"], "two distinct simultaneous blocked workers")
+    control = report["b_still_parked_after_a_free"]
+    check(workers["A"]["free_ack"]["mono_ns"] <= control["mono_ns"]
+          < workers["B"]["joined"]["write_before_ns"]
+          and (control["syscall"], control["fd"], control["count"], control["state"], control["worker_cpu"])
+          == (0, workers["B"]["parked"]["park_read_fd"], 1, "S", 1),
+          "nested B stayed blocked after A free")
+    check(workers["B"]["free_ack"]["mono_ns"] <= workers["C"]["run_before_ns"],
+          "replacement launch follows both earlier free acknowledgements")
+    check([sorted(workers[label]["joined"]["remaining_local_tids"]) for label in LABELS]
+          == [sorted((pid, local["B"])), [pid], [pid]], "expected cohort after each join")
+    before = 0
+    for label, free_count, admissions in (("A", 1, 2), ("B", 2, 2), ("C", 3, 3)):
+        attempted, lost, faults, frees, admitted = workers[label]["free_ack"]["counts"]
+        check(attempted > before and lost == max(0, attempted - capacity) and faults == 0
+              and (frees, admitted) == (free_count, admissions), "ordered admission/free counter snapshots")
+        before = attempted
+    return local
+
+
+def chain(report, label, rows):
+    worker = report["workers"][label]
+    joined = worker["joined"]
+    rows = [(i, row) for i, row in rows]
+    kinds = [row["kind"] for _, row in rows]
+    check(all(kinds.count(kind) == 1 for kind in ("birth", "wake_new", "exit", "free")),
+          "one birth/new wake/exit/free per generation")
+    check(kinds[0] == "birth" and kinds[-1] == "free", "birth/free bracket all worker rows")
+    stamps = [row["mono_ns"] for _, row in rows]
+    check(all(a < b for a, b in zip(stamps, stamps[1:])), "worker monotonic record order")
+    birth, first_wake, first_run = 0, kinds.index("wake_new"), kinds.index("switch_in")
+    check(birth < first_wake < first_run and
+          worker["run_before_ns"] < stamps[birth] <= worker["parked"]["mono_ns"],
+          "kernel birth and first wake precede first switch and marker")
+    waking = [j for j, (_, row) in enumerate(rows) if
+              (row["kind"], row["emitter_cpu"], row["target_cpu"]) == ("waking", 0, 1)
+              and joined["write_before_ns"] <= row["mono_ns"] <= joined["write_after_ns"]]
+    check(len(waking) == 1, "one kernel CPU 0 to CPU 1 wake within pipe write bracket")
+    waking = waking[0]
+    switches = [j for j, kind in enumerate(kinds) if kind in ("switch_in", "switch_out")]
+    park = [j for j in switches if j < waking][-1]
+    resumed = [j for j in switches if j > waking][0]
+    parked_row, resumed_row = rows[park][1], rows[resumed][1]
+    check((parked_row["kind"], parked_row["emitter_cpu"], parked_row["raw_state"])
+          == ("switch_out", 1, 1) and stamps[park] <= worker["park_oracle"]["mono_ns"],
+          "last pre-wake switch blocks on CPU 1 before the blocked-read oracle")
+    check((resumed_row["kind"], resumed_row["emitter_cpu"]) == ("switch_in", 1)
+          and stamps[resumed] <= joined["worker_read_return_ns"], "first post-wake switch resumes before read return")
+    wakeups = [j for j in range(waking + 1, resumed) if kinds[j] == "wakeup"]
+    check(len(wakeups) == 1 and "waking" not in kinds[waking + 1:resumed], "one unambiguous intervening wakeup")
+    wakeup = wakeups[0]
+    wakeup_row = rows[wakeup][1]
+    check(wakeup_row["emitter_cpu"] in (0, 1) and wakeup_row["target_cpu"] == 1,
+          "wakeup targets CPU 1")
+    exit_index, free = kinds.index("exit"), kinds.index("free")
+    terminal = [j for j, row in rows if row["kind"] == "switch_out" and row["raw_state"] == 128]
+    check(len(terminal) == 1, "one terminal raw TASK_DEAD switch")
+    terminal_index = [slot for slot, _ in rows].index(terminal[0])
+    check(first_run < park < waking < wakeup < resumed < exit_index < terminal_index < free
+          and stamps[free] <= worker["free_ack"]["mono_ns"],
+          "complete ordered per-worker lifecycle through free")
+    result = dict(zip(
+        ("birth", "wake_new", "first_switch", "park_switch", "waking", "wakeup", "resumed", "exit",
+         "terminal_switch", "free"),
+        (rows[j][0] for j in (birth, first_wake, first_run, park, waking, wakeup, resumed, exit_index,
+                             terminal_index, free)),
+    ))
+    check(result == report["chain_slots"][label], "independently reconstructed chain matches report")
+    return {"slots": result, "rows": len(rows), "wakeup_emitter_cpu": wakeup_row["emitter_cpu"],
+            "free_after_join_ns": stamps[free] - joined["joined_ns"]}
+
+
+def verify_ledger(report, case, local):
+    terminal = report["terminal_counts"]
+    capacity = 1 if case == "negative" else 512
+    attempted, lost, faults, frees, admitted = terminal
+    used = min(capacity, attempted)
+    check(24 <= attempted <= 4096 and lost == attempted - used and faults == 0
+          and frees == admitted == 3 and (lost > 0) == (case == "negative"), "terminal capacity reconciliation")
+    raw = bytes.fromhex(report["ledger_hex"])
+    check(len(raw) == ROW.size * 512, "exact binary ledger length")
+    check(report["second_read"] == {"counts": terminal, "ledger_sha256": sha(raw)}
+          and terminal == report["workers"]["C"]["free_ack"]["counts"],
+          "first and second detached ledger/count evidence agrees")
+    live, all_identities, groups, decoded = {}, {}, {}, []
+    for slot, values in enumerate(ROW.iter_unpack(raw)):
+        if slot >= used:
+            check(not any(values), "unused binary ledger slot is zero")
+            continue
+        kind, cpu, target, state, stamp, tid, global_tid, generation, parent = values
+        check(0 < kind < len(NAMES) and generation in (1, 2, 3), "valid raw event kind and generation")
+        label = LABELS[generation - 1]
+        check(parent == (0, 1, 0)[generation - 1] and tid == local[label] and global_tid > 0,
+              "kernel parent and TID evidence match the controlled worker")
+        check((target != 0xFFFFFFFF) == (kind in (2, 5, 6)) and (kind == 4 or state == 0),
+              "target CPU and raw state are emitted only in defined rows")
+        identity = (tid, global_tid)
+        if kind == 1:
+            check(generation == len(groups) + 1 and (not parent or parent in live)
+                  and (generation != 3 or not live), "birth order, live nested parent and after-free readmission")
+            check(all(tid != pair[0] and global_tid != pair[1] for pair in live.values()),
+                  "unique numeric identities across live generations")
+            groups[generation] = []
+            live[generation] = all_identities[generation] = identity
+        check(live.get(generation) == identity, "each event matches a live admitted generation")
+        row = {"kind": NAMES[kind], "emitter_cpu": cpu, "target_cpu": None if target == 0xFFFFFFFF else target,
+               "raw_state": state, "mono_ns": stamp, "local_tid": tid, "global_tid": global_tid,
+               "generation": generation, "parent_generation": parent}
+        groups[generation].append((slot, row))
+        decoded.append(row)
+        if kind == 8:
+            del live[generation]
+    check(decoded == report["decoded"], "collector decoded rows match independent raw decode")
+    result = {"attempted": attempted, "published": used, "lost": lost, "faults": faults,
+              "free_completed": frees, "admitted": admitted, "ledger_sha256": sha(raw)}
+    if capacity == 1:
+        birth = decoded[0]
+        check(used == 1 and birth["kind"] == "birth" and birth["generation"] == 1
+              and report["workers"]["A"]["run_before_ns"] < birth["mono_ns"]
+              <= report["workers"]["A"]["parked"]["mono_ns"], "cap-one retained A birth and accounted for the rest")
+        return result
+    check(set(groups) == {1, 2, 3} and not live, "all generations freed in positive ledger")
+    chains = {label: chain(report, label, groups[i + 1]) for i, label in enumerate(LABELS)}
+    a, b, c = (chains[label]["slots"] for label in LABELS)
+    check(a["first_switch"] < b["birth"] < a["exit"] < a["free"] < b["waking"]
+          and b["free"] < c["birth"], "nested B is created while A runs and stays until after A free, then C is admitted")
+    result["workers"] = {label: dict(chains[label], local_tid=all_identities[i + 1][0],
+                                     global_tid=all_identities[i + 1][1], parent_generation=(0, 1, 0)[i])
+                         for i, label in enumerate(LABELS)}
+    result["observed_numeric_identity_reuse"] = len({p[0] for p in all_identities.values()}) < 3 or +        len({p[1] for p in all_identities.values()}) < 3
+    return result
+
+
+def audit():
+    freeze = get("fixture-freeze01.json")
+    bound = get("fixture-bound01.json")
+    namespace = bound["namespace_inode"]
+    check(freeze["cpus"] == [0, 1] and tuple(freeze["probe_order"]) == EXPECTED_PROBES
+          and tuple(freeze["raw_hooks"]) == EXPECTED_HOOKS, "exact frozen CPU and probe order")
+    check(sha(read("protocol01.md")) == freeze["protocol_sha256"], "frozen protocol")
+    check(sha(read("run_multi_fixture01.py")) == freeze["supervisor_sha256"], "frozen supervisor")
+    for name, digest in freeze["source_sha256"].items():
+        check(sha(read(Path(name).name + ".txt")) == digest, "retained frozen source")
+    check(not read("matrix-attempt01.stderr.txt"), "supervisor stderr empty")
+    summaries = [json.loads(line) for line in read("matrix-attempt01.log").splitlines()]
+    check([row["case"] for row in summaries] == ["negative", "positive"], "fixed case order")
+    result = {}
+    for summary in summaries:
+        case = summary["case"]
+        expected_command = [str(namespace) if arg == "@LIVE_NAMESPACE@" else arg for arg in freeze["cases"][case]]
+        check(bound["commands"][case] == expected_command, "actual invocation matches namespace-bound frozen command")
+        check(get(f"{case}-attempt01.exit.json") == {"exit_code": 0}
+              and not read(f"{case}-attempt01.stderr.txt"), "reported exit and empty stderr")
+        original = read(f"{case}-attempt01.stdout.json")
+        report = json.loads(original)
+        check(report["passed"] is True and report["capture_ready"] is False and report["case"] == case,
+              "pass limited to synthetic fixture")
+        hooks = ("sys_enter", *EXPECTED_HOOKS)
+        check(report["attached_hooks"] == [{"tp_name": hook, "cookie": 0} for hook in hooks],
+              "both named switch links and all other zero-cookie links")
+        check([row["hook"] for row in report["programs"]] == list(hooks)
+              and [row.get("probe") for row in report["programs"]] == [None, *EXPECTED_PROBES],
+              "reported programs match both distinct switch probes")
+        fds = {}
+        for program, probe in zip(report["programs"], ("seed", *EXPECTED_PROBES)):
+            template = freeze["templates"]["seed"] if probe == "seed" else freeze["templates"][case][probe]
+            verify_program(program, template, probe, namespace, fds)
+        check(set(fds) == {"storage", "members", "counts", "records"}
+              and len(set(fds.values())) == 4, "four distinct relocated map roles")
+        local = check_controls(report, check_actor(report, namespace), 1 if case == "negative" else 512)
+        result[case] = verify_ledger(report, case, local)
+        result[case]["raw_report_sha256"] = sha(original)
+        result[case]["programs_checked"] = len(report["programs"])
+        result[case]["reported_closed_fds"] = report["closed_fds"]
+    return {
+        "schema_version": 1, "audit": "independent binary replay of retained multiworker fixture attempt01",
+        "checks_passed": sum(COUNTS.values()), "checks_by_kind": dict(COUNTS),
+        "namespace_inode": namespace, "cases": result,
+        "scope": "Audits reported links, misses, close receipts, second-read digest and raw ledger bytes. "
+                 "No native calls are repeated and private task addresses are excluded.",
+    }
+
+
+if __name__ == "__main__":
+    result = audit()
+    with (ROOT / "independent-multi-fixture-audit01.json").open("x", encoding="utf-8", newline="\n") as output:
+        json.dump(result, output, indent=2)
+        output.write("\n")
+    print(f"{result['checks_passed']} independent checks passed")

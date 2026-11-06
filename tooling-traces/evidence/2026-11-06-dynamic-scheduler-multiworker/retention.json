@@ -1,0 +1,468 @@
+{
+  "schema_version": 1,
+  "date_bangkok": "2026-11-06",
+  "scope": "ADR0030 fixed multiworker loss-negative and positive matrix",
+  "retained_payloads": 43,
+  "redactions": [
+    {
+      "local_raw_file": "negative-attempt01.stdout.json",
+      "original_sha256": "98728f4887d6116ecc84785d6f293d124c1e5572fd25a24afa41b2b6cb7f1cd4",
+      "shared_file": "negative-attempt01.stdout.redacted.json.gz",
+      "programs": [
+        {
+          "hook": "sys_enter",
+          "occurrences": 2,
+          "original_log_sha256": "fea46632f8692f7d320187738be84a741a03a0065f448fbd2d78f8cdb002a9f5"
+        },
+        {
+          "hook": "sched_prepare_exec",
+          "occurrences": 9,
+          "original_log_sha256": "1f077c822a471d2cbe887ea44f6a20187fb6cebf4492ea3f8f4ed707570f50ad"
+        },
+        {
+          "hook": "sched_wakeup_new",
+          "occurrences": 10,
+          "original_log_sha256": "bd9c9eb84bcaf2c498178d723d65a23f4188c68e9ddc93b7b3703db9eab7a772"
+        },
+        {
+          "hook": "sched_switch",
+          "occurrences": 9,
+          "original_log_sha256": "26a362eaa35e9bea0ed3ea8b14c32b80aaff072149da88de8946e020fe992a04"
+        },
+        {
+          "hook": "sched_switch",
+          "occurrences": 9,
+          "original_log_sha256": "22970972eb4cedc9d2797958e6052aab6d32ceb03161f31a909273a8fc73ae80"
+        },
+        {
+          "hook": "sched_waking",
+          "occurrences": 10,
+          "original_log_sha256": "a4fb71ca56236d9ca462e12ac52256526efb37ce53a54fe94584ba7f277f6670"
+        },
+        {
+          "hook": "sched_wakeup",
+          "occurrences": 10,
+          "original_log_sha256": "549d1143864daadc57eaf674c35f617727346c23d152cb1d9743f92b86050dc2"
+        },
+        {
+          "hook": "sched_process_exit",
+          "occurrences": 10,
+          "original_log_sha256": "e4e71251efaf42f9b761c3a574ecf68bf3d618bbde1db01a01afee2b76434e9d"
+        },
+        {
+          "hook": "sched_process_free",
+          "occurrences": 12,
+          "original_log_sha256": "c0285f9ec5c1a563a8d925b99f07bf9e3d6af43182752012c20f3e518ae387f1"
+        },
+        {
+          "hook": "task_newtask",
+          "occurrences": 23,
+          "original_log_sha256": "db9ef500aa10a492d1bcc4721e11ae596ca4fa13deffa9e8facad94427d22580"
+        }
+      ]
+    },
+    {
+      "local_raw_file": "positive-attempt01.stdout.json",
+      "original_sha256": "208312ea5c22ef4bff0bcad864c9aa19fe1b814c7a019bb6edd777d29bf5f7e2",
+      "shared_file": "positive-attempt01.stdout.redacted.json.gz",
+      "programs": [
+        {
+          "hook": "sys_enter",
+          "occurrences": 2,
+          "original_log_sha256": "5356ab4f970fa01b04db68420b56fb04446d8cee32d1f5428e6d8bd013c4b2ee"
+        },
+        {
+          "hook": "sched_prepare_exec",
+          "occurrences": 9,
+          "original_log_sha256": "2e4bf838b1f5773500888e380490a3565b63b1a3e96f38cd5e51fff7a3d7cb8a"
+        },
+        {
+          "hook": "sched_wakeup_new",
+          "occurrences": 10,
+          "original_log_sha256": "6463ad03ebc3edb60e6086fc834f65b91ce8b754332315a3bfb433ffcf73f65a"
+        },
+        {
+          "hook": "sched_switch",
+          "occurrences": 9,
+          "original_log_sha256": "9c04e4f568856988d9dcf8610dc2ca9afc49dcfddad8050ed988a245032f36d5"
+        },
+        {
+          "hook": "sched_switch",
+          "occurrences": 9,
+          "original_log_sha256": "f1c5e2b01963e56a93e20ca7ad381959ba6ce4d12605afe707aa59d2a08daf50"
+        },
+        {
+          "hook": "sched_waking",
+          "occurrences": 10,
+          "original_log_sha256": "6a966c3f980ebbe4ad93fee8814ee31b823da8da49cd49d836e93fcda4bd321b"
+        },
+        {
+          "hook": "sched_wakeup",
+          "occurrences": 10,
+          "original_log_sha256": "5ff85733ab64efe15f639856351d92f29e80b22277880e4f030748c220f353cb"
+        },
+        {
+          "hook": "sched_process_exit",
+          "occurrences": 10,
+          "original_log_sha256": "389217d5f2edef331e6d9bbe85a687d9800f9d8487cb85b180745c535332ba71"
+        },
+        {
+          "hook": "sched_process_free",
+          "occurrences": 10,
+          "original_log_sha256": "7a72685874afb4d64a4b22b9da7da526d062b5a87dbbe8a9b0f7f34d0827b60b"
+        },
+        {
+          "hook": "task_newtask",
+          "occurrences": 25,
+          "original_log_sha256": "c44f8cf57511e84e58a0e4e1bfa8ea5d3cd1cb40f23004b89fcdb770e2751f48"
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "path": "audit_multi_fixture01.py.txt",
+      "source": "audit_multi_fixture01.py",
+      "payload_sha256": "1e2017e92672b036ac9cb72cef6e11b3828d95879b095a8a3682b6a28faa93b8",
+      "payload_bytes": 18904,
+      "stored_sha256": "1e2017e92672b036ac9cb72cef6e11b3828d95879b095a8a3682b6a28faa93b8",
+      "stored_bytes": 18904
+    },
+    {
+      "path": "collect_scheduler_dynamic_fixture.py.txt",
+      "source": "collect_scheduler_dynamic_fixture.py.txt",
+      "payload_sha256": "54ca81a84c29fddaddcffc7142f41007352f4cadb11cd08b2154080209c99322",
+      "payload_bytes": 17749,
+      "stored_sha256": "54ca81a84c29fddaddcffc7142f41007352f4cadb11cd08b2154080209c99322",
+      "stored_bytes": 17749
+    },
+    {
+      "path": "collect_scheduler_dynamic_multi.py.txt",
+      "source": "collect_scheduler_dynamic_multi.py.txt",
+      "payload_sha256": "d8b4055048393c8d2f53dc87745595d47d6612696a8607acf245856c0fc0d614",
+      "payload_bytes": 8096,
+      "stored_sha256": "d8b4055048393c8d2f53dc87745595d47d6612696a8607acf245856c0fc0d614",
+      "stored_bytes": 8096
+    },
+    {
+      "path": "fixture-bound01.json",
+      "source": "fixture-bound01.json",
+      "payload_sha256": "39394a6ecc05e126ecc1bc84034301a0b9b6502625a8e281be3d676d6731c984",
+      "payload_bytes": 495,
+      "stored_sha256": "39394a6ecc05e126ecc1bc84034301a0b9b6502625a8e281be3d676d6731c984",
+      "stored_bytes": 495
+    },
+    {
+      "path": "fixture-freeze01.json",
+      "source": "fixture-freeze01.json",
+      "payload_sha256": "3b34aa0ad2af319f7c334beb40ce154ef1a1c26193d082d157ddfdd3b727cd8a",
+      "payload_bytes": 34951,
+      "stored_sha256": "3b34aa0ad2af319f7c334beb40ce154ef1a1c26193d082d157ddfdd3b727cd8a",
+      "stored_bytes": 34951
+    },
+    {
+      "path": "independent-multi-fixture-audit01.json",
+      "source": "independent-multi-fixture-audit01.json",
+      "payload_sha256": "6f83bdfea4d816a0a5a1408ad77b14de407f422df70a51d0a84527e2c6e624c5",
+      "payload_bytes": 6287,
+      "stored_sha256": "6f83bdfea4d816a0a5a1408ad77b14de407f422df70a51d0a84527e2c6e624c5",
+      "stored_bytes": 6287
+    },
+    {
+      "path": "matrix-attempt01.log",
+      "source": "matrix-attempt01.log",
+      "payload_sha256": "5279eafe932b7337af692fbfced08cf69605c11d3c5c9949942927bf064d5351",
+      "payload_bytes": 213,
+      "stored_sha256": "5279eafe932b7337af692fbfced08cf69605c11d3c5c9949942927bf064d5351",
+      "stored_bytes": 213
+    },
+    {
+      "path": "matrix-attempt01.stderr.txt",
+      "source": "matrix-attempt01.stderr.txt",
+      "payload_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "payload_bytes": 0,
+      "stored_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stored_bytes": 0
+    },
+    {
+      "path": "negative-attempt01.exit.json",
+      "source": "negative-attempt01.exit.json",
+      "payload_sha256": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01",
+      "payload_bytes": 16,
+      "stored_sha256": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01",
+      "stored_bytes": 16
+    },
+    {
+      "path": "negative-attempt01.stderr.txt",
+      "source": "negative-attempt01.stderr.txt",
+      "payload_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "payload_bytes": 0,
+      "stored_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stored_bytes": 0
+    },
+    {
+      "path": "negative-attempt01.stdout.redacted.json.gz",
+      "source": "negative-attempt01.stdout.json",
+      "payload_sha256": "8aef826e299bbb576246245ee11467f163242e089e23770f38fa4510d27a96b6",
+      "payload_bytes": 384289,
+      "stored_sha256": "ab0ac3b820ce5b2b9672fcbbbd7d666b78ef58acb542ee097fad3c7171f2e525",
+      "stored_bytes": 24854
+    },
+    {
+      "path": "offline-windows.log",
+      "source": "offline-windows.log",
+      "payload_sha256": "7196dfab1f93687cd38453df122a883654a35d1a09dc615e594c1655b0d73753",
+      "payload_bytes": 10462,
+      "stored_sha256": "7196dfab1f93687cd38453df122a883654a35d1a09dc615e594c1655b0d73753",
+      "stored_bytes": 10462
+    },
+    {
+      "path": "offline-wsl.log",
+      "source": "offline-wsl.log",
+      "payload_sha256": "cba2160d53b09ac53251d2061c7567690db5424e69a60f48d28eebf81c5e19bf",
+      "payload_bytes": 7347,
+      "stored_sha256": "cba2160d53b09ac53251d2061c7567690db5424e69a60f48d28eebf81c5e19bf",
+      "stored_bytes": 7347
+    },
+    {
+      "path": "positive-attempt01.exit.json",
+      "source": "positive-attempt01.exit.json",
+      "payload_sha256": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01",
+      "payload_bytes": 16,
+      "stored_sha256": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01",
+      "stored_bytes": 16
+    },
+    {
+      "path": "positive-attempt01.stderr.txt",
+      "source": "positive-attempt01.stderr.txt",
+      "payload_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "payload_bytes": 0,
+      "stored_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stored_bytes": 0
+    },
+    {
+      "path": "positive-attempt01.stdout.redacted.json.gz",
+      "source": "positive-attempt01.stdout.json",
+      "payload_sha256": "11ddd07e3870499780ad12ae9d9a3cfbe1fffbb085b97a0099ad90e56d11bcf2",
+      "payload_bytes": 404646,
+      "stored_sha256": "07d6fd089d5f9353c5a62b74da5f8bb95f5192739af73977863ce450629ec84a",
+      "stored_bytes": 27045
+    },
+    {
+      "path": "preflight_scheduler_dynamic_verifier.py.txt",
+      "source": "preflight_scheduler_dynamic_verifier.py.txt",
+      "payload_sha256": "0b5e6a3d08243476a73f8b1536678d1dd6b6d1e6bf5591e53500eedf95fff63a",
+      "payload_bytes": 3500,
+      "stored_sha256": "0b5e6a3d08243476a73f8b1536678d1dd6b6d1e6bf5591e53500eedf95fff63a",
+      "stored_bytes": 3500
+    },
+    {
+      "path": "preflight_scheduler_pidfd_seed.py.txt",
+      "source": "preflight_scheduler_pidfd_seed.py.txt",
+      "payload_sha256": "ecaec0d2b3cc2a13bb6538509941e09c5658038a155a91165ccea63974dbbdc7",
+      "payload_bytes": 7637,
+      "stored_sha256": "ecaec0d2b3cc2a13bb6538509941e09c5658038a155a91165ccea63974dbbdc7",
+      "stored_bytes": 7637
+    },
+    {
+      "path": "preflight_scheduler_task_storage.py.txt",
+      "source": "preflight_scheduler_task_storage.py.txt",
+      "payload_sha256": "8304158b6befb2619b4a2e9880a7b0d53a14e2b911331c729dceb6ed68cdb13f",
+      "payload_bytes": 5445,
+      "stored_sha256": "8304158b6befb2619b4a2e9880a7b0d53a14e2b911331c729dceb6ed68cdb13f",
+      "stored_bytes": 5445
+    },
+    {
+      "path": "protocol01.md",
+      "source": "protocol01.md",
+      "payload_sha256": "7f914cc802b788149f483d96c145d8551daf029ceeedcf722354b110f3a1c73f",
+      "payload_bytes": 3906,
+      "stored_sha256": "7f914cc802b788149f483d96c145d8551daf029ceeedcf722354b110f3a1c73f",
+      "stored_bytes": 3906
+    },
+    {
+      "path": "retain_multi.py.txt",
+      "source": "retain_multi.py",
+      "payload_sha256": "ee484409eb8c92a4d99272a4ad5d6eaa26f1677b0b6beeb34891ceae2786efe4",
+      "payload_bytes": 3211,
+      "stored_sha256": "ee484409eb8c92a4d99272a4ad5d6eaa26f1677b0b6beeb34891ceae2786efe4",
+      "stored_bytes": 3211
+    },
+    {
+      "path": "run_multi_fixture01.py.txt",
+      "source": "run_multi_fixture01.py",
+      "payload_sha256": "f172257401406be5e6f2315822f35e3139498221087062daca5281be05e4425f",
+      "payload_bytes": 2254,
+      "stored_sha256": "f172257401406be5e6f2315822f35e3139498221087062daca5281be05e4425f",
+      "stored_bytes": 2254
+    },
+    {
+      "path": "scheduler_dynamic_actor.py.txt",
+      "source": "scheduler_dynamic_actor.py.txt",
+      "payload_sha256": "5a5c3a42ad07db1c64df1e8bc1ded195da43837dde4c7c44c35487b52ccf0e6e",
+      "payload_bytes": 8910,
+      "stored_sha256": "5a5c3a42ad07db1c64df1e8bc1ded195da43837dde4c7c44c35487b52ccf0e6e",
+      "stored_bytes": 8910
+    },
+    {
+      "path": "scheduler_dynamic_multi_actor.py.txt",
+      "source": "scheduler_dynamic_multi_actor.py.txt",
+      "payload_sha256": "d52075e298ed93f577d633b0982fdc6dca2c19bcf0f324a47ae368192ae0e477",
+      "payload_bytes": 8327,
+      "stored_sha256": "d52075e298ed93f577d633b0982fdc6dca2c19bcf0f324a47ae368192ae0e477",
+      "stored_bytes": 8327
+    },
+    {
+      "path": "scheduler_dynamic_multi_program.py.txt",
+      "source": "scheduler_dynamic_multi_program.py.txt",
+      "payload_sha256": "4b63bb96531fac2c5f133602b2abb8152e384216d1c05723955897d36b827847",
+      "payload_bytes": 6119,
+      "stored_sha256": "4b63bb96531fac2c5f133602b2abb8152e384216d1c05723955897d36b827847",
+      "stored_bytes": 6119
+    },
+    {
+      "path": "scheduler_dynamic_multi_validation.py.txt",
+      "source": "scheduler_dynamic_multi_validation.py.txt",
+      "payload_sha256": "6e0d300469aa64f862da0606054d7f58b4436ba29527b9f1e6d534dcd57f85c0",
+      "payload_bytes": 6633,
+      "stored_sha256": "6e0d300469aa64f862da0606054d7f58b4436ba29527b9f1e6d534dcd57f85c0",
+      "stored_bytes": 6633
+    },
+    {
+      "path": "scheduler_dynamic_native_io.py.txt",
+      "source": "scheduler_dynamic_native_io.py.txt",
+      "payload_sha256": "72a70d4f2a19b5e0f8bb57f930027bb7ae991afc18c42a1ce807eac44447fd6c",
+      "payload_bytes": 4213,
+      "stored_sha256": "72a70d4f2a19b5e0f8bb57f930027bb7ae991afc18c42a1ce807eac44447fd6c",
+      "stored_bytes": 4213
+    },
+    {
+      "path": "scheduler_dynamic_program.py.txt",
+      "source": "scheduler_dynamic_program.py.txt",
+      "payload_sha256": "eb3d834e5aff3b340dc7978bc9f81b7f6e6ce93bb4e58861ce456fc7b5f30cb8",
+      "payload_bytes": 7302,
+      "stored_sha256": "eb3d834e5aff3b340dc7978bc9f81b7f6e6ce93bb4e58861ce456fc7b5f30cb8",
+      "stored_bytes": 7302
+    },
+    {
+      "path": "test_scheduler_dynamic_multi_actor.py.txt",
+      "source": "test_scheduler_dynamic_multi_actor.py.txt",
+      "payload_sha256": "da95cd673268be1d76ebc09df091baffd68d7512ef31b2a780152ec9fd49e3ba",
+      "payload_bytes": 5034,
+      "stored_sha256": "da95cd673268be1d76ebc09df091baffd68d7512ef31b2a780152ec9fd49e3ba",
+      "stored_bytes": 5034
+    },
+    {
+      "path": "test_scheduler_dynamic_multi_program.py.txt",
+      "source": "test_scheduler_dynamic_multi_program.py.txt",
+      "payload_sha256": "abd5e98db8e9775cb07ee77a94ccda0c6e6d378f7c35d2a74d3a4e15653b1265",
+      "payload_bytes": 1850,
+      "stored_sha256": "abd5e98db8e9775cb07ee77a94ccda0c6e6d378f7c35d2a74d3a4e15653b1265",
+      "stored_bytes": 1850
+    },
+    {
+      "path": "test_scheduler_dynamic_multi_validation.py.txt",
+      "source": "test_scheduler_dynamic_multi_validation.py.txt",
+      "payload_sha256": "da7ca807d4bf6de0cca9a69f225b271c62fcf648de97dac9abff476985a5da57",
+      "payload_bytes": 4950,
+      "stored_sha256": "da7ca807d4bf6de0cca9a69f225b271c62fcf648de97dac9abff476985a5da57",
+      "stored_bytes": 4950
+    },
+    {
+      "path": "test_scheduler_dynamic_program.py.txt",
+      "source": "test_scheduler_dynamic_program.py.txt",
+      "payload_sha256": "7f813540398d4b58445ac4df2c00d5cae91b5e61445bdf3e7a3d4738f8a90e6e",
+      "payload_bytes": 1698,
+      "stored_sha256": "7f813540398d4b58445ac4df2c00d5cae91b5e61445bdf3e7a3d4738f8a90e6e",
+      "stored_bytes": 1698
+    },
+    {
+      "path": "tracking-apply.log",
+      "source": "tracking-apply.log",
+      "payload_sha256": "ec8d2139ba5c51011f8cee0008ce17e6d159b0d91f83039c9d00c23bc2b075db",
+      "payload_bytes": 49,
+      "stored_sha256": "ec8d2139ba5c51011f8cee0008ce17e6d159b0d91f83039c9d00c23bc2b075db",
+      "stored_bytes": 49
+    },
+    {
+      "path": "tracking-before.json.gz",
+      "source": "tracking-before.json",
+      "payload_sha256": "fad547000795cc01d3b2662077008b6c69a70b17d98e90f5e868f8035f5cdea1",
+      "payload_bytes": 207375,
+      "stored_sha256": "8d5278bc8f94c9b5f9bb403b7b0ca00002174b0968bd697285c56a27568040b6",
+      "stored_bytes": 42871
+    },
+    {
+      "path": "tracking-checkpoint.json.gz",
+      "source": "tracking-checkpoint.json",
+      "payload_sha256": "71b29177369b65f18d54ea64daa66a5d967b38fa300087524bda9e3466f2782f",
+      "payload_bytes": 419771,
+      "stored_sha256": "5a04fe4c3d22febde43a7bdf338e7b41568af3ab91176fbbe2a45397430db5da",
+      "stored_bytes": 84006
+    },
+    {
+      "path": "tracking-dryrun.log",
+      "source": "tracking-dryrun.log",
+      "payload_sha256": "8a83c380bab59d676f5ebca35fc692969c1755001425fb17575ab9a8c47cb77e",
+      "payload_bytes": 135,
+      "stored_sha256": "8a83c380bab59d676f5ebca35fc692969c1755001425fb17575ab9a8c47cb77e",
+      "stored_bytes": 135
+    },
+    {
+      "path": "tracking-guards.json",
+      "source": "tracking-guards.json",
+      "payload_sha256": "7946439aa6e31fbba108c2b79f66db59ba667c0060879855828dcaced0c64835",
+      "payload_bytes": 333,
+      "stored_sha256": "7946439aa6e31fbba108c2b79f66db59ba667c0060879855828dcaced0c64835",
+      "stored_bytes": 333
+    },
+    {
+      "path": "tracking-initial.log",
+      "source": "tracking-initial.log",
+      "payload_sha256": "c7598c1c73ccf189c01a36ce331bc503cffff94227aeb3a4bc254e0bd5496e4c",
+      "payload_bytes": 47,
+      "stored_sha256": "c7598c1c73ccf189c01a36ce331bc503cffff94227aeb3a4bc254e0bd5496e4c",
+      "stored_bytes": 47
+    },
+    {
+      "path": "tracking-plan.json.gz",
+      "source": "tracking-plan.json",
+      "payload_sha256": "f0e01a8ca5e4327550daf626b2b9e0c41135aa8a20a7f8edf52226ad1cdfe2f0",
+      "payload_bytes": 816366,
+      "stored_sha256": "1bb1644ba58f615a9824bf9a6530eeb8e3d2cacc188b23f4f941de6337cfda7c",
+      "stored_bytes": 207725
+    },
+    {
+      "path": "tracking-plan.log.gz",
+      "source": "tracking-plan.log",
+      "payload_sha256": "d4c088359730a5d2fcaed2a506b6cd0c5ab08d14054fa6093e75f319345a51fd",
+      "payload_bytes": 237845,
+      "stored_sha256": "0822042c35067d14a93c459240f72284ccb423d1792c7e244b1528582f82114c",
+      "stored_bytes": 75104
+    },
+    {
+      "path": "tracking-readback.log",
+      "source": "tracking-readback.log",
+      "payload_sha256": "c7598c1c73ccf189c01a36ce331bc503cffff94227aeb3a4bc254e0bd5496e4c",
+      "payload_bytes": 47,
+      "stored_sha256": "c7598c1c73ccf189c01a36ce331bc503cffff94227aeb3a4bc254e0bd5496e4c",
+      "stored_bytes": 47
+    },
+    {
+      "path": "tracking-review.log",
+      "source": "tracking-review.log",
+      "payload_sha256": "5fe4771c26e6daa068cc6b9aa055c46015dce43846db54c46f1031ce2680eefc",
+      "payload_bytes": 97,
+      "stored_sha256": "5fe4771c26e6daa068cc6b9aa055c46015dce43846db54c46f1031ce2680eefc",
+      "stored_bytes": 97
+    },
+    {
+      "path": "verify_tracking.py.txt",
+      "source": "verify_tracking.py",
+      "payload_sha256": "1463b57e3c3ae084479114aeb220607dff2036937bc53ccbdd9721b2e45eb3da",
+      "payload_bytes": 1508,
+      "stored_sha256": "1463b57e3c3ae084479114aeb220607dff2036937bc53ccbdd9721b2e45eb3da",
+      "stored_bytes": 1508
+    }
+  ]
+}

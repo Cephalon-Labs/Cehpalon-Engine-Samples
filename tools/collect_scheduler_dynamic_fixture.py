@@ -273,7 +273,8 @@ def lifecycle(actor, storage, report, capacity, main_cpu, worker_cpu):
         validate_ledger(report, rows, report["terminal_counts"], capacity, main_cpu, worker_cpu)
 
 
-def run(case, main_cpu, worker_cpu, namespace, report):
+def run(case, main_cpu, worker_cpu, namespace, report, *, actor_path=ACTOR,
+        lifecycle_run=lifecycle, lifecycle_fds=26):
     verify_host()
     require((main_cpu, worker_cpu) == (0, 1) and {0, 1} <= os.sched_getaffinity(0),
             "expected the fixed CPU 0 to CPU 1 fixture")
@@ -284,7 +285,7 @@ def run(case, main_cpu, worker_cpu, namespace, report):
         btf = own(resources, report, load_btf())
         storage = own(resources, report, create_task_storage(btf))
         actor = subprocess.Popen(
-            [sys.executable, "-I", "-S", "-B", str(ACTOR), str(main_cpu), str(worker_cpu)],
+            [sys.executable, "-I", "-S", "-B", str(actor_path), str(main_cpu), str(worker_cpu)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0,
             user=UID, group=GID, extra_groups=[], cwd="/", env={},
         )
@@ -301,7 +302,7 @@ def run(case, main_cpu, worker_cpu, namespace, report):
         require(report["lease"]["pid_namespace_inode"] == namespace, "actor PID namespace changed")
         seed_actor(actor, storage, owner, alias, nonmember, report)
         if case != "seed":
-            lifecycle(actor, storage, report, 1 if case == "negative" else 512, main_cpu, worker_cpu)
+            lifecycle_run(actor, storage, report, 1 if case == "negative" else 512, main_cpu, worker_cpu)
         require(lease(actor.pid, (owner, alias)) == report["lease"], "owner lease changed")
         receipts = report["seed_map_receipts"]
         check_element(receipts, "delete_owner", DELETE, storage, alias)
@@ -311,7 +312,7 @@ def run(case, main_cpu, worker_cpu, namespace, report):
         require(actor.wait(timeout=2) == 0, "actor failed to exit cleanly")
     require(not report["cleanup_errors"] and not report["forced_cleanup"]
             and report["actor_exit_code"] == 0
-            and report["closed_fds"] == (7 if case == "seed" else 26),
+            and report["closed_fds"] == (7 if case == "seed" else lifecycle_fds),
             "owned resource cleanup failed")
 
 
