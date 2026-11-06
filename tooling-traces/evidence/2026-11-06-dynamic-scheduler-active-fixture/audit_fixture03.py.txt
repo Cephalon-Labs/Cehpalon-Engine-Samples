@@ -1,0 +1,290 @@
+"""Independently audit retained fixture attempt03 without launching native work."""
+
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import struct
+
+
+ROOT = Path(__file__).parent
+NAMES = ("", "birth", "wake_new", "switch_in", "switch_out", "waking",
+         "wakeup", "exit", "free")
+CASE_ORDER = ("seed", "negative", "positive")
+CHECKS = Counter()
+
+
+def read(name):
+    return (ROOT / name).read_bytes()
+
+
+def get(name):
+    return json.loads(read(name))
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def check(condition, name):
+    if not condition:
+        raise ValueError(f"independent audit failed: {name}")
+    CHECKS[name] += 1
+
+
+def inspect_program(row, template, namespace, role_fds):
+    hook = row["hook"]
+    actual = bytes.fromhex(row["program_hex"])
+    expected = bytes.fromhex(template["hex"])
+    check(sha(expected) == template["sha256"], "template hash")
+    check(len(actual) == len(expected) == template["instructions"] * 8, "program length")
+    pairs = list(zip(struct.iter_unpack("<BBhi", actual), struct.iter_unpack("<BBhi", expected)))
+    if hook == "sys_enter":
+        roles = iter(("storage",))
+    elif hook == "sched_prepare_exec":
+        roles = iter(("private", "storage", "counts"))
+    elif hook == "task_newtask":
+        roles = iter(("private", "storage", "counts", "records", "counts"))
+    else:
+        roles = iter(("private", "counts", "records", "counts"))
+
+    namespace_changes = 0
+    for index, (observed, frozen) in enumerate(pairs):
+        if frozen == (0x18, 0x11, 0, 0):
+            role = next(roles)
+            check(observed[:3] == frozen[:3] and 3 <= observed[3] < (1 << 31),
+                  "pseudo-map opcode and descriptor")
+            check(pairs[index + 1] == ((0, 0, 0, 0), (0, 0, 0, 0)),
+                  "pseudo-map continuation unchanged")
+            check(role_fds.setdefault(role, observed[3]) == observed[3], "same descriptor for map role")
+        elif (hook == "task_newtask" and frozen[:2] == (0x56, 0) and frozen[3] == 0
+              and observed != frozen):
+            check(observed[:3] == frozen[:3] and observed[3] & 0xffffffff == namespace,
+                  "bound namespace relocation")
+            namespace_changes += 1
+        else:
+            check(observed == frozen, "other instruction unchanged")
+    check(next(roles, None) is None, "all declared map roles used")
+    check(len(role_fds) == len(set(role_fds.values())), "map roles distinct")
+    check(namespace_changes == (hook == "task_newtask"), "one birth-only namespace relocation")
+    check(row["recursion_before"] == row["recursion_after"] == 0, "zero hook recursion misses")
+    verifier = bytes.fromhex(row["verifier_log_hex"])
+    check(bool(verifier) and b"processed " in verifier, "accepted verifier log shape")
+    return sha(actual)
+
+
+def inspect_controls(case, row, namespace):
+    ready = row["ready"]
+    pid = ready["pid"]
+    check(ready["kind"] == "ready" and ready["main_tid"] == pid and pid > 0,
+          "ready identity")
+    check((ready["main_cpu"], ready["worker_cpu"]) == (0, 1)
+          and {0, 1} <= set(ready["allowed_cpus"]), "fixed available CPUs")
+    lease = row["lease"]
+    check(lease["local_pid"] == pid and lease["start_ticks"] > 0
+          and lease["pid_namespace_inode"] == namespace, "held owner lease")
+    check(lease["credentials"] == {"uid": [1000] * 4, "gid": [1000] * 4},
+          "ordinary uid and gid")
+    check(lease["capabilities"] == dict.fromkeys(("CapEff", "CapPrm", "CapInh", "CapAmb"), 0),
+          "ordinary actor capability check")
+    check(lease["pidfd_mappings"] == [{"pid": pid, "nspid": [pid]}] * 2, "pidfd aliases")
+    unseeded = row["owner_unseeded_marker"]
+    seeded = row["owner_seeded_marker"]
+    for marker in (unseeded, seeded):
+        check(marker["kind"] == "marker" and marker["local_tid"] == pid and marker["cpu"] == 0
+              and marker["mono_before_ns"] <= marker["mono_after_ns"], "owner marker")
+    finished = row["finished"]
+    check(ready["mono_ns"] <= unseeded["mono_before_ns"] <= unseeded["mono_after_ns"]
+          <= seeded["mono_before_ns"] <= seeded["mono_after_ns"] <= finished["mono_ns"],
+          "owner control order")
+    receipts = row["seed_map_receipts"]
+    check(receipts == [
+        {"stage": "unseeded_owner", "errno": 2},
+        {"stage": "seed_owner", "errno": None, "value": None},
+        {"stage": "unseeded_collector", "errno": 2},
+        {"stage": "seed_unchanged_after_nonmember", "errno": None, "value": 0x43455048414C4F4E},
+        {"stage": "kernel_ack", "errno": None, "value": 0x43455048},
+        {"stage": "delete_owner", "errno": None, "value": None},
+        {"stage": "owner_absent_after_delete", "errno": 2},
+    ], "seven exact seed and cleanup receipts")
+    check(finished["kind"] == "finished" and finished["pid"] == pid
+          and finished["worker_joined"] is (case != "seed"), "actor finished receipt")
+    check(row["actor_exit_code"] == 0 and row["cleanup_errors"] == [] and not row["forced_cleanup"],
+          "clean actor and resource cleanup")
+    check(row["closed_fds"] == (7 if case == "seed" else 26), "expected descriptor close count")
+    return pid
+
+
+def inspect_ledger(case, row, pid):
+    fork = row["nonmember_fork"]
+    park = row["parked"]
+    oracle = row["park_oracle"]
+    joined = row["joined"]
+    local_tid = park["worker_tid"]
+    check(fork["kind"] == "fork" and fork["exit_code"] == 0 and fork["parent_local_pid"] == pid
+          and fork["child_local_pid"] not in {pid, local_tid} and fork["child_local_pid"] > 0
+          and row["after_fork_counts"] == [0, 0, 0, 0], "nonmember fork exclusion")
+    check(park["kind"] == "park" and local_tid > 0 and local_tid != pid and park["worker_cpu"] == 1
+          and park["park_read_fd"] >= 3, "owned park receipt")
+    check(oracle == {"syscall": 0, "fd": park["park_read_fd"], "count": 1, "state": "S",
+                     "worker_cpu": 1, "mono_ns": oracle["mono_ns"]}, "actual blocked-read oracle")
+    check(joined["kind"] == "joined" and joined["worker_tid"] == local_tid
+          and joined["remaining_local_tids"] == [pid] and (joined["main_cpu"], joined["worker_cpu"]) == (0, 1),
+          "worker joins and disappears from proc")
+    write0 = joined["write_before_ns"]
+    write1 = joined["write_after_ns"]
+    read1 = joined["worker_read_return_ns"]
+    join1 = joined["joined_ns"]
+    check(row["owner_seeded_marker"]["mono_after_ns"] <= fork["mono_before_ns"]
+          <= fork["mono_after_ns"] <= row["run_before_ns"] <= park["mono_ns"]
+          <= oracle["mono_ns"] <= write0 <= min(write1, read1)
+          <= max(write1, read1) <= join1 <= row["finished"]["mono_ns"], "actor timeline")
+    attempted, dropped, faults, frees = row["terminal_counts"]
+    cap = 1 if case == "negative" else 512
+    used = min(attempted, cap)
+    check(row["terminal_before_detach"] == row["terminal_counts"] and faults == 0
+          and frees == 1 and 8 <= attempted <= 4096 and attempted == used + dropped,
+          "terminal snapshots and sink reconciliation")
+    check(dropped > 0 if case == "negative" else dropped == 0, "case loss expectation")
+    wire = bytes.fromhex(row["ledger_hex"])
+    check(len(wire) == 512 * 32, "fixed ledger byte size")
+    for off in range(used * 32, len(wire), 32):
+        check(wire[off:off + 32] == bytes(32), "unused slots zero")
+    decoded = []
+    for kind, emitter, target, aux, stamp, local, global_tid in struct.iter_unpack(
+            "<IIIIQII", wire[:used * 32]):
+        check(1 <= kind <= 8 and 0 <= emitter < len(row["ready"]["allowed_cpus"]), "literal row class and CPU")
+        check((target in {0, 1}) if kind in {2, 5, 6} else target == 0xffffffff,
+              "literal target field")
+        check(kind == 4 or aux == 0, "literal state field")
+        check(local == local_tid and global_tid > 0, "literal owned identity")
+        check(row["run_before_ns"] <= stamp <= min(join1 + 2_000_000_000, row["finished"]["mono_ns"]),
+              "literal timestamp bound")
+        decoded.append({"kind": NAMES[kind], "emitter_cpu": emitter,
+                        "target_cpu": None if target == 0xffffffff else target,
+                        "raw_state": aux, "mono_ns": stamp, "local_tid": local, "global_tid": global_tid})
+    kinds = [record["kind"] for record in decoded]
+    check(kinds[0] == "birth" and decoded[0]["emitter_cpu"] == 0
+          and len({record["global_tid"] for record in decoded}) == 1, "single generation and birth first")
+    check(decoded == row["decoded"], "replayed binary matches published row representation")
+    summary = {"attempted": attempted, "published": used, "lost": dropped, "faults": faults,
+               "free_completed": frees, "ledger_sha256": sha(wire), "local_tid": local_tid,
+               "global_tid": decoded[0]["global_tid"]}
+    if case == "negative":
+        check(kinds == ["birth"], "loss-negative retains only the first birth")
+        return summary
+
+    for label in ("birth", "wake_new", "exit", "free"):
+        check(kinds.count(label) == 1, f"exactly one {label}")
+    check(kinds[:3] == ["birth", "wake_new", "switch_in"] and kinds[-1] == "free",
+          "literal first run and terminal free")
+    wakes = [index for index, record in enumerate(decoded) if
+             (record["kind"], record["emitter_cpu"], record["target_cpu"]) == ("waking", 0, 1)
+             and write0 <= record["mono_ns"] <= write1]
+    check(len(wakes) == 1, "one controlled cross-CPU waking")
+    waking = wakes[0]
+    sleep = max(index for index in range(waking) if kinds[index] in {"switch_in", "switch_out"})
+    check(kinds[sleep] == "switch_out" and decoded[sleep]["raw_state"] == 1
+          and decoded[sleep]["emitter_cpu"] == 1 and decoded[sleep]["mono_ns"] <= oracle["mono_ns"],
+          "actual park switch immediately precedes oracle and controlled waking")
+    resumed = min(index for index in range(waking + 1, len(kinds))
+                  if kinds[index] in {"switch_in", "switch_out"})
+    wakeup = [index for index in range(waking + 1, resumed) if kinds[index] == "wakeup"]
+    check(len(wakeup) == 1 and "waking" not in kinds[waking + 1:resumed]
+          and decoded[wakeup[0]]["target_cpu"] == 1
+          and decoded[wakeup[0]]["emitter_cpu"] in {0, 1}, "one target wakeup before next owned switch")
+    check(kinds[resumed] == "switch_in" and decoded[resumed]["emitter_cpu"] == 1
+          and decoded[resumed]["mono_ns"] <= read1, "first owned switch after wake resumes reader")
+    dead = [index for index, record in enumerate(decoded)
+            if record["kind"] == "switch_out" and record["raw_state"] == 0x80]
+    check(len(dead) == 1 and resumed < kinds.index("exit") < dead[0] < kinds.index("free"),
+          "exit then terminal switch then free")
+    chain = dict(zip(("birth", "wake_new", "first_switch", "park_switch", "waking", "wakeup",
+                      "resumed", "exit", "terminal_switch", "free"),
+                     (0, 1, 2, sleep, waking, wakeup[0], resumed, kinds.index("exit"), dead[0], len(kinds) - 1)))
+    check(chain == row["chain_slots"], "independent chain matches published chain")
+    chain_ns = [decoded[index]["mono_ns"] for index in chain.values()]
+    check(chain_ns == sorted(chain_ns), "selected chain monotonic")
+    summary.update(chain_slots=chain, cross_cpu={"emitter": 0, "target": 1,
+                   "wakeup_emitter": decoded[wakeup[0]]["emitter_cpu"]},
+                   free_after_join_ns=decoded[-1]["mono_ns"] - join1)
+    return summary
+
+
+def audit():
+    frozen = get("fixture-freeze03.json")
+    bound = get("fixture-bound03.json")
+    ns = bound["namespace_inode"]
+    check(frozen["cpus"] == [0, 1] and tuple(frozen["cases"]) == CASE_ORDER, "fixed case and CPU order")
+    check(sha(read("protocol03.md")) == frozen["protocol_sha256"], "frozen protocol source")
+    check(sha(read("run_fixture_matrix03.py")) == frozen["supervisor_sha256"], "frozen supervisor source")
+    for source, digest in frozen["source_sha256"].items():
+        name = Path(source).name
+        candidate = "scheduler_dynamic_program.03.py.txt" if name == "scheduler_dynamic_program.py" else name + ".txt"
+        check(sha(read(candidate)) == digest, "retained frozen source hash")
+    check(read("matrix-attempt03.stderr.txt") == b"", "supervisor clean stderr")
+    launch = [json.loads(line) for line in read("matrix-attempt03.log").splitlines()]
+    check([row["case"] for row in launch] == list(CASE_ORDER), "actual ordered supervisor receipts")
+    hooks = ["sys_enter", *frozen["hook_order"]]
+    check(len(hooks) == len(set(hooks)) == 9, "unique allowed hooks")
+    owners = set()
+    all_local_tasks = set()
+    cases = {}
+    for order, case in enumerate(CASE_ORDER):
+        args = [str(ns) if item == "@LIVE_NAMESPACE@" else item for item in frozen["cases"][case]]
+        check(args == bound["commands"][case], "bound command matches frozen template")
+        prefix = f"{case}-attempt03"
+        row = get(prefix + ".stdout.json")
+        check(get(prefix + ".exit.json") == {"exit_code": 0}
+              and read(prefix + ".stderr.txt") == b"", "clean actual exit and stderr")
+        check(row["case"] == case and row["passed"] and not row["capture_ready"], "case result and scope")
+        expected = hooks[:1] if case == "seed" else hooks
+        check([program["hook"] for program in row["programs"]] == expected, "program load order")
+        check(row["attached_hooks"] == [{"tp_name": hook, "cookie": 0} for hook in expected],
+              "exact raw link fdinfo and arm order")
+        check(launch[order] == {"case": case, "exit": 0, "hooks": len(expected),
+                              "closed": row["closed_fds"], "counters": row.get("terminal_counts"),
+                              "failure": None}, "supervisor agrees with raw report")
+        role_fds = {}
+        hashes = {}
+        for program in row["programs"]:
+            hook = program["hook"]
+            template = frozen["templates"]["seed"] if hook == "sys_enter" else frozen["templates"][case][hook]
+            hashes[hook] = inspect_program(program, template, ns, role_fds)
+        pid = inspect_controls(case, row, ns)
+        check(pid not in owners and pid not in all_local_tasks, "fresh actor identity per case")
+        owners.add(pid)
+        all_local_tasks.add(pid)
+        summary = {"raw_stdout_sha256": sha(read(prefix + ".stdout.json")), "pid": pid,
+                   "loaded_hooks": len(hashes), "closed_fds": row["closed_fds"],
+                   "program_sha256": hashes}
+        if case != "seed":
+            summary.update(inspect_ledger(case, row, pid))
+            child_ids = {summary["local_tid"], row["nonmember_fork"]["child_local_pid"]}
+            check(not child_ids & all_local_tasks, "fresh worker and nonmember identities")
+            all_local_tasks.update(child_ids)
+        cases[case] = summary
+
+    one = get("seed-attempt01.stdout.json")
+    two = get("negative-attempt02.stdout.json")
+    check(not one["passed"] and not one["programs"] and not one["attached_hooks"]
+          and one["failure"]["message"] == "PID namespace changed"
+          and get("seed-attempt01.exit.json") == {"exit_code": 1}, "retained attempt01 prelaunch rejection")
+    check(get("seed-attempt02.exit.json") == {"exit_code": 0}
+          and not two["passed"] and get("negative-attempt02.exit.json") == {"exit_code": 1}
+          and two["failure"]["errno"] == 22 and two["attached_hooks"] == [{"tp_name": "sys_enter", "cookie": 0}]
+          and two["programs"][-1]["hook"] == "sched_prepare_exec"
+          and b"unreachable" in bytes.fromhex(two["programs"][-1]["verifier_log_hex"]),
+          "retained attempt02 exec verifier rejection before lifecycle attach")
+    return {"schema_version": 1, "audit": "independent replay of retained native fixture attempt03",
+            "checks_passed": sum(CHECKS.values()), "checks_by_kind": dict(CHECKS),
+            "namespace_inode": ns, "cases": cases,
+            "scope": "Binary replay checks reported close, attach, recursion and terminal snapshots. "
+                     "It does not rerun syscalls or separately observe the collector's second terminal read."}
+
+
+if __name__ == "__main__":
+    result = audit()
+    with (ROOT / "independent-fixture-audit03.json").open("x", encoding="utf-8", newline="\n") as out:
+        json.dump(result, out, indent=2)
+        out.write("\n")

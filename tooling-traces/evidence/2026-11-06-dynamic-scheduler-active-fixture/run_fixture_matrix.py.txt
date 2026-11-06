@@ -1,0 +1,46 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+
+root = Path(__file__).resolve().parent
+samples = Path("/mnt/d/Cephalon/Cehpalon-Engine-Samples")
+proof = json.loads((root / "fixture-freeze02.json").read_bytes())
+assert Path(sys.executable) == Path("/usr/bin/python3") and os.geteuid() == 0
+assert hashlib.sha256(Path(__file__).read_bytes()).hexdigest() == proof["supervisor_sha256"]
+protocol = root.parents[1] / "internal/validation/dynamic-scheduler-active-fixture.md"
+assert hashlib.sha256(protocol.read_bytes()).hexdigest() == proof["protocol_sha256"]
+inode = Path("/proc/self/ns/pid").stat().st_ino
+boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+commands = {
+    case: [str(inode) if token == "@LIVE_NAMESPACE@" else token for token in command]
+    for case, command in proof["cases"].items()
+}
+with (root / "fixture-bound02.json").open("x", encoding="utf-8") as stream:
+    json.dump({"namespace_inode": inode, "boot_id": boot, "commands": commands}, stream, indent=2)
+    stream.write("\n")
+for case in ("seed", "negative", "positive"):
+    for path, digest in proof["source_sha256"].items():
+        assert hashlib.sha256((samples / path).read_bytes()).hexdigest() == digest, path
+    name = root / f"{case}-attempt02"
+    with name.with_suffix(".stdout.json").open("xb") as stdout, name.with_suffix(".stderr.txt").open("xb") as stderr:
+        try:
+            result = subprocess.run(commands[case], cwd=samples, env={}, stdout=stdout,
+                                    stderr=stderr, timeout=40, check=False)
+            status = result.returncode
+        except subprocess.TimeoutExpired:
+            status = 124
+    with name.with_suffix(".exit.json").open("x", encoding="utf-8") as stream:
+        json.dump({"exit_code": status}, stream)
+    try:
+        report = json.loads(name.with_suffix(".stdout.json").read_bytes())
+    except ValueError:
+        report = {}
+    print(json.dumps({"case": case, "exit": status, "hooks": len(report.get("attached_hooks", [])),
+                      "closed": report.get("closed_fds"), "counters": report.get("terminal_counts"),
+                      "failure": report.get("failure")}), flush=True)
+    if status:
+        raise SystemExit(status)
