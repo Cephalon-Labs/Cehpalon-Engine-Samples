@@ -1,0 +1,307 @@
+"""Independently check retained CLR fixture receipts without running native code."""
+
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import struct
+
+
+ROOT = Path(__file__).parent
+ROW = struct.Struct("<IIIIQIIII")
+NAMES = ("exec", "wake_new", "switch_in", "switch_out", "waking", "wakeup", "exit", "free", "birth")
+HOOKS = ("sched_prepare_exec", "sched_wakeup_new", "sched_switch", "sched_switch", "sched_waking",
+         "sched_wakeup", "sched_process_exit", "sched_process_free", "task_newtask")
+MODES = ("on", "off", "on", "off", "on", "on", "off", "off", "on", "on", "off")
+TAIL_NS = 2_000_000_000
+CHECKS = Counter()
+
+
+def check(condition, reason):
+    if not condition:
+        raise ValueError(reason)
+    CHECKS[reason] += 1
+
+
+def read(name):
+    return (ROOT / name).read_bytes()
+
+
+def get(name):
+    return json.loads(read(name))
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_program(program, template, probe, namespace, fds):
+    code, fixed = bytes.fromhex(program["program_hex"]), bytes.fromhex(template["hex"])
+    check(len(code) == len(fixed) == template["instructions"] * 8
+          and sha(fixed) == template["sha256"], "frozen template size and hash")
+    check(program["recursion_before"] == program["recursion_after"] == 0, "reported zero recursion misses")
+    roles = {
+        "seed": ("storage",),
+        "exec": ("storage", "members", "counts"),
+        "free": ("members", "members", "counts", "records", "counts"),
+        "birth": ("storage", "members", "counts", "members", "members", "counts", "records", "counts"),
+    }.get(probe, ("members", "counts", "records", "counts"))
+    observed_fds = []
+    namespace_fields = 0
+    for offset in range(0, len(code), 8):
+        expected, actual = fixed[offset:offset + 8], code[offset:offset + 8]
+        if expected[:2] == b"\x18\x11":
+            check(expected[4:] == bytes(4) and actual[:4] == expected[:4], "declared pseudo-map FD relocation")
+            observed_fds.append(int.from_bytes(actual[4:], "little"))
+        elif probe == "birth" and expected[0] == 0x56:
+            check(expected[4:] == bytes(4) and actual[:4] == expected[:4]
+                  and actual[4:] == namespace.to_bytes(4, "little"), "declared live namespace relocation")
+            namespace_fields += 1
+        else:
+            check(actual == expected, "unrelocated instruction bytes equal")
+    check(namespace_fields == (probe == "birth") and len(observed_fds) == len(roles), "exact relocation counts")
+    for role, fd in zip(roles, observed_fds):
+        check(2 < fd < 1024 and fds.setdefault(role, fd) == fd, "one bounded descriptor per map role")
+
+
+def verify_setup(freeze, bound):
+    check(tuple(row["mode"] for row in freeze["cases"]) == MODES and freeze["cpus"] == [0, 1],
+          "frozen CPU and case order")
+    check(tuple(freeze["probe_order"]) == NAMES and tuple(freeze["raw_hooks"]) == HOOKS,
+          "frozen lifecycle hooks and split switch roles")
+    check(sha(read("protocol02.md")) == freeze["protocol_sha256"]
+          and sha(read("run_clr_matrix02.py")) == freeze["supervisor_sha256"], "frozen protocol and supervisor bytes")
+    for name, digest in freeze["source_sha256"].items():
+        base = Path(name).name
+        if base == "collect_scheduler_clr_fixture.py":
+            base = "collect_scheduler_clr_fixture.02.py"
+        check(sha(read(base + ".txt")) == digest, "retained frozen source hash")
+    ns = bound["namespace_inode"]
+    check(type(ns) is int and 0 < ns < 2**32 and bool(bound["boot_id"]), "bound boot and PID namespace")
+    check(bound["command"] == [str(ns) if token == "@LIVE_NAMESPACE@" else token
+                              for token in freeze["command"]], "bound command matches frozen command")
+    matrix = [json.loads(line) for line in read("matrix02.log").splitlines()]
+    check([x["case"] for x in matrix] == [x["name"] for x in freeze["cases"]]
+          and all(x["exit"] == 0 and x["failure"] is None for x in matrix)
+          and not read("matrix02.stderr.txt"), "supervisor ran each case in order")
+    return matrix
+
+
+def tasks(cohort):
+    values = {entry["tid"]: entry["start_ticks"] for entry in cohort}
+    check(len(values) == len(cohort) <= 16
+          and all(row["tid"] > 0 and row["start_ticks"] > 0 and row["uid"] == row["gid"] == 1000
+                  for row in cohort), "unique bounded ordinary task snapshots")
+    return values
+
+
+def verify_actor(report, mode):
+    ready, park, oracle, complete, finish = (report[key] for key in
+        ("ready", "parked", "park_oracle", "completed", "finished"))
+    clock = report["controller"]
+    pid, tid = ready["pid"], park["worker_tid"]
+    check(ready["kind"] == "ready" and pid == ready["main_tid"] == finish["pid"] == finish["main_tid"]
+          and ready["fixture_version"] == 1 and ready["runtime_version"] == ".NET 11.0.0-rc.3.26522.148"
+          and ready["stopwatch_frequency"] == 10**9 and ready["threadpool_count"] == 0
+          and [ready["main_cpu"], ready["worker_cpu"]] == [0, 1], "pinned ready identity and no existing pool workers")
+    pre, after = tasks(report["prearm_cohort"]), tasks(report["held_after_work"])
+    check(pid in pre and 1 <= len(pre) <= 16 and pre.items() <= after.items(), "same pre-arm task identities after work")
+    worker = report["parked_task_identity"]
+    check(park["kind"] == "park" and park["is_thread_pool_thread"] is True and park["managed_thread_id"] > 0
+          and park["worker_cpu"] == 1 and tid == worker["tid"] == complete["worker_tid"]
+          and tid not in pre and worker in report["held_after_work"], "actual CLR worker bound across park and held completion")
+    check(oracle["syscall"] == 0 and oracle["fd"] == park["park_read_fd"] >= 0 and oracle["count"] == 1
+          and oracle["state"] == "S" and oracle["worker_cpu"] == 1, "private pipe read oracle on CPU 1")
+    check(complete["kind"] == "completed" and complete["rounds"] == 64
+          and complete["checksum"] == "4fcd3a1dd438d325" and complete["main_cpu"] == 0
+          and complete["worker_cpu"] == 1 and finish["kind"] == "finished" and finish["worker_completed"] is True,
+          "fixed 64-round workload and clean finish receipt")
+    markers = [report[f"owner_{key}_marker"] for key in ("unseeded", "seeded")]
+    check(all(marker["kind"] == "marker" and marker["local_tid"] == pid and marker["cpu"] == 0
+              and marker["mono_before_ns"] < marker["mono_after_ns"] for marker in markers)
+          and clock["prepare_start_ns"] <= ready["mono_ns"] <= markers[0]["mono_before_ns"]
+          < markers[0]["mono_after_ns"] <= markers[1]["mono_before_ns"]
+          < markers[1]["mono_after_ns"] <= clock["run_send_ns"], "ordered same-actor marker controls")
+    check(complete["work_begin_ns"] == park["work_begin_ns"]
+          and complete["work_begin_ticks"] == park["work_begin_ticks"]
+          and clock["run_send_ns"] <= complete["work_begin_ns"] <= park["mono_ns"] <= oracle["mono_ns"]
+          <= complete["ping_begin_ns"] < min(complete["ping_end_ns"], complete["work_end_ns"])
+          <= max(complete["ping_end_ns"], complete["work_end_ns"]) <= clock["done_receive_ns"]
+          <= finish["mono_ns"] <= report["reaped_ns"] <= clock["cleanup_end_ns"], "ordered actor/controller time brackets")
+    check(complete["ping_begin_ticks"] < complete["ping_end_ticks"]
+          and complete["ping_begin_process_cpu_ns"] <= complete["ping_end_process_cpu_ns"],
+          "valid independent Stopwatch and process CPU brackets")
+    check(report["actor_exit_code"] == 0 and not report["forced_cleanup"] and not report["cleanup_errors"]
+          and report["closed_fds"] == (28 if mode == "on" else 3) + len(pre) - 1, "reported actor reap and owned FD cleanup")
+    if mode == "on":
+        verify_seed(report["seed_map_receipts"], pid, pre)
+    else:
+        check(not report["seed_map_receipts"] and not report["programs"] and not report["attached_hooks"]
+              and "ledger_hex" not in report, "off case has no retained BPF activity")
+    return pid, pre, after
+
+
+def verify_seed(receipts, pid, pre):
+    expected = [("unseeded_owner", 2, None), ("seed_owner", None, None),
+                ("unseeded_collector", 2, None), ("seed_unchanged_after_nonmember", None, 0x43455048414C4F4E),
+                ("kernel_ack", None, 0x43455048)]
+    for tid in sorted(pre.keys() - {pid}):
+        expected.extend([(f"seed_prearm_{tid}", None, None), (f"read_prearm_{tid}", None, 0x43455048)])
+    expected.append(("reaped_leader_absent", 2, None))
+    check([(row["stage"], row["errno"], row.get("value")) for row in receipts] == expected,
+          "seeded leader and every reported pre-arm sibling, negative control and post-reap miss")
+
+
+def verify_hooks(report, freeze, namespace):
+    programs = report["programs"]
+    check(tuple(row.get("probe", "seed") for row in programs) == ("seed", *NAMES)
+          and tuple(row["hook"] for row in programs) == ("sys_enter", *HOOKS),
+          "reported program order and dual switch attachment roles")
+    check(report["attached_hooks"] == [{"tp_name": hook, "cookie": 0} for hook in ("sys_enter", *HOOKS)],
+          "exact attached raw link names and zero cookies")
+    fds = {}
+    for row in programs:
+        probe = row.get("probe", "seed")
+        verify_program(row, freeze["templates"][probe], probe, namespace, fds)
+    check(set(fds) == {"storage", "members", "counts", "records"} and len(set(fds.values())) == len(fds),
+          "separate map descriptor roles")
+
+
+def verify_ledger(report, pre, after):
+    raw = bytes.fromhex(report["ledger_hex"])
+    terminal = report["terminal_counts"]
+    records, lost, faults, frees, admitted = terminal
+    check(0 < records <= 2048 and lost == faults == 0 and 0 < frees == admitted <= 16,
+          "complete bounded ledger terminal counters")
+    digest = sha(raw)
+    check(terminal == report["terminal_before_detach"] and report["second_read"] == {
+        "counts": terminal, "ledger_sha256": digest}, "stable detached count and byte digest")
+    check(len(raw) == 2048 * ROW.size, "fixed binary ledger size")
+    lower = report["controller"]["run_send_ns"]
+    upper = min(report["reaped_ns"] + TAIL_NS, report["controller"]["cleanup_end_ns"])
+    groups, active = {}, {}
+    for slot, data in enumerate(ROW.iter_unpack(raw)):
+        if slot >= records:
+            check(not any(data), "unpublished slot is zero")
+            continue
+        kind, emitter, target, state, ns, local, global_tid, generation, parent = data
+        check(1 <= kind <= 8 and generation > 0 and local > 0 and global_tid > 0
+              and (target != 0xFFFFFFFF) == (kind in {2, 5, 6}) and (kind == 4 or state == 0)
+              and lower <= ns <= upper, "raw row schema and monotonic window")
+        identity = (local, global_tid, parent)
+        if kind == 1:
+            check(generation not in groups and (parent == 0 or parent in active)
+                  and all(local != item[0] and global_tid != item[1] for item in active.values())
+                  and local not in pre, "fresh born identity and valid parent generation")
+            groups[generation] = []
+            active[generation] = identity
+        check(active.get(generation) == identity, "every row has matching live generation and identity")
+        groups[generation].append((slot, data))
+        if kind == 8:
+            del active[generation]
+    check(set(groups) == set(range(1, admitted + 1)) and not active,
+          "all reserved generation ordinals present and retired")
+    check(set(after) - set(pre) == {items[0][1][5] for items in groups.values()},
+          "held new task snapshot equals all observed admitted local TIDs")
+    summary = {}
+    for generation, items in sorted(groups.items()):
+        kinds = [row[0] for _, row in items]
+        check(all(kinds.count(kind) == 1 for kind in (1, 2, 7, 8)) and 3 in kinds,
+              "single birth, new wake, exit and free with a switch in")
+        exit_index = kinds.index(7)
+        check(kinds[0] == 1 and kinds[-1] == 8 and kinds.index(2) < kinds.index(3) < exit_index
+              and any(row[0] == 4 and row[3] == 128 for _, row in items[exit_index + 1:-1])
+              and all(left[1][4] < right[1][4] for left, right in zip(items, items[1:])),
+              "complete ordered generation lifecycle through terminal switch and free")
+        birth, exited, freed = items[0][1], items[exit_index][1], items[-1][1]
+        check(report["finished"]["mono_ns"] <= exited[4] <= report["reaped_ns"] < freed[4],
+              "generation exit during process teardown, followed by observed free")
+        parent = birth[-1]
+        if parent:
+            parent_rows = groups[parent]
+            parent_first_switch = next(row[4] for _, row in parent_rows if row[0] == 3)
+            parent_exit = next(row[4] for _, row in parent_rows if row[0] == 7)
+            check(parent_first_switch <= birth[4] < parent_exit, "nested birth inside active parent lifetime")
+        summary[str(generation)] = {"local_tid": birth[5], "global_tid": birth[6],
+                                    "parent_generation": parent, "records": len(items),
+                                    "free_after_reap_ns": freed[4] - report["reaped_ns"]}
+    callback = verify_callback(report, groups)
+    for generation in summary:
+        summary[generation]["role"] = "callback" if int(generation) == callback["generation"] else "auxiliary"
+    return {"records": records, "lost": lost, "faults": faults, "admitted": admitted, "freed": frees,
+            "ledger_sha256": digest, "callback": callback, "generations": summary}
+
+
+def verify_callback(report, groups):
+    parked, oracle, completed = report["parked"], report["park_oracle"], report["completed"]
+    matches = [(generation, rows) for generation, rows in groups.items()
+               if rows[0][1][5] == parked["worker_tid"] and rows[0][1][4] < parked["mono_ns"] < rows[-1][1][4]]
+    check(len(matches) == 1, "CLR callback TID and clock bind exactly one generation")
+    generation, rows = matches[0]
+    birth_slot, birth = rows[0]
+    first_switch = next(row[4] for _, row in rows if row[0] == 3)
+    exit_slot, exited = next((slot, row) for slot, row in rows if row[0] == 7)
+    check(completed["work_begin_ns"] <= birth[4] < first_switch <= parked["mono_ns"]
+          and completed["work_end_ns"] < exited[4], "birth and switch precede callback and work ends before native exit")
+    wake_idx = next(i for i, (_, row) in enumerate(rows) if row[0] == 5 and row[4] >= oracle["mono_ns"])
+    waking_slot, waking = rows[wake_idx]
+    check(waking[1:3] == (0, 1) and completed["ping_begin_ns"] <= waking[4] <= completed["ping_end_ns"],
+          "first waking after parked oracle is controlled CPU 0 to CPU 1")
+    _, prior_switch = next((slot, row) for slot, row in reversed(rows[:wake_idx]) if row[0] in {3, 4})
+    check(prior_switch[0:4] == (4, 1, 0xFFFFFFFF, 1) and prior_switch[4] <= oracle["mono_ns"],
+          "selected wake follows an observed sleeping switch-out")
+    resume_idx = next(i for i in range(wake_idx + 1, len(rows)) if rows[i][1][0] in {3, 4})
+    resume_slot, resumed = rows[resume_idx]
+    middle = rows[wake_idx + 1:resume_idx]
+    wakeups = [(slot, row) for slot, row in middle if row[0] == 6]
+    check(resumed[0:2] == (3, 1) and resumed[4] <= completed["ping_end_ns"]
+          and len(wakeups) == 1 and wakeups[0][1][2] == 1 and all(row[0] != 5 for _, row in middle),
+          "one target CPU 1 wakeup before the first CPU 1 resumption")
+    binding = {"generation": generation, "local_tid": birth[5], "global_tid": birth[6],
+               "parent_generation": birth[-1], "birth_slot": birth_slot, "waking_slot": waking_slot,
+               "wakeup_slot": wakeups[0][0], "resumed_slot": resume_slot, "exit_slot": exit_slot,
+               "free_slot": rows[-1][0]}
+    check(report["callback_binding"] == binding, "collector callback binding equals independent raw chain")
+    return {**binding, "remote_waking_points_in_ping_bracket": sum(
+        row[0:3] == (5, 0, 1) and completed["ping_begin_ns"] <= row[4] <= completed["ping_end_ns"]
+        for _, row in rows)}
+
+
+def audit():
+    freeze, bound = get("clr-freeze02.json"), get("clr-bound02.json")
+    matrix = verify_setup(freeze, bound)
+    artifacts = {Path(path).name: digest for path, digest in freeze["artifacts_sha256"].items()}
+    audited = {}
+    previous_cleanup = 0
+    for case, supervisor in zip(freeze["cases"], matrix):
+        name, mode = case["name"], case["mode"]
+        raw = read(f"{name}.stdout.json")
+        report = json.loads(raw)
+        check(get(f"{name}.exit.json") == {"exit_code": 0} and not read(f"{name}.stderr.txt")
+              and report["mode"] == mode and report["passed"] is True and report["capture_ready"] is False,
+              "clean recorded exit and correct scoped mode")
+        check(report["fixture_sha256"] == artifacts["ThreadPoolConformance.dll"]
+              and report["runtime_sha256"] == artifacts["libcoreclr.so"], "reported fixture and CLR hashes match freeze")
+        check(previous_cleanup <= report["controller"]["prepare_start_ns"], "fresh case starts after preceding cleanup")
+        previous_cleanup = report["controller"]["cleanup_end_ns"]
+        pid, pre, after = verify_actor(report, mode)
+        check(supervisor["closed"] == report["closed_fds"] and supervisor["hooks"] == len(report["attached_hooks"])
+              and supervisor["counters"] == report.get("terminal_counts"), "supervisor matches individual report")
+        audited[name] = {"mode": mode, "pid": pid, "raw_report_sha256": sha(raw),
+                         "owned_fds_reported_closed": report["closed_fds"], "pre_arm_tasks": len(pre),
+                         "post_work_tasks": len(after)}
+        if mode == "on":
+            verify_hooks(report, freeze, bound["namespace_inode"])
+            audited[name].update(verify_ledger(report, pre, after))
+    check(len({row["pid"] for row in audited.values()}) == len(audited), "distinct process identity in all fresh cases")
+    return {"schema_version": 1, "checks_passed": sum(CHECKS.values()), "checks_by_kind": dict(CHECKS),
+            "namespace_inode": bound["namespace_inode"], "boot_id": bound["boot_id"], "cases": audited,
+            "scope": "Offline replay of retained reports and frozen bytecode. Auxiliary roles remain unnamed. "
+                     "This does not verify unobserved births, host perturbation or Roslyn readiness."}
+
+
+if __name__ == "__main__":
+    result = audit()
+    with (ROOT / "independent-clr-fixture-audit02.json").open("x", encoding="utf-8", newline="\n") as out:
+        json.dump(result, out, indent=2)
+        out.write("\n")

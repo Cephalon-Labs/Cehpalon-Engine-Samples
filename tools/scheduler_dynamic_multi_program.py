@@ -44,7 +44,7 @@ def get_member(p, members, pointer):
     p.jump(0x5D, "fault", 0, 1)
 
 
-def birth(p, storage, members, counts, namespace):
+def birth(p, storage, members, counts, namespace, generation_limit):
     p.emit(0x79, 2, 6, 8)
     p.jump(0x45, "thread", 2, imm=CLONE_THREAD)
     p.jump(0x05, "return")
@@ -97,7 +97,7 @@ def birth(p, storage, members, counts, namespace):
     p.jump(0x15, "fault", 0)
     p.number(1, 1)
     p.emit(0xC3, 0, 1, 16, 1)  # Bounded admission ordinal before insert.
-    p.jump(0x35, "fault", 1, imm=3)
+    p.jump(0x35, "fault", 1, imm=generation_limit)
     p.emit(0x07, 1, imm=1)
     p.emit(0x63, 10, 1, VALUE + 16)
     p.emit(0x7A, 10, off=VALUE + 24)
@@ -176,8 +176,8 @@ def publish(p, name, members, counts, records, capacity):
     p.jump(0x05, "return")
 
 
-def multi_program(name, storage, members, counts, records, capacity, namespace):
-    if name not in PROBES or capacity not in {1, 512}:
+def multi_program(name, storage, members, counts, records, capacity, namespace, generation_limit=3):
+    if name not in PROBES or (capacity, generation_limit) not in {(1, 3), (512, 3), (2048, 16)}:
         raise ValueError("unsupported multiworker probe")
     p = Program()
     p.mov(6, 1)
@@ -186,7 +186,7 @@ def multi_program(name, storage, members, counts, records, capacity, namespace):
         p.emit(0x62, 10, off=-24, imm=-1)
         p.emit(0x62, 10, off=-28)
     if name == "birth":
-        birth(p, storage, members, counts, namespace)
+        birth(p, storage, members, counts, namespace, generation_limit)
     else:
         target(p, name, storage, members)
     if name != "exec":

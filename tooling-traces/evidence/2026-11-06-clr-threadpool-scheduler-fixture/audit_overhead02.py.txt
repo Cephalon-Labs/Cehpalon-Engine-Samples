@@ -1,0 +1,198 @@
+"""Independently replay the frozen overhead02 receipts without running any collector."""
+
+from decimal import Decimal, localcontext
+import hashlib
+import json
+from pathlib import Path
+
+
+ROOT = Path(__file__).parent
+CHECKS = 0
+MODES = ("off", "on", "off", "on", "on", "off", "off", "on", "on", "off")
+RUNTIME = ".NET 11.0.0-rc.3.26522.148"
+CHECKSUM = "4fcd3a1dd438d325"
+
+
+def check(condition, detail):
+    global CHECKS
+    if not condition:
+        raise ValueError(detail)
+    CHECKS += 1
+
+
+def data(name):
+    return json.loads((ROOT / name).read_bytes())
+
+
+def sha(blob):
+    return hashlib.sha256(blob).hexdigest()
+
+
+def ordered(values):
+    return all(type(value) is int and value >= 0 for value in values) and all(
+        left <= right for left, right in zip(values, values[1:])
+    )
+
+
+def verify_freeze(freeze, bound):
+    check(sha((ROOT / "protocol02.md").read_bytes()) == freeze["protocol_sha256"], "protocol bytes differ")
+    check(sha((ROOT / "run_clr_matrix02.py").read_bytes()) == freeze["supervisor_sha256"], "supervisor differs")
+    check(freeze["cpus"] == [0, 1] and type(bound["namespace_inode"]) is int, "bound machine identity differs")
+    expected_command = [str(bound["namespace_inode"]) if value == "@LIVE_NAMESPACE@" else value
+                        for value in freeze["command"]]
+    check(bound["command"] == expected_command, "bound command differs")
+    for path, expected in freeze["source_sha256"].items():
+        filename = Path(path).name
+        if filename == "collect_scheduler_clr_fixture.py":
+            filename = "collect_scheduler_clr_fixture.02.py"
+        check(sha((ROOT / f"{filename}.txt").read_bytes()) == expected, f"archived source differs: {filename}")
+
+    sequence = [{"name": "conformance02", "mode": "on"}]
+    for slot, mode in enumerate(MODES, 1):
+        pair = (slot - 1) // 2
+        sequence.append({"name": f"overhead02-{slot:02}-{mode}", "slot": slot, "pair": pair,
+                         "phase": "measured" if pair else "primer", "mode": mode})
+    check(freeze["cases"] == sequence, "frozen case metadata differs from declared order")
+    matrix = [json.loads(line) for line in (ROOT / "matrix02.log").read_text(encoding="utf-8").splitlines()]
+    check([row["case"] for row in matrix] == [row["name"] for row in sequence], "actual supervisor order differs")
+    check((ROOT / "matrix02.stderr.txt").read_bytes() == b"", "nonempty supervisor stderr")
+    return sequence, matrix
+
+
+def audit_case(spec, receipt, fixture, runtime, previous_end):
+    name, mode = spec["name"], spec["mode"]
+    raw = (ROOT / f"{name}.stdout.json").read_bytes()
+    report = json.loads(raw)
+    check(data(f"{name}.exit.json") == {"exit_code": 0}, f"{name}: subprocess failed")
+    check((ROOT / f"{name}.stderr.txt").read_bytes() == b"", f"{name}: subprocess stderr")
+    check(receipt == {"case": name, "exit": 0, "hooks": len(report["attached_hooks"]),
+                      "closed": report["closed_fds"], "counters": report.get("terminal_counts"),
+                      "failure": None}, f"{name}: supervisor receipt differs")
+    check(report["mode"] == mode and report["passed"] is True and report["capture_ready"] is False,
+          f"{name}: unexpected report status")
+    check(report["fixture_sha256"] == fixture and report["runtime_sha256"] == runtime,
+          f"{name}: artifact hash differs")
+
+    ready, work, control = (report[key] for key in ("ready", "completed", "controller"))
+    before, after, park, oracle, finish = (report[key] for key in (
+        "owner_unseeded_marker", "owner_seeded_marker", "parked", "park_oracle", "finished",
+    ))
+    pid, worker = ready["pid"], work["worker_tid"]
+    check(ready["kind"] == "ready" and ready["main_tid"] == pid and ready["fixture_version"] == 1
+          and ready["stopwatch_frequency"] == 10**9 and ready["runtime_version"] == RUNTIME
+          and ready["threadpool_count"] == 0, f"{name}: invalid held CLR receipt")
+    check(work["kind"] == "completed" and work["rounds"] == 64 and work["checksum"] == CHECKSUM
+          and worker != pid, f"{name}: fixed callback work differs")
+    check((ready["main_cpu"], ready["worker_cpu"], work["main_cpu"], work["worker_cpu"])
+          == (0, 1, 0, 1), f"{name}: fixture affinity differs")
+    check(all(marker["kind"] == "marker" and marker["local_tid"] == pid and marker["cpu"] == 0
+              for marker in (before, after)), f"{name}: owner marker differs")
+    check(park["kind"] == "park" and park["is_thread_pool_thread"] is True
+          and park["worker_tid"] == worker and park["worker_cpu"] == 1
+          and park["work_begin_ns"] == work["work_begin_ns"]
+          and park["work_begin_ticks"] == work["work_begin_ticks"], f"{name}: parked callback differs")
+    check((oracle["syscall"], oracle["fd"], oracle["count"], oracle["state"], oracle["worker_cpu"])
+          == (0, park["park_read_fd"], 1, "S", 1), f"{name}: blocked read evidence differs")
+    prearm = {thread["tid"]: thread for thread in report["prearm_cohort"]}
+    held = {thread["tid"]: thread for thread in report["held_after_work"]}
+    check(len(prearm) == len(report["prearm_cohort"]) <= 16 and pid in prearm and worker not in prearm
+          and all(thread["uid"] == thread["gid"] == 1000 for thread in prearm.values()),
+          f"{name}: pre-arm cohort differs")
+    check(report["parked_task_identity"]["tid"] == worker and held[worker] == report["parked_task_identity"],
+          f"{name}: callback identity was not held after work")
+    check(finish["kind"] == "finished" and finish["worker_completed"] is True
+          and finish["pid"] == finish["main_tid"] == pid and report["actor_exit_code"] == 0
+          and report["cleanup_errors"] == [] and report["forced_cleanup"] is False,
+          f"{name}: actor exit or cleanup differs")
+
+    endpoints = (work["work_end_ns"], work["ping_end_ns"])
+    ns_sequence = (previous_end, control["prepare_start_ns"], ready["mono_ns"], before["mono_before_ns"],
+                   before["mono_after_ns"], after["mono_before_ns"], after["mono_after_ns"],
+                   control["run_send_ns"], work["work_begin_ns"], park["mono_ns"], oracle["mono_ns"],
+                   work["ping_begin_ns"], min(endpoints), max(endpoints), control["done_receive_ns"],
+                   finish["mono_ns"], report["reaped_ns"], control["cleanup_end_ns"])
+    check(ordered(ns_sequence) and work["ping_begin_ns"] < min(endpoints),
+          f"{name}: monotonic run brackets invalid")
+    tick_ends = (work["work_end_ticks"], work["ping_end_ticks"])
+    check(ordered((work["work_begin_ticks"], work["ping_begin_ticks"], min(tick_ends), max(tick_ends)))
+          and work["ping_begin_ticks"] < min(tick_ends), f"{name}: Stopwatch brackets invalid")
+    check(ordered((work["ping_begin_process_cpu_ns"], work["ping_end_process_cpu_ns"])),
+          f"{name}: process CPU clock invalid")
+
+    if mode == "off":
+        check(report["closed_fds"] == 3 + len(prearm) - 1 and report["attached_hooks"] == []
+              and report["programs"] == [] and report["seed_map_receipts"] == []
+              and "terminal_counts" not in report and "ledger_hex" not in report,
+              f"{name}: OFF contained collector activity")
+    else:
+        counts = report["terminal_counts"]
+        raw_ledger = bytes.fromhex(report["ledger_hex"])
+        check(report["closed_fds"] == 28 + len(prearm) - 1 and len(report["attached_hooks"]) == 10
+              and len(report["programs"]) == 10 and all(p["recursion_before"] == p["recursion_after"] == 0
+                                                     for p in report["programs"]), f"{name}: ON collector resources differ")
+        check(0 < counts[0] <= 2048 and counts[1:3] == [0, 0] and counts[3] == counts[4] > 0
+              and report["terminal_before_detach"] == counts == report["second_read"]["counts"]
+              and len(raw_ledger) == 2048 * 40 and sha(raw_ledger) == report["second_read"]["ledger_sha256"]
+              and report["callback_binding"]["local_tid"] == worker, f"{name}: ON ledger or loss gate differs")
+
+    return {**spec, "report_sha256": sha(raw), "pid": pid, "worker_tid": worker,
+            "ping_ns": work["ping_end_ns"] - work["ping_begin_ns"],
+            "work_ns": work["work_end_ns"] - work["work_begin_ns"],
+            "ping_process_cpu_ns": work["ping_end_process_cpu_ns"] - work["ping_begin_process_cpu_ns"],
+            "prepare_ns": control["run_send_ns"] - control["prepare_start_ns"],
+            "command_ns": control["done_receive_ns"] - control["run_send_ns"],
+            "cleanup_ns": control["cleanup_end_ns"] - control["done_receive_ns"]}, control["cleanup_end_ns"]
+
+
+def summarize(cases):
+    pair_rows, aggregates = [], {}
+    with localcontext() as ctx:
+        ctx.prec = 40
+        for index in range(0, 10, 2):
+            cases_in_pair = cases[index:index + 2]
+            mapped = {case["mode"]: case for case in cases_in_pair}
+            pair = {"pair": index // 2, "order": [case["mode"] for case in cases_in_pair]}
+            for name in ("ping_ns", "work_ns", "ping_process_cpu_ns"):
+                off, on = (mapped[mode][name] for mode in ("off", "on"))
+                delta = on - off
+                pair[name] = {"off": off, "on": on, "signed_ns": delta,
+                              "percent": str(Decimal(100 * delta) / off) if off else None}
+            pair_rows.append(pair)
+        for name in ("ping_ns", "work_ns", "ping_process_cpu_ns"):
+            by_ns = sorted(pair[name]["signed_ns"] for pair in pair_rows[1:])
+            by_pct = sorted(Decimal(pair[name]["percent"]) for pair in pair_rows[1:]
+                            if pair[name]["percent"] is not None)
+            aggregates[name] = {"median_signed_ns": str(Decimal(by_ns[1] + by_ns[2]) / 2),
+                                "min_signed_ns": by_ns[0], "max_signed_ns": by_ns[-1]}
+            if len(by_pct) == 4:
+                aggregates[name].update(median_percent=str((by_pct[1] + by_pct[2]) / 2),
+                                        min_percent=str(by_pct[0]), max_percent=str(by_pct[-1]))
+    return pair_rows, aggregates
+
+
+def main():
+    freeze, bound = data("clr-freeze02.json"), data("clr-bound02.json")
+    sequence, receipts = verify_freeze(freeze, bound)
+    digests = {Path(path).name: digest for path, digest in freeze["artifacts_sha256"].items()}
+    fixture, runtime = digests["ThreadPoolConformance.dll"], digests["libcoreclr.so"]
+    results, previous_end = [], 0
+    for spec, receipt in zip(sequence, receipts):
+        result, previous_end = audit_case(spec, receipt, fixture, runtime, previous_end)
+        results.append(result)
+    pairs, aggregates = summarize(results[1:])
+    result = {"schema_version": 1, "checks_passed": CHECKS, "freeze_sha256": sha((ROOT / "clr-freeze02.json").read_bytes()),
+              "fixture_sha256": fixture, "runtime_sha256": runtime, "conformance_case": results[0],
+              "primer_cases": results[1:3], "measured_cases": results[3:], "primer_pair": pairs[0],
+              "measured_pairs": pairs[1:], "measured_effects": aggregates,
+              "interpretation": "Shared-host synthetic on/off observations. The primary interval is the actor pipe loop. "
+              "Full work includes park control and the CPU interval includes timer calls. Separate process preparation and "
+              "cleanup remain descriptive. The audit checks archived hashes and reported provenance and does not repeat native "
+              "execution. No Roslyn attribution or original benchmark gate applies."}
+    with (ROOT / "independent-overhead-audit02.json").open("x", encoding="utf-8", newline="\n") as out:
+        json.dump(result, out, indent=2)
+        out.write("\n")
+    print(f"{CHECKS} independent checks passed")
+
+
+if __name__ == "__main__":
+    main()

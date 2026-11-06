@@ -1,0 +1,59 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+
+root = Path(__file__).resolve().parent
+samples = Path("/mnt/d/Cephalon/Cehpalon-Engine-Samples")
+proof = json.loads((root / "clr-freeze01.json").read_bytes())
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+assert Path(sys.executable) == Path("/usr/bin/python3") and os.geteuid() == 0
+assert sha(Path(__file__)) == proof["supervisor_sha256"]
+protocol = root.parents[1] / "internal/validation/clr-threadpool-scheduler-fixture.md"
+assert sha(protocol) == proof["protocol_sha256"]
+inode = Path("/proc/self/ns/pid").stat().st_ino
+boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+command = [str(inode) if token == "@LIVE_NAMESPACE@" else token for token in proof["command"]]
+with (root / "clr-bound01.json").open("x", encoding="utf-8") as stream:
+    json.dump({"namespace_inode": inode, "boot_id": boot, "command": command}, stream, indent=2)
+    stream.write("\n")
+
+
+def check_bytes():
+    for path, digest in proof["source_sha256"].items():
+        assert sha(samples / path) == digest, path
+    for path, digest in proof["artifacts_sha256"].items():
+        assert sha(Path(path)) == digest, path
+
+
+for row in proof["cases"]:
+    check_bytes()
+    case = row["name"]
+    prefix = root / case
+    with prefix.with_suffix(".stdout.json").open("xb") as stdout, prefix.with_suffix(".stderr.txt").open("xb") as stderr:
+        try:
+            process = subprocess.run([*command, "--mode", row["mode"]], cwd=samples, env={},
+                                     stdout=stdout, stderr=stderr, timeout=40, check=False)
+            status = process.returncode
+        except subprocess.TimeoutExpired:
+            status = 124
+    with prefix.with_suffix(".exit.json").open("x", encoding="utf-8") as stream:
+        json.dump({"exit_code": status}, stream)
+    try:
+        report = json.loads(prefix.with_suffix(".stdout.json").read_bytes())
+    except ValueError:
+        report = {}
+    print(json.dumps({"case": case, "exit": status, "hooks": len(report.get("attached_hooks", [])),
+                      "closed": report.get("closed_fds"), "counters": report.get("terminal_counts"),
+                      "failure": report.get("failure")}), flush=True)
+    if status:
+        raise SystemExit(status)
+check_bytes()
