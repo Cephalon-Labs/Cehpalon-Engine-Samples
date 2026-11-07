@@ -83,7 +83,8 @@ def wait_until(predicate, proc, description, timeout=30):
     raise TimeoutError('Timed out waiting for ' + description)
 
 
-def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
+def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600, *,
+                    owned_identity=None, scheduler=None):
     """Suspended target -> observer -> collector starts session and resumes its port."""
     folder.mkdir(parents=True, exist_ok=False)
     trace = folder / 'runtime.nettrace'
@@ -121,6 +122,13 @@ def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
     observed = {}
     handles = []
     try:
+        child_options = {}
+        if owned_identity is not None:
+            require(os.name != 'nt' and os.geteuid() == 0 and owned_identity == (1000, 1000),
+                    'Declared ordinary diagnostic children require the root Linux coordinator')
+            child_options = dict(user=1000, group=1000, extra_groups=[])
+            os.chown(ipc_dir, 1000, 1000)
+            os.chown(folder, 1000, 1000)
         require(all(Path(binary).is_file() for binary in (dotnet, tool, analyzer)), 'Diagnostic binaries exist before spawning any child')
         for name in ('collector.stdout.txt', 'collector.stderr.txt', 'target.stdout.txt', 'target.stderr.txt'):
             handles.append((folder / name).open('wb'))
@@ -136,7 +144,7 @@ def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
         report['target_launch_perf_counter_ns'] = time.perf_counter_ns()
         report['target_launch_utc_ns'] = time.time_ns()
         target = subprocess.Popen(list(map(str, command)), cwd=cwd, env=environment,
-                                  stdout=handles[2], stderr=handles[3], stdin=subprocess.DEVNULL)
+                                  stdout=handles[2], stderr=handles[3], stdin=subprocess.DEVNULL, **child_options)
         report['target_pid'] = target.pid
         save(folder / 'capture.json', report)
 
@@ -152,10 +160,16 @@ def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
         require(ready.is_set() and 'failure' not in observed, 'Observer established before collector can resume managed startup')
         require(target.poll() is None and (folder / 'target.stdout.txt').stat().st_size == 0,
                 'Suspended owned target is alive and has no application stdout before collector')
+        if scheduler is not None:
+            require(owned_identity == (1000, 1000), 'Scoped scheduler requires ordinary diagnostic children')
+            scheduler.arm(target, folder)
+            report['scheduler_armed_perf_counter_ns'] = time.perf_counter_ns()
+            require(target.poll() is None and (folder / 'target.stdout.txt').stat().st_size == 0,
+                    'Owned target must remain suspended through scheduler arm')
         report['observer_ready_perf_counter_ns'] = time.perf_counter_ns()
         report['collector_launch_perf_counter_ns'] = time.perf_counter_ns()
         collector = subprocess.Popen(list(map(str, collect)), cwd=cwd, env=collector_environment,
-                                     stdout=handles[0], stderr=handles[1], stdin=subprocess.PIPE)
+                                     stdout=handles[0], stderr=handles[1], stdin=subprocess.PIPE, **child_options)
         report['collector_pid'] = collector.pid
         save(folder / 'capture.json', report)
         wait_until(lambda: 'Process' in text() and 'Output File' in text(), collector, 'EventPipe session')
@@ -164,6 +178,8 @@ def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
         save(folder / 'capture.json', report)
         report['target_exit'] = target.wait(timeout=timeout)
         report['target_exit_perf_counter_ns'] = time.perf_counter_ns()
+        if scheduler is not None:
+            scheduler.finish(target, report['target_exit_perf_counter_ns'])
         stop.set()
         observer.join(timeout=15)
         require(not observer.is_alive(), 'Observer stopped and joined')
@@ -194,6 +210,11 @@ def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600):
                     report.update(status='failed', cleanup_failure=True)
                 cleanup.append(item)
         report['owned_process_cleanup'] = cleanup
+        if scheduler is not None:
+            try:
+                scheduler.close()
+            except Exception:
+                report.update(status='failed', scheduler_cleanup_failure=traceback.format_exc())
         if observer is not None:
             observer.join(timeout=15)
             report['observer_joined'] = not observer.is_alive()

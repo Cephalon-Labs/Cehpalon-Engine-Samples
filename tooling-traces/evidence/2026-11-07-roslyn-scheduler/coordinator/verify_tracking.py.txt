@@ -1,0 +1,15 @@
+import json
+from pathlib import Path
+root=Path(__file__).parent
+b=json.loads((root/'tracking-before.json').read_text(encoding='utf-8'))['issues'];a=json.loads((root.parents[1]/'internal/evidence/tracking/github-observed.json').read_text(encoding='utf-8'))['issues']
+assert set(b)==set(a) and len(a)==23 and b['3']==a['3'] and a['3']['fields']['Status']=='Blocked'
+for k in a:
+    if k!='20':assert b[k]==a[k],k
+skip={'body','updated_at','mirror_sha256','remote_sha256'};assert {k:v for k,v in b['20'].items() if k not in skip}=={k:v for k,v in a['20'].items() if k not in skip}
+assert a['20']['body'].startswith(b['20']['body']) and '### 2026-11-07 Same-execution Roslyn scheduler correlation (ADR0031)' in a['20']['body']
+for k,v in {'Status':'In Progress','Priority':'P2','Maturity':'M0','Test gate':'Planned','Benchmark gate':'Planned','Estimate (h)':60.0,'Estimate low (h)':40.0,'Estimate high (h)':80.0}.items():assert a['20']['fields'][k]==v
+for k in ['Actual (h)','Remaining (h)']:assert a['20']['fields'].get(k) is None
+p=json.loads((root/'tracking-plan.json').read_text(encoding='utf-8'));assert len(p['operations'])==1
+r={'status':'passed','mirrors':23,'issue3_entire_row_identical_blocked':True,'other22_rows_identical':True,'issue20_nonbody_metadata_identical':True,'body_preserves_prior_exact_prefix':True,'plan_sha256':p['plan_sha256'],'actual_remaining_hours':None}
+with (root/'tracking-guards.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(r,f,indent=2);f.write('\n')
+print(json.dumps(r))

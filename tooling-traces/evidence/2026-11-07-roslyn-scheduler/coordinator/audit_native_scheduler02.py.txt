@@ -1,0 +1,268 @@
+"""Independent, bounded-memory replay of the retained native scheduler channel."""
+
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import struct
+import sys
+
+
+DOCS = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parent
+SAMPLES = DOCS.parent / "Cehpalon-Engine-Samples"
+sys.path.insert(0, str(SAMPLES / "tools"))
+from scheduler_roslyn_program import PROBES, roslyn_program
+
+RECORD = struct.Struct("<IIIIQIIII")
+SLOTS = 262144
+CHECKS = Counter()
+NO_CPU = (1 << 32) - 1
+
+
+def check(value, name):
+    if not value:
+        raise ValueError(name)
+    CHECKS[name] += 1
+
+
+def sha(blob):
+    return hashlib.sha256(blob).hexdigest()
+
+
+def get(path):
+    return json.loads(path.read_bytes())
+
+
+def instructions(blob):
+    return list(struct.iter_unpack("<BBhi", blob))
+
+
+def source_checks(freeze):
+    for name, digest in freeze["sources"].items():
+        snapshot = ROOT / "sources02" / (Path(name).name + ".txt")
+        check(sha(snapshot.read_bytes()) == digest, "frozen source snapshot hash")
+        check(sha((SAMPLES / name).read_bytes()) == digest, "current source matches frozen source")
+    protocol = (ROOT / "protocol02.md").read_bytes()
+    check(sha(protocol) == freeze["protocol_sha256"], "frozen protocol hash")
+    check(sha((ROOT / "run_roslyn_lane02.py").read_bytes()) == freeze["supervisor_sha256"],
+          "frozen supervisor hash")
+
+
+def programs_checks(report, freeze, initial_limit, roles):
+    expected_order = freeze["probe_order"]
+    check([p["probe"] for p in report["programs"]] == expected_order, "program loading order")
+    expected_hooks = [PROBES[name][0] for name in expected_order if name != "prearm"] + ["sys_enter"]
+    check(report["attached_hooks"] == [{"tp_name": hook, "cookie": 0} for hook in expected_hooks],
+          "all named links including both switch sides before prearm")
+    for item in report["programs"]:
+        name = item["probe"]
+        check(item["hook"] == PROBES[name][0], "program hook matches profile")
+        check(item["recursion_before"] == item["recursion_after"] == 0, "zero reported recursion misses")
+        actual = bytes.fromhex(item["program_hex"])
+        template = bytes.fromhex(freeze["templates"][str(initial_limit)][name]["hex"])
+        check(len(actual) == len(template), "loaded instruction length")
+        role_template = roslyn_program(name, 101, 102, 103, 104, 0, initial_limit)
+        check(len(role_template) == len(template), "role template instruction length")
+        normalized = bytearray(actual)
+        for index, ((opcode, registers, offset, immediate), role) in enumerate(
+                zip(instructions(actual), instructions(role_template), strict=True)):
+            frozen = instructions(template)[index]
+            if opcode == 0x18 and registers >> 4 == 1:
+                role_name = {101: "storage", 102: "members", 103: "counts", 104: "records"}[role[3]]
+                check(immediate > 0, "positive live map FD relocation")
+                if role_name in roles:
+                    check(roles[role_name] == immediate, "consistent map role relocation")
+                else:
+                    roles[role_name] = immediate
+                normalized[index * 8 + 4:index * 8 + 8] = bytes(4)
+                check((opcode, registers, offset) == frozen[:3], "map relocation preserves opcode and registers")
+            elif opcode == 0x56 and registers == 0:
+                check(immediate & NO_CPU == report["namespace_inode"], "bound namespace relocation")
+                normalized[index * 8 + 4:index * 8 + 8] = bytes(4)
+            else:
+                check((opcode, registers, offset, immediate) == frozen, "fixed nonrelocated instruction")
+        check(bytes(normalized) == template, "entire loaded program matches frozen template")
+    check(set(roles) == {"storage", "members", "counts", "records"} and len(set(roles.values())) == 4,
+          "distinct fixed map roles")
+
+
+def scalar_checks(folder, report, bound):
+    check(report["status"] == "completed" and not report["cleanup_errors"], "completed scheduler and cleanup")
+    cohort = report["prearm_cohort"]
+    check(1 <= len(cohort) <= 16 and len({x["tid"] for x in cohort}) == len(cohort),
+          "bounded unique initial cohort")
+    check(all(row["uid"] == row["gid"] == 1000 and row["start_ticks"] > 0 for row in cohort),
+          "ordinary live initial task receipts")
+    check(report["namespace_inode"] == bound["namespace_inode"], "same-execution PID namespace")
+    check(["monotonic", "0", "0"] in report["time_namespace_offsets"], "zero monotonic offset")
+    check(report["fully_armed_counts"][1:3] == [0, 0], "no fault or loss at full arm")
+    check(report["closed_fds"] == len(cohort) + 27, "all expected descriptors reported closed")
+    expected_receipts = []
+    for row in cohort:
+        expected_receipts.extend([{"stage": f"seed_{row['tid']}", "errno": None, "value": None},
+                                  {"stage": f"read_{row['tid']}", "errno": None, "value": 0x43455048}])
+    expected_receipts.append({"stage": "collector_absent", "errno": 2})
+    check(report["seed_map_receipts"] == expected_receipts, "exact object-bound seed and negative receipts")
+    check(report["arm_begin_ns"] <= report["arm_complete_ns"] < report["target_exit_observed_ns"],
+          "declared arm and exit clock order")
+    terminal = report["terminal_counts"]
+    check(terminal == report["terminal_before_detach"] == report["second_read"]["counts"],
+          "all terminal counter snapshots agree")
+    attempted, lost, faults, frees, total, initial = terminal
+    check(0 < attempted <= SLOTS and lost == faults == 0 and 0 < total == frees <= 64
+          and 0 < initial <= len(cohort), "bounded complete terminal counters")
+    raw = (folder / "scheduler-ledger.bin").read_bytes()
+    check(len(raw) == RECORD.size * SLOTS, "full fixed binary ledger length")
+    check(sha(raw) == report["ledger_sha256"] == report["second_read"]["ledger_sha256"],
+          "first ledger and second detached hash agree")
+    check(not any(memoryview(raw)[attempted * RECORD.size:]), "unused ledger slots zero")
+    return raw, terminal
+
+
+def ledger_checks(raw, terminal, report):
+    attempted, _, _, _, total, initial = terminal
+    by_generation = {}
+    active = {}
+    histogram = Counter()
+    cpus = Counter()
+    targets = Counter()
+    previous_global = None
+    global_reversals = global_ties = 0
+    cohort = {x["tid"] for x in report["prearm_cohort"]}
+    for slot, row in enumerate(RECORD.iter_unpack(memoryview(raw)[:attempted * RECORD.size])):
+        kind, cpu, target, state, stamp, local, global_tid, generation, parent = row
+        check(kind in {1, 2, 3, 4, 5, 6, 7, 8, 10}, "known sanitized row kind")
+        check(0 < local < 1 << 31 and 0 < global_tid < 1 << 31
+              and 0 < generation <= total and 0 <= parent <= total, "bounded scalar identities")
+        check((target != NO_CPU) == (kind in {2, 5, 6}) and (kind == 4 or state == 0),
+              "target CPU and state presence")
+        check(report["arm_begin_ns"] <= stamp <= report["target_exit_observed_ns"] + 2_000_000_000,
+              "row within declared native capture and free tail")
+        if previous_global is not None:
+            global_reversals += stamp < previous_global
+            global_ties += stamp == previous_global
+        previous_global = stamp
+        cpus[cpu] += 1
+        if target != NO_CPU:
+            targets[target] += 1
+        histogram[kind] += 1
+        identity = local, global_tid, parent
+        if kind in {1, 10}:
+            check(generation not in by_generation, "one initial enrollment or birth per ordinal")
+            check(not any(local == other[0] or global_tid == other[1] for other in active.values()),
+                  "no overlapping numeric task identities")
+            check(parent == 0 or (parent in active and not by_generation[parent]["exited"]),
+                  "positive parent generation is active at birth")
+            check(kind != 10 or (local in cohort and parent == 0),
+                  "initial enrollment belongs to seeded cohort")
+            by_generation[generation] = {
+                "initial": kind == 10, "local_tid": local, "global_tid": global_tid,
+                "parent_generation": parent, "first_slot": slot, "start_ns": stamp,
+                "kinds": Counter(), "anchors": {}, "previous_ns": None,
+                "timestamp_reversals": 0, "timestamp_ties": 0, "exited": False,
+                "terminal_switches": [],
+            }
+            active[generation] = identity
+        check(active.get(generation) == identity, "row identity bound to unfreed generation")
+        entry = by_generation[generation]
+        if entry["previous_ns"] is not None:
+            entry["timestamp_reversals"] += stamp < entry["previous_ns"]
+            entry["timestamp_ties"] += stamp == entry["previous_ns"]
+        entry["previous_ns"] = stamp
+        entry["kinds"][kind] += 1
+        entry["end_slot"] = slot
+        if kind in {1, 2, 7, 8, 10} or (kind == 3 and 3 not in entry["anchors"]):
+            entry["anchors"].setdefault(kind, (slot, stamp))
+        if kind == 4 and state == 128:
+            entry["terminal_switches"].append((slot, stamp))
+        if kind == 7:
+            check(not entry["exited"], "one exit before retirement")
+            entry["exited"] = True
+        if kind == 8:
+            check(entry["exited"], "free follows exit receipt")
+            del active[generation]
+
+    check(set(by_generation) == set(range(1, total + 1)) and not active,
+          "complete bounded ordinal set and all observed generations freed")
+    check(histogram[10] == initial and histogram[1] == histogram[2] == total - initial
+          and histogram[7] == histogram[8] == total, "initial and born event totals reconcile")
+    output = {}
+    for generation, entry in sorted(by_generation.items()):
+        counts = entry["kinds"]
+        anchors = entry["anchors"]
+        start_kind = 10 if entry["initial"] else 1
+        check(counts[start_kind] == counts[7] == counts[8] == 1
+              and counts[1 if entry["initial"] else 10] == 0,
+              "one start, exit and free with exact initial role")
+        check(anchors[start_kind][0] == entry["first_slot"] and anchors[8][0] == entry["end_slot"],
+              "physical lifetime starts at enrollment and ends at free")
+        if entry["initial"]:
+            check(counts[2] == 0, "initial enrollment does not invent first-new-wake")
+        else:
+            check(counts[2] == 1 and counts[3] > 0
+                  and anchors[1][0] < anchors[2][0] < anchors[3][0]
+                  and anchors[1][1] < anchors[2][1] < anchors[3][1],
+                  "born generation first wake and first switch anchors")
+        check(len(entry["terminal_switches"]) == 1, "one raw terminal switch per generation")
+        terminal_slot, terminal_ns = entry["terminal_switches"][0]
+        check(anchors[7][0] < terminal_slot < anchors[8][0]
+              and anchors[7][1] < terminal_ns < anchors[8][1], "exit terminal-switch and free anchors")
+        output[str(generation)] = {
+            "initial_state_unknown": entry["initial"], "local_tid": entry["local_tid"],
+            "global_tid": entry["global_tid"], "parent_generation": entry["parent_generation"],
+            "rows": sum(counts.values()), "counts": dict(counts), "first_slot": entry["first_slot"],
+            "last_slot": entry["end_slot"], "start_ns": entry["start_ns"],
+            "exit_ns": anchors[7][1], "free_ns": anchors[8][1],
+            "terminal_switch_slot": terminal_slot, "timestamp_reversals": entry["timestamp_reversals"],
+            "timestamp_ties": entry["timestamp_ties"],
+        }
+    local_ids = [x["local_tid"] for x in by_generation.values()]
+    global_ids = [x["global_tid"] for x in by_generation.values()]
+    return {
+        "attempted": attempted, "initial_generations": initial, "born_generations": total - initial,
+        "total_freed_generations": total, "event_counts": dict(histogram), "emitter_cpu_counts": dict(cpus),
+        "target_cpu_counts": dict(targets), "generations": output,
+        "observed_numeric_identity_reuse": len(set(local_ids)) < total or len(set(global_ids)) < total,
+        "physical_ticket_order": {
+            "adjacent_global_timestamp_reversals": global_reversals,
+            "adjacent_global_timestamp_ties": global_ties,
+            "within_generation_timestamp_reversals": sum(x["timestamp_reversals"] for x in by_generation.values()),
+            "within_generation_timestamp_ties": sum(x["timestamp_ties"] for x in by_generation.values()),
+        },
+    }
+
+
+def audit():
+    freeze = get(ROOT / "lane-freeze02.json")
+    bound = get(ROOT / "lane-bound02.json")
+    source_checks(freeze)
+    output = {}
+    for label, subfolder in (("conformance", "roslyn-scheduler-conformance02"),
+                             ("capture", "roslyn-scheduler-capture02")):
+        folder = SAMPLES / ".local" / subfolder / "scheduler"
+        report = get(folder / "scheduler.json")
+        raw, terminal = scalar_checks(folder, report, bound)
+        roles = {}
+        programs_checks(report, freeze, len(report["prearm_cohort"]), roles)
+        output[label] = ledger_checks(raw, terminal, report)
+        output[label].update(ledger_sha256=sha(raw), scheduler_report_sha256=sha((folder / "scheduler.json").read_bytes()),
+                             closed_fds=report["closed_fds"], prearm_cohort_size=len(report["prearm_cohort"]),
+                             reported_zero_recursion_miss_programs=len(report["programs"]))
+    return {"schema_version": 1, "audit": "Independent native scheduler binary and frozen-program replay",
+            "checks_passed": sum(CHECKS.values()), "checks_by_kind": dict(CHECKS),
+            "cases": output,
+            "scope": "Observed generations and scalar receipts, with initial prefixes left-censored. "
+                     "Physical ticket slots are publication reservation order, not strict global or per-task clock order. "
+                     "The second read is independently hash-checked through its retained receipt. "
+                     "This audit performs no native syscalls, reconstructs no unobserved pre-arm lifetime, "
+                     "and establishes no GC, CPU-duration or causal interpretation."}
+
+
+if __name__ == "__main__":
+    result = audit()
+    with (ROOT / "independent-native-scheduler-audit02.json").open("x", encoding="utf-8", newline="\n") as stream:
+        json.dump(result, stream, indent=2)
+        stream.write("\n")
+    print(json.dumps({"status": "passed", "checks": result["checks_passed"],
+                      "capture_records": result["cases"]["capture"]["attempted"]}))

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "mode": "diagnostic_copy",
+  "canonical": false,
+  "performance_status": "diagnostic_only_not_acceptance",
+  "qualification_status": "not_qualified",
+  "engine_revision": "55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7",
+  "engine_source_unchanged": true,
+  "original_driver_sha256": "359fc818ecf9851cbc0dd9065cea87d7ede10033943a09df2c88cbfefc41e3c0",
+  "helper_sha256": "ad7761dbe0f954ffaf3692c58637b1ea777e45fd93a9682a48200e605a808f6c",
+  "event_provider": "Cehpalon-Tooling-Diagnostic",
+  "event_keywords": "0x1",
+  "run_contract": "dotnet TraceDriver.dll --output=<new-report.json>; sidecar <new-report.json>.spans.jsonl",
+  "clock_mapping": "Span start/end are actual Stopwatch body boundaries; event writes occur later. MarkerBefore/AfterTicks in sidecar bound the logging call; eventTimeRelative minus these timestamps gives an offset interval. UTC anchor has its own before/after bound. Inconsistent mapping must be reported as uncertain.",
+  "observer_limits": [
+    "Extra timestamp calls perturb the original wall scope; events, PInvoke native-thread lookup, buffered span records and final sidecar serialization perturb process state.",
+    "Event/logging work is excluded from each declared stage body and original wall/allocation/CPU/GC brackets; it can affect later process state.",
+    "Runtime verification includes actual owned handler disposal but excludes the separately tagged AST/logger work.",
+    "Static metadata reference initialization before Main is visible in runtime trace, not covered by per-row markers.",
+    "Sidecar is buffered until final report; abrupt process loss can leave incomplete sidecar, so event-only correlations cannot be called complete."
+  ],
+  "files": {
+    "Program.cs": {
+      "bytes": 25845,
+      "sha256": "4558b0a3e58c179e39f71f6e84ff8d6ca1ab64cb0cded6aa7fd9180b527c0f7d"
+    },
+    "DiagnosticSupport.cs": {
+      "bytes": 4003,
+      "sha256": "90a09dc414822b48cd1d9db7b53000777457ae54b976ed5f9ca1042a370dab4c"
+    },
+    "TraceDriver.csproj": {
+      "bytes": 777,
+      "sha256": "189e7cfc5b6d303cf5eff1e7ac1929955e92c7fef592859d29e6bb7a0f8fbf18"
+    },
+    "Directory.Build.props": {
+      "bytes": 11,
+      "sha256": "360d9302d942de5ba435265063190c36eec8de5d42a0b2a14c92852a2052df93"
+    },
+    "global.json": {
+      "bytes": 119,
+      "sha256": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e"
+    },
+    "NuGet.Config": {
+      "bytes": 217,
+      "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948"
+    },
+    "source-original.cs.txt": {
+      "bytes": 23103,
+      "sha256": "359fc818ecf9851cbc0dd9065cea87d7ede10033943a09df2c88cbfefc41e3c0"
+    }
+  }
+}

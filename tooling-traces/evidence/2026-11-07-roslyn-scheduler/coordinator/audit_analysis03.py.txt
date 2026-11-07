@@ -1,0 +1,43 @@
+import json, math, struct, hashlib
+from fractions import Fraction
+from pathlib import Path
+from collections import Counter
+root=Path(__file__).parent
+base=Path("D:/Cephalon/Cehpalon-Engine-Samples/.local/roslyn-scheduler-capture02")
+out=base/"scheduler-joins03"
+read=lambda p:json.loads(p.read_bytes())
+queries=[json.loads(x) for x in (out/"wait-joins.jsonl").open()]
+gc=read(out/"gc-boundaries.json")
+summary=read(out/"summary.json")
+assert len(queries)==1909 and all(q["status"]=="bound" for q in queries)
+assert len(gc)==48056 and all(x["event"]["processId"]==818 for x in gc)
+checks=0
+# Independent brute-force containment using a common exact integer scale.
+clock=[tuple(map(Fraction,x["identity"]["mapped_mono_ns"])) for x in gc]
+cores=[tuple(map(Fraction,q["core_ns"])) for q in queries]
+scale=math.lcm(*(x.denominator for pair in clock+cores for x in pair))
+points=[(int(a*scale),int(b*scale),x["raw_record_index"]) for (a,b),x in zip(clock,gc)]
+for q,(a,b) in zip(queries,cores):
+ lo,hi=int(a*scale),int(b*scale)
+ contained=[i for l,h,i in points if l>lo and h<hi]
+ edges=[i for l,h,i in points if h>=lo and l<=hi and not(l>lo and h<hi)]
+ assert set(contained)==set(q["literal_gc_boundaries_contained"])
+ assert set(edges)==set(q["literal_gc_boundaries_clock_edge"])
+ total=sum(map(Fraction,q["caller_conditional_recorded_state_ns"].values()))
+ assert total==b-a
+ checks+=3
+assert summary["waits_with_contained_gc_boundary"]==sum(bool(q["literal_gc_boundaries_contained"]) for q in queries)
+rows=struct.Struct("<IIIIQIIII")
+report=read(base/"scheduler/scheduler.json")
+raw=(base/"scheduler/scheduler-ledger.bin").read_bytes()
+assert hashlib.sha256(raw).hexdigest()==report["ledger_sha256"]
+physical=list(rows.iter_unpack(raw[:report["terminal_counts"][0]*40]))
+main=Counter(r[3] for r in physical if r[0]==4 and r[5]==818)
+assert sum(right[4]<left[4] for left,right in zip(physical,physical[1:]))==740
+assert sum(right[4]==left[4] for left,right in zip(physical,physical[1:]))==50
+# Runtime capture sources remain equal; the decoder changed only after collection.
+frozen=read(root/"lane-freeze02.json")
+print(frozen.keys())
+result={"status":"passed","independent_wait_checks":checks,"gc_events":len(gc),"waits":len(queries),"integer_clock_scale":scale,"caller_out_raw_states":dict(main),"global_reversals":740,"global_ties":50,"limits":"Independent exact GC association and partition mass; no certified scheduler durations or GC pairing."}
+(root/"independent-analysis-audit03.json").write_text(json.dumps(result,indent=2)+"\n")
+print(json.dumps(result))

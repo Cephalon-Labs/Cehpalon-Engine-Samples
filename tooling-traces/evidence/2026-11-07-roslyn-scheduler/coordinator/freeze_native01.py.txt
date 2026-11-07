@@ -1,0 +1,76 @@
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+
+samples = Path("/mnt/d/Cephalon/Cehpalon-Engine-Samples")
+sys.path.insert(0, str(samples / "tools"))
+import capture_roslyn_scheduler as capture
+from collect_scheduler_clr_fixture import APP
+from scheduler_roslyn_program import PROBES, roslyn_program
+
+root = Path(__file__).resolve().parent
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+binaries = capture.preflight()
+for path in APP.parent.iterdir():
+    if path.is_file():
+        binaries[str(path)] = sha(path.read_bytes())
+sources = {}
+for name in ("conform_roslyn_scheduler", "scheduler_trace_model", "scheduler_eventpipe_join"):
+    path = samples / "tools" / (name + ".py")
+    sources[path.relative_to(samples).as_posix()] = sha(path.read_bytes())
+for module in list(sys.modules.values()):
+    filename = getattr(module, "__file__", None)
+    if filename:
+        path = Path(filename).resolve()
+        if path.is_relative_to(samples / "tools") and path.suffix == ".py":
+            sources[path.relative_to(samples).as_posix()] = sha(path.read_bytes())
+for path in sorted((samples / "tools").glob("test_*")):
+    if path.suffix == ".py" and any(key in path.name for key in ("roslyn", "scheduler_eventpipe", "scheduler_trace")):
+        sources[path.relative_to(samples).as_posix()] = sha(path.read_bytes())
+snapshot = root / "sources"
+snapshot.mkdir()
+for name, digest in sources.items():
+    path = samples / name
+    (snapshot / (path.name + ".txt")).write_bytes(path.read_bytes())
+driver = root / "driver-source"
+driver.mkdir()
+for path in capture.DRIVER_SOURCE.iterdir():
+    if path.is_file():
+        (driver / (path.name + ".txt")).write_bytes(path.read_bytes())
+
+protocol = root.parents[1] / "internal/validation/roslyn-scheduler-correlation.md"
+templates = {}
+for limit in range(1, 17):
+    templates[str(limit)] = {
+        name: {"hex": roslyn_program(name, 0, 0, 0, 0, 0, limit).hex()}
+        for name in PROBES
+    }
+output = samples / ".local/roslyn-scheduler-capture01"
+conformance = samples / ".local/roslyn-scheduler-conformance01"
+assert not output.exists() and not conformance.exists()
+freeze = {
+    "date_bangkok": "2026-11-07",
+    "supervisor_sha256": sha((root / "run_roslyn_lane01.py").read_bytes()),
+    "protocol_sha256": sha(protocol.read_bytes()),
+    "sources": sources,
+    "binaries": binaries,
+    "probe_order": list(PROBES),
+    "templates": templates,
+    "cases": [
+        ["conformance01", ["/usr/bin/python3", "-B", "tools/conform_roslyn_scheduler.py", "--output", str(conformance)]],
+        ["capture01", ["/usr/bin/python3", "-B", "tools/capture_roslyn_scheduler.py", "--output", str(output)]],
+    ],
+}
+with (root / "lane-freeze01.json").open("x", encoding="utf-8") as stream:
+    json.dump(freeze, stream, indent=2)
+    stream.write("\n")
+(root / "protocol01.md").write_bytes(protocol.read_bytes())
+print(json.dumps({"source_files": len(sources), "binary_files": len(binaries),
+                  "fixed_template_profiles": len(templates)}))

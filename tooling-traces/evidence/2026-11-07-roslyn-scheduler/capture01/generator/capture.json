@@ -1,0 +1,199 @@
+{
+  "role": "diagnostic_perturbed",
+  "canonical": false,
+  "status": "failed",
+  "target_argv": [
+    "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/driver-artifacts/bin/TraceDriver/release/TraceDriver.dll",
+    "--output=/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/roslyn-scheduler-capture01/generator/generator.json"
+  ],
+  "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+  "providers": "Microsoft-Windows-DotNETRuntime:0x411C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4,System.Threading.Tasks.TplEventSource:0x43:5",
+  "profile": "dotnet-sampled-thread-time",
+  "buffer_mb": 256,
+  "buffer_mode": "Drop",
+  "observer_interval_seconds": 0.01,
+  "startup_coordination": "one suspended reverse port; observer before collector; collector resumes its own endpoint after session start",
+  "limits": [
+    "Tracing, startup coordination, observer and rundown perturb execution.",
+    "Managed sampled thread stacks are not kernel CPU/context-switch samples.",
+    "Process I/O counters include tracing/IPC; native lane is separate."
+  ],
+  "binary_sha256": {
+    "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet": "f56ca652aa05dbc648972cc6ba939200617c36e9ed319f420b1dcc3dda6a21fa",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-preparation-linux01/tools/.store/dotnet-trace/10.0.750501/dotnet-trace/10.0.750501/tools/net8.0/any/dotnet-trace.dll": "33c4e4de008b8fe347b1d9dcaec6f33f79efeb0281a501eee1fcabc1fe8ef7df",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-analyzer-linux02/artifacts/bin/TraceAnalysis/release/TraceAnalysis.dll": "e85a233cb0af33718338281fccc5b7cc4dd721e0063405c2c99655bc6190fdc8",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-wait-build-linux01/driver-artifacts/bin/TraceDriver/release/TraceDriver.dll": "21d061db61ac77608f470f168b431cb5a631a099bfb1b07ed64cd5be04d53b5c"
+  },
+  "prelaunch_hashing_scope": "Executable hashing and fixture preparation prime filesystem caches; not cold disk",
+  "collector_argv": [
+    "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+    "exec",
+    "--roll-forward",
+    "Major",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/tooling-trace-preparation-linux01/tools/.store/dotnet-trace/10.0.750501/dotnet-trace/10.0.750501/tools/net8.0/any/dotnet-trace.dll",
+    "collect",
+    "--output",
+    "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/roslyn-scheduler-capture01/generator/runtime.nettrace",
+    "--profile",
+    "dotnet-sampled-thread-time",
+    "--providers",
+    "Microsoft-Windows-DotNETRuntime:0x411C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4,System.Threading.Tasks.TplEventSource:0x43:5",
+    "--diagnostic-port",
+    "/tmp/cehpalon-trace-pvp48z2v/p.sock",
+    "--resume-runtime:true",
+    "--buffersize",
+    "256",
+    "--buffering-mode",
+    "Drop"
+  ],
+  "child_removed_diagnostic_aliases": [],
+  "target_launch_perf_counter_ns": 208083483596,
+  "target_launch_utc_ns": 1794022812060152137,
+  "target_pid": 795,
+  "failure": "Traceback (most recent call last):\n  File \"/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools/trace_tooling.py\", line 165, in capture_runtime\n    scheduler.arm(target, folder)\n  File \"/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools/roslyn_scheduler_session.py\", line 53, in arm\n    verify_process(target, namespace)\n  File \"/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools/collect_scheduler_clr_fixture.py\", line 89, in verify_process\n    require(coreclr in loaded, \"pinned CoreCLR library was not loaded\")\n  File \"/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools/preflight_scheduler_pidfd_seed.py\", line 34, in require\n    raise ValueError(message)\nValueError: pinned CoreCLR library was not loaded\n",
+  "owned_process_cleanup": [
+    {
+      "role": "target",
+      "pid": 795,
+      "kill_requested": true,
+      "returncode": -9,
+      "joined": true
+    }
+  ],
+  "observer_joined": true,
+  "observer": {
+    "summary": {
+      "schema_version": 1,
+      "pid": 795,
+      "observer_pid": 784,
+      "requested_interval_seconds": 0.01,
+      "status": "completed_stop_requested",
+      "samples": 6,
+      "races": 0,
+      "read_failures": [],
+      "thread_identities_seen": {
+        "795:20808": {
+          "tid": 795,
+          "birth": 20808,
+          "first_observed_ns": 208098245637,
+          "first_observed_monotonic_ns": 208098245434,
+          "first_observed_perf_counter_ns": 208098245637,
+          "first_counters": {
+            "tid": 795,
+            "starttime_ticks": 20808,
+            "stat": {
+              "id": 795,
+              "comm": "dotnet",
+              "state": "D",
+              "parent_pid": 784,
+              "process_group_id": 686,
+              "session_id": 686,
+              "minor_faults": 161,
+              "major_faults": 0,
+              "user_cpu_ticks": 0,
+              "kernel_cpu_ticks": 0,
+              "thread_count": 1,
+              "starttime_ticks": 20808,
+              "last_cpu": 3
+            },
+            "schedstat": {
+              "cpu_runtime_ns": 2049817,
+              "runqueue_wait_ns": 0,
+              "timeslices": 55,
+              "counter_activity_observed": true,
+              "status": "native_cumulative_counters"
+            },
+            "context_switches": {
+              "voluntary_context_switches": 55,
+              "involuntary_context_switches": 0
+            }
+          },
+          "last_observed_ns": 208142394772,
+          "last_observed_monotonic_ns": 208142394507,
+          "last_observed_perf_counter_ns": 208142394772,
+          "last_counters": {
+            "tid": 795,
+            "starttime_ticks": 20808,
+            "stat": {
+              "id": 795,
+              "comm": "dotnet",
+              "state": "D",
+              "parent_pid": 784,
+              "process_group_id": 686,
+              "session_id": 686,
+              "minor_faults": 179,
+              "major_faults": 1,
+              "user_cpu_ticks": 0,
+              "kernel_cpu_ticks": 0,
+              "thread_count": 1,
+              "starttime_ticks": 20808,
+              "last_cpu": 3
+            },
+            "schedstat": {
+              "cpu_runtime_ns": 5293711,
+              "runqueue_wait_ns": 76285,
+              "timeslices": 244,
+              "counter_activity_observed": true,
+              "status": "native_cumulative_counters"
+            },
+            "context_switches": {
+              "voluntary_context_switches": 244,
+              "involuntary_context_switches": 0
+            }
+          }
+        }
+      },
+      "started": {
+        "monotonic_ns": 208089086455,
+        "perf_counter_ns": 208089086815,
+        "utc_ns": 1794022812065750230
+      },
+      "target_identity": {
+        "pid": 795,
+        "starttime_ticks": 20808
+      },
+      "expected_target_identity": null,
+      "scope": "diagnostic sampled native OS counters only, never exact scheduler events or benchmark evidence",
+      "unseen_short_lived_threads_possible": true,
+      "tail_coverage": "not guaranteed",
+      "initial_coverage": "first successful snapshot; startup before it is not event-traced",
+      "timing_clock": "perf_counter_ns; legacy monotonic_ns is distinct and must not be joined to QPC",
+      "flush_policy": "flush each JSON line; no fsync/power-loss guarantee",
+      "capabilities": {
+        "scheduler": "per-thread cumulative schedstat and context-switch samples; not event trace",
+        "io": "unavailable_proc_io_absent",
+        "cpu_tick_hz": 100,
+        "thread_state": "sampled_proc_stat",
+        "schedstat_zero_policy": "raw zero is not evidence of no wait; require supported/enabled counters",
+        "io_scope": "logical/syscall and accounted storage counters if supported, not file latency",
+        "kernel_config_observed": {
+          "CONFIG_SCHED_INFO": "CONFIG_SCHED_INFO=y",
+          "CONFIG_SCHEDSTATS": "# CONFIG_SCHEDSTATS is not set",
+          "CONFIG_TASKSTATS": "# CONFIG_TASKSTATS is not set",
+          "CONFIG_TASK_IO_ACCOUNTING": null
+        }
+      },
+      "last_successful_observation": {
+        "monotonic_ns": 208142394507,
+        "perf_counter_ns": 208142394772,
+        "utc_ns": 1794022812119057421
+      },
+      "ready_after_sample": 0,
+      "ready_monotonic_ns": 208099245361,
+      "ready_perf_counter_ns": 208099245860,
+      "finished": {
+        "monotonic_ns": 208143147276,
+        "perf_counter_ns": 208143147529,
+        "utc_ns": 1794022812119810359
+      },
+      "observer_thread_cpu_ns": 9242457,
+      "controller_process_cpu_ns_during_observation": 18233651,
+      "actual_gap_count": 5,
+      "actual_min_gap_ns": 3522510,
+      "actual_max_gap_ns": 10119633,
+      "gap_count_over_twice_requested": 0,
+      "tail_since_last_sample_ns": 752757
+    }
+  }
+}

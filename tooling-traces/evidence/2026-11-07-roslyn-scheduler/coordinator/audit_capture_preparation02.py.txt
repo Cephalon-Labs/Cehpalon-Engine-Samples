@@ -1,0 +1,187 @@
+"""Independently check retained capture preparation and lifecycle receipts."""
+
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+
+
+ROOT = Path(__file__).parent
+SAMPLES = Path("D:/Cephalon/Cehpalon-Engine-Samples")
+CAPTURE = SAMPLES / ".local/roslyn-scheduler-capture02"
+FAILED = SAMPLES / ".local/roslyn-scheduler-capture01"
+CHECKS = Counter()
+
+
+def check(condition, label):
+    if not condition:
+        raise ValueError(label)
+    CHECKS[label] += 1
+
+
+def read(path):
+    return json.loads(path.read_bytes())
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def main():
+    freeze = read(ROOT / "lane-freeze02.json")
+    check(sha((ROOT / "run_roslyn_lane02.py").read_bytes()) == freeze["supervisor_sha256"],
+          "frozen supervisor source")
+    check(sha((ROOT / "protocol02.md").read_bytes()) == freeze["protocol_sha256"],
+          "frozen protocol source")
+    for path, digest in freeze["sources"].items():
+        archived = ROOT / "sources02" / (Path(path).name + ".txt")
+        check(sha(archived.read_bytes()) == digest, "frozen archived source hash")
+        check(sha((SAMPLES / path).read_bytes()) == digest, "current source matches frozen")
+
+    cap = read(CAPTURE / "generator/capture.json")
+    sched = read(CAPTURE / "scheduler/scheduler.json")
+    manifest = read(CAPTURE / "manifest.json")
+    before = manifest["binary_sha256_before"]
+    check(all(freeze["binaries"].get(path) == digest for path, digest in before.items()),
+          "complete prelaunch Roslyn binary inventory is frozen")
+    additional = set(freeze["binaries"]) - set(before)
+    conformance_root = "/home/tom/.local/share/cehpalon-clr-fixtures/20261106-02/out/"
+    check(additional == {conformance_root + name for name in (
+        "ThreadPoolConformance", "ThreadPoolConformance.deps.json", "ThreadPoolConformance.dll",
+        "ThreadPoolConformance.pdb", "ThreadPoolConformance.runtimeconfig.json"
+    )}, "freeze also includes exact five predeclared conformance binaries")
+    for path, digest in cap["binary_sha256"].items():
+        check(freeze["binaries"][path] == digest, "capture principal binary equals frozen")
+    for path, digest in freeze["binaries"].items():
+        if path.startswith("/mnt/d/"):
+            windows = Path("D:/") / path[len("/mnt/d/"):]
+            check(sha(windows.read_bytes()) == digest, "current independently readable binary hash")
+
+    prepared = read(ROOT / "driver-source02/wait-diagnostic-manifest.json.txt")
+    check(prepared["engine_revision"] == manifest["engine_revision"], "prepared Engine identity")
+    for name, digest in prepared["final_files_sha256"].items():
+        check(sha((ROOT / "driver-source02" / (name + ".txt")).read_bytes()) == digest, "frozen prepared driver source")
+    check(cap["binary_sha256"][cap["target_argv"][1]]
+          == "21d061db61ac77608f470f168b431cb5a631a099bfb1b07ed64cd5be04d53b5c",
+          "unchanged actual diagnostic driver")
+
+    check(cap["status"] == sched["status"] == "completed", "target collector and scheduler completed")
+    check(cap["target_pid"] == sched["target_pid"] == 818, "same owned target identity")
+    check(cap["target_exit"] == cap["collector_exit"] == 0, "clean target and collector exits")
+    check(cap["observer_joined"] and cap["observer"]["summary"]["status"] == "completed_exit_observed",
+          "observer exit and join")
+    check(all(item["joined"] and not item["kill_requested"] and item["returncode"] == 0
+              for item in cap["owned_process_cleanup"]), "reported owned process cleanup")
+    check({item["role"] for item in cap["owned_process_cleanup"]} == {"target", "collector"},
+          "exact owned process roles")
+    check(cap["collector_pid"] != cap["target_pid"], "collector outside target")
+    check(sched["cleanup_errors"] == [] and sched["closed_fds"] == 29, "reported 29 scheduler descriptor closes")
+    check(sched["time_namespace_offsets"] == [["monotonic", "0", "0"], ["boottime", "0", "0"]],
+          "same-run zero monotonic namespace offset")
+    check(len(sched["prearm_cohort"]) == 2, "two initial cohort members")
+    check(all(task["uid"] == task["gid"] == 1000 and task["start_ticks"] > 0
+              for task in sched["prearm_cohort"]), "recorded ordinary live cohort credentials")
+    check({task["tid"] for task in sched["prearm_cohort"]} == {818, 822}, "exact initial local task IDs")
+    ready = sched["runtime_ready_samples"]
+    check(len(ready) == 2 and all(row["cohort"] == sched["prearm_cohort"] for row in ready),
+          "retained stable readiness snapshots")
+    check(ready[0]["mono_ns"] < ready[1]["mono_ns"] <= sched["arm_begin_ns"],
+          "readiness precedes scheduler arm")
+    check(sched["fully_armed_counts"] == [0] * 6, "observed empty fully armed ledger")
+
+    clocks = [
+        cap["target_launch_perf_counter_ns"], ready[0]["mono_ns"], ready[1]["mono_ns"],
+        sched["arm_begin_ns"], sched["arm_complete_ns"], cap["scheduler_armed_perf_counter_ns"],
+        cap["collector_launch_perf_counter_ns"], cap["session_and_reverse_resume_header_observed_perf_counter_ns"],
+        cap["target_exit_perf_counter_ns"], sched["terminal_read_end_ns"],
+    ]
+    check(all(left < right for left, right in zip(clocks, clocks[1:])),
+          "reported launch readiness arm collector header exit ordering")
+    check(sched["target_exit_observed_ns"] == cap["target_exit_perf_counter_ns"],
+          "same target exit bracket")
+    check(cap["header_timing_scope"]
+          == "post-resume acknowledgment upper bound; target can run or exit before header is observed",
+          "header explicitly remains a post-resume upper bound")
+
+    argv = cap["collector_argv"]
+    check(argv[argv.index("--resume-runtime:true")] == "--resume-runtime:true", "same endpoint automatic resume")
+    port = argv[argv.index("--diagnostic-port") + 1]
+    check(port.startswith("/tmp/cehpalon-trace-") and port.endswith("/p.sock"), "single private reverse port")
+    check(argv[argv.index("--output") + 1].endswith("/generator/runtime.nettrace"), "owned trace output")
+    check(argv[argv.index("--providers") + 1] == cap["providers"] == manifest["providers"],
+          "exact provider string in command and manifest")
+    check(argv[argv.index("--buffersize") + 1] == "256" and argv[argv.index("--buffering-mode") + 1] == "Drop",
+          "unchanged EventPipe buffer policy")
+    check(argv[argv.index("--profile") + 1] == "dotnet-sampled-thread-time", "unchanged sampled profile")
+    log = (CAPTURE / "generator/collector.stdout.txt").read_text()
+    check("Waiting for connection on " + port in log and "Trace completed." in log,
+          "collector reported the declared port and completion")
+    check(all((CAPTURE / ("generator/" + name)).stat().st_size == 0
+              for name in ("target.stderr.txt", "collector.stderr.txt")), "empty target and collector stderr")
+    trace = (CAPTURE / "generator/runtime.nettrace").read_bytes()
+    check(len(trace) == cap["trace_bytes"] == 117676622 and sha(trace) == cap["trace_sha256"],
+          "actual complete EventPipe bytes match report")
+    ledger = (CAPTURE / "scheduler/scheduler-ledger.bin").read_bytes()
+    check(sha(ledger) == sched["ledger_sha256"] == sched["second_read"]["ledger_sha256"],
+          "retained scheduler ledger hash parity")
+    check(sched["terminal_counts"] == sched["terminal_before_detach"] == sched["second_read"]["counts"]
+          == [243270, 0, 0, 39, 39, 2], "terminal count snapshots")
+
+    source = (ROOT / "sources02/trace_tooling.py.txt").read_text()
+    check("child_options = dict(user=1000, group=1000, extra_groups=[])" in source
+          and source.count("**child_options)") == 2, "source-enforced ordinary target and collector")
+    check("os.chown(ipc_dir, 1000, 1000)" in source and "os.chown(folder, 1000, 1000)" in source,
+          "source-enforced new private directory ownership")
+    check("scheduler.arm(target, folder)" in source and source.index("scheduler.arm(target, folder)")
+          < source.index("collector = subprocess.Popen"), "source-enforced arm before collector resume")
+    check("DOTNET_DiagnosticPorts=port + ',connect,suspend'" in source
+          and "collector resumes its own endpoint" in source, "source-enforced target reverse suspension")
+
+    old = read(FAILED / "generator/capture.json")
+    old_sched = read(FAILED / "scheduler/scheduler.json")
+    check(old["status"] == "failed" and "pinned CoreCLR library was not loaded" in old["failure"],
+          "retained initial readiness failure")
+    check("collector_pid" not in old and "collector_launch_perf_counter_ns" not in old
+          and "scheduler_armed_perf_counter_ns" not in old, "failure before collector and scheduler arm")
+    check(old_sched["programs"] == old_sched["attached_hooks"] == old_sched["seed_map_receipts"] == []
+          and old_sched["closed_fds"] == 0, "failure created no scheduler resources")
+    check(old["owned_process_cleanup"] == [
+        {"role": "target", "pid": 795, "kill_requested": True, "returncode": -9, "joined": True}
+    ] and old["observer_joined"], "failed suspended target killed and joined")
+    check(all((FAILED / ("generator/" + name)).stat().st_size == 0
+              for name in ("target.stdout.txt", "target.stderr.txt", "collector.stdout.txt", "collector.stderr.txt")),
+          "failed attempt produced no application or collector output")
+    check(not any((FAILED / ("generator/" + name)).exists()
+                  for name in ("generator.json", "generator.json.rows.jsonl", "generator.json.spans.jsonl",
+                               "runtime.nettrace")), "no failed managed corpus or trace to stitch")
+
+    if manifest.get("status") == "completed":
+        check(manifest["binary_sha256_after"] == manifest["binary_sha256_before"],
+              "complete post-analysis binary inventory parity")
+        check(manifest["source_after"] == manifest["source_before"], "loaded helper source/code parity")
+    return {
+        "schema_version": 1, "audit": "Independent retained preparation and capture receipts for Roslyn capture02",
+        "checks_passed": sum(CHECKS.values()), "checks_by_kind": dict(CHECKS),
+        "source_files": len(freeze["sources"]), "frozen_binary_receipts": len(freeze["binaries"]),
+        "capture_status": cap["status"], "analysis_manifest_status_at_audit": manifest["status"],
+        "target_pid": cap["target_pid"], "collector_pid": cap["collector_pid"],
+        "initial_cohort_tids": [task["tid"] for task in sched["prearm_cohort"]],
+        "scheduler_reported_closed_fds": sched["closed_fds"],
+        "trace_sha256": cap["trace_sha256"], "ledger_sha256": sched["ledger_sha256"],
+        "header_scope": cap["header_timing_scope"],
+        "caveats": [
+            "UID/GID values for the target cohort are retained. Collector credential drop and IPC directory ownership are enforced by the frozen launch source, without a separate collector proc-status or directory-stat receipt.",
+            "Reported descriptor closes and child cleanup are audited from retained receipts, not independent live observations.",
+            "Source and binary parity are observational provenance. The parser may still be running when this capture-only audit executes.",
+            "The collector header is observed after its resume request and supplies no exact resume instant.",
+            "This audit does not reparse EventPipe payloads, validate GC pairing, infer causal delay or qualify the original benchmark."
+        ],
+    }
+
+
+if __name__ == "__main__":
+    result = main()
+    with (ROOT / "independent-capture-preparation-audit02.json").open("x", encoding="utf-8", newline="\n") as stream:
+        json.dump(result, stream, indent=2)
+        stream.write("\n")
+    print(json.dumps({"status": "passed", "checks": result["checks_passed"]}))

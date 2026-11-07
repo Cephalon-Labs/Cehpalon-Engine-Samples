@@ -1,0 +1,50 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import resource
+import subprocess
+import sys
+
+
+root = Path(__file__).resolve().parent
+samples = Path("/mnt/d/Cephalon/Cehpalon-Engine-Samples")
+proof = json.loads((root / "lane-freeze01.json").read_bytes())
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+assert os.geteuid() == 0 and sys.executable == "/usr/bin/python3"
+assert sha(Path(__file__)) == proof["supervisor_sha256"]
+assert sha(root.parents[1] / "internal/validation/roslyn-scheduler-correlation.md") == proof["protocol_sha256"]
+bound = {"namespace_inode": Path("/proc/self/ns/pid").stat().st_ino,
+         "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+         "timens_offsets": Path("/proc/self/timens_offsets").read_text(),
+         "rlimit_memlock": resource.getrlimit(resource.RLIMIT_MEMLOCK),
+         "rlimit_nofile": resource.getrlimit(resource.RLIMIT_NOFILE)}
+assert bound["rlimit_memlock"][0] >= 32 * 1024 * 1024
+with (root / "lane-bound01.json").open("x", encoding="utf-8") as stream:
+    json.dump(bound, stream, indent=2)
+    stream.write("\n")
+for name, argv in proof["cases"]:
+    for path, digest in proof["sources"].items():
+        assert sha(samples / path) == digest, path
+    for path, digest in proof["binaries"].items():
+        assert sha(Path(path)) == digest, path
+    prefix = root / name
+    with prefix.with_suffix(".stdout.txt").open("xb") as stdout, prefix.with_suffix(".stderr.txt").open("xb") as stderr:
+        try:
+            result = subprocess.run(argv, cwd=samples, env={}, stdout=stdout, stderr=stderr,
+                                    timeout=1200, check=False)
+            status = result.returncode
+        except subprocess.TimeoutExpired:
+            status = 124
+    with prefix.with_suffix(".exit.json").open("x", encoding="utf-8") as stream:
+        json.dump({"exit_code": status}, stream)
+    print(json.dumps({"case": name, "exit_code": status}), flush=True)
+    if status:
+        raise SystemExit(status)
+for path, digest in proof["binaries"].items():
+    assert sha(Path(path)) == digest, path
