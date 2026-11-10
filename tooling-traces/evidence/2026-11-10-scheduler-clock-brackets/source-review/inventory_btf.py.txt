@@ -1,0 +1,17 @@
+import hashlib,json,sys
+from pathlib import Path
+sys.path.insert(0,"/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools")
+from scheduler_dynamic_btf import Btf
+raw=Path("/sys/kernel/btf/vmlinux").read_bytes();b=Btf(raw)
+names={b"btf_trace_sched_entry_tp",b"btf_trace_sched_exit_tp",b"btf_trace_sched_switch",b"finish_task_switch",b"finish_task_switch.isra.0",b"ktime_get_ts64",b"context_switch",b"__schedule"}
+result=[]
+for i,t in enumerate(b.types[1:],1):
+ name=b.strings[t.name_offset:].split(b"\0",1)[0]
+ if name not in names:continue
+ row={"id":i,"name":name.decode(),"kind":t.kind,"entries":t.entries,"reference":t.size_or_reference}
+ if t.kind in (8,12):
+  try:
+   k,v=b.resolve(t.size_or_reference);row["referent"]={"id":k,"kind":v.kind,"entries":v.entries,"reference":v.size_or_reference}
+  except Exception as e:row["resolve_error"]=str(e)
+ result.append(row)
+print(json.dumps({"btf_sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw),"matches":result},indent=2))

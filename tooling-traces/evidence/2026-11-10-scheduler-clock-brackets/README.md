@@ -1,0 +1,3 @@
+# Owned callback clock-bracket evidence
+
+See the Docs protocol/report/delivery for this fixed synthetic negative/positive pair. Decompress .gz payloads and verify stored/payload SHA-256. Original and payload hashes differ only for explicit verifier-log kernel-address redactions; exact originals remain local. All source versions, primary-source acquisitions, tests, raw ledgers and independent audits are retained. Upstream source notices remain in copied source artifacts. Numerical brackets are execution-specific compatible intervals and do not qualify historical Roslyn clocks or physical scheduler/GC durations.

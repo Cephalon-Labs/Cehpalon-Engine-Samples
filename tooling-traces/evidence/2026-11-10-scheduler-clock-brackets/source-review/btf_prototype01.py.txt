@@ -1,0 +1,13 @@
+import hashlib,json,struct,sys
+from pathlib import Path
+sys.path.insert(0,"/mnt/d/Cephalon/Cehpalon-Engine-Samples/tools")
+from scheduler_dynamic_btf import Btf
+raw=Path("/sys/kernel/btf/vmlinux").read_bytes();b=Btf(raw)
+def name(n):return b.strings[n:b.strings.find(b"\0",n)].decode()
+def shape(i):
+ t=b.types[i];r={"id":i,"name":name(t.name_offset),"kind":t.kind,"entries":t.entries,"reference_or_size":t.size_or_reference}
+ if t.kind==13:
+  r["params"]=[{"name":name(n),"type_id":typ,"type_name":name(b.types[typ].name_offset),"kind":b.types[typ].kind,"size_or_ref":b.types[typ].size_or_reference} for n,typ in struct.iter_unpack("<II",raw[t.tail_offset:t.tail_offset+t.entries*8])]
+ return r
+out={"btf_sha256":hashlib.sha256(raw).hexdigest(),"types":[shape(i) for i in (108674,108675,108676,108678)]}
+print(json.dumps(out,indent=2))

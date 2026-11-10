@@ -1,0 +1,42 @@
+import hashlib,json
+from pathlib import Path
+r=Path(__file__).parent
+checks=[]
+def check(ok,label):
+ if not ok:raise AssertionError(label)
+ checks.append(label)
+a=json.loads((r/"acquisition01.json").read_bytes())["sources"]
+a+=json.loads((r/"acquisition02.json").read_bytes())
+a+=[json.loads((r/"acquisition03.json").read_bytes())]
+for row in a:
+ p=r/row["path"]
+ check(hashlib.sha256(p.read_bytes()).hexdigest()==row["sha256"],"source hash "+p.name)
+texts={p.name:p.read_text() for p in r.glob("*.txt")}
+def text(name):return texts[name]
+check("ktime_get_ts64(tp);" in text("kernel_time_posix-timers.c.txt"),"POSIX monotonic uses non-fast ts64")
+check("case CLOCK_MONOTONIC:" in text("kernel_time_posix-stubs.c.txt") and "ktime_get_ts64(tp);" in text("kernel_time_posix-stubs.c.txt"),"non-POSIX stub keeps monotonic ts64")
+check("read_seqcount_begin(&tk_core.seq)" in text("kernel_time_timekeeping.c.txt") and "read_seqcount_retry(&tk_core.seq, seq)" in text("kernel_time_timekeeping.c.txt"),"normal reader retries seqcount")
+check("return ktime_get_mono_fast_ns();" in text("kernel_bpf_helpers.c.txt"),"helper5 fast implementation")
+check("return ktime_get_boot_fast_ns();" in text("kernel_bpf_helpers.c.txt"),"boot helper remains fast")
+check("return ktime_get_tai_fast_ns();" in text("kernel_bpf_helpers.c.txt"),"TAI helper remains fast")
+check("return ktime_get_coarse_ns();" in text("kernel_bpf_helpers.c.txt"),"coarse helper distinct low resolution")
+check("not guaranteed to be monotonic across an update" in text("kernel_time_timekeeping.c.txt"),"fast reader backward observation caveat")
+core=text("kernel_sched_core.c.txt")
+check(core.index("trace_sched_switch(preempt, prev, next, prev_state);")<core.index("rq = context_switch(rq, prev, next, &rf);"),"switch trace precedes context switch")
+check(core.index("rq = context_switch(rq, prev, next, &rf);")<core.index("trace_sched_exit_tp(is_switch);"),"general exit trace follows context return")
+check("trace_sched_exit_tp(true);" in core and "finish_task_switch(prev);" in core,"newborn tail has separate exit")
+check("DECLARE_TRACE(sched_entry," in text("include_trace_events_sched.h.txt") and "DECLARE_TRACE(sched_exit," in text("include_trace_events_sched.h.txt"),"raw scheduling boundary declarations")
+check("__BPF_DECLARE_TRACE(call##_tp" in Path("D:/Cephalon/Cehpalon-Engine-Docs/.local/scheduler-state01/kernel-review/include_trace_bpf_probe.h.txt").read_text(),"DECLARE_TRACE BPF bridge gets tp suffix")
+check("186\tcommon\tgettid" in text("arch_x86_entry_syscalls_syscall_64.tbl.txt"),"x64 syscall gettid186")
+check("228\tcommon\tclock_gettime" in text("arch_x86_entry_syscalls_syscall_64.tbl.txt"),"x64 syscall clock228")
+h=json.loads((r/"host-inventory01.json").read_bytes())
+check(h["uname"]=="6.18.54.1-microsoft-standard-WSL2","live read-only release matches")
+check("monotonic           0         0" in h["timens"],"read-only monotonic namespace offset zero")
+b=json.loads((r/"btf-prototypes01.json").read_bytes())
+check(b["btf_sha256"]=="1c1326be5d6ca0e60ad8790971b6765bba91cc8a3ab897a94794177484c8c9b9","live BTF matches pinned hash")
+check([t["name"] for t in b["types"] if t["kind"]==8]==["btf_trace_sched_entry_tp","btf_trace_sched_exit_tp"],"both raw hook BTF declarations exist")
+proto=next(t for t in b["types"] if t["kind"]==13)
+check(proto["entries"]==2 and proto["params"][1]["type_name"]=="bool","BTF callback hidden data plus bool")
+out={"status":"passed_read_only_source_feasibility","checks":len(checks),"checks_passed":checks,"sources":len(a),"no_native_attach":True,"no_actor_or_build":True,"limits":["Read-only hook declarations and BTF do not establish BPF attach availability.","Non-fast syscall is a separate accessor sharing kernel timekeeper/clocksource, not a physical reference clock.","No universal numeric clock-error or exact physical switch boundary is certified."]}
+(r/"source-audit01.json").write_text(json.dumps(out,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps({"status":out["status"],"checks":len(checks),"sources":len(a)}))

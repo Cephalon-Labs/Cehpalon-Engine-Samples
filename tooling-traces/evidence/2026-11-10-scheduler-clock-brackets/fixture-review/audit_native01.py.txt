@@ -1,0 +1,91 @@
+import hashlib,json,struct
+from collections import Counter
+from pathlib import Path
+root=Path(__file__).parent.parent
+samples=Path("D:/Cephalon/Cehpalon-Engine-Samples")
+read=lambda p:json.loads(p.read_bytes())
+sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+checks=Counter()
+def check(ok,kind):
+ if not ok:raise AssertionError(kind)
+ checks[kind]+=1
+freeze=read(root/"freeze01.json");execution=read(root/"execution01.json")
+check(execution["exit"]==0 and execution["sources_unchanged"] and execution["binaries_unchanged"],"ordered execution completed unchanged")
+check(freeze["frozen_order"]==["negative01","positive01"] and freeze["native_output"]=="native01","frozen ordered cases")
+check(sha(root/"protocol01.md")==freeze["protocol_sha256"],"frozen protocol bytes")
+check(sha(root/"run_native01.py")==freeze["supervisor_sha256"],"frozen supervisor bytes")
+for n,h in freeze["sources"].items():
+ check(sha(samples/n)==h,"current source equals freeze")
+ check(sha(root/"sources01"/Path(n).name)==h,"captured source equals freeze")
+check(len(freeze["sources"])==99 and len(freeze["binaries"])==3,"declared source and binary bounds")
+readiness=read(root/"fixture-review/readiness-source-hashes01.json")
+check(all(freeze["sources"]["tools/"+n]==h for n,h in readiness.items()),"readiness checksum observations already include isolation delta")
+check("after readiness" in freeze["actor_isolation_delta"],"isolation correction chronology explicit")
+# A literal independent instruction template, not a production builder import.
+def ins(code,dst=0,src=0,off=0,imm=0):return (code,dst|(src<<4),off,imm)
+def template(cap):
+ return [ins(0xbf,6,1),ins(0x85,imm=158),ins(0xbf,2,0),ins(0x18,1,1),ins(0),ins(0xb7,3),ins(0xb7,4),ins(0x85,imm=156),ins(0x15,0,off=42),ins(0x79,1,0),ins(0x55,1,off=40,imm=0x43455048),ins(0x79,1,6,8),ins(0x55,1,off=38,imm=186),ins(0x85,imm=8),ins(0x63,10,0,-8),ins(0x85,imm=5),ins(0x7b,10,0,-16),ins(0x62,10,off=-4),ins(0x18,1,1),ins(0),ins(0xbf,2,10),ins(0x07,2,imm=-4),ins(0x85,imm=1),ins(0x15,0,off=27),ins(0xbf,9,0),ins(0xb7,1,imm=1),ins(0xc3,9,1,imm=1),ins(0x35,1,off=21,imm=cap),ins(0x63,10,1,-4),ins(0x18,1,1),ins(0),ins(0xbf,2,10),ins(0x07,2,imm=-4),ins(0x85,imm=1),ins(0x15,0,off=14),ins(0xbf,7,0),ins(0x61,1,10,-4),ins(0x07,1,imm=1),ins(0x63,7,1),ins(0x61,1,10,-8),ins(0x63,7,1,4),ins(0x62,7,off=12),ins(0x79,1,10,-16),ins(0x7b,7,1,16),ins(0x85,imm=5),ins(0x7b,7,0,24),ins(0x85,imm=8),ins(0x63,7,0,8),ins(0x05,off=2),ins(0xb7,1,imm=1),ins(0xc3,9,1,4),ins(0xb7,0),ins(0x95)]
+row=struct.Struct("<IIIIQQ")
+results=[]
+for name,cap,total,loss in [("negative01",1,2,1),("positive01",128,64,0)]:
+ folder=root/"native01"/name;r=read(folder/"report.json");a=read(folder/"analysis.json")
+ check(r["status"]=="completed" and r["capacity"]==cap,"case completed at fixed capacity")
+ check(r["closed_fds"]==9 and not r["cleanup_errors"] and not r["forced_cleanup"] and r["actor_exit_code"]==0,"reported clean owned cleanup")
+ check(r["actor_command"][1:4]==["-I","-S","-B"],"ordinary actor isolation argv")
+ check(r["lease_before"]==r["lease_after"],"still-live identity lease unchanged")
+ lease=r["lease_before"];pid=r["actor_pid"]
+ check(lease["local_pid"]==pid and lease["start_ticks"]>0,"positive execution identity")
+ check(lease["credentials"]=={"uid":[1000]*4,"gid":[1000]*4} and not any(lease["capabilities"].values()),"ordinary actor credentials")
+ check(lease["pidfd_mappings"]==[{"pid":pid,"nspid":[pid]}]*2,"independent alias bindings")
+ check(r["timens_offsets"]==freeze["timens_offsets"] and all(x.split()[1:]==["0","0"] for x in r["timens_offsets"].splitlines()),"zero shared monotonic namespace offset")
+ receipts=r["seed_map_receipts"]
+ check(receipts==[{"stage":"seed","errno":None,"value":None},{"stage":"alias_ack","errno":None,"value":0x43455048},{"stage":"nonmember_absent","errno":2},{"stage":"reaped_absent","errno":2}],"exact seed alias nonmember and postreap receipts")
+ check(r["attached_hooks"]==[{"tp_name":"sys_enter","cookie":0}],"one named raw hook")
+ check(r["control_counts"]==[0,0,0,0],"unseeded nonmember wrongsyscall counters zero")
+ check(r["unseeded"]["syscall"]==186 and len(r["unseeded"]["rows"])==2,"two unseeded gettid controls")
+ check(r["wrong_syscall"]["syscall"]==39 and len(r["wrong_syscall"]["rows"])==1,"one wrongsyscall control")
+ for label in ("unseeded","wrong_syscall"):
+  b=r[label];check(b["cpu"]==0 and b["affinity"]==[0] and all(x["result"]==pid and 0<x["before_ns"]<=x["after_ns"] for x in b["rows"]),"control identity and reference receipt")
+ expected=[(0,2)] if cap==1 else [(i%2,8) for i in range(8)]
+ check([(b["cpu"],len(b["rows"])) for b in r["batches"]]==expected,"exact frozen batch sequence")
+ for b in r["batches"]:check(b["syscall"]==186 and b["affinity"]==[b["cpu"]],"positive batch syscall and affinity")
+ check(r["before_detach_counts"]==r["terminal_counts"]==[total,loss,0,0],"terminal counters reconcile")
+ raw=(folder/"ledger.bin").read_bytes();digest=hashlib.sha256(raw).hexdigest()
+ check(len(raw)==128*32 and digest==r["second_read_sha256"]==a["ledger_sha256"],"full ledger and second read hash")
+ used=min(cap,total);check(not any(raw[used*32:]),"all unused slots zero")
+ program,=r["programs"]
+ check(program["hook"]=="sys_enter" and program["recursion_before"]==program["recursion_after"]==0,"reported hook misses zero")
+ actual=list(struct.iter_unpack("<BBhi",bytes.fromhex(program["program_hex"])));expectedcode=template(cap)
+ check(len(actual)==len(expectedcode)==53,"fixed loaded instruction length")
+ fds=[]
+ for i,(got,want) in enumerate(zip(actual,expectedcode)):
+  if i in (3,18,29):
+   check(got[:3]==want[:3] and got[3]>0,"only declared live mapFD relocation")
+   fds.append(got[3])
+  else:check(got==want,"fixed loaded instruction")
+ check(len(set(fds))==3,"distinct storage counts and record map roles")
+ points=[(b["cpu"],x) for b in r["batches"] for x in b["rows"]]
+ observations=[];outside=backwards=0;prev_ref=None
+ for i,fields in enumerate(row.iter_unpack(raw[:used*32])):
+  ordinal,cpu0,cpu1,reserved,begin,end=fields;cpu,ref=points[i]
+  low,high=ref["before_ns"],ref["after_ns"]
+  check(ordinal==i+1 and cpu0==cpu1==cpu and reserved==0,"unique contiguous ordinal and exact CPU")
+  check(type(low) is int and type(high) is int and 0<low<=high and begin>0 and end>0 and ref["result"]==pid,"raw positive reference identity and times")
+  if prev_ref is not None:check(low>=prev_ref,"reference brackets sequential")
+  prev_ref=high
+  inside=low<=begin<=high and low<=end<=high
+  reverse=end<begin;outside+=not inside;backwards+=reverse
+  own={"ordinal":ordinal,"cpu":cpu,"reference_bracket_ns":[low,high],"fast_points_ns":[begin,end],"conditional_discrepancy_intervals_ns":[[begin-high,begin-low],[end-high,end-low]],"within_reference_bracket":inside,"recorded_callback_backwards":reverse}
+  check(own==a["observations"][i],"independent raw observation and exact discrepancy arithmetic")
+  observations.append(own)
+ check(len(a["observations"])==used and a["attempted"]==total and a["lost"]==loss and a["retained"]==used,"analysis fixed completeness counts")
+ check(a["outside_reference_brackets"]==outside and a["recorded_callback_backwards"]==backwards,"all reported timing anomalies independently reproduced")
+ check(a["transferable_clock_error_bound"] is None and not a["physical_scheduler_duration_certified"] and not a["historical_roslyn_qualified"],"timing and historical qualification remain false")
+ widths=[o["reference_bracket_ns"][1]-o["reference_bracket_ns"][0] for o in observations]
+ spans=[o["fast_points_ns"][1]-o["fast_points_ns"][0] for o in observations]
+ discrepancies=[edge for o in observations for interval in o["conditional_discrepancy_intervals_ns"] for edge in interval]
+ results.append({"case":name,"actor_pid":pid,"attempted":total,"lost":loss,"retained":used,"ledger_sha256":digest,"outside_reference_brackets":outside,"recorded_body_backwards":backwards,"cpu_counts":dict(Counter(o["cpu"] for o in observations)),"reference_bracket_width_range_ns":[min(widths),max(widths)],"conditional_recorded_body_span_range_ns":[min(spans),max(spans)],"conditional_discrepancy_interval_hull_ns":[min(discrepancies),max(discrepancies)],"closed_fds":r["closed_fds"]})
+check(results[0]["actor_pid"]!=results[1]["actor_pid"],"fresh ordinary actor identities distinct observed")
+result={"status":"passed_bounded_independent_clock_fixture_audit","checks_passed":sum(checks.values()),"checks_by_kind":dict(checks),"cases":results,"production_analysis_imported":False,"production_program_builder_imported":False,"readiness_hash_observation":"Visual initial review preceded isolation change; readiness checksum file was sampled after that change and matches all frozen files. It is not a pre-delta source attestation.","caveats":["Native closure and binary before/after parity are recorded receipts bound to frozen executing source; this audit does not attest running JIT or kernel image.","Root nonmember gettid is source-invoked and storage absence/counters recorded, with no separate root syscall numeric-return receipt.","Finite callback-body and raw-reference brackets do not certify a transferable fast-clock error bound or historical Roslyn physical scheduler durations."]}
+(root/"fixture-review/independent-native-audit01.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps(result))

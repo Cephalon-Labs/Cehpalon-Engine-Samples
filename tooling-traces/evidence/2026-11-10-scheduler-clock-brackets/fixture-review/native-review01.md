@@ -1,0 +1,13 @@
+# Independent actual clock fixture audit
+
+The first audit passed629checks with no failed audit attempt. audit_native01.py independently unpacks both ledgers, reconstructs every observation/discrepancy interval, and compares a literal53-instruction template. It imports neither the production analyzer nor program builder. It verifies99current and99retained source hashes, fixed protocol/supervisor/order, exact liveFD-only relocations, ownership/filter guards, source-declared helper order, all65retained rows, controls, leases, counter reconciliation, two-read hashes, zero padding, reported recursion misses and cleanup receipts.
+
+Negative actor754:2attempts,1retained,1capacity loss,faults0; one recorded CPU0 bracket,zero outside references or backward-body observations. Its conditional recorded body span is342ns in a3248ns raw reference bracket. The intentionally lost second callback has its actor reference retained but no fabricated kernel record.
+
+Positive actor755:64attempts/64retained/zero loss,32onCPU0 and32onCPU1 in eight alternating8-call batches. All128fast points lie within their own raw monotonic syscall references. No body timestamp reversal occurs. Reference bracket widths range1009..4613ns; conditional recorded body spans25..295ns. The union hull of perpoint conditional discrepancy intervals is[-1496,3334]ns. This finite descriptive hull is not a calibrated transferable clock-error upper bound.
+
+Both cases report9closednativeFDs,no cleanup error,no forced actor kill,zero actor exit,unchanged live alias leases,zero control counters,postreap task-storage ENOENT and zero reported recursion misses. Native close/binary parity remain source-bound receipts rather than immutable host/JIT attestation. Root nonmember gettid is invoked by frozen source and its nonmember storage/counter receipts exist, but no separate numeric root syscall return is retained.
+
+Readiness chronology clarification: the initial visual source inspection saw -B-only actor startup and recommended -I/-S. The later readiness-source-hashes01.json was sampled after that correction had already landed and consequently matches all frozen sources. It is not an independently preserved pre-correction source hash. The isolation change is explicitly declared before freeze01 and no native attempt executed the earlier draft.
+
+No actionable native collection defect found. The controlled loss-negative and fresh positive are complete as scoped. Current Roslyn remains unqualified for exact physical CPU/blocked/runqueue duration, GC attribution or Engine speedup. The syscall callback fixture records an inner post-ownership body and cannot retroactively supply missing per-event reference/switch boundaries in another execution.
