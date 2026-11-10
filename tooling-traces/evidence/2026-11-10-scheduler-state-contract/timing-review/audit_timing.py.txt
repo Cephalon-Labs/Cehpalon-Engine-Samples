@@ -1,0 +1,32 @@
+import json, hashlib, struct
+from pathlib import Path
+from collections import defaultdict,Counter
+from fractions import Fraction
+root=Path(__file__).parent
+base=Path("D:/Cephalon/Cehpalon-Engine-Samples/.local/roslyn-scheduler-capture02")
+read=lambda p:json.loads(p.read_bytes())
+report=read(base/"scheduler/scheduler.json")
+raw=(base/"scheduler/scheduler-ledger.bin").read_bytes()
+assert hashlib.sha256(raw).hexdigest()==report["ledger_sha256"]
+assert len(raw)==262144*40 and not any(raw[243270*40:])
+row=struct.Struct("<IIIIQIIII")
+records=[dict(zip(("kind","cpu","target_cpu","raw_state","mono_ns","local_tid","global_tid","generation","parent_generation"),r),slot=i) for i,r in enumerate(row.iter_unpack(raw[:243270*40]))]
+def reverse_pairs(rows):return [(a,b) for a,b in zip(rows,rows[1:]) if b["mono_ns"]<a["mono_ns"]]
+def ties(rows):return sum(a["mono_ns"]==b["mono_ns"] for a,b in zip(rows,rows[1:]))
+by_generation=defaultdict(list);by_cpu=defaultdict(list)
+for r in records:by_generation[r["generation"]].append(r);by_cpu[r["cpu"]].append(r)
+global_reverse=reverse_pairs(records)
+generation_reverse=[(a,b) for v in by_generation.values() for a,b in reverse_pairs(v)]
+cpu_reverse=[(a,b) for v in by_cpu.values() for a,b in reverse_pairs(v)]
+assert len(global_reverse)==740 and ties(records)==50 and len(generation_reverse)==13
+masks=read(base/"scheduler-joins03/recorded-order.json")
+queries=[json.loads(l) for l in (base/"scheduler-joins03/wait-joins.jsonl").open()]
+cores=sorted(tuple(map(Fraction,q["core_ns"])) for q in queries if q["generation"]==3)
+merged=[]
+for a,b in cores:
+ if not merged or a>merged[-1][1]:merged.append([a,b])
+ else:merged[-1][1]=max(merged[-1][1],b)
+mask_intersection=sum(max(Fraction(0),min(b,m["end_ns"])-max(a,m["begin_ns"])) for a,b in merged for m in masks["3"]["unknown_masks"])
+result={"status":"passed","ledger_sha256":hashlib.sha256(raw).hexdigest(),"records":len(records),"global_adjacent_reversals":len(global_reverse),"global_adjacent_ties":ties(records),"global_adjacent_reversal_same_cpu":sum(a["cpu"]==b["cpu"] for a,b in global_reverse),"per_cpu_adjacent_reversals":len(cpu_reverse),"per_cpu_adjacent_ties":sum(ties(v) for v in by_cpu.values()),"per_generation_adjacent_reversals":len(generation_reverse),"per_generation_adjacent_reversal_same_cpu":sum(a["cpu"]==b["cpu"] for a,b in generation_reverse),"per_generation_reversal_pairs":[{"left":a,"right":b,"reversal_ns":a["mono_ns"]-b["mono_ns"]} for a,b in generation_reverse],"main_generation_masks":masks["3"]["unknown_masks"],"main_wait_core_union_ns":str(sum(b-a for a,b in merged)),"main_visible_order_mask_intersection_ns":str(mask_intersection),"source_limits":["Atomic slot reservation precedes helper5 clock sampling; slots are not event-time order.","Helper5 uses ktime_get_mono_fast_ns; exact published kernel source does not guarantee monotonicity across timekeeper updates.","Observed inversions cannot isolate publication, fast-clock update or other callback timing mechanisms.","Masks only describe visible recorded-order uncertainty; they cannot bound all callback/clock error.","No scheduler/CPU/GC causal duration claim follows from these counts."]}
+(root/"independent-timing-audit.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps({k:v for k,v in result.items() if k not in {"per_generation_reversal_pairs","main_generation_masks","source_limits"}},indent=2))

@@ -1,0 +1,82 @@
+"""Literal preceding-record labels for unknown caller-core union intervals."""
+
+from collections import Counter, defaultdict
+from fractions import Fraction
+import json
+import struct
+
+from audit01 import CAPTURE, HERE, LEGACY, OLD, STATE, label, merge_windows, read
+
+
+def main():
+    report = read(CAPTURE / 'scheduler/scheduler.json')
+    attempted = report['terminal_counts'][0]
+    raw = (CAPTURE / 'scheduler/scheduler-ledger.bin').read_bytes()
+    grouped = defaultdict(lambda: defaultdict(list))
+    for slot, values in enumerate(struct.iter_unpack('<IIIIQIIII', raw[:attempted * 40])):
+        kind, cpu, target, state, stamp, tid, global_tid, generation, parent = values
+        grouped[generation][stamp].append({'kind': kind, 'state': state, 'slot': slot})
+    masks = read(OLD / 'recorded-order.json')
+    windows = defaultdict(list)
+    for line in (LEGACY / 'wait-joins.jsonl').open():
+        query = json.loads(line)
+        assert query['status'] == 'bound'
+        windows[query['generation']].append(tuple(map(Fraction, query['core_ns'])))
+    kind_names = {1: 'birth', 2: 'wake_new', 3: 'in', 4: 'out', 5: 'waking',
+                  6: 'wakeup', 7: 'exit', 8: 'free', 10: 'initial_enrollment'}
+    reason_ns = Counter()
+    reason_pieces = Counter()
+    literal_intervals = []
+    for generation, offered in windows.items():
+        merged = merge_windows(offered)
+        times = sorted(grouped[generation])
+        for left, right in zip(times, times[1:]):
+            events = grouped[generation][left]
+            source = events[0] if len(events) == 1 else None
+            current = label(source['kind'], source['state'], True) if source else 'unknown'
+            for begin, end in merged:
+                lo, hi = max(left, begin), min(right, end)
+                if lo >= hi:
+                    continue
+                relevant = masks[str(generation)]['unknown_masks']
+                edges = {lo, hi}
+                for mask in relevant:
+                    edges.update(Fraction(t) for t in (mask['begin_ns'], mask['end_ns']) if lo < t < hi)
+                ordered = sorted(edges)
+                for a, b in zip(ordered, ordered[1:]):
+                    masked = any(a < mask['end_ns'] and b > mask['begin_ns'] for mask in relevant)
+                    if masked:
+                        reason = 'recorded_order_mask'
+                    elif current != 'unknown':
+                        continue
+                    elif source is None:
+                        reason = 'same_generation_recorded_timestamp_tie'
+                    else:
+                        reason = 'preceding_recorded_' + kind_names[source['kind']]
+                        if source['kind'] == 4:
+                            reason += '_raw_state_' + str(source['state'])
+                    reason_ns[reason] += b - a
+                    reason_pieces[reason] += 1
+                    literal_intervals.append({'generation': generation, 'begin_ns': str(a), 'end_ns': str(b),
+                                              'reason': reason, 'source_slots': [r['slot'] for r in events]})
+    summary = read(STATE / 'summary.json')
+    expected = sum(Fraction(row.get('unknown', 0)) for row in
+                   summary['caller_wait_core_union_conditional_recorded_state_ns'].values())
+    assert sum(reason_ns.values()) == expected == 65775905
+    result = {'status': 'passed_literal_unknown_reason_accounting',
+              'unknown_union_ns': str(expected),
+              'preceding_recorded_reasons_ns': {k: str(v) for k, v in reason_ns.items()},
+              'reason_pieces': dict(reason_pieces),
+              'limits': ['Reasons identify preceding recorded points only.',
+                         'They do not measure physical waking latency, blocked time or GC/scheduler cause.']}
+    with (HERE / 'unknown-reasons01.json').open('x', encoding='utf-8', newline='\n') as stream:
+        json.dump(result, stream, indent=2)
+        stream.write('\n')
+    with (HERE / 'unknown-intervals01.jsonl').open('x', encoding='utf-8', newline='\n') as stream:
+        for row in literal_intervals:
+            stream.write(json.dumps(row) + '\n')
+    print(json.dumps(result))
+
+
+if __name__ == '__main__':
+    main()

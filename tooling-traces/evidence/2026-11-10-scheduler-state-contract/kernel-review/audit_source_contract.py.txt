@@ -1,0 +1,35 @@
+import hashlib,json,re,struct
+from pathlib import Path
+root=Path(__file__).parent
+load=lambda p:json.loads(p.read_bytes())
+checks=[]
+def check(value,name):
+ assert value,name
+ checks.append(name)
+p=load(root/"provenance.json")
+for e in p["entries"]:
+ check(e.get("status")==200,"source acquisition "+e["path"])
+ b=(root/e["path"]).read_bytes()
+ check(len(b)==e["bytes"] and hashlib.sha256(b).hexdigest()==e["sha256"],"source bytes "+e["path"])
+sched=(root/"include_linux_sched.h.txt").read_text()
+constants={name:int(value,16) for name,value in re.findall(r"^#define\s+(\w+)\s+(0x[0-9A-Fa-f]+)\s*$",sched,re.M)}
+check(constants["TASK_INTERRUPTIBLE"]|constants["TASK_FREEZABLE"]==8193,"exact8193 decomposition")
+check(constants["TASK_UNINTERRUPTIBLE"]|constants["TASK_WAKEKILL"]==258,"exact258 decomposition")
+check(bool(re.search(r"#define TASK_KILLABLE\s+\(TASK_WAKEKILL \| TASK_UNINTERRUPTIBLE\)",sched)),"TASK_KILLABLE macro")
+core=(root/"kernel_sched_core.c.txt").read_text()
+a=core.index("static bool try_to_block_task(");b=core.index("#ifdef CONFIG_SCHED_PROXY_EXEC",a)
+block=core[a:b]
+check("*task_state_p = TASK_RUNNING;" in block[block.index("if (signal_pending_state"):block.index("if (!should_block)")],"signal cancellation updates raw passed prev_state")
+a=core.index("static void __sched notrace __schedule(")
+section=core[a:]
+check(section.index("prev_state = READ_ONCE(prev->__state)")<section.index("try_to_block_task(rq, prev, &prev_state")<section.index("trace_sched_switch(preempt, prev, next, prev_state)"),"raw state update order precedes callback")
+trace=(root/"include_trace_events_sched.h.txt").read_text()
+check("TP_ARGS(preempt, prev, next, prev_state)" in trace,"raw argument order")
+check("__entry->prev_state\t= __trace_sched_switch_state(preempt, prev_state, prev)" in trace,"formatted tracepoint transforms separate copy")
+bridge=(root/"include_trace_bpf_probe.h.txt").read_text()
+check("CAST_TO_U64(args)" in bridge,"BPF raw bridge forwards original arguments")
+report=load(root/"raw-state-source-audit.json")
+check(report["new_exact_whitelist"]["8193"]["conditional_label"]==report["new_exact_whitelist"]["258"]["conditional_label"]=="off_cpu_sleep_state","profile proposes conditional labels only")
+result={"status":"passed","checks_passed":len(checks),"checks":checks,"limits":["Source semantics correspond to the named release and recorded raw callback contract, not installed binary reproducibility attestation.","TASK_FREEZABLE is a permission modifier; it does not establish that a task was frozen.","TASK_KILLABLE identifies a signal wake condition; it does not establish IO or GC cause.","Proxy-execution and callback timing require separate qualification before physical off-rq or duration claims.","Only exact8193 and258 extension is proposed, with legacy profile and existing ambiguity masks unchanged."]}
+(root/"source-contract-audit.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps(result))

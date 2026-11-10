@@ -11,6 +11,7 @@ from pathlib import Path
 from scheduler_eventpipe_join import join_eventpipe_point
 from scheduler_recorded_order import ordering_masks
 from scheduler_trace_model import decode_scheduler
+from scheduler_state_contract import LEGACY, PROFILES, profile_details
 
 
 def read(path):
@@ -84,14 +85,14 @@ def wait_core(wait, identities, execution, pid, offset):
             "begin": start, "end": end}
 
 
-def analyze(base, lineage, out):
+def analyze(base, lineage, out, *, state_profile=LEGACY):
     capture = read(base / "generator/capture.json")
     scheduler = read(base / "scheduler/scheduler.json")
     require(capture["status"] == scheduler["status"] == "completed", "complete input channels required")
     raw = (base / "scheduler/scheduler-ledger.bin").read_bytes()
     require(hashlib.sha256(raw).hexdigest() == scheduler["ledger_sha256"], "raw scheduler hash differs")
     execution = base.name
-    identities, timelines, groups = decode_scheduler(raw, scheduler, execution)
+    identities, timelines, groups = decode_scheduler(raw, scheduler, execution, state_profile=state_profile)
     interval_ends = {key: [row["end_ns"] for row in value] for key, value in timelines.items()}
     point_times = {}
     for generation, rows in groups.items():
@@ -198,6 +199,7 @@ def analyze(base, lineage, out):
               for generation, windows in union_by_generation.items()}
     result = {
         "status": "completed_bounded_same_execution_observations",
+        "state_contract": profile_details(state_profile),
         "target_pid": pid, "clock_offset_ms": offset, "kernel_records": scheduler["terminal_counts"][0],
         "generations": len(identities), "initial_enrollments": sum(row["initial_state_unknown"] for row in identities),
         "measured_emit_rows": row_count, "distinct_selected_waits": len(queries),
@@ -227,6 +229,8 @@ if __name__ == "__main__":
     parser.add_argument("--capture", required=True, type=Path)
     parser.add_argument("--lineage", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--state-profile", choices=PROFILES, default=LEGACY)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
-    print(json.dumps(analyze(args.capture.resolve(), args.lineage.resolve(), args.output.resolve())))
+    print(json.dumps(analyze(args.capture.resolve(), args.lineage.resolve(), args.output.resolve(),
+                             state_profile=args.state_profile)))

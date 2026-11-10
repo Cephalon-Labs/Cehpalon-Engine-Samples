@@ -1,0 +1,23 @@
+import gzip,hashlib,json
+from pathlib import Path
+root=Path(__file__).parent
+base=Path("D:/Cephalon/Cehpalon-Engine-Samples/tooling-traces/evidence/2026-11-10-scheduler-state-contract")
+base.mkdir(parents=True,exist_ok=False)
+sha=lambda b:hashlib.sha256(b).hexdigest()
+entries=[]
+for p in sorted(root.rglob("*")):
+ if not p.is_file() or p.is_symlink() or "__pycache__" in p.parts:continue
+ raw=p.read_bytes(); target=p.relative_to(root)
+ if p.suffix==".py":target=target.with_name(target.name+".txt")
+ compressed=len(raw)>131072
+ if compressed:target=target.with_name(target.name+".gz")
+ stored=gzip.compress(raw,compresslevel=9,mtime=0) if compressed else raw
+ out=base/target;out.parent.mkdir(parents=True,exist_ok=True)
+ with out.open("xb") as f:f.write(stored)
+ assert (gzip.decompress(out.read_bytes()) if compressed else out.read_bytes())==raw
+ assert len(stored)<100*1024*1024
+ entries.append({"source":p.relative_to(root).as_posix(),"path":target.as_posix(),"payload_sha256":sha(raw),"payload_bytes":len(raw),"stored_sha256":sha(stored),"stored_bytes":len(stored),"compression":"gzip-mtime0" if compressed else "none"})
+manifest={"schema_version":1,"date_bangkok":"2026-11-10","scope":"ADR0031 bounded offline state-contract and recorded-clock review; no native workload","input_capsule":"tooling-traces/evidence/2026-11-07-roslyn-scheduler","input_manifest_sha256":"388ff60b9f727207c459f9b6d18a8f2b386730afc3e6115c76a8515b311b974e","redactions":[],"entries":entries}
+(base/"retention.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8",newline="\n")
+(base/"README.md").write_text("# Offline scheduler-state and clock evidence\n\nSee Docs ADR0031 and the 2026-11-10 state-contract report/delivery. Legacy and explicit-profile analyses reuse the prior capsule's capture02 and lineage. Decompress files marked gzip-mtime0 and verify payload/stored SHA-256. No new native capture, binary redistribution or redaction occurred. The prior capsule retains original trace data and explicit verifier-log redactions; its local raw report hash and shared redacted report hash differ as recorded, while the counter/program fields used here remain the same. Source copies retain upstream notices. All labels remain conditional recorded callback labels without certified physical scheduler or GC duration.\n",encoding="utf-8",newline="\n")
+print(json.dumps({"payloads":len(entries),"stored_bytes":sum(e["stored_bytes"] for e in entries),"manifest_sha256":sha((base/"retention.json").read_bytes()),"new_redactions":0}))

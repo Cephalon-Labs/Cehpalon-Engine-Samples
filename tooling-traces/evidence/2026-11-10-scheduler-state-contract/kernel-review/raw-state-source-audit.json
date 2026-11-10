@@ -1,0 +1,49 @@
+{
+  "status": "passed",
+  "frozen_raw_state_source": "raw sched_switch argument3/context byte24, with private preempt bit31 copied from argument0; no task_struct::__state read in callback",
+  "observed_program_sha256": "6f9b68198beea2331c58c2648543aa148dd585c84064278cf5ab8a233213503c",
+  "matched_instruction_start_index": 23,
+  "source_tag_commit": "d504d40ab83839cb61942a812a99d183c42227b9",
+  "cached_tag_sources_equal_commit_sources": [
+    "include_linux_sched.h.txt",
+    "include_trace_events_sched.h.txt"
+  ],
+  "entire_capture_switch_out_raw_state_counts": {
+    "1": 538,
+    "8193": 57408,
+    "258": 2393,
+    "0": 660,
+    "2147483648": 5,
+    "2": 74,
+    "128": 39
+  },
+  "main_switch_out_raw_state_counts": {
+    "8193": 7262,
+    "258": 2303,
+    "0": 139,
+    "2147483648": 4,
+    "2": 11,
+    "1": 138,
+    "128": 1
+  },
+  "new_exact_whitelist": {
+    "8193": {
+      "hex": "0x2001",
+      "components": [
+        "TASK_INTERRUPTIBLE",
+        "TASK_FREEZABLE"
+      ],
+      "conditional_label": "off_cpu_sleep_state"
+    },
+    "258": {
+      "hex": "0x102",
+      "components": [
+        "TASK_UNINTERRUPTIBLE",
+        "TASK_WAKEKILL"
+      ],
+      "macro": "TASK_KILLABLE",
+      "conditional_label": "off_cpu_sleep_state"
+    }
+  },
+  "build_binding_limit": "Tag, layout and recorded raw program contract correspond; no reproducible-build or installed-kernel binary attestation established."
+}

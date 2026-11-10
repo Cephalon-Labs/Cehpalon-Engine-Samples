@@ -1,0 +1,235 @@
+"""Independent raw-ledger label-budget audit; imports no production decoder."""
+
+from bisect import bisect_right
+from collections import Counter, defaultdict
+from fractions import Fraction
+import hashlib
+import json
+from pathlib import Path
+import struct
+
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+CAPTURE = Path('D:/Cephalon/Cehpalon-Engine-Samples/.local/roslyn-scheduler-capture02')
+OLD = CAPTURE / 'scheduler-joins03'
+LEGACY = ROOT / 'analysis-legacy01'
+STATE = ROOT / 'analysis-state01'
+checks = Counter()
+
+
+def read(path):
+    return json.loads(path.read_bytes())
+
+
+def digest(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def require(ok, name):
+    if not ok:
+        raise AssertionError(name)
+    checks[name] += 1
+
+
+def normalize(values):
+    return {k: Fraction(v) for k, v in values.items() if Fraction(v)}
+
+
+def label(kind, state, extended):
+    if kind == 3:
+        return 'running_observed'
+    if kind in (2, 6):
+        return 'runnable_observed'
+    if kind == 4:
+        if state == 0 or state & 0x80000000:
+            return 'runnable_observed'
+        if state in (1, 2) or extended and state in (258, 8193):
+            return 'off_cpu_sleep_state'
+    return 'unknown'
+
+
+def merge_windows(windows):
+    # Endpoint occupancy sweep rather than production's sorted merge.
+    events = Counter()
+    for left, right in windows:
+        events[left] += 1
+        events[right] -= 1
+    result = []
+    occupancy, previous = 0, None
+    for point, change in sorted(events.items()):
+        if occupancy and previous is not None and previous < point:
+            if result and result[-1][1] == previous:
+                result[-1][1] = point
+            else:
+                result.append([previous, point])
+        occupancy += change
+        previous = point
+    require(occupancy == 0, 'window occupancy closes')
+    return result
+
+
+def segments(raw_rows, masks):
+    by_time = defaultdict(list)
+    starts = [r for r in raw_rows if r['kind'] in (1, 10)]
+    exits = [r for r in raw_rows if r['kind'] == 7]
+    frees = [r for r in raw_rows if r['kind'] == 8]
+    require(len(starts) == len(exits) == len(frees) == 1, 'one native lifecycle per generation')
+    begin, end = starts[0]['time'], exits[0]['time']
+    require(begin < end < frees[0]['time'], 'native lifecycle endpoint order')
+    for row in raw_rows:
+        if begin <= row['time'] <= end:
+            by_time[row['time']].append(row)
+    times = sorted(by_time)
+    answer = []
+    for left, right in zip(times, times[1:]):
+        observations = by_time[left]
+        source = observations[0] if len(observations) == 1 else None
+        a = label(source['kind'], source['state'], False) if source else 'unknown'
+        b = label(source['kind'], source['state'], True) if source else 'unknown'
+        edges = {left, right}
+        for mask in masks:
+            edges.update(x for x in (mask['begin_ns'], mask['end_ns']) if left < x < right)
+        ordered = sorted(edges)
+        for lo, hi in zip(ordered, ordered[1:]):
+            masked = any(m['begin_ns'] < hi and m['end_ns'] > lo for m in masks)
+            old, new = ('unknown', 'unknown') if masked else (a, b)
+            if old != new:
+                require(old == 'unknown' and new == 'off_cpu_sleep_state'
+                        and source is not None and source['kind'] == 4
+                        and source['state'] in (258, 8193) and not masked,
+                        'changed raw segment has only declared source')
+            answer.append((lo, hi, old, new, None if source is None else source['state']))
+    require(answer[0][0] == begin and answer[-1][1] == end,
+            'raw segments span enrolled lifetime')
+    require(all(x[1] == y[0] for x, y in zip(answer, answer[1:])),
+            'raw segments are contiguous')
+    return answer
+
+
+def budget(rows, ends, windows, position):
+    total = Counter()
+    for start, end in merge_windows(windows):
+        covered = Fraction()
+        index = bisect_right(ends, start)
+        for row in rows[index:]:
+            if row[0] >= end:
+                break
+            amount = min(end, row[1]) - max(start, row[0])
+            if amount > 0:
+                total[row[position]] += amount
+                covered += amount
+        require(covered == end - start, 'query core fully inside native segments')
+    return normalize(total)
+
+
+def main():
+    freeze = read(ROOT / 'input-freeze01.json')
+    for name, receipt in freeze.items():
+        if not name.startswith('source/'):
+            require(digest(Path(receipt['path'])) == receipt['sha256'], 'frozen input unchanged')
+    for name in ('recorded-order.json', 'generations.json', 'gc-boundaries.json',
+                 'point-identity-joins.jsonl'):
+        require(digest(OLD / name) == digest(LEGACY / name) == digest(STATE / name),
+                'unchanged identity GC point and mask artifact')
+    require(digest(OLD / 'wait-joins.jsonl') == digest(LEGACY / 'wait-joins.jsonl'),
+            'legacy wait bytes equal original03')
+    old_summary, legacy_summary, state_summary = (read(p / 'summary.json') for p in (OLD, LEGACY, STATE))
+    metadata = legacy_summary.pop('state_contract')
+    require(metadata['profile'] == 'legacy', 'legacy profile explicit')
+    require(old_summary == legacy_summary, 'legacy summary equal original03 modulo metadata')
+    require(state_summary['state_contract']['added_raw_values'] == [258, 8193]
+            and not state_summary['state_contract']['certifies_physical_scheduler_duration'],
+            'source profile does not certify physical duration')
+    legacy_compare = dict(legacy_summary)
+    state_compare = dict(state_summary)
+    state_compare.pop('state_contract')
+    for row in (legacy_compare, state_compare):
+        row.pop('caller_wait_core_union_conditional_recorded_state_ns')
+    require(legacy_compare == state_compare, 'all nonpartition summary observations unchanged')
+
+    raw = (CAPTURE / 'scheduler/scheduler-ledger.bin').read_bytes()
+    report = read(CAPTURE / 'scheduler/scheduler.json')
+    require(hashlib.sha256(raw).hexdigest() == report['ledger_sha256'], 'native ledger exact hash')
+    attempted, lost, faults, frees, generations, initial = report['terminal_counts']
+    require((attempted, lost, faults, frees, generations, initial) == (243270, 0, 0, 39, 39, 2),
+            'native fixed complete scope')
+    require(len(raw) == 262144 * 40 and not any(raw[attempted * 40:]), 'native fixed ledger padding')
+    by_generation = defaultdict(list)
+    for slot, row in enumerate(struct.iter_unpack('<IIIIQIIII', raw[:attempted * 40])):
+        kind, cpu, target, state, time, local, global_tid, generation, parent = row
+        by_generation[generation].append(dict(kind=kind, cpu=cpu, state=state, time=time,
+                                               slot=slot, local=local, global_tid=global_tid))
+    require(set(by_generation) == set(range(1, 40)), 'all 39 raw generations present')
+    order = read(OLD / 'recorded-order.json')
+    streams = {g: segments(rows, order[str(g)]['unknown_masks']) for g, rows in by_generation.items()}
+    ends = {g: [r[1] for r in rows] for g, rows in streams.items()}
+    legacy_queries = [json.loads(line) for line in (LEGACY / 'wait-joins.jsonl').open()]
+    state_queries = [json.loads(line) for line in (STATE / 'wait-joins.jsonl').open()]
+    require(len(legacy_queries) == len(state_queries) == 1909, 'all selected 1909 waits present')
+    caller_windows = defaultdict(list)
+    caller_changed, worker_changed, worker_queries = 0, 0, 0
+    for old, new in zip(legacy_queries, state_queries):
+        old_fixed, new_fixed = dict(old), dict(new)
+        for obj in (old_fixed, new_fixed):
+            obj.pop('caller_conditional_recorded_state_ns', None)
+            obj.pop('task_execution_conditional_recorded_state_ns', None)
+        require(old_fixed == new_fixed, 'query identity GC context and raw refs unchanged')
+        require(old['status'] == new['status'] == 'bound', 'selected wait bound identity unchanged')
+        g = old['generation']
+        left, right = map(Fraction, old['core_ns'])
+        windows = [(left, right)]
+        caller_windows[g].extend(windows)
+        a, b = (budget(streams[g], ends[g], windows, p) for p in (2, 3))
+        require(a == normalize(old['caller_conditional_recorded_state_ns']), 'legacy caller raw budget matches')
+        require(b == normalize(new['caller_conditional_recorded_state_ns']), 'new caller raw budget matches')
+        require(sum(a.values()) == sum(b.values()) == right - left, 'caller budget conserved')
+        delta = {s: b.get(s, 0) - a.get(s, 0) for s in set(a) | set(b)}
+        require(all(d == 0 for s, d in delta.items() if s not in ('unknown', 'off_cpu_sleep_state'))
+                and delta.get('unknown', 0) == -delta.get('off_cpu_sleep_state', 0)
+                and delta.get('off_cpu_sleep_state', 0) >= 0, 'caller only unknown to declared sleep')
+        caller_changed += a != b
+        worker = old.get('task_execution_binding', {})
+        if worker.get('status') == 'bound':
+            begin, end = map(Fraction, worker['core_ns'])
+            begin, end = max(begin, left), min(end, right)
+            if begin < end:
+                worker_queries += 1
+                g = worker['generation']
+                a, b = (budget(streams[g], ends[g], [(begin, end)], p) for p in (2, 3))
+                require(a == normalize(old['task_execution_conditional_recorded_state_ns']),
+                        'legacy worker raw budget matches')
+                require(b == normalize(new['task_execution_conditional_recorded_state_ns']),
+                        'new worker raw budget matches')
+                require(sum(a.values()) == sum(b.values()) == end - begin, 'worker overlap budget conserved')
+                worker_changed += a != b
+    union_result = {}
+    for g, windows in caller_windows.items():
+        pair = [budget(streams[g], ends[g], windows, p) for p in (2, 3)]
+        expected = [legacy_summary, state_summary]
+        for totals, source in zip(pair, expected):
+            require(totals == normalize(source['caller_wait_core_union_conditional_recorded_state_ns'][str(g)]),
+                    'caller union raw budget matches')
+        require(sum(pair[0].values()) == sum(pair[1].values()), 'caller union conserved')
+        union_result[str(g)] = [{k: str(v) for k, v in part.items()} for part in pair]
+    result = {
+        'status': 'passed_bounded_offline_raw_replay', 'checks': sum(checks.values()),
+        'checks_by_kind': dict(checks), 'raw_rows': attempted, 'generations': generations,
+        'caller_queries': len(legacy_queries), 'caller_queries_with_changed_labels': caller_changed,
+        'overlapping_worker_queries': worker_queries, 'worker_queries_with_changed_labels': worker_changed,
+        'caller_union_conditional_recorded_state_ns': union_result,
+        'production_decoder_imported': False,
+        'limits': ['Independent raw replay verifies source-based conditional labels only.',
+                   'No exact physical CPU/blocked/runqueue duration or GC causal share is certified.',
+                   'Original identity, literal GC, point and recorded-order evidence remains unchanged.'],
+    }
+    path = HERE / 'report01.json'
+    with path.open('x', encoding='utf-8', newline='\n') as stream:
+        json.dump(result, stream, indent=2)
+        stream.write('\n')
+    print(json.dumps(result))
+
+
+if __name__ == '__main__':
+    main()

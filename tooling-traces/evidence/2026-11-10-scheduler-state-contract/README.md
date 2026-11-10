@@ -1,0 +1,3 @@
+# Offline scheduler-state and clock evidence
+
+See Docs ADR0031 and the 2026-11-10 state-contract report/delivery. Legacy and explicit-profile analyses reuse the prior capsule's capture02 and lineage. Decompress files marked gzip-mtime0 and verify payload/stored SHA-256. No new native capture, binary redistribution or redaction occurred. The prior capsule retains original trace data and explicit verifier-log redactions; its local raw report hash and shared redacted report hash differ as recorded, while the counter/program fields used here remain the same. Source copies retain upstream notices. All labels remain conditional recorded callback labels without certified physical scheduler or GC duration.

@@ -1,0 +1,28 @@
+import hashlib,json,subprocess,sys
+from pathlib import Path
+root=Path(__file__).parent
+samples=root.parents[2]/"Cehpalon-Engine-Samples"
+# Resolve explicit sibling rather than depending on launch working directory.
+samples=Path("D:/Cephalon/Cehpalon-Engine-Samples")
+inputs=json.loads((root/"input-freeze01.json").read_bytes())
+for name,item in inputs.items():
+ if name.startswith("source/"):continue
+ assert hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest()==item["sha256"],name
+frozen=json.loads((root/"analysis-source-freeze01.json").read_bytes())
+for name,digest in frozen.items():
+ assert hashlib.sha256((samples/"tools"/name).read_bytes()).hexdigest()==digest,name
+base=samples/".local/roslyn-scheduler-capture02"
+results=[]
+try:
+ for name,profile in [("analysis-legacy01","legacy"),("analysis-state01","wsl618-observed-sleep-v1")]:
+  command=[sys.executable,"-B",str(samples/"tools/analyze_roslyn_scheduler.py"),"--capture",str(base),"--lineage",str(base/"task-lineage"),"--output",str(root/name),"--state-profile",profile]
+  with (root/(name+".log")).open("xb") as out,(root/(name+".stderr.txt")).open("xb") as err:
+   code=subprocess.run(command,cwd=samples,stdout=out,stderr=err,timeout=180).returncode
+  results.append({"output":name,"profile":profile,"exit":code,"command":command})
+  assert code==0,name
+ for name,digest in frozen.items():assert hashlib.sha256((samples/"tools"/name).read_bytes()).hexdigest()==digest,name
+ for name,item in inputs.items():
+  if not name.startswith("source/"):assert hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest()==item["sha256"],name
+finally:
+ (root/"offline-pair01.json").write_text(json.dumps(results,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps(results))

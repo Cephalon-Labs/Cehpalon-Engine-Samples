@@ -3,6 +3,7 @@
 from collections import defaultdict
 import struct
 from scheduler_recorded_order import ordering_masks
+from scheduler_state_contract import LEGACY, classify_switch_out, validate_profile
 
 
 ROW = struct.Struct("<IIIIQIIII")
@@ -15,7 +16,8 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def decode_scheduler(raw, report, execution_id, slots=262144):
+def decode_scheduler(raw, report, execution_id, slots=262144, *, state_profile=LEGACY):
+    validate_profile(state_profile)
     attempted, lost, faults, frees, total, initial = report["terminal_counts"]
     require(len(raw) == slots * ROW.size and 0 < attempted <= slots and lost == faults == 0
             and 0 < frees == total <= 64 and 0 <= initial <= total, "invalid terminal scheduler ledger")
@@ -60,12 +62,14 @@ def decode_scheduler(raw, report, execution_id, slots=262144):
                            "exit_ns": end["mono_ns"], "free_ns": free["mono_ns"],
                            "initial_state_unknown": start["kind"] == "initial_enrollment"})
         masks = ordering_masks(sorted(rows, key=lambda row: row["slot"]))
-        timelines[generation] = mask_intervals(state_intervals(rows, start["mono_ns"], end["mono_ns"]), masks)
+        timelines[generation] = mask_intervals(
+            state_intervals(rows, start["mono_ns"], end["mono_ns"], state_profile=state_profile), masks)
     require(sum(row["initial_state_unknown"] for row in identities) == initial, "initial count mismatch")
     return identities, timelines, dict(groups)
 
 
-def state_intervals(rows, start_ns, end_ns):
+def state_intervals(rows, start_ns, end_ns, *, state_profile=LEGACY):
+    validate_profile(state_profile)
     intervals = []
     previous, status = start_ns, "unknown"
     grouped = defaultdict(list)
@@ -84,10 +88,7 @@ def state_intervals(rows, start_ns, end_ns):
             elif kind in {"wake_new", "wakeup"}:
                 status = "runnable_observed"
             elif kind == "out":
-                if raw_state & 0x80000000 or raw_state == 0:
-                    status = "runnable_observed"
-                elif raw_state in {1, 2}:
-                    status = "off_cpu_sleep_state"
+                status = classify_switch_out(raw_state, state_profile)
         previous = stamp
     return intervals
 

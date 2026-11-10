@@ -1,0 +1,11 @@
+# Independent raw replay review
+
+Scope is the predeclared offline pair over the same retained 243,270-row native ledger. The audit imports no production model, profile classifier or analyzer. It unpacks fixed raw rows independently, groups recorded timestamps, retains the previous masks, and reconstructs conditional labels using only the declared exact two-value extension.
+
+The audit passed 95,601 checks. Legacy wait JSONL is byte-identical to prior scheduler-joins03; legacy summary is identical after removing the new explicit profile metadata. Both profiles preserve generation, literal GC, sampled-point and recorded-order artifacts byte-for-byte. All 1,909 query identities, associations, raw references and other nonpartition fields are unchanged. Direct raw budgets match both profiles for every caller and 1,820 positive worker-overlap query. Unknown-to-declared-sleep reclassification affects 1,455 caller queries and 569 worker overlaps. Running and runnable caller-union labels remain unchanged.
+
+Legacy union unknown 5,188,342,231 ns becomes 5,122,566,326 ns conditional raw sleep-state labels plus 65,775,905 ns remaining unknown. The full union stays 5,304,379,677 ns. These are recorded callback-label budgets. They do not certify physical sleep, CPU service, runqueue delay, wake latency, GC pauses or exclusive cause. Exact source-tag semantics provide a bounded label contract, with source/binary correspondence and timestamp/transition-placement limits retained separately.
+
+Static review found the default legacy profile remains selected unless the explicit new profile is requested. New nonpreempted values are exact 258 and 8193 only; broad preemption-marker handling remains the prior behavior. Existing waking, ties, initial-prefix and conservative mask/reset rules stay unchanged. The profile is a research decoder for the retained evidence, with no production or host-wide readiness inference.
+
+Supplementary raw-span accounting assigns all remaining 65,775,905 ns to 1,653 union-clipped intervals whose preceding recorded point is waking. The result and exact interval/source-slot references are retained in unknown-reasons01.json and unknown-intervals01.jsonl. This is a literal preceding-point category and does not quantify physical wake latency or any GC/scheduler causal share.
