@@ -1,0 +1,43 @@
+import gzip,hashlib,json,re
+from pathlib import Path
+root=Path(__file__).parent
+base=Path("D:/Cephalon/Cehpalon-Engine-Samples/tooling-traces/evidence/2026-11-15-clr-threadpool-boundary")
+base.mkdir(parents=True,exist_ok=False)
+sha=lambda b:hashlib.sha256(b).hexdigest()
+pattern=rb"(?i)0xffff[0-9a-f]{12}\b"
+entries=[];redactions=[]
+for p in sorted(root.rglob("*")):
+ if not p.is_file() or p.is_symlink() or "__pycache__" in p.parts:continue
+ raw=p.read_bytes();payload=raw;target=p.relative_to(root);changes=[]
+ if p.suffix==".json":
+  obj=json.loads(raw)
+  def visit(node,trail):
+   global payload
+   if isinstance(node,dict):
+    for key,value in node.items():
+     if key=="verifier_log_hex":
+      log=bytes.fromhex(value);new,count=re.subn(pattern,b"[KERNEL-ADDR-0000]",log)
+      if count:
+       assert len(new)==len(log)
+       payload=payload.replace(log.hex().encode(),new.hex().encode(),1)
+       node[key]=new.hex();changes.append({"json_path":trail+"/"+key,"occurrences":count,"original_log_sha256":sha(log)})
+     else:visit(value,trail+"/"+key)
+   elif isinstance(node,list):
+    for i,value in enumerate(node):visit(value,trail+"/"+str(i))
+  visit(obj,"")
+  assert json.loads(payload)==obj
+  if changes:
+   target=target.with_name(target.stem+".redacted.json")
+   redactions.append({"source":p.relative_to(root).as_posix(),"original_sha256":sha(raw),"shared_path":target.as_posix(),"logs":changes})
+ if p.suffix==".py":target=target.with_name(target.name+".txt")
+ compressed=len(payload)>131072
+ if compressed:target=target.with_name(target.name+".gz")
+ stored=gzip.compress(payload,compresslevel=9,mtime=0) if compressed else payload
+ out=base/target;out.parent.mkdir(parents=True,exist_ok=True)
+ with out.open("xb") as f:f.write(stored)
+ assert (gzip.decompress(out.read_bytes()) if compressed else out.read_bytes())==payload
+ entries.append({"source":p.relative_to(root).as_posix(),"path":target.as_posix(),"original_sha256":sha(raw),"payload_sha256":sha(payload),"payload_bytes":len(payload),"stored_sha256":sha(stored),"stored_bytes":len(stored)})
+manifest={"schema_version":1,"date_bangkok":"2026-11-15","scope":"ADR0031 real CLR ThreadPool boundaries and incremental observer overhead","entries":entries,"redactions":redactions}
+(base/"retention.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8",newline="\n")
+(base/"README.md").write_text("# CLR ThreadPool boundary evidence\n\nSee the Docs protocol/report/delivery for this CLR conformance run and paired overhead measurements. Decompress .gz payloads and verify stored/payload SHA-256. Original and payload hashes differ only for explicit verifier-log kernel-address redactions; exact originals remain local. All source versions, primary-source acquisitions, tests, raw ledgers and replay audit are retained. Upstream source notices remain in copied source artifacts. The recorded callback pairs establish bounded software events. Physical scheduler and GC timing remain unqualified.\n",encoding="utf-8",newline="\n")
+print(json.dumps({"payloads":len(entries),"stored_bytes":sum(e["stored_bytes"] for e in entries),"redacted_files":len(redactions),"redacted_literals":sum(x["occurrences"] for r in redactions for x in r["logs"]),"manifest_sha256":sha((base/"retention.json").read_bytes())}))

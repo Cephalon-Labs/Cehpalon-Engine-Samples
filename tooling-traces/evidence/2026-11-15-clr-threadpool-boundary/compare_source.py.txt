@@ -1,0 +1,20 @@
+import hashlib,urllib.request,json,difflib,concurrent.futures
+from pathlib import Path
+r=Path(__file__).parent/'kernel-source';r.mkdir(exist_ok=False)
+revs={'old':'d504d40ab83839cb61942a812a99d183c42227b9','new':'a989171929bed4ea681be8d77333845ce1c1732a'}
+names=['include/trace/events/sched.h','include/trace/events/task.h','include/trace/bpf_probe.h','kernel/sched/core.c','kernel/fork.c','kernel/bpf/helpers.c','kernel/trace/bpf_trace.c','include/uapi/linux/bpf.h','include/uapi/linux/pidfd.h']
+def fetch(item):
+    label,n=item
+    u=f'https://raw.githubusercontent.com/microsoft/WSL2-Linux-Kernel/{revs[label]}/{n}'
+    with urllib.request.urlopen(u,timeout=15) as f: b=f.read()
+    (r/(label+'-'+n.replace('/','_')+'.txt')).write_bytes(b)
+    return {'label':label,'path':n,'url':u,'sha256':hashlib.sha256(b).hexdigest()}
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+    rows=list(ex.map(fetch,[(v,n) for v in revs for n in names]))
+(r/'acquisition.json').write_text(json.dumps(rows,indent=2)+'\n')
+for n in names:
+    p=n.replace('/','_')
+    a,b=[(r/(v+'-'+p+'.txt')).read_text().splitlines() for v in revs]
+    delta=list(difflib.unified_diff(a,b,fromfile='old',tofile='new',n=3))
+    (r/(p+'.diff.txt')).write_text('\n'.join(delta)+'\n')
+    print(n,len(delta))

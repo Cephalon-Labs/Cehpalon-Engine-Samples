@@ -108,7 +108,7 @@ def bind_cohort(actor, resources, report):
     return owner, alias, nonmember, siblings
 
 
-def arm(resources, links, report, storage, namespace):
+def arm(resources, links, report, storage, namespace, *, extension=None):
     members = own(resources, report, create_map(1, 8, 32, MEMBERS, BPF_F_WRONLY, b"ceph_clr_member"))
     counts = own(resources, report, create_map(BPF_MAP_TYPE_ARRAY, 4, COUNTS.size, 1,
                                               BPF_F_RDONLY, b"ceph_clr_count"))
@@ -124,6 +124,8 @@ def arm(resources, links, report, storage, namespace):
         programs[name] = (fd, stage)
     for name, (fd, _) in programs.items():
         attach(links, report, PROBES[name][0], fd)
+    if extension is not None:
+        extension.arm(resources, links, report, members)
     return counts, records, programs
 
 
@@ -264,8 +266,8 @@ def detached(report, counts, records, programs):
     validate_trace(report, raw, terminal)
 
 
-def run(mode, namespace, report):
-    verify_host()
+def run(mode, namespace, report, *, extension=None, host_check=verify_host):
+    host_check()
     require({0, 1} <= os.sched_getaffinity(0) and Path("/proc/self/ns/pid").stat().st_ino == namespace,
             "pinned CPU or PID namespace unavailable")
     offsets = [line.split() for line in Path("/proc/self/timens_offsets").read_text().splitlines()]
@@ -303,16 +305,22 @@ def run(mode, namespace, report):
                 check_element(report["seed_map_receipts"], f"read_prearm_{tid}", LOOKUP,
                               storage, fd, expected=ACK)
             with ExitStack() as links:
-                counts, records, programs = arm(resources, links, report, storage, namespace)
+                counts, records, programs = arm(resources, links, report, storage, namespace, extension=extension)
                 require(cohort(actor) == report["prearm_cohort"], "traced pre-arm cohort changed")
                 require(read_counts(counts) == (0,) * 5, "pre-work CLR ledger not empty")
                 execute(actor, report)
                 await_retirement(report, counts)
+                if extension is not None:
+                    extension.snapshot()
             detached(report, counts, records, programs)
+            if extension is not None:
+                extension.finish(report)
             check_element(report["seed_map_receipts"], "reaped_leader_absent", LOOKUP,
                           storage, owner, expected_errno=errno.ENOENT)
     report["controller"]["cleanup_end_ns"] = mono()
     expected_fds = (28 if mode == "on" else 3) + len(siblings)
+    if extension is not None:
+        expected_fds += 6
     require(not report["cleanup_errors"] and not report["forced_cleanup"]
             and report["actor_exit_code"] == 0 and report["closed_fds"] == expected_fds,
             "CLR resources did not close cleanly")

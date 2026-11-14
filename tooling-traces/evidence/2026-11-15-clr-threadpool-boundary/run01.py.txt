@@ -1,0 +1,40 @@
+import hashlib, json, subprocess, sys
+from pathlib import Path
+r=Path(__file__).parent
+samples=Path('/mnt/d/Cephalon/Cehpalon-Engine-Samples')
+sys.path.insert(0,str(samples/'tools'))
+import collect_scheduler_clr_fixture as clr
+from scheduler_clr_overhead import ORDER, summarize_overhead
+def sha(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+def save(name,v):
+    (r/name).write_text(json.dumps(v,indent=2)+'\n',encoding='utf-8')
+clr.verify_host()
+expected_fixture='ede834d3100537937be1dbf6a039bbc19d1a60d8bc888446915cadcd552e1661'
+expected_runtime='835319c93044fb485cf77e524a79afe1d35a2bf3c2e970ef0b2231b8c3399b78'
+app=clr.APP
+runtime=clr.RUNTIME/'libcoreclr.so'
+assert sha(app)==expected_fixture and sha(runtime)==expected_runtime
+paths=[*sorted((samples/'tools').glob('*.py')),app,clr.HOST,runtime,Path('/sys/kernel/btf/vmlinux'),Path(sys.executable).resolve(),Path(__file__),r/'protocol01.md',app.with_suffix('.runtimeconfig.json'),app.with_suffix('.deps.json')]
+frozen={str(p):sha(p) for p in paths}
+order=['on']+[m for pair in ORDER for m in pair]
+save('freeze01.json',{'hashes':frozen,'order':order,'kernel':clr.Path('/proc/sys/kernel/osrelease').read_text().strip()})
+snap=r/'sources';snap.mkdir()
+for p in paths:
+    if p.parent==samples/'tools':
+        (snap/(p.name+'.txt')).write_bytes(p.read_bytes())
+rows=[]
+for i,m in enumerate(order):
+    variant='boundary' if m=='on' else 'lifecycle'
+    src=samples/'tools/collect_clr_scheduler_boundary.py'
+    with (r/f'case{i:02d}.json').open('xb') as o,(r/f'case{i:02d}.stderr.txt').open('xb') as e:
+        result=subprocess.run(['/usr/bin/timeout','--kill-after=2s','38s',sys.executable,'-B',str(src),'--variant',variant],stdout=o,stderr=e,timeout=42)
+    assert {str(p):sha(p) for p in paths}==frozen,'frozen inputs changed'
+    case=json.loads((r/f'case{i:02d}.json').read_bytes())
+    assert result.returncode==0 and case['passed'],case.get('failure')
+    assert ('boundary_analysis' in case)==(m=='on')
+    if i:rows.append({**case,'slot':i,'pair':(i-1)//2,'phase':'primer' if i<=2 else 'measured'})
+result=summarize_overhead(rows,fixture_sha256=expected_fixture,runtime_sha256=expected_runtime,expected_rounds=64,expected_checksum='4fcd3a1dd438d325')
+result['scope']='Incremental scheduler boundary observer overhead over identical lifecycle capture'
+result['mode_legend']={'off':'lifecycle','on':'lifecycle plus boundary'}
+save('summary.json',result)

@@ -7,27 +7,30 @@ from scheduler_dynamic_program import ACK, Program
 HOOKS = {"entry": "sched_entry_tp", "exit": "sched_exit_tp"}
 
 
-def boundary_program(name, storage, members, counts, records, capacity, leader_tid):
+def boundary_program(name, storage, members, counts, records, capacity, leader_tid, *, worker_limit=3):
     if (name not in HOOKS or type(capacity) is not int or capacity not in (1, 1024)
-            or type(leader_tid) is not int or leader_tid <= 0):
+            or worker_limit not in (3, 16)
+            or (leader_tid is not None and (type(leader_tid) is not int or leader_tid <= 0))
+            or (leader_tid is None and (capacity != 1024 or worker_limit != 16))):
         raise ValueError("unsupported fixed boundary program")
     p = Program()
     p.mov(6, 1)
-    p.current_storage(storage)
-    p.jump(0x15, "member", 0)
-    p.emit(0x79, 1, 0)
-    p.jump(0x55, "member", 1, imm=ACK)
-    p.emit(0x62, 10, off=-24, imm=leader_tid)
-    p.emit(0x62, 10, off=-28)
-    p.emit(0x62, 10, off=-32)
-    p.jump(0x05, "owned")
+    if leader_tid is not None:
+        p.current_storage(storage)
+        p.jump(0x15, "member", 0)
+        p.emit(0x79, 1, 0)
+        p.jump(0x55, "member", 1, imm=ACK)
+        p.emit(0x62, 10, off=-24, imm=leader_tid)
+        p.emit(0x62, 10, off=-28)
+        p.emit(0x62, 10, off=-32)
+        p.jump(0x05, "owned")
     p.label("member")
     p.call(35)  # Private current-task key, matching the existing lifetime map.
     p.mov(7, 0)
     get_member(p, members, 7)
     p.emit(0x61, 1, 8, 16)
     p.jump(0x15, "fault", 1)
-    p.jump(0x25, "fault", 1, imm=3)
+    p.jump(0x25, "fault", 1, imm=worker_limit)
     p.emit(0x63, 10, 1, -28)
     p.emit(0x61, 1, 8, 12)
     p.emit(0x63, 10, 1, -24)

@@ -1,0 +1,64 @@
+import hashlib,json,statistics,struct
+from pathlib import Path
+r=Path(__file__).parent/'attempt02'
+read=lambda p:json.loads(p.read_bytes())
+sha=lambda b:hashlib.sha256(b).hexdigest()
+order=read(r/'freeze01.json')['order']
+summary=read(r/'summary.json')
+checked=0
+totals={'native_cases':0,'boundary_rows':0,'pairs':0,'switch_pairs':0,'no_switch_pairs':0,'preempt_entries':0,'cpu_endpoint_changes':0,'prefixes':0,'tails':0}
+for n,mode in enumerate(order):
+    case=read(r/f'case{n:02d}.json')
+    assert case['mode']==mode and case['passed'] and not case['forced_cleanup'] and not case['cleanup_errors']
+    totals['native_cases']+=1
+    assert len(case['attached_hooks'])==(12 if mode=='on' else 10)
+    assert case['closed_fds']==(34 if mode=='on' else 28)+len(case['prearm_cohort'])-1
+    assert all(p['recursion_before']==p['recursion_after']==0 for p in case['programs'])
+    life=bytes.fromhex(case['ledger_hex'])
+    used,lost,faults,frees,admitted=case['terminal_counts']
+    assert lost==faults==0 and admitted==frees==3 and sha(life)==case['second_read']['ledger_sha256']
+    life_rows=list(struct.iter_unpack('<IIIIQIIII',life[:used*40]))
+    tids={row[7]:row[5] for row in life_rows if row[0]==1}
+    if mode=='off':
+        assert 'boundary_ledger_hex' not in case
+        continue
+    raw=bytes.fromhex(case['boundary_ledger_hex'])
+    assert case['attached_hooks'][-2:]==[{'tp_name':'sched_entry_tp','cookie':0},{'tp_name':'sched_exit_tp','cookie':0}]
+    count,*rest=case['boundary_counts']
+    assert rest==[0,0,0] and not any(raw[count*48:]) and sha(raw)==case['boundary_second_read']['sha256']
+    pending={}; seen=set(); pairs=[]; prefixes=[]
+    for i,b in enumerate(struct.iter_unpack('<8I2Q',raw[:count*48]),1):
+        ordinal,gen,kind,flag,cpu,end_cpu,ret,tid,early,late=b
+        assert i==ordinal and tids[gen]==tid and flag in (0,1) and early>0 and late>0
+        if kind==1:
+            assert gen not in pending
+            pending[gen]=b
+            totals['preempt_entries']+=flag
+        elif gen in pending:
+            entry=pending.pop(gen)
+            pairs.append((gen,entry[0],ordinal,bool(flag),entry[4]!=cpu))
+        else:
+            assert gen not in seen
+            prefixes.append(ordinal)
+        seen.add(gen)
+        checked+=1
+    assert all(b[6]==1 for b in pending.values()) and 2*len(pairs)+len(prefixes)+len(pending)==count
+    view=case['boundary_analysis']
+    assert pairs==[(p['generation'],p['entry'],p['exit'],p['is_switch'],p['cpu_changed']) for p in view['pairs']]
+    totals['boundary_rows']+=count
+    totals['pairs']+=len(pairs); totals['prefixes']+=len(prefixes);totals['tails']+=len(pending)
+    totals['switch_pairs']+=sum(p[3] for p in pairs)
+    totals['no_switch_pairs']+=sum(not p[3] for p in pairs)
+    totals['cpu_endpoint_changes']+=sum(p[4] for p in pairs)
+    callback=case['callback_binding']
+    assert tids[callback['generation']]==case['parked']['worker_tid']==case['completed']['worker_tid']
+    assert any(p[0]==callback['generation'] and p[3] for p in pairs)
+deltas=[p['ping_ns']['on_minus_off_ns'] for p in summary['pairs']]
+for pair,d in zip(summary['pairs'],deltas):
+    def time(slot):
+        c=read(r/f'case{slot:02d}.json')['completed']
+        return c['ping_end_ns']-c['ping_begin_ns']
+    assert d==time(pair['on_slot'])-time(pair['off_slot'])
+result={'status':'passed','raw_boundary_rows_checked':checked,'totals':totals,'deltas_ns':deltas,'median_delta_ns':statistics.median(deltas)}
+(r/'audit.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result))
