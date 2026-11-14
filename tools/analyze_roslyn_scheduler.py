@@ -92,7 +92,9 @@ def analyze(base, lineage, out, *, state_profile=LEGACY):
     raw = (base / "scheduler/scheduler-ledger.bin").read_bytes()
     require(hashlib.sha256(raw).hexdigest() == scheduler["ledger_sha256"], "raw scheduler hash differs")
     execution = base.name
-    identities, timelines, groups = decode_scheduler(raw, scheduler, execution, state_profile=state_profile)
+    slots = scheduler.get("lifecycle_slots", 262144)
+    require(slots in (262144, 524288), "unexpected lifecycle array capacity")
+    identities, timelines, groups = decode_scheduler(raw, scheduler, execution, slots=slots, state_profile=state_profile)
     interval_ends = {key: [row["end_ns"] for row in value] for key, value in timelines.items()}
     point_times = {}
     for generation, rows in groups.items():

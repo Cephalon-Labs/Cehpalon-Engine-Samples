@@ -78,7 +78,9 @@ def prearm(p, storage, members, counts, namespace, initial_limit):
     p.mov(8, 0)
 
 
-def roslyn_program(name, storage, members, counts, records, namespace, initial_limit):
+def roslyn_program(name, storage, members, counts, records, namespace, initial_limit, *, slots=SLOTS):
+    if type(slots) is not int or slots not in (SLOTS, 524288):
+        raise ValueError("unsupported fixed lifecycle capacity")
     """Emit one fixed profile, allowing only the frozen live FD/namespace slots."""
     if name not in PROBES or type(initial_limit) is not int or not 1 <= initial_limit <= MEMBERS:
         raise ValueError("unsupported Roslyn scheduler profile")
@@ -97,7 +99,7 @@ def roslyn_program(name, storage, members, counts, records, namespace, initial_l
     else:
         target(p, name, storage, members)
     if name != "exec":
-        publish(p, name, members, counts, records, SLOTS)
+        publish(p, name, members, counts, records, slots)
     p.label("fault")
     p.array(counts, 0)
     p.jump(0x15, "return", 0)

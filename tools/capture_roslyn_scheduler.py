@@ -36,10 +36,10 @@ def inventory():
     return {str(path): sha(path) for path in sorted(paths)}
 
 
-def preflight():
-    verify_host()
+def preflight(*, host_check=verify_host, engine=None):
+    host_check()
     runtime.require(os.geteuid() == 0, "Root owns only the scheduler coordinator")
-    engine = ROOT.parent / "Cehpalon-Engine"
+    engine = engine or ROOT.parent / "Cehpalon-Engine"
     git_options = dict(cwd=engine, text=True, user=1000, group=1000, extra_groups=[])
     runtime.require(subprocess.check_output(["/usr/bin/git", "rev-parse", "HEAD"], **git_options).strip() == ENGINE
                     and not subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], **git_options).strip(),
@@ -55,15 +55,15 @@ def preflight():
     return inventory()
 
 
-def run(out):
-    binaries = preflight()
+def run(out, *, host_check=verify_host, engine=None, session_options=None):
+    binaries = preflight(host_check=host_check, engine=engine)
     out.mkdir(parents=True, exist_ok=False)
     os.chown(out, 1000, 1000)
     report = {"status": "preparing", "engine_revision": ENGINE,
               "providers": lineage.PROVIDERS, "binary_sha256_before": binaries,
               "canonical": False, "capture_ready": False}
     runtime.save(out / "manifest.json", report)
-    session = SchedulerSession(out / "scheduler")
+    session = SchedulerSession(out / "scheduler", host_check=host_check, **(session_options or {}))
     try:
         before = lineage.state()
         report["source_before"] = before

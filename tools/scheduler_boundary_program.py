@@ -3,15 +3,16 @@
 from scheduler_dynamic_multi_program import get_member
 from scheduler_dynamic_program import ACK, Program
 
+ROSLYN_BOUNDARY_SLOTS = 262144
+
 
 HOOKS = {"entry": "sched_entry_tp", "exit": "sched_exit_tp"}
 
 
 def boundary_program(name, storage, members, counts, records, capacity, leader_tid, *, worker_limit=3):
-    if (name not in HOOKS or type(capacity) is not int or capacity not in (1, 1024)
-            or worker_limit not in (3, 16)
-            or (leader_tid is not None and (type(leader_tid) is not int or leader_tid <= 0))
-            or (leader_tid is None and (capacity != 1024 or worker_limit != 16))):
+    worker_profile = leader_tid is None and (capacity, worker_limit) in ((1024, 16), (ROSLYN_BOUNDARY_SLOTS, 64))
+    held_profile = type(leader_tid) is int and leader_tid > 0 and capacity in (1, 1024) and worker_limit == 3
+    if name not in HOOKS or type(capacity) is not int or not (worker_profile or held_profile):
         raise ValueError("unsupported fixed boundary program")
     p = Program()
     p.mov(6, 1)

@@ -14,13 +14,13 @@ from roslyn_scheduler_session import SchedulerSession, save
 from scheduler_trace_model import decode_scheduler
 
 
-def run(folder):
-    verify_host()
+def run(folder, *, host_check=verify_host, session_options=None):
+    host_check()
     folder.mkdir(parents=True, exist_ok=False)
     report = {"status": "preparing", "controller": {"prepare_start_ns": mono()},
               "cleanup_errors": [], "closed_fds": 0, "forced_cleanup": False}
     save(folder / "conformance.json", report)
-    session = SchedulerSession(folder / "scheduler")
+    session = SchedulerSession(folder / "scheduler", host_check=host_check, **(session_options or {}))
     try:
         with ExitStack() as cleanup:
             actor = subprocess.Popen([str(HOST), str(APP)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -37,7 +37,8 @@ def run(folder):
             session.close()
             require(session.report["status"] == "completed", "scheduler conformance capture failed")
             generations, intervals, groups = decode_scheduler(
-                (session.folder / "scheduler-ledger.bin").read_bytes(), session.report, "conformance")
+                (session.folder / "scheduler-ledger.bin").read_bytes(), session.report, "conformance",
+                slots=session.slots)
             callback = [row for row in generations if row["local_tid"] == report["parked"]["worker_tid"]]
             require(len(callback) == 1 and not callback[0]["initial_state_unknown"]
                     and callback[0]["born_ns"] < report["parked"]["mono_ns"]

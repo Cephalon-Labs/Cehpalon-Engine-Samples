@@ -1,0 +1,42 @@
+import hashlib,json,struct
+from collections import Counter
+from pathlib import Path
+r=Path('D:/Cephalon/Cehpalon-Engine-Samples/.local/roslyn-boundary-capture01')
+read=lambda p:json.loads(p.read_bytes())
+rep=read(r/'scheduler/scheduler.json')
+p=read(r/'boundary-joins/summary.json')
+life=(r/'scheduler/scheduler-ledger.bin').read_bytes()
+raw=(r/'scheduler/boundaries.bin').read_bytes()
+sha=lambda b:hashlib.sha256(b).hexdigest()
+assert sha(life)==rep['ledger_sha256']==rep['second_read']['ledger_sha256']
+assert sha(raw)==rep['boundary_sha256']==rep['boundary_second_sha256']
+l=struct.Struct('<IIIIQIIII'); b=struct.Struct('<8I2Q')
+n=rep['terminal_counts'][0]; m=p['rows']
+assert m==rep['boundary_counts'][0] and not any(raw[m*b.size:])
+ids={x[7]:x[5] for x in l.iter_unpack(life[:n*l.size]) if x[0] in (1,10)}
+pairs=iter((r/'boundary-joins/pairs.jsonl').open())
+current={};seen=set();prefixes=tails=pc=0
+for i,x in enumerate(b.iter_unpack(raw[:m*b.size]),1):
+    ordinal,gen,kind,flag,cpu0,cpu1,retired,tid,ts0,ts1=x
+    assert ordinal==i and ids[gen]==tid
+    if kind==1:
+        assert gen not in current
+        current[gen]=x
+    else:
+        assert kind==2
+        if gen in current:
+            start=current.pop(gen); row=json.loads(next(pairs))
+            assert (row['generation'],row['entry_ordinal'],row['return_ordinal'],row['is_switch'])==(gen,start[0],i,bool(flag))
+            pc+=1
+        else:
+            assert gen not in seen
+            prefixes+=1
+    seen.add(gen)
+assert next(pairs,None) is None and set(ids)==seen
+tails=len(current); assert all(x[6]==1 for x in current.values())
+assert (pc,prefixes,tails)==(p['pairs'],len(p['prefixes']),len(p['retired_tails']))
+assert 2*pc+prefixes+tails==m
+assert p['gc_pause_total_ns'] is None and p['exclusive_gc_scheduler_share'] is None
+out={'pass':True,'lifecycle_rows':n,'boundary_rows_checked':m,'generation_count':len(ids),'pair_rows_checked':pc,'prefixes':prefixes,'tails':tails}
+Path(__file__).with_name('audit.json').write_text(json.dumps(out,indent=2)+'\n')
+print(json.dumps(out))

@@ -28,7 +28,7 @@ def save(path, value):
 
 
 class SchedulerSession:
-    def __init__(self, folder):
+    def __init__(self, folder, *, host_check=verify_host, slots=SLOTS, extension=None):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=False)
         self.resources = ExitStack()
@@ -37,12 +37,17 @@ class SchedulerSession:
                        "seed_map_receipts": [], "closed_fds": 0, "cleanup_errors": [],
                        "capture_ready": False}
         self.programs = {}
+        self.host_check = host_check
+        self.slots = slots
+        self.extension = extension
+        if slots != SLOTS:
+            self.report["lifecycle_slots"] = slots
 
     def counts(self):
         return struct.unpack_from("<IIIIII", read_array(self.count_fd, 0))
 
     def arm(self, target, folder):
-        verify_host()
+        self.host_check()
         offsets = [line.split() for line in Path("/proc/self/timens_offsets").read_text().splitlines()]
         require(["monotonic", "0", "0"] in offsets
                 and "CLOCK_MONOTONIC" in time.get_clock_info("perf_counter").implementation,
@@ -86,11 +91,11 @@ class SchedulerSession:
         self.count_fd = own(self.resources, self.report,
                             create_map(BPF_MAP_TYPE_ARRAY, 4, 24, 1, BPF_F_RDONLY, b"ceph_ros_count"))
         self.record_fd = own(self.resources, self.report,
-                             create_map(BPF_MAP_TYPE_ARRAY, 4, 40, SLOTS, BPF_F_RDONLY, b"ceph_ros_rows"))
+                             create_map(BPF_MAP_TYPE_ARRAY, 4, 40, self.slots, BPF_F_RDONLY, b"ceph_ros_rows"))
         initial_limit = len(self.report["prearm_cohort"])
         for name, (hook, _) in PROBES.items():
             code = roslyn_program(name, storage, members, self.count_fd, self.record_fd,
-                                  namespace, initial_limit)
+                                  namespace, initial_limit, slots=self.slots)
             try:
                 fd, stage = load(self.resources, self.report, hook, code)
             finally:
@@ -98,6 +103,8 @@ class SchedulerSession:
             self.programs[name] = fd, stage
         attach_order = [name for name in self.programs if name != "prearm"] + ["prearm"]
         for name in attach_order:
+            if name == "prearm" and self.extension is not None:
+                self.extension.arm(self.resources, self.links, self.report, members)
             fd, _ = self.programs[name]
             attach(self.links, self.report, PROBES[name][0], fd)
         require(cohort(target) == self.report["prearm_cohort"], "suspended pre-arm cohort changed")
@@ -123,20 +130,24 @@ class SchedulerSession:
                 time.sleep(0.005)
             else:
                 raise ValueError("missing terminal scheduler frees inside two-second tail")
+            if self.extension is not None:
+                self.extension.snapshot()
             self.links.close()
             for fd, stage in self.programs.values():
                 check_misses(fd, stage)
             self.report["terminal_counts"] = self.counts()
-            raw = b"".join(read_array(self.record_fd, slot) for slot in range(SLOTS))
+            raw = b"".join(read_array(self.record_fd, slot) for slot in range(self.slots))
             (self.folder / "scheduler-ledger.bin").write_bytes(raw)
             time.sleep(0.01)
-            second = b"".join(read_array(self.record_fd, slot) for slot in range(SLOTS))
+            second = b"".join(read_array(self.record_fd, slot) for slot in range(self.slots))
             self.report["second_read"] = {"counts": self.counts(), "ledger_sha256": hashlib.sha256(second).hexdigest()}
             require(self.report["terminal_counts"] == self.report["terminal_before_detach"]
                     == self.report["second_read"]["counts"] and raw == second,
                     "scheduler terminal ledger changed")
             used = self.report["terminal_counts"][0]
-            require(0 < used <= SLOTS and not any(raw[used * 40:]), "scheduler array publication accounting failed")
+            require(0 < used <= self.slots and not any(raw[used * 40:]), "scheduler array publication accounting failed")
+            if self.extension is not None:
+                self.extension.finish(self.report)
             self.report.update(status="completed", ledger_sha256=hashlib.sha256(raw).hexdigest(),
                                terminal_read_end_ns=mono())
         except Exception as error:
@@ -148,7 +159,7 @@ class SchedulerSession:
     def close(self):
         self.links.close()
         self.resources.close()
-        expected = len(self.report.get("prearm_cohort", [])) + 27
+        expected = len(self.report.get("prearm_cohort", [])) + 27 + (6 if self.extension is not None else 0)
         if self.report["cleanup_errors"] or (self.report["status"] == "completed"
                                             and self.report["closed_fds"] != expected):
             self.report.update(status="failed", cleanup_failure=True)

@@ -1,0 +1,31 @@
+import json,hashlib,subprocess,sys
+from pathlib import Path
+r=Path(__file__).parent
+root=Path('/mnt/d/Cephalon/Cehpalon-Engine-Samples')
+sys.path.insert(0,str(root/'tools'))
+from capture_roslyn_boundaries import RoslynBoundaries, verify_boundary_host
+import capture_roslyn_scheduler as cap
+import conform_roslyn_scheduler as con
+from scheduler_boundary_analysis import ROW
+verify_boundary_host()
+engine=root.parent/'.worktrees/roslyn-boundary-engine'
+inventory=cap.preflight(host_check=verify_boundary_host,engine=engine)
+assert cap.sha(con.APP)=='ede834d3100537937be1dbf6a039bbc19d1a60d8bc888446915cadcd552e1661'
+paths=[*sorted((root/'tools').glob('*.py')),con.APP,Path(__file__),r/'protocol.md']
+frozen={str(p):cap.sha(p) for p in paths}
+(r/'freeze.json').write_text(json.dumps({'sources':frozen,'binaries':inventory,'order':['conformance','capture']},indent=2)+'\n')
+snap=r/'sources';snap.mkdir()
+for p in paths:
+    if p.parent==root/'tools':(snap/(p.name+'.txt')).write_bytes(p.read_bytes())
+f=r/'conformance'
+con.run(f,host_check=verify_boundary_host,session_options={'slots':524288,'extension':RoslynBoundaries(f/'scheduler')})
+a=json.loads((f/'conformance.json').read_bytes())
+b=json.loads((f/'scheduler/scheduler.json').read_bytes())
+worker=a['callback_generation']
+raw=(f/'scheduler/boundaries.bin').read_bytes()
+rows=[x for x in ROW.iter_unpack(raw[:b['boundary_counts'][0]*ROW.size]) if x[1]==worker]
+assert rows[0][2:4]==(2,1) and any(x[2]==1 for x in rows)
+out=root/'.local/roslyn-boundary-capture01'
+cap.run(out,host_check=verify_boundary_host,engine=engine,session_options={'slots':524288,'extension':RoslynBoundaries(out/'scheduler')})
+assert frozen=={str(p):cap.sha(p) for p in paths} and inventory==cap.inventory()
+(r/'source-parity.json').write_text(json.dumps({'sources_unchanged':True,'binaries_unchanged':True})+'\n')

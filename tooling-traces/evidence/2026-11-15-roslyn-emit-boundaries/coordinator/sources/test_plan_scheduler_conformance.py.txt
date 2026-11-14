@@ -1,0 +1,107 @@
+"""Independent ADR0026 planning-only ABI/filter fixtures; never starts collection."""
+import argparse
+from copy import deepcopy
+import hashlib,json,re,sys
+from pathlib import Path
+P=argparse.ArgumentParser();P.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);P.add_argument('--output',type=Path,required=True);a=P.parse_args();sys.path.insert(0,str(a.root/'tools'));import plan_scheduler_conformance as tool
+checks=[]
+def check(name,fn):
+ try:assert fn();checks.append(dict(name=name,status='passed'))
+ except Exception as e:checks.append(dict(name=name,status='failed',error=repr(e)))
+def raises(fn):
+ try:fn()
+ except (ValueError,TypeError,KeyError):return True
+ return False
+EVENTS=['sched_switch','sched_waking','sched_wakeup','sched_wakeup_new','sched_migrate_task','sched_process_fork','sched_process_exit','sched_process_free']
+def fmt(name,event_id):
+ fields=[('unsigned short common_type',0,2,0),('unsigned char common_flags',2,1,0),('unsigned char common_preempt_count',3,1,0),('int common_pid',4,4,1)]
+ if name=='sched_switch':fields+=[('char prev_comm[16]',8,16,0),('pid_t prev_pid',24,4,1),('int prev_prio',28,4,1),('long prev_state',32,8,1),('char next_comm[16]',40,16,0),('pid_t next_pid',56,4,1),('int next_prio',60,4,1)]
+ elif name in ['sched_waking','sched_wakeup','sched_wakeup_new']:fields+=[('char comm[16]',8,16,0),('pid_t pid',24,4,1),('int prio',28,4,1),('int target_cpu',32,4,1)]
+ elif name=='sched_process_fork':fields+=[('__data_loc char[] parent_comm',8,4,0),('pid_t parent_pid',12,4,1),('__data_loc char[] child_comm',16,4,0),('pid_t child_pid',20,4,1)]
+ elif name=='sched_process_exit':fields+=[('char comm[16]',8,16,0),('pid_t pid',24,4,1),('int prio',28,4,1),('bool group_dead',32,1,0)]
+ elif name=='sched_process_free':fields+=[('__data_loc char[] comm',8,4,0),('pid_t pid',12,4,1),('int prio',16,4,1)]
+ elif name=='sched_migrate_task':fields+=[('__data_loc char[] comm',8,4,0),('pid_t pid',12,4,1),('int prio',16,4,1),('int orig_cpu',20,4,1),('int dest_cpu',24,4,1)]
+ return 'name: '+name+'\nID: '+str(event_id)+'\nformat:\n'+''.join('\tfield:'+decl+';\toffset:'+str(offset)+';\tsize:'+str(size)+';\tsigned:'+str(signed)+';\n'for decl,offset,size,signed in fields)+'\nprint fmt: "synthetic ABI fixture only"\n'
+texts={name:fmt(name,1000+i)for i,name in enumerate(EVENTS)};formats={name:tool.parse_format(text,name)for name,text in texts.items()};tids=[4002,4001]
+plan=tool.build_plan(formats,tids);specs={s['event'].split(':')[1]:s for s in plan['fd_specifications']}
+check('complete_eight_event_plan',lambda:len(specs)==8 and set(specs)==set(EVENTS))
+check('planning_never_promotes_active_readiness',lambda:plan['active_capture_ready']is False and plan['opens_fds']is False and plan['launches_processes']is False and plan['global_tracefs_or_permission_writes']is False)
+check('all_active_gates_untested_after_valid_ABI',lambda:all(v=='untested'for v in plan['gates'].values()))
+check('fictional_TIDs_not_owner_lease',lambda:plan['declared_example_tids']==[4001,4002]and'not a live'in plan['target_tid_scope'])
+check('ordinary_target_privileged_collector_split',lambda:'ordinary-user'in plan['proposed_identity_split']and'collector only'in plan['proposed_identity_split'])
+check('session_clock_requested_not_tracefs_write',lambda:all(s['clockid']=='CLOCK_MONOTONIC'and s['use_clockid']is True for s in specs.values()))
+check('perCPU_payload_scope_not_process_attachment',lambda:all(s['pid_argument']==-1 and'every online CPU'in s['placement']for s in specs.values()))
+check('no_extra_sideband_callchain_overwrite_requested',lambda:all(s['mmap_comm_task_metadata_requested']is False and s['callchains_requested']is False and s['overwrite_mode_requested']is False for s in specs.values()))
+check('counterparty_metadata_disclosed',lambda:plan['unowned_counterparty_metadata_retained']is True and'unowned'in plan['data_scope'])
+check('no_automatic_child_membership',lambda:'No automatic ownership expansion'in plan['future_children'])
+check('every_event_opens_disabled_before_filtering',lambda:all(s['initially_disabled']is True for s in specs.values()))
+check('exact_tracepoint_FD_config_and_kernel_delivery',lambda:all(s['event_type']=='PERF_TYPE_TRACEPOINT'and type(s['config'])is int and s['config']==s['observed_event_id']and s['exclude_kernel']is False for s in specs.values()))
+check('FDs_not_inherited_into_target_or_exec',lambda:all(s['close_on_exec']is True and s['inherit']is False for s in specs.values()))
+steps=plan['arming_protocol'];apply_index=next(i for i,s in enumerate(steps)if'Apply each payload filter'in s);enable_index=next(i for i,s in enumerate(steps)if'Enable only after'in s)
+check('arming_order_filters_before_enable_and_target_release',lambda:apply_index<enable_index and'disabled'in steps[0]and'abort/close all'in steps[apply_index]and'release ordinary-user'in steps[enable_index]and any('unavailable filter readback'in s for s in steps))
+def filter_truth(expression,payload):
+ # Parse only the emitted finite OR-equality grammar; never eval/execute a filter string.
+ assert expression.startswith('(')and expression.endswith(')')
+ terms=expression[1:-1].split(' || ');parsed=[]
+ for term in terms:
+  m=re.fullmatch(r'([a-z_]+) == ([1-9][0-9]*)',term);assert m;parsed.append((m.group(1),int(m.group(2))))
+ return any(payload.get(field)==tid for field,tid in parsed)
+for event,spec in specs.items():
+ expression=spec['filter_expression'];check('payload_only_filter_'+event,lambda expression=expression:'common_pid'not in expression)
+ if event=='sched_switch':
+  check('switch_in_retained_external_prev',lambda expression=expression:filter_truth(expression,dict(common_pid=999,prev_pid=999,next_pid=4001)))
+  check('switch_out_retained_external_next',lambda expression=expression:filter_truth(expression,dict(common_pid=4002,prev_pid=4002,next_pid=999)))
+  check('unowned_switch_not_header_authorized',lambda expression=expression:not filter_truth(expression,dict(common_pid=4001,prev_pid=888,next_pid=999)))
+ elif event=='sched_process_fork':
+  check('owned_parent_fork_retained',lambda expression=expression:filter_truth(expression,dict(common_pid=999,parent_pid=4001,child_pid=999)))
+  check('owned_child_fork_retained',lambda expression=expression:filter_truth(expression,dict(common_pid=999,parent_pid=888,child_pid=4002)))
+  check('unowned_fork_not_header_authorized',lambda expression=expression:not filter_truth(expression,dict(common_pid=4001,parent_pid=888,child_pid=999)))
+ else:
+  check('remote_emitter_target_payload_retained_'+event,lambda expression=expression:filter_truth(expression,dict(common_pid=999,pid=4001)))
+  check('owned_emitter_foreign_payload_excluded_'+event,lambda expression=expression:not filter_truth(expression,dict(common_pid=4001,pid=999)))
+for bad in [[],[0],[-1],[True],[4001.0],['4001 || pid == 1'],[4001,4001],list(range(1,18)),[2**31]]:
+ check('invalid_population_'+repr(bad),lambda bad=bad:raises(lambda:tool.build_plan(formats,bad)))
+check('population_order_does_not_change_filter',lambda:tool.payload_filter('sched_switch',[4002,4001],formats['sched_switch']['fields'])==tool.payload_filter('sched_switch',[4001,4002],formats['sched_switch']['fields']))
+x=deepcopy(formats);del x['sched_waking']
+check('missing_required_event_rejected',lambda:raises(lambda:tool.build_plan(x,tids)))
+x=deepcopy(formats);x['sched_waking_fake']=x.pop('sched_waking')
+check('similar_event_not_substitute',lambda:raises(lambda:tool.build_plan(x,tids)))
+x=deepcopy(formats);x['sched_waking']['event_id']=x['sched_wakeup']['event_id']
+check('duplicate_event_ID_rejected',lambda:raises(lambda:tool.build_plan(x,tids)))
+for key in ['prev_pid','next_pid']:
+ x=deepcopy(formats['sched_switch']['fields']);del x[key]
+ check('missing_switch_payload_'+key,lambda x=x:raises(lambda:tool.payload_filter('sched_switch',tids,x)))
+for key,bad in [('size',True),('size',8),('signed',True),('signed',0)]:
+ x=deepcopy(formats['sched_wakeup']['fields']);x['pid'][key]=bad;check('target_payload_ABI_'+key+'_'+repr(bad),lambda x=x:raises(lambda:tool.payload_filter('sched_wakeup',tids,x)))
+text=texts['sched_switch']
+for label,bad in [('zero_event_ID',text.replace('ID: 1000','ID: 0')),('mismatched_event_name',text.replace('name: sched_switch','name: sched_switch_fake')),('duplicate_valid_ID',text+'ID: 1001\n'),('duplicate_malformed_ID',text+'ID: invalid\n'),('malformed_field_offset',text.replace('offset:32;','offset:bad;')),('negative_field_offset',text.replace('offset:32;','offset:-1;')),('zero_field_size',text.replace('size:8;','size:0;')),('overlapping_fields',text.replace('offset:32;','offset:24;')),('duplicate_payload_field',text+'field:pid_t prev_pid; offset:64; size:4; signed:1;\n'),('bad_common_pid_signed',text.replace('field:int common_pid;\toffset:4;\tsize:4;\tsigned:1;','field:int common_pid;\toffset:4;\tsize:4;\tsigned:0;'))]:
+ check('malformed_format_'+label,lambda bad=bad:raises(lambda:tool.parse_format(bad,'sched_switch')))
+for event,field in [('sched_switch','prev_state'),('sched_wakeup','target_cpu'),('sched_migrate_task','orig_cpu'),('sched_migrate_task','dest_cpu')]:
+ bad='\n'.join(line for line in texts[event].splitlines()if not re.search(r'\b'+field+r';',line))+'\n'
+ check('missing_observation_ABI_'+event+'/'+field,lambda bad=bad,event=event:raises(lambda:tool.parse_format(bad,event)))
+# Hash/path/JSON cases use retained small synthetic files only; no host reads or symlink creation.
+artifacts=a.output.with_suffix('');artifacts.mkdir(exist_ok=False)
+def bundle_case(name,mutate=None):
+ folder=artifacts/name;folder.mkdir();events={}
+ for event,text in texts.items():
+  raw=text.encode();file=folder/(event+'.format.txt');file.write_bytes(raw);events[event]={'path':file.name,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest(),'event_id':1000+EVENTS.index(event)}
+ bundle={'events':events};path=folder/'bundle.json'
+ if mutate:mutate(folder,bundle)
+ path.write_text(json.dumps(bundle),encoding='utf-8');return path
+path=bundle_case('valid')
+check('valid_small_bundle_loads',lambda:set(tool.load_bundle(path)[0])==set(EVENTS))
+path=bundle_case('raw-hash-drift',lambda f,b:(f/'sched_switch.format.txt').write_bytes((f/'sched_switch.format.txt').read_bytes()+b' '))
+check('raw_format_hash_drift_rejected',lambda:raises(lambda:tool.load_bundle(path)))
+path=bundle_case('size-type-alias',lambda f,b:b['events']['sched_switch'].__setitem__('bytes',float(b['events']['sched_switch']['bytes'])))
+check('bundle_size_exact_integer',lambda:raises(lambda:tool.load_bundle(path)))
+path=bundle_case('event-ID-parity',lambda f,b:b['events']['sched_switch'].__setitem__('event_id',1001))
+check('bundle_event_ID_parity',lambda:raises(lambda:tool.load_bundle(path)))
+path=bundle_case('absolute-inside-path',lambda f,b:b['events']['sched_switch'].__setitem__('path',str((f/'sched_switch.format.txt').resolve())))
+check('absolute_even_inside_bundle_rejected',lambda:raises(lambda:tool.load_bundle(path)))
+path=bundle_case('path-traversal',lambda f,b:b['events']['sched_switch'].__setitem__('path','../escape.format.txt'))
+check('parent_escape_path_rejected_before_read',lambda:raises(lambda:tool.load_bundle(path)))
+path=bundle_case('duplicate-JSON-event');text=path.read_text();duplicate=json.dumps(json.loads(text)['events']['sched_switch']);text=text.replace('"events": {','"events": {"sched_switch": '+duplicate+',',1);path.write_text(text,encoding='utf-8')
+check('duplicate_JSON_event_key_rejected',lambda:raises(lambda:tool.load_bundle(path)))
+report={'status':'passed'if all(c['status']=='passed'for c in checks)else'failed','checks':len(checks),'failed':sum(c['status']!='passed'for c in checks),'results':checks,'planner_source_sha256':hashlib.sha256(Path(tool.__file__).read_bytes()).hexdigest(),'fixture_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'active_capture_ready':False,'limits':['Synthetic pure ABI/filter planning fixtures; no perfFD, workload, collection, permission or host changes.']}
+with a.output.open('x',encoding='utf-8',newline='\n')as f:f.write(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items()if k not in ['results','limits']}));raise SystemExit(0 if not report['failed']else 1)
