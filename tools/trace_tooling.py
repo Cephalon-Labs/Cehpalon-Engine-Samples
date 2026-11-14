@@ -84,13 +84,14 @@ def wait_until(predicate, proc, description, timeout=30):
 
 
 def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600, *,
-                    owned_identity=None, scheduler=None):
+                    owned_identity=None, scheduler=None, sample_threads=True):
     """Suspended target -> observer -> collector starts session and resumes its port."""
     folder.mkdir(parents=True, exist_ok=False)
     trace = folder / 'runtime.nettrace'
     report = {'role': 'diagnostic_perturbed', 'canonical': False, 'status': 'started',
               'target_argv': list(map(str, command)), 'cwd': str(cwd), 'providers': PROVIDERS,
-              'profile': 'dotnet-sampled-thread-time', 'buffer_mb': 256, 'buffer_mode': 'Drop',
+              'profile': 'dotnet-sampled-thread-time' if sample_threads else None,
+              'buffer_mb': 256, 'buffer_mode': 'Drop',
               'observer_interval_seconds': .010,
               'startup_coordination': 'one suspended reverse port; observer before collector; collector resumes its own endpoint after session start',
               'limits': ['Tracing, startup coordination, observer and rundown perturb execution.',
@@ -132,9 +133,11 @@ def capture_runtime(command, cwd, folder, dotnet, tool, analyzer, timeout=600, *
         require(all(Path(binary).is_file() for binary in (dotnet, tool, analyzer)), 'Diagnostic binaries exist before spawning any child')
         for name in ('collector.stdout.txt', 'collector.stderr.txt', 'target.stdout.txt', 'target.stderr.txt'):
             handles.append((folder / name).open('wb'))
-        collect = [dotnet, 'exec', '--roll-forward', 'Major', tool, 'collect', '--output', trace,
-                   '--profile', 'dotnet-sampled-thread-time', '--providers', PROVIDERS,
-                   '--diagnostic-port', port, '--resume-runtime:true', '--buffersize', '256', '--buffering-mode', 'Drop']
+        collect = [dotnet, 'exec', '--roll-forward', 'Major', tool, 'collect', '--output', trace]
+        if report['profile'] is not None:
+            collect += ['--profile', report['profile']]
+        collect += ['--providers', PROVIDERS, '--diagnostic-port', port, '--resume-runtime:true',
+                    '--buffersize', '256', '--buffering-mode', 'Drop']
         report['collector_argv'] = list(map(str, collect))
         log = folder / 'collector.stdout.txt'
         text = lambda: log.read_text(encoding='utf-8', errors='replace')
@@ -241,7 +244,7 @@ def read_json_bytes(data):
     return json.loads(data.decode('utf-8-sig'))
 
 
-def analyze(folder, dotnet, analyzer, spans=None, expected_markers=None):
+def analyze(folder, dotnet, analyzer, spans=None, expected_markers=None, *, sample_threads=True):
     command = [dotnet, analyzer, '--trace', folder / 'runtime.nettrace', '--output', folder / 'analysis']
     if spans is not None:
         command += ['--spans', spans]
@@ -251,8 +254,7 @@ def analyze(folder, dotnet, analyzer, spans=None, expected_markers=None):
     require(report.get('status') == 'completed' and report.get('eventsLost') == 0, 'Parsed trace with zero reported EventPipe loss')
     require(report.get('payloadReadErrors') == 0 and report.get('etlxEventsLost') == 0
             and report.get('stackExtractionStatus') == 'completed', 'Payload/managed-stack extraction and loss checked')
-    require(report.get('jitStartToLoadIntervals', 0) > 0 and report.get('sampledThreadEvents', 0) > 0
-            and report.get('stackSamples', 0) > 0, 'Positive actual JIT start/load and managed thread sample evidence')
+    require(report.get('jitStartToLoadIntervals', 0) > 0, 'Positive actual JIT start/load evidence')
     capture = read(folder / 'capture.json')
     target_pid = capture['target_pid']
     runtime_pids, sample_pids = set(), set()
@@ -263,7 +265,14 @@ def analyze(folder, dotnet, analyzer, spans=None, expected_markers=None):
                 runtime_pids.add(event['processId'])
             elif event['provider'] == 'Microsoft-DotNETCore-SampleProfiler':
                 sample_pids.add(event['processId'])
-    require(runtime_pids == sample_pids == {target_pid}, 'Runtime and sampled thread events belong to the actual owned target PID')
+    require(runtime_pids == {target_pid}, 'Runtime events belong to the actual owned target PID')
+    if sample_threads:
+        require(report.get('sampledThreadEvents', 0) > 0 and report.get('stackSamples', 0) > 0
+                and sample_pids == {target_pid}, 'Positive managed samples for the actual owned target PID')
+    else:
+        require(capture['profile'] is None and report.get('sampledThreadEvents') == report.get('stackSamples') == 0
+                and not sample_pids and (folder / 'analysis/sampled-thread-stacks.jsonl').stat().st_size == 0,
+                'Explicit provider-only trace must have no SampleProfiler events or stacks')
     quality = {'target_pid': target_pid, 'runtime_event_pids': sorted(runtime_pids), 'sample_event_pids': sorted(sample_pids),
                'event_loss_reported': report['eventsLost'], 'etlx_loss_reported': report['etlxEventsLost'],
                'gc_attribution_scope': 'complete_for_observed_episodes' if report.get('eePairingErrors') == 0 else 'partial; no complete GC attribution',

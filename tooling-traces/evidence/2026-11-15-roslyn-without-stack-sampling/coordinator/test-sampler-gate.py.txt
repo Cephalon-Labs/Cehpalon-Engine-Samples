@@ -1,0 +1,41 @@
+import json
+from pathlib import Path
+import sys
+import tempfile
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(sys.argv[1]) / "tools"))
+import trace_tooling as trace
+
+runtime = {"provider": "Microsoft-Windows-DotNETRuntime", "processId": 42}
+sample = {"provider": "Microsoft-DotNETCore-SampleProfiler", "processId": 42}
+foreign_sample = {**sample, "processId": 43}
+base_summary = dict(status="completed", eventsLost=0, payloadReadErrors=0, etlxEventsLost=0,
+                    stackExtractionStatus="completed", jitStartToLoadIntervals=1)
+cases = [
+    ("sampled", True, "dotnet-sampled-thread-time", 1, 1, [runtime, sample], "{}", True),
+    ("sampled_without_records", True, "dotnet-sampled-thread-time", 0, 0, [runtime], "", False),
+    ("provider_only", False, None, 0, 0, [runtime], "", True),
+    ("provider_only_with_raw_sample", False, None, 0, 0, [runtime, foreign_sample], "", False),
+    ("provider_only_with_stack", False, None, 0, 0, [runtime], "{}", False),
+    ("provider_only_with_stack_count", False, None, 0, 1, [runtime], "", False),
+    ("provider_only_with_sample_count", False, None, 1, 0, [runtime], "", False),
+    ("provider_only_with_enabled_profile", False, "dotnet-sampled-thread-time", 0, 0, [runtime], "", False),
+]
+for label, requested, profile, samples, stacks, events, stream, expected in cases:
+    with tempfile.TemporaryDirectory() as sub, patch.object(trace, "process"):
+        folder = Path(sub)
+        parsed = folder / "analysis"
+        parsed.mkdir()
+        trace.save(folder / "capture.json", dict(target_pid=42, profile=profile))
+        trace.save(parsed / "summary.json",
+                   {**base_summary, "sampledThreadEvents": samples, "stackSamples": stacks})
+        (parsed / "events.jsonl").write_text("\n".join(map(json.dumps, events)), encoding="utf-8")
+        (parsed / "sampled-thread-stacks.jsonl").write_text(stream, encoding="utf-8")
+        try:
+            trace.analyze(folder, "unused", "unused", **({} if requested else {"sample_threads": False}))
+        except ValueError:
+            assert not expected, label
+        else:
+            assert expected, label
+print(json.dumps({"passed": len(cases), "cases": [case[0] for case in cases]}))

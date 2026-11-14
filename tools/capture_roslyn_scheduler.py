@@ -55,12 +55,12 @@ def preflight(*, host_check=verify_host, engine=None):
     return inventory()
 
 
-def run(out, *, host_check=verify_host, engine=None, session_options=None):
+def run(out, *, host_check=verify_host, engine=None, session_options=None, sample_threads=True):
     binaries = preflight(host_check=host_check, engine=engine)
     out.mkdir(parents=True, exist_ok=False)
     os.chown(out, 1000, 1000)
     report = {"status": "preparing", "engine_revision": ENGINE,
-              "providers": lineage.PROVIDERS, "binary_sha256_before": binaries,
+              "providers": lineage.PROVIDERS, "sample_threads": sample_threads, "binary_sha256_before": binaries,
               "canonical": False, "capture_ready": False}
     runtime.save(out / "manifest.json", report)
     session = SchedulerSession(out / "scheduler", host_check=host_check, **(session_options or {}))
@@ -72,11 +72,12 @@ def run(out, *, host_check=verify_host, engine=None, session_options=None):
         capture = runtime.capture_runtime(
             [HOST, DRIVER, "--output=" + str(generator / "generator.json")],
             ROOT, generator, HOST, TOOL, ANALYZER, timeout=600,
-            owned_identity=(1000, 1000), scheduler=session,
+            owned_identity=(1000, 1000), scheduler=session, sample_threads=sample_threads,
         )
         report["capture_status"] = capture["status"]
         analysis = runtime.analyze(generator, HOST, ANALYZER,
-                                   generator / "generator.json.spans.jsonl", expected_markers=2956)
+                                   generator / "generator.json.spans.jsonl", expected_markers=2956,
+                                   sample_threads=sample_threads)
         report["semantics"] = runtime.verify_generator(generator / "generator.json")
         runtime.require(analysis["payloadReadErrors"] == analysis["eventsLost"] == analysis["etlxEventsLost"] == 0,
                         "Managed parser/loss gate failed")

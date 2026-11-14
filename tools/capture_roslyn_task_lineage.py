@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 ENGINE='55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7'
 DRIVER='21d061db61ac77608f470f168b431cb5a631a099bfb1b07ed64cd5be04d53b5c'
 PROVIDERS='Microsoft-Windows-DotNETRuntime:0x411C14FCCBD:5,Cehpalon-Tooling-Diagnostic:0x1:4,System.Threading.Tasks.TplEventSource:0x43:5'
-PINS={'trace_tooling.py':'cbbe20094256f2d3766c76ba9de02c50b15055949d69772a2c923dbb88be4b2e','tooling_os_observer.py':'7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203','tooling_wait_capture.py':'3350325def09143eddc04f95fa7d8235085878bb4c985a205429dc92525def26','trace_tooling_native.py':'55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff','validate_native_conformance.py':'cacef75ce72981be94028ee1e6181ca396bc29c547a4f7fd533a3b796dd3ab1d','benchmark_tooling.py':'32183755ca2db53030698a7e202b851afb0b759fb39142a155d53731469549d9'}
+PINS={'trace_tooling.py':'3091e8d8557571830d16a90e243638a0a021051478881d9036ae338eff3ab468','tooling_os_observer.py':'7799acf6244227d8ada325d366daf51c6df06483c7c29c25475fec65e7e4c203','tooling_wait_capture.py':'3350325def09143eddc04f95fa7d8235085878bb4c985a205429dc92525def26','trace_tooling_native.py':'55b3b9244ad13b01b11985d805e4ec28f887a00b42dbde74a0ecc60e79b783ff','validate_native_conformance.py':'cacef75ce72981be94028ee1e6181ca396bc29c547a4f7fd533a3b796dd3ab1d','benchmark_tooling.py':'32183755ca2db53030698a7e202b851afb0b759fb39142a155d53731469549d9'}
 def require(ok,message):
     if not ok:raise ValueError(message)
 def digest(data):return hashlib.sha256(data).hexdigest()

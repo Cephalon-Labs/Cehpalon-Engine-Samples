@@ -1,0 +1,67 @@
+import gzip, hashlib, json, re, shutil
+from pathlib import Path
+root=Path(__file__).parent
+samples=Path("D:/Cephalon/Cehpalon-Engine-Samples")
+base=samples/"tooling-traces/evidence/2026-11-15-roslyn-without-stack-sampling"
+base.mkdir(parents=True,exist_ok=False)
+inputs=[("coordinator",root),("capture",samples/".local/roslyn-no-sampler-capture01")]
+sha=lambda b:hashlib.sha256(b).hexdigest()
+pointer=rb"(?i)0xffff[0-9a-f]{12}\b"
+entries=[];redactions=[]
+chunk_limit=48*1024*1024
+for label,folder in inputs:
+ for path in sorted(folder.rglob("*")):
+  if not path.is_file() or path.is_symlink() or "__pycache__" in path.parts:continue
+  target=Path(label)/path.relative_to(folder)
+  original_hash=hashlib.file_digest(path.open("rb"),"sha256").hexdigest()
+  payload=None
+  if path.name=="scheduler.json":
+   payload=path.read_bytes(); obj=json.loads(payload);changes=[]
+   for program in obj.get("programs",[]):
+    log=bytes.fromhex(program["verifier_log_hex"])
+    changed,count=re.subn(pointer,b"[KERNEL-ADDR-0000]",log)
+    if count:
+     assert len(log)==len(changed)
+     payload=payload.replace(log.hex().encode(),changed.hex().encode(),1)
+     program["verifier_log_hex"]=changed.hex()
+     changes.append({"hook":program["hook"],"occurrences":count,"original_log_sha256":sha(log)})
+   assert json.loads(payload)==obj
+   if changes:
+    target=target.with_name("scheduler.redacted.json")
+    redactions.append({"source":str(path),"shared_file":target.as_posix(),"original_sha256":original_hash,"programs":changes})
+  if target.suffix==".py":target=target.with_name(target.name+".txt")
+  size=len(payload) if payload is not None else path.stat().st_size
+  compressed=size>131072
+  if compressed:target=target.with_name(target.name+".gz")
+  temp=base/target;temp.parent.mkdir(parents=True,exist_ok=True)
+  with temp.open("xb") as destination:
+   if compressed:
+    with gzip.GzipFile(filename="",mode="wb",fileobj=destination,mtime=0,compresslevel=5) as gz:
+     if payload is not None:gz.write(payload)
+     else:
+      with path.open("rb") as src:shutil.copyfileobj(src,gz,1024*1024)
+   elif payload is not None:destination.write(payload)
+   else:
+    with path.open("rb") as src:shutil.copyfileobj(src,destination,1024*1024)
+  payload_sha=sha(payload) if payload is not None else original_hash
+  with (gzip.open(temp,"rb") if compressed else temp.open("rb")) as stream:
+   assert hashlib.file_digest(stream,"sha256").hexdigest()==payload_sha
+  stored=[]
+  if temp.stat().st_size>chunk_limit:
+   with temp.open("rb") as stream:
+    i=0
+    while data:=stream.read(chunk_limit):
+     part=temp.with_name(temp.name+f".part{i:03d}")
+     with part.open("xb") as dest:dest.write(data)
+     stored.append({"path":part.relative_to(base).as_posix(),"bytes":len(data),"sha256":sha(data)})
+     i+=1
+   temp.unlink() # Only this newly created staging file, whose exact parts were retained.
+  else:
+   with temp.open("rb") as stream:h=hashlib.file_digest(stream,"sha256").hexdigest()
+   stored=[{"path":temp.relative_to(base).as_posix(),"bytes":temp.stat().st_size,"sha256":h}]
+  entries.append({"source":label+"/"+path.relative_to(folder).as_posix(),"original_sha256":original_hash,"payload_sha256":payload_sha,"payload_bytes":size,"compression":"gzip-mtime0" if compressed else "none","parts":stored})
+manifest={"schema_version":1,"date_bangkok":"2026-11-15","scope":"ADR0031 provider-only Roslyn diagnostic; one attempt and offline analyses","entries":entries,"redactions":redactions}
+(base/"retention.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8",newline="\n")
+(base/"README.md").write_text("# Same-execution Roslyn diagnostic evidence\n\nSee the Docs ADR0031 report and delivery. Concatenate each manifest entry's listed parts in order, then decompress gzip when declared. Verify stored part hashes and payload hashes. Original and payload hashes differ only for explicitly redacted verifier copies. Exact raw verifier originals remain local. Partial analyses and failed preparation attempts are evidence, not successful captures. Runtime/driver binaries are identified by hashes and not redistributed here.\n",encoding="utf-8",newline="\n")
+print(json.dumps({"payloads":len(entries),"stored_bytes":sum(x["bytes"] for e in entries for x in e["parts"]),"redacted_files":len(redactions),"redacted_literals":sum(x["occurrences"] for r in redactions for x in r["programs"]),"manifest_sha256":sha((base/"retention.json").read_bytes())}))
+

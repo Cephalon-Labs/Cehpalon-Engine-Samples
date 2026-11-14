@@ -1,0 +1,27 @@
+import json
+import sys
+from pathlib import Path
+
+r = Path(__file__).resolve().parent
+root = Path("/mnt/d/Cephalon/Cehpalon-Engine-Samples")
+sys.path.insert(0, str(root / "tools"))
+from capture_roslyn_boundaries import RoslynBoundaries, verify_boundary_host
+import capture_roslyn_scheduler as cap
+
+engine = root.parent / ".worktrees/roslyn-boundary-engine"
+control = r.parent / "roslyn-boundary02/conformance/scheduler/scheduler.json"
+assert json.loads(control.read_bytes())["status"] == "completed"
+inventory = cap.preflight(host_check=verify_boundary_host, engine=engine)
+paths = [*sorted((root / "tools").glob("*.py")), control, Path(__file__), r / "protocol.md"]
+frozen = {str(p): cap.sha(p) for p in paths}
+cap.runtime.save(r / "freeze.json", {"sources": frozen, "binaries": inventory, "sample_threads": False})
+snap = r / "sources"
+snap.mkdir()
+for p in paths:
+    if p.parent == root / "tools":
+        (snap / (p.name + ".txt")).write_bytes(p.read_bytes())
+out = root / ".local/roslyn-no-sampler-capture01"
+cap.run(out, host_check=verify_boundary_host, engine=engine, sample_threads=False,
+        session_options={"slots": 524288, "extension": RoslynBoundaries(out / "scheduler")})
+assert frozen == {str(p): cap.sha(p) for p in paths} and inventory == cap.inventory()
+cap.runtime.save(r / "source-parity.json", {"sources_unchanged": True, "binaries_unchanged": True})

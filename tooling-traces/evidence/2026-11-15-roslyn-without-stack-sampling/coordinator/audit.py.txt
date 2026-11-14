@@ -1,0 +1,67 @@
+from collections import Counter
+from hashlib import file_digest
+import json
+from pathlib import Path
+
+root = Path("D:/Cephalon/Cehpalon-Engine-Samples/.local")
+on = root / "roslyn-boundary-capture01"
+off = root / "roslyn-no-sampler-capture01"
+here = Path(__file__).parent
+read = lambda p: json.loads(p.read_bytes())
+def sha(path):
+    with path.open("rb") as stream:
+        return file_digest(stream, "sha256").hexdigest()
+
+provider = "Microsoft-DotNETCore-SampleProfiler"
+previous = read(on / "manifest.json")
+current = read(off / "manifest.json")
+assert previous["binary_sha256_before"] == current["binary_sha256_before"] == current["binary_sha256_after"]
+baseline_capture = read(on / "generator/capture.json")
+control_capture = read(off / "generator/capture.json")
+assert baseline_capture["providers"] == control_capture["providers"]
+assert baseline_capture["profile"] == "dotnet-sampled-thread-time" and control_capture["profile"] is None
+command = baseline_capture["collector_argv"]
+i = command.index("--profile")
+filtered = command[:i] + command[i+2:]
+assert [x for i, x in enumerate(filtered) if filtered[i-1] not in {"--output", "--diagnostic-port"}] == [
+    x for i, x in enumerate(control_capture["collector_argv"])
+    if control_capture["collector_argv"][i-1] not in {"--output", "--diagnostic-port"}
+]
+receipts = {}
+for lane in (on, off):
+    capture = read(lane / "scheduler/scheduler.json")
+    assert capture["status"] == "completed" and capture["cleanup_errors"] == []
+    assert capture["boundary_sha256"] == capture["boundary_second_sha256"] == sha(lane / "scheduler/boundaries.bin")
+    assert capture["boundary_counts"][1:] == [0, 0, 0] and capture["terminal_counts"][1:3] == [0, 0]
+    receipts[lane.name] = {"lifecycle": capture["terminal_counts"], "boundaries": capture["boundary_counts"],
+                          "hooks": [p["hook"] for p in capture["programs"]]}
+assert receipts[on.name]["hooks"] == receipts[off.name]["hooks"]
+summary = read(off / "generator/analysis/summary.json")
+lineage = read(off / "lineage/summary.json")
+gc = read(off / "gc-episodes/summary.json")
+events, starts = Counter(), Counter()
+with (off / "generator/analysis/events.jsonl").open(encoding="utf-8") as stream:
+    for line in stream:
+        event = json.loads(line)
+        events[event["provider"]] += 1
+        if event["provider"] == "Microsoft-Windows-DotNETRuntime" and event["eventId"] == 9:
+            starts[event["payload"]["Reason"]] += 1
+assert summary["events"] == lineage["raw_events"] == sum(events.values()) and events[provider] == 0
+assert lineage["stack_samples"] == gc["sample_records"] == 0
+assert (off / "generator/analysis/sampled-thread-stacks.jsonl").stat().st_size == 0
+episodes = read(off / "gc-episodes/episodes.json")
+assert starts == Counter(x["reason"] for x in episodes)
+indices = [idx for episode in episodes for idx in episode["raw_indices"]]
+assert len(indices) == len(set(indices)) == gc["runtime_phase_rows"] and not gc["unresolved_phase_rows"]
+boundaries = read(off / "scheduler-joins/gc-boundaries.json")
+assert set(indices) == {event["raw_record_index"] for event in boundaries}
+assert read(here / "source-parity.json") == {"sources_unchanged": True, "binaries_unchanged": True}
+result = {
+    "binary_inventory_equal": len(previous["binary_sha256_before"]),
+    "collector_argv_equal_after_removing_profile_and_output_socket_paths": True,
+    "native": receipts, "reason_starts_equal_replayed_episodes": dict(starts),
+    "sample_profiler_raw_records": events[provider], "stack_stream_bytes": 0,
+    "phase_rows_accounted_once": len(indices),
+}
+(here / "audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n")
+print(json.dumps(result))

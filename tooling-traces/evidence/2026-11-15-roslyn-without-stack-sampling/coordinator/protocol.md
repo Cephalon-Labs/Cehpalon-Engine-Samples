@@ -1,0 +1,9 @@
+# Roslyn Emit with EventPipe stack sampling disabled
+
+Engine #20, ADR0031, 2026-11-15. Run one diagnostic execution of the existing 306-row Roslyn corpus (36 primers and 270 measured Emit rows). Use the same pinned Engine revision, runtime, binaries, WSL kernel/BTF and owner-scoped native channels as the sampled run. Reuse the retained enlarged CLR conformance evidence for the unchanged native channels. Freeze the protocol and sources before launch. Preserve all outputs and any failed attempt.
+
+Omit only the `dotnet-sampled-thread-time` profile and retain the explicit CLR, diagnostic marker and TPL providers. Microsoft documents the default profile selection when there are no explicit providers. Check the actual collector provider table, zero raw SampleProfiler events from any PID and an empty parsed stack stream. Keep the original JIT, EventPipe/ETLX loss, target PID, marker/sidecar, corpus, TPL, native lifecycle and detached ledger gates. The capture uses the existing 524,288 lifecycle slots, 64 identity limit, 262,144 boundary slots and 2 GiB output cap. The supervisor allows 300 seconds before sending TERM and another 30 seconds before KILL.
+
+Use the unchanged offline lineage, scheduler, callback pairing and GC episode replay. Report residual reason-0 sequences even if present. Compare reason-class counts and overlap fractions across the retained runs. Include unbound and unresolved counts in the evidence. The earlier run establishes positive stack-sampling observations and the new run tests whether reason-0 sequences persist without them. Cross-run counts describe the traces. They cannot quantify physical pauses, exclusive scheduler delay, observer overhead, root cause or benchmark qualification. Keep #3 Blocked and retain the original #20 gates.
+
+[dotnet-trace collector options](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-trace#dotnet-trace-collect)
