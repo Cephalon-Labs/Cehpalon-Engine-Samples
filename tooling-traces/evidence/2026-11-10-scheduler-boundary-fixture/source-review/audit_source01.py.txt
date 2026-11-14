@@ -1,0 +1,43 @@
+import hashlib,json
+from pathlib import Path
+root=Path(__file__).parent
+checks=[]
+def need(ok,name):
+ if not ok:raise ValueError(name)
+ checks.append(name)
+def text(name):return (root/name).read_text()
+for item in json.loads((root/"acquisition01.json").read_bytes()):
+ need(item.get("status")==200,"immutable source acquired "+item["path"])
+ blob=(root/item["path"]).read_bytes()
+ need(hashlib.sha256(blob).hexdigest()==item["sha256"],"source exact hash "+item["path"])
+core=text("kernel_sched_core.c.txt");header=text("include_trace_events_sched.h.txt");bridge=text("include_trace_bpf_probe.h.txt")
+syscalls=text("kernel_sched_syscalls.c.txt");fair=text("kernel_sched_fair.c.txt")
+for condition,name in [
+ ("DECLARE_TRACE(sched_entry," in header and "TP_PROTO(bool preempt)" in header,"entry bool declaration"),
+ ("DECLARE_TRACE(sched_exit," in header and "TP_PROTO(bool is_switch)" in header,"exit bool declaration"),
+ ("DEFINE_BPF_RAW_TRACEPOINT(call##_tp, proto, args)" in bridge,"DECLARE_TRACE raw tp map bridge"),
+ ("#define SM_IDLE\t\t\t(-1)" in core,"idle mode negative one"),
+ ("#define SM_NONE\t\t\t0" in core,"none mode zero"),
+ ("#define SM_PREEMPT\t\t1" in core,"preempt mode one"),
+ ("#define SM_RTLOCK_WAIT\t\t2" in core,"rtlock mode two"),
+ ("trace_sched_entry_tp(sched_mode == SM_PREEMPT);" in core,"entry compares exact preempt mode"),
+ ("is_switch = prev != next;" in core,"exit switch bool selection"),
+ (core.index("trace_sched_entry_tp(sched_mode == SM_PREEMPT);")<core.index("is_switch = prev != next;")<core.index("trace_sched_switch(preempt, prev, next, prev_state);")<core.index("rq = context_switch(rq, prev, next, &rf);")<core.index("trace_sched_exit_tp(is_switch);"),"entry selection switch context exit source order"),
+ ("trace_sched_exit_tp(true);" in core[core.index("asmlinkage __visible void schedule_tail"):core.index(" * context_switch -")],"newborn schedule_tail exit true"),
+ ("__schedule(SM_NONE);\n\tBUG();" in core,"terminal schedule has no return"),
+ ("local variables which were saved when this task called schedule()" in core,"resumed saved invocation locals"),
+ ("because prev may have moved to another CPU." in core,"restored invocation may migrate"),
+ ("SYSCALL_DEFINE0(sched_yield)" in syscalls and "do_sched_yield();" in syscalls,"yield syscall delegates"),
+ ("sched_preempt_enable_no_resched();\n\n\tschedule();" in syscalls,"yield invokes scheduler"),
+ ("if (unlikely(rq->nr_running == 1))\n\t\treturn;" in fair,"fair yield single-runnable early path"),
+ ("set_next_entity(cfs_rq" in fair,"fair selection depends on scheduler state"),
+ ("} while (need_resched());" in core,"schedule may iterate multiple invocations"),
+ ]:need(condition,name)
+btf=json.loads((root/"btf-prototypes01.json").read_bytes())
+need(btf["btf_sha256"]=="1c1326be5d6ca0e60ad8790971b6765bba91cc8a3ab897a94794177484c8c9b9","retained pinned BTF reference")
+need({"btf_trace_sched_entry_tp","btf_trace_sched_exit_tp"} <= {x["name"] for x in btf["types"]},"both retained raw trace BTF names")
+proto=next(x for x in btf["types"] if x["kind"]==13)
+need(len(proto["params"])==2 and proto["params"][1]["type_name"]=="bool","callback plumbing plus one bool")
+result={"status":"passed_bounded_source_contract","checks_passed":len(checks),"checks":checks,"scope":"Source and retained BTF only; no new native actor/load/attach or physical duration proof","deterministic_userspace_no_switch_oracle":False,"fixed_yield_probe_allowed_as_observation":True,"seeded_prefix_exit_is_newborn":False,"terminal_open_invocation_allowed":True}
+(root/"source-audit01.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps(result))

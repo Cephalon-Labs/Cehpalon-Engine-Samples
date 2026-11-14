@@ -1,0 +1,10 @@
+import json,sys
+from pathlib import Path
+sys.path.insert(0,"D:/Cephalon/Cehpalon-Engine-Samples/tools")
+from test_scheduler_boundary import check,row
+result=check([row(0,1,1),row(1,2,1),row(0,2,0),row(1,1,retired=1)])
+pair=result["complete_pairs"][0]
+assert pair["entry_preempt_mode"] is True and pair["is_switch"] is False
+out={"status":"passed","offline_entry_preempt_true_and_exit_false":True,"native_entry_preempt_true_coverage":"unobserved","limits":"Entry preempt comparison and exit switch selection remain distinct fields; no physical or voluntary-blocking interpretation."}
+Path(__file__).with_name("entry-mode01.json").write_text(json.dumps(out,indent=2)+"\n")
+print(json.dumps(out))

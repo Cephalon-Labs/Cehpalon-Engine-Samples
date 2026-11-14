@@ -1,0 +1,69 @@
+import json,struct,hashlib
+from pathlib import Path
+from collections import Counter
+root=Path(__file__).parent
+base=root.parent/"native01"
+checks=[]
+def need(ok,name):
+ if not ok:raise ValueError(name)
+ checks.append(name)
+def read(p):return json.loads(p.read_bytes())
+for case in ("negative01","positive01"):
+ p=read(base/case/"report.json");a=read(base/case/"analysis.json")
+ names=[x["tp_name"] for x in p["attached_hooks"]]
+ need(names.count("sched_entry_tp")==names.count("sched_exit_tp")==1,case+" named boundary attachment receipts")
+ need(all(x["cookie"]==0 for x in p["attached_hooks"]),case+" declared zero attachment cookie")
+ need(p["status"]=="completed" and p["cleanup_errors"]==[] and not p["forced_cleanup"],case+" complete declared collection")
+ need(p["boundary_sha256"]==hashlib.sha256((base/case/"boundary.bin").read_bytes()).hexdigest(),case+" raw ledger hash")
+ need(not a["physical_scheduler_duration_certified"] and not a["historical_roslyn_qualified"] and not a["general_capture_ready"] and not a["gc_cause_certified"],case+" semantic limits not promoted")
+ if case=="negative01":
+  need(a["lost"]>0 and not a["classification_complete"] and not a["complete_pairs"],"capacity loss does not establish pairing")
+p=read(base/"positive01/report.json");a=read(base/"positive01/analysis.json")
+raw=(base/"positive01/boundary.bin").read_bytes()
+need(p["boundary_counts"]==[182,0,0,0],"complete positive boundary counter scope")
+rows=list(struct.iter_unpack("<8IQQ",raw[:182*48]))
+need(not any(raw[182*48:]),"unused positive rows are zero")
+need(len(rows)==182,"positive actual row count")
+leader=p["lease_before"]["local_pid"];worker=a["worker_lifetime"]["local_tid"]
+pending={};seen=set();pairs=[];prefix=[]
+for index,row in enumerate(rows):
+ ordinal,gen,kind,flag,c0,c1,retired,tid,t0,t1=row
+ need(ordinal==index+1 and gen in (0,1) and kind in (1,2) and flag in (0,1) and retired in (0,1),"strict owned event header "+str(index))
+ need(tid==(leader if gen==0 else worker),"stable owned generation identity "+str(index))
+ if kind==1:
+  need(gen not in pending,"single pending observed invocation "+str(index));pending[gen]=row
+ else:
+  if gen in pending:pairs.append((pending.pop(gen),row))
+  else:
+   need(gen not in seen,"only initial unmatched exit "+str(index));prefix.append(row)
+ seen.add(gen)
+need(len(pairs)==89,"generation-local complete invocation count")
+need(sum(x[3] for _,x in pairs)==25,"saved invocation switch true count")
+need(sum(not x[3] for _,x in pairs)==64,"saved invocation no-switch false count")
+need(sum(e[4]!=x[4] for e,x in pairs)==9,"entry exit emitter CPU endpoint changes")
+need(all(e[3]==0 for e,_ in pairs),"native true preempt-mode coverage remains absent")
+need(len(prefix)==2 and [(x[1],x[3]) for x in prefix]==[(0,1),(1,1)],"seeded and born prefix exit values")
+life_raw=(base/"positive01/lifecycle.bin").read_bytes()
+life=list(struct.iter_unpack("<4IQ4I",life_raw[:20*40]))
+need(hashlib.sha256(life_raw).hexdigest()==a["worker_lifetime"]["ledger_sha256"],"separate lifecycle raw hash")
+need(life[0][0]==1 and life[1][0]==2 and life[-1][0]==8,"owned child birth firstwake and free endpoints")
+need(all(x[5]==worker and x[7]==1 for x in life),"child lifecycle agrees with boundary generation")
+need(life[0][4]<life[1][4]<prefix[1][8],"observed child birth wake before exit-prefix times")
+need(set(pending)=={0,1},"two independently preserved open tails")
+need(pending[0][6]==0 and pending[1][6]==1 and pending[1][3]==0,"leader hold versus retired worker open-entry fields")
+retired=next(x for x in life if x[0]==7);terminal=next(x for x in life if x[0]==4 and x[3]==128);freed=next(x for x in life if x[0]==8)
+need(retired[4]<pending[1][8]<terminal[4]<freed[4],"observed retired entry before terminal switch and free")
+need(p["leader_detach_hold"]["syscall"]==0 and p["leader_detach_hold"]["state"]=="S","leader held in read at detach receipt")
+need(2*len(pairs)+len(prefix)+len(pending)==182,"all rows accounted by invocation interpretation")
+refs=[x for batch in p["yield_batches"] for x in batch["references"]]
+need(len(refs)==64,"fixed yield reference offers")
+matched=[]
+for e,x in pairs:
+ if x[3]:continue
+ matches=[i for i,(l,u) in enumerate(refs) if l<=e[8]<=e[9]<=u and l<=x[8]<=x[9]<=u]
+ need(len(matches)==1,"one numerical reference bracket for each no-switch pair "+str(e[0]));matched.extend(matches)
+need(len(set(matched))==64,"all fixed yield brackets have a unique no-switch pair")
+need(a["coverage"]["complete_switch_pairs"]==25 and a["coverage"]["complete_no_switch_pairs"]==64 and a["coverage"]["entry_exit_cpu_changed_pairs"]==9,"reported complete-pair coverage agrees")
+result={"status":"passed_bounded_native_source_interpretation","checks_passed":len(checks),"positive_rows":182,"complete_pairs":89,"switch_true_pairs":25,"no_switch_false_pairs":64,"entry_exit_cpu_endpoint_changes":9,"prefixes":{"seeded_left_censored":1,"owned_newborn":1},"open_tails":{"leader_at_detach":1,"unreturned_retired_lifetime":1},"native_preempt_true_entry_observed":False,"native_names":["sched_entry_tp","sched_exit_tp"],"unique_numerical_yield_bracket_matches":64,"production_decoder_imported":False,"limits":["Actual hook names are retained attachment receipts, not ongoing live inspection.","Newborn and retired labels combine owned lifecycle evidence with raw frames; retired entry does not identify do_task_dead callsite.","Reference matches are numerical bracket associations under retained fast/reference clock assumptions.","Endpoint CPU changes are observed pair endpoint changes, without migration count or physical duration proof.","No physical CPU/blocked/runqueue duration, GC cause or historical Roslyn qualification is established."]}
+(root/"native-interpretation-audit01.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps(result))

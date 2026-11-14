@@ -1,0 +1,152 @@
+"""Independent byte/invocation audit; no production model or builder imports."""
+from collections import Counter
+import hashlib,json,struct
+from pathlib import Path
+R=Path(__file__).parent
+ROOT=R.parent
+DOCS=ROOT.parents[1]
+SAMPLES=DOCS.parent/"Cehpalon-Engine-Samples"
+COUNTS=Counter()
+def check(ok,label):
+ if not ok:raise ValueError(label)
+ COUNTS[label]+=1
+def read(p):return json.loads(p.read_bytes())
+def sha(b):return hashlib.sha256(b).hexdigest()
+def ins(b):return list(struct.iter_unpack("<BBhi",b))
+def signed(n):return struct.unpack("<i",struct.pack("<I",n))[0]
+B=struct.Struct("<8I2Q");L=struct.Struct("<IIIIQIIII")
+freeze=read(ROOT/"freeze01.json");execution=read(ROOT/"execution01.json")
+check(execution["exit"]==0 and execution["sources_unchanged"] and execution["binaries_unchanged"],"frozen execution completed unchanged")
+for n,h in freeze["sources"].items():
+ check(sha((SAMPLES/n).read_bytes())==h,"current tool source equals freeze")
+ check(sha((ROOT/"sources01"/Path(n).name).read_bytes())==h,"source snapshot equals freeze")
+check(len(freeze["sources"])==105 and len(freeze["binaries"])==3,"source binary bounds")
+check(sha((ROOT/"protocol01.md").read_bytes())==freeze["protocol_sha256"],"protocol exact frozen bytes")
+# Historical already-delivered lifecycle templates, independently normalized by map role.
+history=read(R/"historical-lifecycle-templates01.json")
+old=history["programs"]
+historic_root=DOCS/".local/scheduler-dynamic04"
+check(sha((historic_root/"positive-attempt01.stdout.json").read_bytes())==history["source_sha256"],"historical receipt hash")
+check(sha((historic_root/"scheduler_dynamic_program.py.txt").read_bytes())==freeze["sources"]["tools/scheduler_dynamic_program.py"],"historical base builder source unchanged")
+base=(historic_root/"scheduler_dynamic_multi_program.py.txt").read_bytes()
+changes=[(b"def birth(p, storage, members, counts, namespace):",b"def birth(p, storage, members, counts, namespace, generation_limit):"),(b'"fault", 1, imm=3)',b'"fault", 1, imm=generation_limit)'),(b'def multi_program(name, storage, members, counts, records, capacity, namespace):\n    if name not in PROBES or capacity not in {1, 512}:',b'def multi_program(name, storage, members, counts, records, capacity, namespace, generation_limit=3):\n    if name not in PROBES or (capacity, generation_limit) not in {(1, 3), (512, 3), (2048, 16)}:'),(b'birth(p, storage, members, counts, namespace)\n',b'birth(p, storage, members, counts, namespace, generation_limit)\n')]
+for a,b in changes:
+ check(base.count(a)==1,"unique reviewed historical source delta")
+ base=base.replace(a,b)
+check(sha(base)==freeze["sources"]["tools/scheduler_dynamic_multi_program.py"],"only reviewed historical builder parameterization")
+def roles(programs):
+ first=ins(bytes.fromhex(programs[0]["program_hex"]))
+ fds=[x[3] for x in first if x[0]==24 and x[1]>>4==1]
+ check(len(fds)==3 and len(set(fds))==3,"three fixed exec map roles")
+ allfds={x[3] for p in programs for x in ins(bytes.fromhex(p["program_hex"])) if x[0]==24 and x[1]>>4==1}
+ record,=allfds-set(fds)
+ check(len(allfds)==4,"four fixed legacy map roles")
+ return {fds[0]:101,fds[1]:102,fds[2]:103,record:104}
+oldroles=roles(old)
+def norm(code,rolemap,namespace):
+ out=[]
+ for row in ins(code):
+  op,reg,off,imm=row
+  if op==24 and reg>>4==1:
+   check(imm in rolemap and imm>0,"positive declared map FD")
+   imm=rolemap[imm]
+  elif op==0x56 and imm==signed(namespace):imm=0
+  out.append((op,reg,off,imm))
+ return out
+boundary_template=ins(bytes.fromhex((R/"literal-boundary-template01.txt").read_text().strip()))
+check(len(boundary_template)==105,"literal boundary instruction bound")
+results=[]
+for name,cap in (("negative01",1),("positive01",1024)):
+ base=ROOT/"native01"/name;p=read(base/"report.json");a=read(base/"analysis.json")
+ check(p["status"]=="completed" and p["capacity"]==cap,"case fixed completed scope")
+ check(p["closed_fds"]==32 and p["cleanup_errors"]==[] and not p["forced_cleanup"] and p["actor_exit_code"]==0,"reported clean32FD cleanup")
+ pid=p["lease_before"]["local_pid"];worker=p["parked"]["worker_tid"]
+ check(p["lease_before"]==p["lease_after"],"same live leader lease")
+ lease=p["lease_before"]
+ check(lease["credentials"]=={"uid":[1000]*4,"gid":[1000]*4} and not any(lease["capabilities"].values()),"ordinary actor lease")
+ check(lease["pidfd_mappings"]==[{"pid":pid,"nspid":[pid]}]*2,"two held alias bindings")
+ check(p["actor_command"][1:4]==["-I","-S","-B"],"actor isolated startup")
+ check(all(line.split()[1:]==["0","0"] for line in p["timens_offsets"].splitlines()),"zero reference domain offsets")
+ receipt=p["seed_map_receipts"]
+ check(receipt==[{"stage":"seed","errno":None,"value":None},{"stage":"alias_ack","errno":None,"value":0x43455048},{"stage":"outsider_absent","errno":2},{"stage":"reaped_absent","errno":2}],"seed alias outsider reaped receipts")
+ check(p["preadmission_boundary_counts"]==[0]*4 and p["preadmission_lifecycle_counts"]==[0]*5 and p["nonmember_yield_return"]==0,"preadmission nonmember controls")
+ check(p["unseeded_yield"]["cpu"]==0 and len(p["unseeded_yield"]["references"])==8,"unseeded fixed yields")
+ check(len(p["yield_batches"])==8,"fixed admitted batch count")
+ for i,batch in enumerate(p["yield_batches"]):
+  check(batch["kind"]=="yield" and batch["cpu"]==i%2 and batch["affinity"]==[i%2] and len(batch["references"])==8,"fixed64yield CPU receipts")
+  for lo,hi in batch["references"]:check(type(lo)is int and lo>0 and lo<=hi,"valid raw yield reference")
+ check(p["park_oracle"]["syscall"]==0 and p["park_oracle"]["fd"]==p["parked"]["park_read_fd"] and p["park_oracle"]["count"]==1 and p["park_oracle"]["state"]=="S" and p["park_oracle"]["worker_cpu"]==1,"private worker park oracle")
+ joined=p["joined"]
+ check(joined["worker_tid"]==worker and joined["remaining_local_tids"]==[pid] and joined["main_cpu"]==0 and joined["worker_cpu"]==1,"joined exact worker and survivor")
+ check(p["park_oracle"]["mono_ns"]<=joined["write_before_ns"]<=min(joined["write_after_ns"],joined["worker_read_return_ns"])<=max(joined["write_after_ns"],joined["worker_read_return_ns"])<=joined["joined_ns"],"controlled park wake join order")
+ check(p["free_ack"]["counts"]==p["lifecycle_counts"] and p["free_ack"]["mono_ns"]<=joined["joined_ns"]+2_000_000_000,"bounded complete free tail")
+ held=p["leader_detach_hold"]
+ check(held["syscall"]==0 and held["fd"]==0 and held["state"]=="S" and held["requested_bytes"]>0,"quiescent leader command hold")
+ check(p["reference_before_attach_ns"]<held["reference_ns"]<p["reference_after_detach_ns"],"reference capture scope")
+ check(p["before_detach_boundary_counts"]==p["boundary_counts"] and p["before_detach_lifecycle_counts"]==p["lifecycle_counts"],"terminal counter snapshots unchanged")
+ programs=p["programs"];check(len(programs)==11,"eleven fixed programs")
+ check([x["probe"] for x in programs]==[x["probe"] for x in old]+["boundary_entry","boundary_exit"],"exact source probe order")
+ check(p["attached_hooks"]==[{"tp_name":x["hook"],"cookie":0} for x in programs],"exact named raw links")
+ newroles=roles(programs[:9])
+ for actual,hist in zip(programs[:9],old):
+  aa=norm(bytes.fromhex(actual["program_hex"]),newroles,lease["pid_namespace_inode"])
+  hh=norm(bytes.fromhex(hist["program_hex"]),oldroles,history["namespace"])
+  check(len(aa)==len(hh),"historical lifecycle instruction length")
+  for x,y in zip(aa,hh):check(x==y,"entire historical lifecycle instruction parity")
+ for program,kind in zip(programs[9:],(1,2)):
+  rows=ins(bytes.fromhex(program["program_hex"]));check(len(rows)==105,"boundary fixed loaded length")
+  fds={}
+  for i,(actual,expected) in enumerate(zip(rows,boundary_template)):
+   if i in (3,18,52,63,95):
+    role={3:"storage",18:"members",52:"counts",63:"records",95:"counts"}[i]
+    check(actual[:3]==expected[:3] and actual[3]>0,"declared boundary FD relocation")
+    check(role not in fds or fds[role]==actual[3],"consistent boundary map role")
+    fds[role]=actual[3]
+   elif i in (11,61,83):
+    val={11:pid,61:cap,83:kind}[i];check(actual[:3]==expected[:3] and actual[3]==val,"declared boundary PID capacity kind")
+   else:check(actual==expected,"literal independent boundary instruction")
+  check(len(set(fds.values()))==4 and newroles[fds["storage"]]==101 and newroles[fds["members"]]==102,"boundary shares only owned identity maps")
+ for program in programs:check(program["recursion_before"]==program["recursion_after"]==0,"zero reported recursion misses")
+ raw=(base/"boundary.bin").read_bytes();legacy=(base/"lifecycle.bin").read_bytes()
+ check(sha(raw)==p["boundary_sha256"]==p["second_hashes"][0] and sha(legacy)==p["lifecycle_sha256"]==p["second_hashes"][1],"both full detached hashes reconcile")
+ att,lost,fault,res=p["boundary_counts"];used=min(att,cap)
+ check(len(raw)==1024*48 and lost==att-used and fault==res==0 and not any(raw[used*48:]),"boundary fixed completeness padding")
+ la,ll,lf,free,admit=p["lifecycle_counts"]
+ check(len(legacy)==512*40 and 0<la<=512 and ll==lf==0 and free==admit==1 and not any(legacy[la*40:]),"legacy full lifecycle completeness padding")
+ lr=list(L.iter_unpack(legacy[:la*40]));kinds=[x[0] for x in lr]
+ check(kinds[0]==1 and kinds[-1]==8 and all(kinds.count(k)==1 for k in (1,2,7,8)),"legacy unique birth wake exit free")
+ for x in lr:check(x[5]==worker and x[6]>0 and x[7:]==(1,0),"legacy owned child identity")
+ check(len({x[6] for x in lr})==1 and kinds.index(7)<next(i for i,x in enumerate(lr) if x[0]==4 and x[3]==128)<kinds.index(8),"legacy terminal switch chain")
+ br=list(B.iter_unpack(raw[:used*48]));pairs=[];prefixes=[];tails=[];active={};seen=set()
+ for i,x in enumerate(br):
+  ordinal,gen,kind,flag,c0,c1,ret,tid,t0,t1=x
+  check(ordinal==i+1 and gen in (0,1) and kind in (1,2) and flag in (0,1) and ret in (0,1),"boundary exact raw header")
+  check(tid==(pid if gen==0 else worker) and (gen!=0 or ret==0) and 0<=c0<32 and 0<=c1<32 and t0>0 and t1>0,"boundary identity CPU and timestamps")
+  if cap==1:continue
+  if kind==1:
+   check(gen not in active,"one open invocation per generation");active[gen]=x
+  elif gen in active:
+   entry=active.pop(gen);pairs.append((entry,x))
+  else:
+   check(gen not in seen,"only initial unmatched exit allowed");prefixes.append(x)
+  seen.add(gen)
+ if cap==1:check(att>1 and lost>0 and used==1 and a["pairing_status"]=="not_classified_capacity_loss","intentional loss-negative not classified")
+ else:
+  check(lost==0 and att<=1024,"positive complete boundary scope")
+  for gen,entry in active.items():
+   check(gen==0 or entry[6]==1,"worker open tail belongs to retired lifetime");tails.append(entry)
+  check(2*len(pairs)+len(prefixes)+len(tails)==used,"independent complete row accounting")
+  expected_pairs=[(e[1],e[0],x[0],bool(e[3]),bool(x[3]),e[6],x[6],e[4],x[4]) for e,x in pairs]
+  actual_pairs=[(x["generation"],x["invocation_entry_ordinal"],x["exit_ordinal"],x["entry_preempt_mode"],x["is_switch"],x["entry_retired"],x["exit_retired"],x["entry_cpu"],x["exit_cpu"]) for x in a["complete_pairs"]]
+  check(expected_pairs==actual_pairs,"all independent invocation pairs match")
+  for e,x in pairs:check(e[1]==x[1] and e[0]<x[0],"pair follows current generation reservation order")
+  switch=sum(x[3]==1 for e,x in pairs);noswitch=len(pairs)-switch;changed=sum(e[4]!=x[4] for e,x in pairs)
+  check(a["coverage"]["complete_switch_pairs"]==switch and a["coverage"]["complete_no_switch_pairs"]==noswitch and a["coverage"]["entry_exit_cpu_changed_pairs"]==changed,"actual raw true false migration coverage")
+  check([(x[1],x[0],x[3]) for x in prefixes]==[(x["generation"],x["exit_ordinal"],x["raw_bool"]) for x in a["prefixes"]],"raw newborn and leader prefixes retained")
+  check([(x[1],x[0]) for x in sorted(tails,key=lambda x:x[1])]==[(x["generation"],x["entry_ordinal"]) for x in a["open_invocations"]],"raw detach and retired tails retained")
+  check(len(br)==a["accounted_rows"] and a["classification_complete"],"complete analysis coverage")
+ check(not a["physical_scheduler_duration_certified"] and not a["historical_roslyn_qualified"] and not a["general_capture_ready"] and not a["gc_cause_certified"],"all qualification limits preserved")
+ results.append({"case":name,"actor_pid":pid,"worker_tid":worker,"boundary_attempted":att,"boundary_retained":used,"boundary_lost":lost,"lifecycle_rows":la,"closed_fds":32,"pair_counts":{"all":len(pairs),"switch":sum(x[3]==1 for e,x in pairs),"noswitch":sum(x[3]==0 for e,x in pairs),"CPU_changed":sum(e[4]!=x[4] for e,x in pairs)},"prefixes":len(prefixes),"open_tails":len(tails),"boundary_sha256":sha(raw),"lifecycle_sha256":sha(legacy)})
+report={"status":"passed_independent_native_boundary_audit","checks_passed":sum(COUNTS.values()),"checks_by_kind":dict(COUNTS),"cases":results,"production_model_or_builder_imported":False,"historical_lifecycle_template_source":history["source"],"historical_template_source_sha256":history["source_sha256"],"limits":["Source, template, descriptor and binary parity remain observational receipts, without immutable executing-image/JIT attestation.","Newborn/no-switch/current-generation pairing is bounded software callback evidence, not physical scheduler duration or GC cause."]}
+(R/"independent-native-audit02.json").write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8",newline="\n")
+print(json.dumps(report))

@@ -1,0 +1,1 @@
+Audit01 stopped at a bridge-macro assertion that named a nonexistent helper macro. Exact source uses __BPF_DECLARE_TRACE plus __DEFINE_EVENT with the call##_tp suffix. Audit02 corrects only that source pattern; source bytes and all other checks are unchanged. No native operation occurred. Initial script and stderr remain retained.
