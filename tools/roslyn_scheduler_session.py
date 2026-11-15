@@ -159,7 +159,9 @@ class SchedulerSession:
     def close(self):
         self.links.close()
         self.resources.close()
-        expected = len(self.report.get("prearm_cohort", [])) + 27 + (6 if self.extension is not None else 0)
+        expected = len(self.report.get("prearm_cohort", [])) + 27
+        if self.extension is not None:
+            expected += self.extension.owned_fd_count
         if self.report["cleanup_errors"] or (self.report["status"] == "completed"
                                             and self.report["closed_fds"] != expected):
             self.report.update(status="failed", cleanup_failure=True)

@@ -15,6 +15,8 @@ from scheduler_dynamic_native_io import BPF_F_RDONLY
 
 
 class RoslynBoundaries:
+    owned_fd_count = 6
+
     def __init__(self, output):
         self.output = output
         self.programs = []

@@ -1,0 +1,39 @@
+import hashlib
+import json
+from pathlib import Path
+
+here = Path(__file__).resolve().parent
+root = here.parents[2] / "Cehpalon-Engine-Samples"
+new = root / ".local/roslyn-gc-callsite-capture01"
+old = root / ".local/roslyn-no-allocation-capture01"
+read = lambda path: json.loads(path.read_bytes())
+assert read(old / "manifest.json")["binary_sha256_before"] == read(new / "manifest.json")["binary_sha256_before"]
+assert read(here / "source-parity.json") == {"sources_unchanged": True, "binaries_unchanged": True}
+ignored = {"wallTicks", "wallNanoseconds", "cpuTicks", "gc0", "gc1", "gc2"}
+row_fields = lambda row: {key: value for key, value in row.items() if key not in ignored}
+left, right = (read(p / "generator/generator.json") for p in (old, new))
+for key in ("preflight", "stateSeeds", "postflight", "parameters"):
+    assert left[key] == right[key]
+for key in ("primers", "measurements"):
+    assert list(map(row_fields, left[key])) == list(map(row_fields, right[key]))
+    assert all(row["allocatedBytes"] is None for row in right[key])
+for posix, windows in ((here / "wsl-sites", new / "callsite-joins"),
+                       (here / "wsl-intervals", new / "gc-task-intervals")):
+    assert {p.name for p in posix.iterdir()} == {p.name for p in windows.iterdir()}
+    assert all(p.read_bytes() == (windows / p.name).read_bytes() for p in posix.iterdir())
+
+site = new / "callsite-joins"
+observations = read(site / "observations.json")
+all_calls = {call["call_ordinal"] for row in observations for call in row["callsites"]}
+switch_links = {(call["call_ordinal"], entry) for row in observations for call in row["callsites"]
+                for entry in call["nested_switch_entries"]}
+strict = [(row["wait_index"], call["call_ordinal"], link) for row in observations for call in row["callsites"]
+          for link in call["strict_nested_gc_overlaps"]]
+assert len(all_calls) == 30 and len(switch_links) == 44 and len(strict) == 6
+assert all(x[2]["distinct_gc_emitter"] and x[2]["ordered_switch_wake_after_restart"] for x in strict)
+result = {"same_driver_inventory": True, "semantic_rows_equal": 306, "windows_wsl_byte_identical": True,
+          "distinct_wait_scoped_callsites": len(all_calls), "distinct_nested_switch_links": len(switch_links),
+          "strict_wait_indices": [x[0] for x in strict], "strict_subjects": strict,
+          "callsite_join_summary_sha256": hashlib.sha256((site / "summary.json").read_bytes()).hexdigest()}
+(here / "final-audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n")
+print(json.dumps(result))

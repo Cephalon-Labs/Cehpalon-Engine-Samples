@@ -1,0 +1,48 @@
+import json
+from pathlib import Path
+import sys
+
+coordinator = Path(__file__).resolve().parent
+root = Path("/mnt/d/Cephalon/Cehpalon-Engine-Samples")
+sys.path.insert(0, str(root / "tools"))
+import capture_roslyn_scheduler as cap
+from capture_roslyn_boundaries import verify_boundary_host
+from capture_roslyn_gc_callsite import RoslynGcCallsite
+from collect_coreclr_gc_wait_fixture import validate_image
+from collect_scheduler_clr_fixture import RUNTIME
+
+stage = root / ".local/roslyn-no-allocation-driver01"
+source = stage / "source"
+manifest = source / "wait-diagnostic-manifest.json"
+driver = cap.DriverInput(stage / "runtime/TraceDriver.dll", source,
+                         "6eae7929796d33dec3f4bba534e8766c14fc52a44371c59d22b0f71735703446")
+engine = root.parent / ".worktrees/roslyn-boundary-engine"
+debug = coordinator.parent / "roslyn-gc-wait-site01/libcoreclr.so.dbg"
+validate_image(RUNTIME / "libcoreclr.so", debug)
+fixture = coordinator.parent / "roslyn-gc-wait-dynamic01/replay.json"
+assert [w["pairs"] for w in json.loads(fixture.read_bytes())["workers"]] == [2, 6]
+control = coordinator.parent / "roslyn-boundary02/conformance/scheduler/scheduler.json"
+assert json.loads(control.read_bytes())["status"] == "completed"
+record = json.loads(manifest.read_bytes())
+assert record["allocation_metric"] is None
+runtime_files = [p for p in (stage / "runtime").rglob("*") if p.is_file()]
+assert {str(p.relative_to(stage / "runtime")): cap.sha(p) for p in runtime_files} == record["runtime_files"]
+baseline = cap.preflight(host_check=verify_boundary_host, engine=engine)
+inventory = cap.preflight(host_check=verify_boundary_host, engine=engine, driver=driver)
+paths = [*sorted((root / "tools").glob("*.py")), control, Path(__file__), coordinator / "protocol.md",
+         fixture, debug, RUNTIME / "libcoreclr.so", manifest, *runtime_files,
+         *[source / name for name in record["final_files_sha256"]]]
+frozen = {str(p): cap.sha(p) for p in paths}
+cap.runtime.save(coordinator / "freeze.json", {"files": frozen, "baseline_binaries": baseline, "binaries": inventory,
+                                              "sample_threads": False, "allocation_metric": None})
+snap = coordinator / "sources"
+snap.mkdir()
+for path in paths:
+    if path.parent in (root / "tools", source):
+        (snap / (path.name + ".txt")).write_bytes(path.read_bytes())
+out = root / ".local/roslyn-gc-callsite-capture01"
+cap.run(out, host_check=verify_boundary_host, engine=engine, sample_threads=False, driver=driver,
+        session_options={"slots": 524288, "extension": RoslynGcCallsite(out / "scheduler")})
+assert frozen == {str(p): cap.sha(p) for p in paths}
+assert baseline == cap.inventory() and inventory == cap.inventory(driver)
+cap.runtime.save(coordinator / "source-parity.json", {"sources_unchanged": True, "binaries_unchanged": True})

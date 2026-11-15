@@ -27,7 +27,8 @@ ROW = struct.Struct("<IIIIQQ")
 check = single.check
 
 
-def program(pid, namespace, counts, records):
+def program(pid, namespace, counts, records, capacity=RECORD_CAPACITY):
+    check(capacity in (RECORD_CAPACITY, 16384), "Unsupported callsite ledger capacity")
     p = Program()
     p.mov(6, 1)
     p.lddw(1, namespace.st_dev)
@@ -49,7 +50,7 @@ def program(pid, namespace, counts, records):
     p.mov(8, 0)
     p.number(1, 1)
     p.emit(0xC3, 8, 1, imm=1)  # fetch-and-add reservation
-    p.jump(0x35, "overflow", 1, imm=RECORD_CAPACITY)
+    p.jump(0x35, "overflow", 1, imm=capacity)
     p.mov(9, 1)
     p.emit(0x63, 10, 1, -4)
     p.array(records)
@@ -77,8 +78,8 @@ def program(pid, namespace, counts, records):
     return p.encode()
 
 
-def load_and_attach(stack, out, image, pid, ns, counts, records):
-    code = program(pid, ns, counts, records)
+def load_callsite(out, pid, ns, counts, records, capacity):
+    code = program(pid, ns, counts, records, capacity)
     (out / "program.bin").write_bytes(code)
     insns = ctypes.create_string_buffer(code)
     license_text = ctypes.create_string_buffer(b"GPL")
@@ -90,13 +91,22 @@ def load_and_attach(stack, out, image, pid, ns, counts, records):
         prog = bpf_call(5, attr)
     finally:
         (out / "verifier.txt").write_bytes(log.value)
-    stack.callback(os.close, prog)
+    return prog
+
+
+def attach_callsite(image, pid, prog):
     path = ctypes.create_string_buffer(os.fsencode(image))
     offsets = (ctypes.c_uint64 * 2)(*(x[0] for x in single.SITES.values()))
     cookies = (ctypes.c_uint64 * 2)(1, 2)
     attr = struct.pack("<IIIIQQQQIII4x", prog, 0, ATTACH_TYPE, 0, ctypes.addressof(path),
                        ctypes.addressof(offsets), 0, ctypes.addressof(cookies), 2, 0, pid)
-    link = bpf_call(28, attr)
+    return bpf_call(28, attr)
+
+
+def load_and_attach(stack, out, image, pid, ns, counts, records):
+    prog = load_callsite(out, pid, ns, counts, records, RECORD_CAPACITY)
+    stack.callback(os.close, prog)
+    link = attach_callsite(image, pid, prog)
     stack.callback(os.close, link)
     return prog, link
 
