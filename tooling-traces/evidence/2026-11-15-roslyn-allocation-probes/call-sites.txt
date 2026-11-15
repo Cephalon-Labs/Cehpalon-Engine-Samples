@@ -1,0 +1,48 @@
+src/coreclr/gc/dynamic_heap_count.cpp:787: GCToEEInterface::SuspendEE(SUSPEND_FOR_GC_PREP);
+src/coreclr/gc/env/gcenv.ee.h:14: static void SuspendEE(SUSPEND_REASON reason);
+src/coreclr/gc/env/gctoeeinterface.standalone.inl:12: void SuspendEE(SUSPEND_REASON reason)
+src/coreclr/gc/env/gctoeeinterface.standalone.inl:14: ::GCToEEInterface::SuspendEE(reason);
+src/coreclr/gc/gc.cpp:320: "SuspendEE: %8u; RestartEE: %8u GC %.3f%%\n",
+src/coreclr/gc/gc.cpp:2924: GCToEEInterface::SuspendEE (SUSPEND_FOR_GC_PREP);
+src/coreclr/gc/gc.cpp:4056: GCToEEInterface::SuspendEE(SUSPEND_FOR_GC_PREP);
+src/coreclr/gc/gc.cpp:4071: GCToEEInterface::SuspendEE(SUSPEND_FOR_GC_PREP);
+src/coreclr/gc/gcenv.ee.standalone.inl:27: inline void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
+src/coreclr/gc/gcenv.ee.standalone.inl:30: g_theGCToCLR->SuspendEE(reason);
+src/coreclr/gc/gcinterface.ee.h:206: void SuspendEE(SUSPEND_REASON reason) PURE_VIRTUAL
+src/coreclr/gc/init.cpp:388: GCToEEInterface::SuspendEE(SUSPEND_FOR_GC);
+src/coreclr/gc/init.cpp:1533: GCToEEInterface::SuspendEE(SUSPEND_FOR_GC);
+src/coreclr/gc/interface.cpp:1929: GCToEEInterface::SuspendEE(SUSPEND_FOR_GC);
+src/coreclr/gc/sample/gcenv.ee.cpp:127: void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
+src/coreclr/inc/eventtrace.h:245: } SuspendEE;
+src/coreclr/nativeaot/Runtime/GCHelpers.cpp:469: GCToEEInterface::SuspendEE(SUSPEND_REASON::SUSPEND_FOR_GC);
+src/coreclr/nativeaot/Runtime/eventtrace.h:145: } SuspendEE;
+src/coreclr/nativeaot/Runtime/gcenv.ee.cpp:37: void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
+src/coreclr/nativeaot/Runtime/gcenv.ee.cpp:41: Info.SuspendEE.Reason = reason;
+src/coreclr/nativeaot/Runtime/gcenv.ee.cpp:42: Info.SuspendEE.GcCount = (((reason == SUSPEND_FOR_GC) || (reason == SUSPEND_FOR_GC_PREP)) ?
+src/coreclr/nativeaot/Runtime/gcenv.ee.cpp:46: FireEtwGCSuspendEEBegin_V1(Info.SuspendEE.Reason, Info.SuspendEE.GcCount, GetClrInstanceId());
+src/coreclr/vm/arm/stubs.cpp:474: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/callcounting.cpp:875: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/comutilnative.cpp:940: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/crashreportstackwalker.cpp:534: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/eventing/eventpipe/ep-rt-coreclr.cpp:161: ThreadSuspend::SuspendEE (ThreadSuspend::SUSPEND_REASON::SUSPEND_OTHER);
+src/coreclr/vm/gccover.cpp:204: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/gcenv.ee.cpp:38: void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
+src/coreclr/vm/gcenv.ee.cpp:50: ThreadSuspend::SuspendEE((ThreadSuspend::SUSPEND_REASON)reason);
+src/coreclr/vm/i386/jitinterfacex86.cpp:371: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
+src/coreclr/vm/loaderallocator.cpp:637: GCX_COOP(); // SuspendEE may require current thread to be in Coop mode
+src/coreclr/vm/loaderallocator.cpp:641: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_APPDOMAIN_SHUTDOWN);
+src/coreclr/vm/proftoeeinterfaceimpl.cpp:6856: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_REASON::SUSPEND_FOR_PROFILER);
+src/coreclr/vm/proftoeeinterfaceimpl.cpp:7688: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_REASON::SUSPEND_FOR_PROFILER);
+src/coreclr/vm/threads.cpp:2418: ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/threads.cpp:2710: ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/threads.cpp:3885: ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/threads.cpp:3894: ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/threadsuspend.cpp:1269: ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/threadsuspend.cpp:5518: void ThreadSuspend::SuspendEE(SUSPEND_REASON reason)
+src/coreclr/vm/threadsuspend.cpp:5527: Info.SuspendEE.Reason = reason;
+src/coreclr/vm/threadsuspend.cpp:5528: Info.SuspendEE.GcCount = (((reason == SUSPEND_FOR_GC) || (reason == SUSPEND_FOR_GC_PREP)) ?
+src/coreclr/vm/threadsuspend.cpp:5531: FireEtwGCSuspendEEBegin_V1(Info.SuspendEE.Reason, Info.SuspendEE.GcCount, GetClrInstanceId());
+src/coreclr/vm/threadsuspend.h:171: SUSPEND_OTHER                   = 0,
+src/coreclr/vm/threadsuspend.h:237: static void SuspendEE(SUSPEND_REASON reason);
+src/coreclr/vm/threadsuspend.h:242: ThreadSuspend::SUSPEND_REASON reason = ThreadSuspend::SUSPEND_OTHER);
+src/coreclr/vm/writebarriermanager.cpp:274: ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
