@@ -1,0 +1,7 @@
+# Process-scoped CoreCLR callsite capture for newborn workers
+
+Engine #20, ADR0031. On the existing pinned WSL and CoreCLR build, hold an owned fixture leader before two named workers are created. Attach one BPF uprobe-multi link to that leader's TGID, pinned image inode and two exact callsite offsets. Use two cookies and a fixed 512-row ledger. Check local PID-namespace TGID in the program before any record write. Retain first and second detached reads, terminal loss/fault counts and recursion misses. Keep the existing owned scheduler lifetime channel in the same execution.
+
+First, run a separate ordinary fixture under exact per-TID control probes on the same image. Require an actual callsite traversal in the other process and zero records on the TGID-scoped link. Then create two target workers in sequence, with no per-worker install or reattach of the BPF callsite link. Use the no-GC control and the fixed 20 full compacting collections per worker. Require at least one ordered call/return pair for each target worker, and bind each to its fresh authenticated scheduler generation between birth and exit. Verify wake, switch, exit/free and cleanup. Keep failures and preserve the benchmark and tracking gates.
+
+The fixture proves capture of later threads under one documented runtime/kernel combination. It does not prove Roslyn callsite coverage, physical blocking, attribution or performance. Leave #3 Blocked.
