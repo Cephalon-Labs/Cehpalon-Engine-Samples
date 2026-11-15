@@ -1,0 +1,90 @@
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+coordinator = Path(__file__).resolve().parent
+root = coordinator.parents[2] / "Cehpalon-Engine-Samples"
+sys.path.insert(0, str(root / "tools"))
+from analyze_roslyn_gc_episodes import CLR, PHASES, matches
+from analyze_roslyn_task_lineage import records
+
+baseline = root / ".local/roslyn-no-sampler-capture01"
+candidate = root / ".local/roslyn-no-allocation-capture01"
+read = lambda path: json.loads(path.read_bytes())
+discard = {"wallTicks", "wallNanoseconds", "cpuTicks", "allocatedBytes", "gc0", "gc1", "gc2"}
+
+
+def row_semantics(row):
+    return {key: value for key, value in row.items() if key not in discard}
+
+
+before, after = (read(path / "generator/generator.json") for path in (baseline, candidate))
+for key in ("parameters", "preflight", "stateSeeds", "postflight"):
+    assert before[key] == after[key], key
+assert before["correctnessPassed"] == after["correctnessPassed"] is True
+for group in ("primers", "measurements"):
+    assert [row_semantics(x) for x in before[group]] == [row_semantics(x) for x in after[group]], group
+    assert all(row["allocatedBytes"] is None for row in after[group])
+
+journal = [list(records(path / "generator/generator.json.rows.jsonl")) for path in (baseline, candidate)]
+assert len(journal[0]) == len(journal[1]) == 306
+assert all(row_semantics(a["row"]) == row_semantics(b["row"]) and a["phase"] == b["phase"]
+           and b["row"]["allocatedBytes"] is None for a, b in zip(*journal, strict=True))
+
+environment_keys = ("os", "framework", "runtime", "architecture", "processorCount", "affinity",
+                    "gcServer", "gcLatencyMode", "stopwatchFrequency", "sdkPin")
+assert all(before["environment"][key] == after["environment"][key] for key in environment_keys)
+assemblies = [dict((x["name"], (x["version"], x["sha256"])) for x in value["environment"]["assemblies"])
+              for value in (before, after)]
+for items in assemblies:
+    items.pop("TraceDriver")
+assert assemblies[0] == assemblies[1]
+
+freeze = read(coordinator / "freeze.json")
+assert read(coordinator / "source-parity.json") == {"sources_unchanged": True, "binaries_unchanged": True}
+normalize = lambda entries: {Path(key).name: value for key, value in entries.items()}
+old_bin = normalize(freeze["baseline_binaries"])
+new_bin = normalize(freeze["binaries"])
+assert old_bin.keys() == new_bin.keys()
+assert {k for k in old_bin if old_bin[k] != new_bin[k]} == {"TraceDriver.dll", "TraceDriver.pdb"}
+for value, key in ((before, old_bin), (after, new_bin)):
+    assert next(x["sha256"] for x in value["environment"]["assemblies"] if x["name"] == "TraceDriver") == key["TraceDriver.dll"]
+
+lanes = {}
+for name, path in (("precise", baseline), ("omitted", candidate)):
+    capture = read(path / "generator/capture.json")
+    parser = read(path / "generator/analysis/summary.json")
+    sched = read(path / "scheduler/scheduler.json")
+    joins = read(path / "scheduler-joins/summary.json")
+    boundary = read(path / "boundary-joins/summary.json")
+    gc = read(path / "gc-episodes/summary.json")
+    lineage = read(path / "lineage/summary.json")
+    counts = Counter()
+    samples = 0
+    for event in records(path / "generator/analysis/events.jsonl"):
+        samples += event["provider"] == "Microsoft-DotNETCore-SampleProfiler"
+        if event["provider"] == CLR and event["eventId"] == PHASES[0][0]:
+            assert event["processId"] == capture["target_pid"] and matches(event, PHASES[0])
+            counts[event["payload"]["Reason"]] += 1
+    assert samples == gc["sample_records"] == parser["stackSamples"] == parser["sampledThreadEvents"] == 0
+    assert capture["profile"] is None
+    assert parser["eventsLost"] == parser["etlxEventsLost"] == parser["payloadReadErrors"] == 0
+    assert parser["markerEvents"] == parser["sidecarSpans"] == 2956
+    assert lineage["tpl_errors"] == lineage["tpl_unfinished_waits"] == 0
+    assert 4 * sum(gc["block_classes"].values()) + gc["unresolved_phase_rows"] == gc["runtime_phase_rows"]
+    assert sched["status"] == "completed" and not sched["cleanup_errors"]
+    assert sched["boundary_counts"][1:] == [0, 0, 0] and sched["terminal_counts"][1:3] == [0, 0]
+    with (path / "scheduler/boundaries.bin").open("rb") as stream:
+        assert sched["boundary_sha256"] == sched["boundary_second_sha256"] == hashlib.file_digest(stream, "sha256").hexdigest()
+    lanes[name] = {"raw_suspend_starts": dict(counts), "gc": gc, "managed_events": parser["events"],
+                   "lifecycle_counts": sched["terminal_counts"], "boundary_counts": sched["boundary_counts"],
+                   "wait_identity_statuses": joins["wait_identity_statuses"], "wait_counts": boundary["wait_counts"],
+                   "providers": capture["providers"], "hooks": [program["hook"] for program in sched["programs"]]}
+assert lanes["precise"]["providers"] == lanes["omitted"]["providers"]
+assert lanes["precise"]["hooks"] == lanes["omitted"]["hooks"]
+result = {"status": "completed", "semantic_rows_equal": len(journal[1]), "allocation_rows_null": 306,
+          "loaded_dependency_assemblies_equal": sorted(assemblies[1]), "comparison": lanes}
+(coordinator / "audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n")
+print(json.dumps({name: value["raw_suspend_starts"] for name, value in lanes.items()}))

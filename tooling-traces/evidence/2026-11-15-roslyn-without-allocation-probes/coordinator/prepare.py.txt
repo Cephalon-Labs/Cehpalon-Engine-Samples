@@ -1,0 +1,73 @@
+import difflib
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+root = Path("/mnt/d/Cephalon")
+samples = root / "Cehpalon-Engine-Samples"
+coordinator = Path(__file__).resolve().parent
+baseline = samples / ".local/tooling-wait-driver-linux01"
+original_build = samples / ".local/tooling-wait-build-linux01/driver-artifacts/bin/TraceDriver/release"
+stage = samples / ".local/roslyn-no-allocation-driver01"
+project = stage / "source"
+artifacts = stage / "artifacts"
+effective = stage / "runtime"
+engine = root / ".worktrees/roslyn-boundary-engine"
+sdk = Path("/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet")
+revision = "55c630fc5d4c47258a1a2b0da4a16ce8bc42b9f7"
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+assert subprocess.check_output(["git", "-C", engine, "rev-parse", "HEAD"], text=True).strip() == revision
+assert not subprocess.check_output(["git", "-C", engine, "status", "--porcelain"], text=True).strip()
+project.mkdir(parents=True)
+pin = json.loads((baseline / "wait-diagnostic-manifest.json").read_bytes())
+for name, expected in pin["final_files_sha256"].items():
+    assert sha(baseline / name) == expected
+names = ("Program.cs", "DiagnosticSupport.cs", "Directory.Build.props", "global.json", "NuGet.Config",
+         "packages.lock.json", "TraceDriver.csproj")
+for name in names:
+    shutil.copyfile(baseline / name, project / name)
+old = (baseline / "Program.cs").read_bytes().decode()
+new = old
+for before, after in (
+    ("        var allocation = GC.GetTotalAllocatedBytes(precise: true);\n", ""),
+    ("        var allocated = GC.GetTotalAllocatedBytes(precise: true) - allocation;", "        long? allocated = null;"),
+    ("measured ? allocated : 0", "allocated"),
+    ("long AllocatedBytes,", "long? AllocatedBytes,"),
+):
+    assert new.count(before) == (2 if before == "long AllocatedBytes," else 1), before
+    new = new.replace(before, after)
+assert "GetTotalAllocatedBytes" not in new
+(project / "Program.cs").write_bytes(new.encode())
+(coordinator / "driver.diff").write_text("".join(difflib.unified_diff(old.splitlines(True), new.splitlines(True),
+    fromfile="baseline/Program.cs", tofile="candidate/Program.cs")), encoding="utf-8")
+csproj = project / "TraceDriver.csproj"
+csproj.write_bytes(csproj.read_bytes().replace(str(root / "Cehpalon-Engine").encode(), str(engine).encode()))
+arguments = [
+    ["restore", csproj, "--configfile", project / "NuGet.Config", "--artifacts-path", artifacts, "--locked-mode"],
+    ["build", csproj, "-c", "Release", "--no-restore", "--artifacts-path", artifacts,
+     "-p:UseSharedCompilation=false", "-warnaserror"],
+]
+(coordinator / "build.json").write_text(json.dumps([list(map(str, (sdk, *args))) for args in arguments], indent=2) + "\n")
+for args in arguments:
+    subprocess.run([sdk, *args], cwd=project, check=True, timeout=120)
+compiled = artifacts / "bin/TraceDriver/release"
+shutil.copytree(original_build, effective)
+original_hashes = {str(p.relative_to(original_build)): sha(p) for p in sorted(original_build.rglob("*")) if p.is_file()}
+for name in ("TraceDriver.dll", "TraceDriver.pdb"):
+    shutil.copyfile(compiled / name, effective / name)
+effective_hashes = {str(p.relative_to(effective)): sha(p) for p in sorted(effective.rglob("*")) if p.is_file()}
+assert original_hashes.keys() == effective_hashes.keys()
+assert {name for name in original_hashes if original_hashes[name] != effective_hashes[name]} == {
+    "TraceDriver.dll", "TraceDriver.pdb"}
+assert sha(project / "packages.lock.json") == sha(baseline / "packages.lock.json")
+record = {"engine_revision": revision, "allocation_metric": None, "driver": str(effective / "TraceDriver.dll"),
+          "final_files_sha256": {name: sha(project / name) for name in names},
+          "baseline_runtime_files": original_hashes, "runtime_files": effective_hashes}
+(project / "wait-diagnostic-manifest.json").write_text(json.dumps(record, indent=2) + "\n")
+print(json.dumps({"driver_sha256": effective_hashes["TraceDriver.dll"],
+                  "unchanged_runtime_files": len(effective_hashes) - 2}))

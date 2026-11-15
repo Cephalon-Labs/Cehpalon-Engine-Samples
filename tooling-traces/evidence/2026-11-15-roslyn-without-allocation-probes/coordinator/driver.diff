@@ -1,0 +1,42 @@
+--- baseline/Program.cs
++++ candidate/Program.cs
+@@ -132,7 +132,6 @@
+         using var process = Process.GetCurrentProcess();
+         var cpu = process.TotalProcessorTime.Ticks;
+         var g0 = GC.CollectionCount(0); var g1 = GC.CollectionCount(1); var g2 = GC.CollectionCount(2);
+-        var allocation = GC.GetTotalAllocatedBytes(precise: true);
+         long generatorStart = 0, generatorEnd = 0;
+         var start = Stopwatch.GetTimestamp();
+         Compilation compilation = context.Manual;
+@@ -147,7 +146,7 @@
+         var emitted = compilation.Emit(stream);
+         var emitEnd = Stopwatch.GetTimestamp();
+         var wall = Stopwatch.GetTimestamp() - start;
+-        var allocated = GC.GetTotalAllocatedBytes(precise: true) - allocation;
++        long? allocated = null;
+         var cpuTicks = process.TotalProcessorTime.Ticks - cpu;
+         var gc0 = GC.CollectionCount(0) - g0; var gc1 = GC.CollectionCount(1) - g1; var gc2 = GC.CollectionCount(2) - g2;
+         // All observer event writes happen AFTER original metric brackets.
+@@ -159,7 +158,7 @@
+         var diagnostics = generatorDiagnostics.Concat(emitted.Diagnostics).Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString()).ToArray();
+         var bytes = stream.ToArray();
+         return new(variant, bytes, registry, emitted.Success && diagnostics.Length == 0, diagnostics,
+-            measured ? wall : 0, measured ? cpuTicks : 0, measured ? allocated : 0, measured ? gc0 : 0, measured ? gc1 : 0, measured ? gc2 : 0);
++            measured ? wall : 0, measured ? cpuTicks : 0, allocated, measured ? gc0 : 0, measured ? gc1 : 0, measured ? gc2 : 0);
+     }
+ 
+     static object CachePreflight(int size)
+@@ -388,11 +387,11 @@
+ }
+ 
+ sealed record Artifact(string Variant, byte[] Pe, string Registry, bool EmitSuccess, string[] Diagnostics,
+-    long WallTicks, long CpuTicks, long AllocatedBytes, int Gc0, int Gc1, int Gc2)
++    long WallTicks, long CpuTicks, long? AllocatedBytes, int Gc0, int Gc1, int Gc2)
+ { internal string PeHash => Runner.Hash(Pe); }
+ sealed record Measurement(int Size, string State, string Variant, int CaseIndex, int PairSequence, int Repetition, int Iteration,
+     string[] PairOrder, int OrderInPair, int Version, string[] ActualIds, long WallTicks, double WallNanoseconds, long CpuTicks,
+-    long AllocatedBytes, int Gc0, int Gc1, int Gc2, bool EmitSuccess, string SourceHash, string RegistryHash, string PeHash, int PeBytes, string[] Diagnostics);
++    long? AllocatedBytes, int Gc0, int Gc1, int Gc2, bool EmitSuccess, string SourceHash, string RegistryHash, string PeHash, int PeBytes, string[] Diagnostics);
+ sealed record Summary(int Size, string State, string Variant, int Count, double[] RepetitionMeansNanoseconds,
+     double MeanNanoseconds, double SampleStandardDeviationNanoseconds, double CvPercent,
+     double MinNanoseconds, double MaxNanoseconds, double P50Nanoseconds, double P95Nanoseconds);

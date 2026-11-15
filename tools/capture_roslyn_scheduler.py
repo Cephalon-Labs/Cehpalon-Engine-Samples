@@ -1,6 +1,7 @@
 """One unchanged Roslyn corpus with scoped scheduler and EventPipe diagnostics."""
 
 import argparse
+from dataclasses import dataclass
 import hashlib
 import json
 import os
@@ -25,18 +26,28 @@ ANALYZER_SHA = "e85a233cb0af33718338281fccc5b7cc4dd721e0063405c2c99655bc6190fdc8
 TOOL_SHA = "33c4e4de008b8fe347b1d9dcaec6f33f79efeb0281a501eee1fcabc1fe8ef7df"
 
 
+@dataclass(frozen=True)
+class DriverInput:
+    executable: Path
+    source: Path
+    sha256: str
+
+
+DEFAULT_DRIVER = DriverInput(DRIVER, DRIVER_SOURCE, lineage.DRIVER)
+
+
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def inventory():
+def inventory(driver=DEFAULT_DRIVER):
     paths = [HOST, TOOL, ANALYZER]
-    paths += [p for p in DRIVER.parent.iterdir() if p.is_file() and p.suffix in {".dll", ".json", ".pdb"}]
+    paths += [p for p in driver.executable.parent.iterdir() if p.is_file() and p.suffix in {".dll", ".json", ".pdb"}]
     paths += [p for p in (HOST.parent / "shared/Microsoft.NETCore.App/11.0.0-rc.3.26522.148").iterdir() if p.is_file()]
     return {str(path): sha(path) for path in sorted(paths)}
 
 
-def preflight(*, host_check=verify_host, engine=None):
+def preflight(*, host_check=verify_host, engine=None, driver=DEFAULT_DRIVER):
     host_check()
     runtime.require(os.geteuid() == 0, "Root owns only the scheduler coordinator")
     engine = engine or ROOT.parent / "Cehpalon-Engine"
@@ -44,19 +55,19 @@ def preflight(*, host_check=verify_host, engine=None):
     runtime.require(subprocess.check_output(["/usr/bin/git", "rev-parse", "HEAD"], **git_options).strip() == ENGINE
                     and not subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], **git_options).strip(),
                     "Clean exact Engine revision required")
-    runtime.require(sha(DRIVER) == lineage.DRIVER and sha(TOOL) == TOOL_SHA and sha(ANALYZER) == ANALYZER_SHA,
+    runtime.require(sha(driver.executable) == driver.sha256 and sha(TOOL) == TOOL_SHA and sha(ANALYZER) == ANALYZER_SHA,
                     "Unchanged prebuilt driver, collector and parser required")
-    prepared = runtime.read(DRIVER_SOURCE / "wait-diagnostic-manifest.json")
+    prepared = runtime.read(driver.source / "wait-diagnostic-manifest.json")
     runtime.require(prepared["engine_revision"] == ENGINE, "Prepared source Engine revision")
     for name, digest in prepared["final_files_sha256"].items():
-        runtime.require(sha(DRIVER_SOURCE / name) == digest, "Prepared source differs")
+        runtime.require(sha(driver.source / name) == digest, "Prepared source differs")
     for name, digest in lineage.PINS.items():
         runtime.require(sha(ROOT / "tools" / name) == digest, "Pinned helper differs")
-    return inventory()
+    return inventory(driver)
 
 
-def run(out, *, host_check=verify_host, engine=None, session_options=None, sample_threads=True):
-    binaries = preflight(host_check=host_check, engine=engine)
+def run(out, *, host_check=verify_host, engine=None, session_options=None, sample_threads=True, driver=DEFAULT_DRIVER):
+    binaries = preflight(host_check=host_check, engine=engine, driver=driver)
     out.mkdir(parents=True, exist_ok=False)
     os.chown(out, 1000, 1000)
     report = {"status": "preparing", "engine_revision": ENGINE,
@@ -70,7 +81,7 @@ def run(out, *, host_check=verify_host, engine=None, session_options=None, sampl
         runtime.PROVIDERS = lineage.PROVIDERS
         generator = out / "generator"
         capture = runtime.capture_runtime(
-            [HOST, DRIVER, "--output=" + str(generator / "generator.json")],
+            [HOST, driver.executable, "--output=" + str(generator / "generator.json")],
             ROOT, generator, HOST, TOOL, ANALYZER, timeout=600,
             owned_identity=(1000, 1000), scheduler=session, sample_threads=sample_threads,
         )
@@ -84,7 +95,7 @@ def run(out, *, host_check=verify_host, engine=None, session_options=None, sampl
         report["scheduler_status"] = session.report["status"]
         runtime.require(session.report["status"] == "completed", "Native scheduler channel incomplete")
         report["source_after"] = lineage.state()
-        report["binary_sha256_after"] = inventory()
+        report["binary_sha256_after"] = inventory(driver)
         runtime.require(before == report["source_after"] and binaries == report["binary_sha256_after"],
                         "Diagnostic source or binary changed")
         runtime.require(sum(path.stat().st_size for path in out.rglob("*") if path.is_file()) < 2 * 1024 ** 3,
