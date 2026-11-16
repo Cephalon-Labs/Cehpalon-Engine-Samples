@@ -1,0 +1,7 @@
+# Event-object identity across the CoreCLR GC wait and restart
+
+Engine #20, ADR0031, 2026-11-16 Bangkok. Run one two-newborn fixture on the pinned workstation CoreCLR and WSL release. Add the exact GCEvent wait, set and reset instruction sites to the two verified caller probes, all on a single owned-TGID link. Verify file offsets, instruction bytes, WKS symbol provenance and pt_regs.di from exact live BTF. Read only the GCEvent wrapper operand at the three sites. Keep the raw object value local and publish execution-local equality tokens with both original and exported artifact hashes.
+
+Use the established same-image peer isolation test, then the fixed no-GC and 20-forced-collection arms per newborn and the same-execution scheduler lifetime channel. Compare the two detached reads and require zero loss, faults and recursion misses. Account for every record across owned generations, preserving pre-existing and unpaired observations.
+
+Require a same-object reset, worker wait branch nested within an exact caller call/return, unique following same-object set by a separate TID, and ordered worker switch-out, waking, wakeup and switch-in before call return for at least one observed worker chain. Keep immediate returns, ambiguity and cycles without a witness explicit. This associates the runtime event object and observed scheduler order. It does not identify the exact kernel wake caller or certify physical timing, Roslyn outcomes or benchmark qualification. Preserve #3 Blocked and the original benchmark gates.

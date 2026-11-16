@@ -27,7 +27,7 @@ ROW = struct.Struct("<IIIIQQ")
 check = single.check
 
 
-def program(pid, namespace, counts, records, capacity=RECORD_CAPACITY):
+def program(pid, namespace, counts, records, capacity=RECORD_CAPACITY, *, object_sites=False):
     check(capacity in (RECORD_CAPACITY, 16384), "Unsupported callsite ledger capacity")
     p = Program()
     p.mov(6, 1)
@@ -43,8 +43,15 @@ def program(pid, namespace, counts, records, capacity=RECORD_CAPACITY):
     p.mov(1, 6)
     p.call(174)  # bpf_get_attach_cookie
     p.jump(0x15, "fault", 0)
-    p.jump(0x25, "fault", 0, imm=2)
+    p.jump(0x25, "fault", 0, imm=5 if object_sites else 2)
     p.mov(7, 0)
+    if object_sites:
+        p.emit(0x7A, 10, off=-24)
+        p.jump(0xA5, "site_ready", 7, imm=3)
+        p.emit(0x79, 1, 6, 112)  # Verified x86-64 pt_regs.di
+        p.jump(0x15, "fault", 1)
+        p.emit(0x7B, 10, 1, -24)
+        p.label("site_ready")
     p.array(counts, 0)
     p.jump(0x15, "return", 0)
     p.mov(8, 0)
@@ -60,6 +67,9 @@ def program(pid, namespace, counts, records, capacity=RECORD_CAPACITY):
     p.emit(0x61, 1, 10, -16)
     p.emit(0x63, 6, 1, 8)
     p.emit(0x63, 6, 7, 12)
+    if object_sites:
+        p.emit(0x79, 1, 10, -24)
+        p.emit(0x7B, 6, 1, 24)
     p.call(5)  # bpf_ktime_get_ns
     p.emit(0x7B, 6, 0, 16)
     p.emit(0x07, 9, imm=1)
@@ -78,8 +88,8 @@ def program(pid, namespace, counts, records, capacity=RECORD_CAPACITY):
     return p.encode()
 
 
-def load_callsite(out, pid, ns, counts, records, capacity):
-    code = program(pid, ns, counts, records, capacity)
+def load_callsite(out, pid, ns, counts, records, capacity, *, object_sites=False):
+    code = program(pid, ns, counts, records, capacity, object_sites=object_sites)
     (out / "program.bin").write_bytes(code)
     insns = ctypes.create_string_buffer(code)
     license_text = ctypes.create_string_buffer(b"GPL")
@@ -94,12 +104,13 @@ def load_callsite(out, pid, ns, counts, records, capacity):
     return prog
 
 
-def attach_callsite(image, pid, prog):
+def attach_callsite(image, pid, prog, sites=single.SITES):
     path = ctypes.create_string_buffer(os.fsencode(image))
-    offsets = (ctypes.c_uint64 * 2)(*(x[0] for x in single.SITES.values()))
-    cookies = (ctypes.c_uint64 * 2)(1, 2)
+    count = len(sites)
+    offsets = (ctypes.c_uint64 * count)(*(x[0] for x in sites.values()))
+    cookies = (ctypes.c_uint64 * count)(*range(1, count + 1))
     attr = struct.pack("<IIIIQQQQIII4x", prog, 0, ATTACH_TYPE, 0, ctypes.addressof(path),
-                       ctypes.addressof(offsets), 0, ctypes.addressof(cookies), 2, 0, pid)
+                       ctypes.addressof(offsets), 0, ctypes.addressof(cookies), count, 0, pid)
     return bpf_call(28, attr)
 
 
