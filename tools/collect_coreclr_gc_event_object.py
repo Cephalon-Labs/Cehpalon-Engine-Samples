@@ -36,9 +36,9 @@ def verify_sites(image, debug):
     check(index == 14 and offset == 112 and btf.types[reg].size_or_reference == 168, "Unexpected RDI BTF layout")
 
 
-def decode(raw, total, owner):
+def decode(raw, total, owner, capacity=RECORD_CAPACITY):
     row = newborn.ROW
-    check(0 <= total <= RECORD_CAPACITY and len(raw) == RECORD_CAPACITY * row.size
+    check(0 <= total <= capacity and len(raw) == capacity * row.size
           and not any(raw[total * row.size:]), "Invalid object ledger shape")
     tokens, normalized = {}, []
     for index, (slot, pid, tid, kind, stamp, operand) in enumerate(row.iter_unpack(raw[:total * row.size]), 1):

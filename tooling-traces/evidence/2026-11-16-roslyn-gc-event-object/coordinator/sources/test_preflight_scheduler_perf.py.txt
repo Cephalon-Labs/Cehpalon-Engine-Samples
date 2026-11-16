@@ -1,0 +1,99 @@
+"""Portable ADR0027 B1 fixtures. Mock descriptors only; never invokes native backend."""
+import argparse,ctypes,errno,hashlib,json,struct,sys,tempfile
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+import preflight_scheduler_perf as tool
+
+def run():
+    checks=[]
+    def check(name,fn):
+        try:assert fn();checks.append(dict(name=name,status='passed'))
+        except Exception as e:checks.append(dict(name=name,status='failed',error=repr(e)))
+    def rejected(fn):
+        try:fn()
+        except (ValueError,TypeError,FileExistsError):return True
+        return False
+    class Fake:
+        def __init__(self,fail=None,raw=None):self.calls=[];self.fail=fail;self.raw=struct.pack('<QQQQQ',0,0,0,17,0) if raw is None else raw
+        def open(self,attr,cpu):
+            self.calls.append('open')
+            if self.fail=='open':raise OSError(errno.EPERM,'fixture denied')
+            return 123
+        def cloexec(self,fd):
+            self.calls.append('cloexec')
+            if self.fail=='cloexec':return False
+            return True
+        def read(self,fd):
+            self.calls.append('read')
+            if self.fail=='read':raise OSError(errno.EIO,'fixture read error')
+            return self.raw
+        def close(self,fd):
+            self.calls.append('close')
+            if self.fail=='close':raise OSError(errno.EINTR,'fixture interrupted close')
+        def closed(self,fd):
+            self.calls.append('closed')
+            if self.fail=='closed':return False
+            return True
+    a=tool.attributes(268);raw=bytes(a)
+    for key,offset in [('type',0),('size',4),('config',8),('sample_period',16),('sample_type',24),('read_format',32),('flags',40),('wakeup_events',48),('clockid',92),('sig_data',120)]:
+        check('ABI_offset_'+key,lambda key=key,offset=offset:getattr(tool.PerfAttr,key).offset==offset)
+    for key,value in [('type',2),('size',128),('config',268),('sample_period',1),('sample_type',1158),('read_format',23),('flags',33816577),('wakeup_events',1),('clockid',1)]:
+        check('requested_value_'+key,lambda key=key,value=value:getattr(a,key)==value)
+    declared={0:2,4:128,8:268,16:1,24:1158,32:23,40:33816577,48:1,92:1}
+    expected=bytearray(128)
+    for offset,value in declared.items():struct.pack_into('<I' if offset in (0,4,48,92) else '<Q',expected,offset,value)
+    check('all_other_attr_bytes_zero',lambda:raw==bytes(expected))
+    check('sample_id_all_bit18',lambda:bool(a.flags&(1<<18)))
+    check('monotonic_clock_bit25',lambda:bool(a.flags&(1<<25)))
+    check('no_contextswitch_bit26_or_backward27',lambda:not(a.flags&((1<<26)|(1<<27))))
+    check('fixed_syscall_cloexec_flag8',lambda:tool.PERF_FLAG_FD_CLOEXEC==8)
+    for bad in [True,False,0,-1,1.0,'268',None,1<<64]:check('invalid_config_'+repr(bad),lambda bad=bad:rejected(lambda:tool.attributes(bad)))
+    check('topology_exact_20cpus',lambda:tool.parse_online('0-19\n')==list(range(20)))
+    check('topology_sparse_all_retained',lambda:tool.parse_online('0-2,5,7-9')==[0,1,2,5,7,8,9])
+    for bad in ['',True,'0,0','1,0','2-1','-1','0-32','0-4096','0,','0--2','a','0 1']:
+        check('invalid_topology_'+repr(bad),lambda bad=bad:rejected(lambda:tool.parse_online(bad)))
+    valid=struct.pack('<QQQQQ',0,0,0,17,0)
+    check('five_ungrouped_read_values',lambda:tool.decode_disabled_read(valid)==dict(value=0,time_enabled=0,time_running=0,perf_event_id=17,lost=0))
+    for n in [0,8,16,24,32,39,41,48]:check('short_or_extra_read_'+str(n),lambda n=n:rejected(lambda:tool.decode_disabled_read(bytes(n))))
+    check('bytearray_read_rejected',lambda:rejected(lambda:tool.decode_disabled_read(bytearray(valid))))
+    for key in range(5):
+        vals=[0,0,0,17,0];vals[key]=0 if key==3 else 1
+        check('incompatible_disabled_value_'+str(key),lambda vals=vals:rejected(lambda:tool.decode_disabled_read(struct.pack('<QQQQQ',*vals))))
+    f=Fake();r=tool.run_preflight(f,a,0)
+    check('success_exact_call_order',lambda:f.calls==['open','cloexec','read','close','closed'])
+    check('success_permission_read_only',lambda:r['status']=='disabled_open_read_observed_only' and r['active_capture_ready'] is False)
+    check('success_zero_workload_and_capture_operations',lambda:all(r[k]==0 for k in ['enables','maps','filters','actors_launched','records_collected']))
+    check('success_closure_confirmed',lambda:r['cleanup']=='owned_fd_closed' and r['closed_fd_check'] is True)
+    check('one_open_one_read',lambda:r['opens_attempted']==r['opens_succeeded']==r['reads_attempted']==1)
+    for failure in ['open','cloexec','read','close','closed']:
+        f=Fake(failure);r=tool.run_preflight(f,a,0)
+        check('failure_closed_'+failure,lambda r=r:r['status']=='failed_closed')
+        check('no_retry_'+failure,lambda f=f:f.calls.count('open')==1 and f.calls.count('read')<=1 and f.calls.count('close')<=1)
+        if failure=='open':check('open_failure_no_unowned_cleanup',lambda f=f:f.calls==['open'])
+        if failure in ['cloexec','read']:check('opened_failure_closes_owned_'+failure,lambda f=f:'close'in f.calls and 'closed'in f.calls)
+        if failure in ['close','closed']:check('cleanup_failure_remains_unknown_'+failure,lambda r=r:r['cleanup']=='closure_unproven')
+    f=Fake(raw=bytes(32));r=tool.run_preflight(f,a,0)
+    check('short_read_failure_retains_bytes',lambda:r['read_bytes']==32 and r['status']=='failed_closed' and r['cleanup']=='owned_fd_closed')
+    for field,mutated in [('flags',1<<26),('sample_type',0),('read_format',4),('clockid',0),('size',120),('sample_period',2),('type',1),('config1',1),('reserved3',1)]:
+        bad=tool.attributes(268);setattr(bad,field,mutated);f=Fake()
+        check('mutated_attr_rejected_before_open_'+field,lambda bad=bad,f=f:rejected(lambda:tool.run_preflight(f,bad,0)) and not f.calls)
+    for cpu in [True,-1,4096,'0',None]:
+        f=Fake();check('invalid_CPU_before_open_'+repr(cpu),lambda cpu=cpu,f=f:rejected(lambda:tool.run_preflight(f,tool.attributes(268),cpu)) and not f.calls)
+    with tempfile.TemporaryDirectory() as temporary:
+        root=Path(temporary);bundle=root/'bundle.json';bundle.write_text('{}');output=root/'existing';output.mkdir()
+        args=['test','--formats',str(bundle),'--expected-bundle-sha256',tool.sha(bundle),'--expected-source-sha256',tool.sha(tool.__file__),'--expected-online','0-19','--output',str(output),'--execute-disabled-preflight']
+        fake_formats={name:dict(event_id=1) for name in tool.planner.EVENT_FIELDS}
+        original=Path.read_text
+        def mocked_read(path,*a,**k):return '0-19' if path.as_posix()=='/sys/devices/system/cpu/online' else original(path,*a,**k)
+        with patch.object(sys,'argv',args),patch.object(sys,'platform','linux'),patch.object(tool.platform,'machine',return_value='x86_64'),patch.object(tool.os,'getuid',return_value=0,create=True),patch.object(tool.os,'geteuid',return_value=0,create=True),patch.object(tool.planner,'load_bundle',return_value=(fake_formats,{})),patch.object(Path,'read_text',mocked_read),patch.object(tool,'NativeBackend') as native:
+            check('existing_output_rejected_before_native_backend',lambda:rejected(tool.main) and not native.called)
+        args[args.index('--expected-source-sha256')+1]='0'*64
+        with patch.object(sys,'argv',args),patch.object(sys,'platform','linux'),patch.object(tool.platform,'machine',return_value='x86_64'),patch.object(tool.os,'getuid',return_value=0,create=True),patch.object(tool.os,'geteuid',return_value=0,create=True),patch.object(tool,'NativeBackend') as native:
+            check('source_hash_drift_rejected_before_native_backend',lambda:rejected(tool.main) and not native.called)
+    return dict(status='passed' if all(c['status']=='passed' for c in checks) else 'failed',checks=len(checks),results=checks,source_sha256=tool.sha(tool.__file__),test_source_sha256=tool.sha(__file__),scope='Portable offline/injected-descriptor checks only; no native backend or perf syscall')
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',required=True);a=p.parse_args();r=run()
+    with Path(a.output).open('x',encoding='utf-8',newline='\n') as f:json.dump(r,f,indent=2);f.write('\n')
+    print(json.dumps(r));raise SystemExit(0 if r['status']=='passed' else 1)

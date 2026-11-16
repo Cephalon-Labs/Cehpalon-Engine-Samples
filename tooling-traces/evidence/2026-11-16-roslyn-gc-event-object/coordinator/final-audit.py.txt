@@ -1,0 +1,98 @@
+import bisect
+from collections import Counter, defaultdict
+import hashlib
+import json
+from pathlib import Path
+import struct
+
+here = Path(__file__).resolve().parent
+root = here.parents[2] / "Cehpalon-Engine-Samples"
+new = root / ".local/roslyn-gc-event-object-capture01"
+old = root / ".local/roslyn-gc-callsite-capture01"
+read = lambda p: json.loads(p.read_bytes())
+digest = lambda data: hashlib.sha256(data).hexdigest()
+assert read(old / "manifest.json")["binary_sha256_before"] == read(new / "manifest.json")["binary_sha256_before"]
+assert read(here / "source-parity.json") == {"sources_unchanged": True, "binaries_unchanged": True}
+ignored = {"wallTicks", "wallNanoseconds", "cpuTicks", "gc0", "gc1", "gc2"}
+row_fields = lambda row: {key: value for key, value in row.items() if key not in ignored}
+left, right = (read(p / "generator/generator.json") for p in (old, new))
+for key in ("preflight", "stateSeeds", "postflight", "parameters"):
+    assert left[key] == right[key]
+for key in ("primers", "measurements"):
+    assert list(map(row_fields, left[key])) == list(map(row_fields, right[key]))
+    assert all(row["allocatedBytes"] is None for row in right[key])
+for posix, windows in ((here / "wsl-sites", new / "callsite-joins"),
+                       (here / "wsl-intervals", new / "gc-task-intervals"),
+                       (here / "wsl-objects", new / "object-joins")):
+    assert {p.name for p in posix.iterdir()} == {p.name for p in windows.iterdir()}
+    assert all(p.read_bytes() == (windows / p.name).read_bytes() for p in posix.iterdir())
+
+scheduler = read(new / "scheduler/scheduler.json")
+raw = (new / "scheduler/event-object.private.bin").read_bytes()
+encoded = (new / "scheduler/event-object.tokens.json").read_bytes()
+tokens = json.loads(encoded)
+used = scheduler["callsite_terminal"][0]
+assert scheduler["callsite_terminal"][1:] == [0, 0, 0] and scheduler["callsite_recursion_misses"] == 0
+assert digest(raw) == scheduler["callsite_sha256"] == scheduler["callsite_second_sha256"]
+assert digest(encoded) == scheduler["event_object_tokens_sha256"]
+assert not any(raw[used * 32:])
+lives = defaultdict(list)
+for row in read(new / "scheduler-joins/generations.json"):
+    lives[row["local_tid"]].append(row)
+role_names = ("", "call", "return", "wait", "set", "reset")
+objects = {}
+for private, public in zip(struct.iter_unpack("<IIIIQQ", raw[:used * 32]), tokens, strict=True):
+    slot, leader, tid, role, stamp, operand = private
+    assert leader == scheduler["target_pid"]
+    assert len([row for row in lives[tid] if row["born_ns"] < stamp < row["exit_ns"]]) == 1
+    token = objects.setdefault(operand, len(objects) + 1) if operand else None
+    assert public == {"slot": slot, "tid": tid, "site": role_names[role], "ns": stamp, "object_token": token}
+assert len(objects) == 1
+
+results = read(new / "object-joins/observations.json")
+strict = [r for r in results if any(x["same_gc_emitter"] and x["reset_in_suspend"] and x["set_in_restart"]
+                                     for x in r["episode_checks"])]
+assert [r["wait_index"] for r in strict] == [1616, 1697, 2443, 2530]
+assert [r["call"] for r in strict] == [789, 969, 1955, 2023]
+capture_episodes = read(new / "gc-episodes/episodes.json")
+phases = {r["raw_record_index"]: r["identity"] for r in read(new / "scheduler-joins/gc-boundaries.json")}
+for role in ("reset", "set"):
+    assert all(row["object_token"] == 1 for row in tokens if row["site"] == role)
+by_edge = defaultdict(list)
+for row in sorted(tokens, key=lambda row: row["ns"]):
+    by_edge[(row["tid"], row["site"])].append(row["ns"])
+phase_matches = 0
+by_class = defaultdict(Counter)
+mutations = [row for row in tokens if row["site"] in ("reset", "set")]
+assert [r["site"] for r in mutations] == ["reset", "set"] * 127
+assert all(a["tid"] == b["tid"] and a["ns"] < b["ns"]
+           for a, b in zip(mutations[::2], mutations[1::2]))
+for episode in capture_episodes:
+    life = next(r for items in lives.values() for r in items if r["generation"] == episode["generation"])
+    marks = [phases[i]["mapped_mono_ns"] for i in episode["raw_indices"]]
+    matches = []
+    for role, begin, end in (("reset", 0, 1), ("set", 2, 3)):
+        lo, hi = (int(marks[begin][1]), int(marks[end][0]))
+        stamps = by_edge[(life["local_tid"], role)]
+        a = bisect.bisect_right(stamps, max(lo, life["born_ns"]))
+        b = bisect.bisect_left(stamps, min(hi, life["exit_ns"]))
+        matches.append(b - a == 1)
+    if all(matches):
+        by_class[episode["class"]]["strict"] += 1
+        phase_matches += episode["class"] == "blocking_gc_linked"
+    else:
+        assert matches == [True, False]
+        lo, hi = map(int, marks[3])
+        stamps = by_edge[(life["local_tid"], "set")]
+        assert bisect.bisect_right(stamps, hi) - bisect.bisect_left(stamps, lo) == 1
+        by_class[episode["class"]]["restart_stop_edge"] += 1
+assert phase_matches == 54
+assert sum(x["strict"] + x["restart_stop_edge"] for x in by_class.values()) == 127
+result = {"windows_wsl_byte_identical": True, "original_driver_inventory_matches": True,
+          "semantic_rows_equal": 306, "private_and_export_tokens_reconcile_at_all_slots": True,
+          "site_rows_with_verified_lifetime": used, "strict_waits": [r["wait_index"] for r in strict],
+          "strict_call_slots": [r["call"] for r in strict], "linked_gc_episodes_matching_both_emitter_edges": phase_matches,
+          "emitter_edges_by_episode_class": by_class,
+          "private_ledger_sha256": digest(raw), "public_token_sha256": digest(encoded)}
+(here / "final-audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n")
+print(json.dumps(result))

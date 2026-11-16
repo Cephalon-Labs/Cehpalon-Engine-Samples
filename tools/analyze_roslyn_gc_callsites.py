@@ -54,24 +54,49 @@ def pair_endpoints(records, identities):
     return pairs, exclusions
 
 
-def load_sites(capture, identities):
-    scheduler = read(capture / "scheduler/scheduler.json")
-    raw = (capture / "scheduler/callsite-ledger.bin").read_bytes()
+def site_terminal(scheduler):
     used, lost, faults, reserved = scheduler["callsite_terminal"]
     require(scheduler["status"] == "completed" and not scheduler["cleanup_errors"]
-            and scheduler["callsite_capacity"] == CAPACITY and len(raw) == CAPACITY * ROW.size
-            and 0 <= used <= CAPACITY and not any(raw[used * ROW.size:])
+            and scheduler["callsite_capacity"] == CAPACITY and 0 <= used <= CAPACITY
             and [used, lost, faults, reserved] == scheduler["callsite_before_detach"]
             and lost == faults == reserved == scheduler["callsite_recursion_misses"] == 0
-            and hashlib.sha256(raw).hexdigest() == scheduler["callsite_sha256"] == scheduler["callsite_second_sha256"],
+            and scheduler["callsite_sha256"] == scheduler["callsite_second_sha256"],
             "Callsite capture or detached ledger invalid")
+    return used
+
+
+def load_object_rows(capture, scheduler):
+    used = site_terminal(scheduler)
+    raw = (capture / "scheduler/event-object.tokens.json").read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == scheduler["event_object_tokens_sha256"], "Token export hash differs")
+    rows = json.loads(raw)
+    names = {"call", "return", "wait", "set", "reset"}
+    require(len(rows) == used and all(row["slot"] == index and row["site"] in names
+            and type(row["tid"]) is int and row["tid"] > 0
+            and type(row["ns"]) is int and row["ns"] > scheduler["arm_complete_ns"]
+            and (row["object_token"] is None if row["site"] in ("call", "return")
+                 else type(row["object_token"]) is int and row["object_token"] > 0)
+            for index, row in enumerate(rows, 1)), "Invalid object-token receipt")
+    return rows
+
+
+def load_sites(capture, identities):
+    scheduler = read(capture / "scheduler/scheduler.json")
     expected = scheduler["target_pid"]
-    records = list(ROW.iter_unpack(raw[:used * ROW.size]))
-    require(all(row[0] == ordinal and row[1] == expected and row[2] > 0
-                and row[3] in (1, 2) and row[4] > scheduler["arm_complete_ns"] and row[5] == 0
-                for ordinal, row in enumerate(records, 1)), "Invalid raw callsite receipt")
+    if "event_object_tokens_sha256" in scheduler:
+        records = [(row["slot"], expected, row["tid"], 1 if row["site"] == "call" else 2, row["ns"], 0)
+                   for row in load_object_rows(capture, scheduler) if row["site"] in ("call", "return")]
+    else:
+        used = site_terminal(scheduler)
+        raw = (capture / "scheduler/callsite-ledger.bin").read_bytes()
+        require(len(raw) == CAPACITY * ROW.size and not any(raw[used * ROW.size:])
+                and hashlib.sha256(raw).hexdigest() == scheduler["callsite_sha256"], "Raw callsite ledger differs")
+        records = list(ROW.iter_unpack(raw[:used * ROW.size]))
+        require(all(row[0] == ordinal and row[1] == expected and row[2] > 0
+                    and row[3] in (1, 2) and row[4] > scheduler["arm_complete_ns"] and row[5] == 0
+                    for ordinal, row in enumerate(records, 1)), "Invalid raw callsite receipt")
     pairs, excluded = pair_endpoints(records, identities)
-    return used, pairs, excluded
+    return len(records), pairs, excluded
 
 
 def worker_links(site, worker_sites, gc_observations, episodes, generation):

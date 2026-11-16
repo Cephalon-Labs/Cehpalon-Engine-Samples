@@ -1,9 +1,11 @@
 """Add the exact CoreCLR GC wait callsite ledger to the scoped Roslyn session."""
 import hashlib
+import json
 from pathlib import Path
 
 from capture_roslyn_boundaries import RoslynBoundaries
-from collect_coreclr_gc_wait_fixture import check
+from collect_coreclr_gc_wait_fixture import SITES as CALL_SITES, check
+from collect_coreclr_gc_event_object import SITES as EVENT_SITES, decode
 from collect_coreclr_gc_wait_newborn import ROW, attach_callsite, load_callsite, recursion_misses
 from collect_scheduler_boundary import value
 from collect_scheduler_clr_fixture import RUNTIME
@@ -17,6 +19,8 @@ CAPACITY = 16384
 
 class RoslynGcCallsite(RoslynBoundaries):
     owned_fd_count = RoslynBoundaries.owned_fd_count + 4
+    sites = CALL_SITES
+    object_sites = False
 
     def arm(self, resources, links, report, members):
         super().arm(resources, links, report, members)
@@ -27,12 +31,12 @@ class RoslynGcCallsite(RoslynBoundaries):
         self.site_counts = own(resources, report, create_counts())
         self.site_records = own(resources, report, create_map(2, 4, ROW.size, CAPACITY, BPF_F_RDONLY, b"ceph_site_rows"))
         self.site_prog = own(resources, report, load_callsite(self.output, pid, ns, self.site_counts,
-                                                             self.site_records, CAPACITY))
+                                                             self.site_records, CAPACITY, object_sites=self.object_sites))
         self.initial_misses = recursion_misses(self.site_prog)
-        link = own(links, report, attach_callsite(image, pid, self.site_prog))
+        link = own(links, report, attach_callsite(image, pid, self.site_prog, self.sites))
         fdinfo = Path(f"/proc/self/fdinfo/{link}").read_text()
         (self.output / "callsite-link.txt").write_text(fdinfo)
-        check(f"pid:\t{pid}\n" in fdinfo and f"path:\t{image}\n" in fdinfo and "uprobe_cnt:\t2\n" in fdinfo
+        check(f"pid:\t{pid}\n" in fdinfo and f"path:\t{image}\n" in fdinfo and f"uprobe_cnt:\t{len(self.sites)}\n" in fdinfo
               and "link_type:\tuprobe_multi\n" in fdinfo and self.initial_misses == 0,
               "Callsite link scope or initial miss counter differs")
         check(read_counts(self.site_counts) == (0, 0, 0, 0), "Callsite activity before runtime resume")
@@ -47,7 +51,8 @@ class RoslynGcCallsite(RoslynBoundaries):
 
     def finish(self, report):
         raw = self.read_sites()
-        (self.output / "callsite-ledger.bin").write_bytes(raw)
+        name = "event-object.private.bin" if self.object_sites else "callsite-ledger.bin"
+        (self.output / name).write_bytes(raw)
         second = self.read_sites()
         terminal = read_counts(self.site_counts)
         misses = recursion_misses(self.site_prog)
@@ -58,4 +63,16 @@ class RoslynGcCallsite(RoslynBoundaries):
         check(terminal == self.sites_before_detach and raw == second and 0 <= used <= CAPACITY
               and lost == faults == reserved == misses == 0 and not any(raw[used * ROW.size:]),
               "Callsite ledger publication, detached read, or loss gate failed")
+        if self.object_sites:
+            tokens = decode(raw, used, report["target_pid"], CAPACITY)
+            encoded = (json.dumps(tokens, separators=(",", ":")) + "\n").encode()
+            (self.output / "event-object.tokens.json").write_bytes(encoded)
+            report["event_object_tokens_sha256"] = hashlib.sha256(encoded).hexdigest()
         super().finish(report)
+
+
+class RoslynGcEvent(RoslynGcCallsite):
+    """Capture object operands from the three reviewed WKS branch sites."""
+
+    sites = EVENT_SITES
+    object_sites = True
