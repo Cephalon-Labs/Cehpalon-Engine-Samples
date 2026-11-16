@@ -1,0 +1,54 @@
+From cbfb082473183e658ea6c4f955fd77e8b6029482 Mon Sep 17 00:00:00 2001
+From: Cephalon-Neza <272007299+Cephalon-Neza@users.noreply.github.com>
+Date: Mon, 16 Nov 2026 08:49:56 +0700
+Subject: [PATCH] Release dispatch budget synchronously for completed
+ operations
+
+---
+ src/Cehpalon.Engine.Core/Contracts.cs | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/Cehpalon.Engine.Core/Contracts.cs b/src/Cehpalon.Engine.Core/Contracts.cs
+index c1b0de6..4cd28cf 100644
+--- a/src/Cehpalon.Engine.Core/Contracts.cs
++++ b/src/Cehpalon.Engine.Core/Contracts.cs
+@@ -117,14 +117,33 @@ public sealed class OperationConcurrencyBudget
+         return false;
+     }
+ 
+-    private async ValueTask<OperationResult<TResponse>> DispatchAdmittedAsync<TRequest, TResponse>(
++    private ValueTask<OperationResult<TResponse>> DispatchAdmittedAsync<TRequest, TResponse>(
+         OperationDispatcher dispatcher, string id, TRequest request, OperationContext context,
+         CancellationToken cancellationToken)
+     {
++        var releaseHere = true;
+         try
+         {
+-            return await dispatcher.DispatchAsync<TRequest, TResponse>(id, request, context, cancellationToken)
+-                .ConfigureAwait(false);
++            var work = dispatcher.DispatchAsync<TRequest, TResponse>(id, request, context, cancellationToken);
++            if (work.IsCompletedSuccessfully)
++                return work;
++
++            releaseHere = false;
++            return AwaitCompletionAsync(work);
++        }
++        finally
++        {
++            if (releaseHere)
++                Interlocked.Decrement(ref active);
++        }
++    }
++
++    private async ValueTask<OperationResult<TResponse>> AwaitCompletionAsync<TResponse>(
++        ValueTask<OperationResult<TResponse>> work)
++    {
++        try
++        {
++            return await work.ConfigureAwait(false);
+         }
+         finally
+         {
+-- 
+2.41.0.windows.3
+
