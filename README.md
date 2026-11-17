@@ -1,6 +1,6 @@
 # Cehpalon Engine Samples
 
-Private MIT-licensed consumer and end-to-end proof repository. Baseline: 2026-10-27.
+MIT-licensed consumer and end-to-end proof repository. Baseline: 2026-10-27.
 
 All three lanes were selected by the user:
 
@@ -8,7 +8,7 @@ All three lanes were selected by the user:
 - [Multitenant business](multitenant-business/README.md): API, Worker, SQL, event recovery and tenant isolation
 - [AI / Agent / Retrieval](ai-retrieval/README.md): model/provider portability, scoped retrieval, tool authorization and bounded evaluations
 
-Small API now has a bounded experimental protected HTTP/GraphQL consumer and a separate public measurement fixture. The business and AI folders remain scenario plans; none establishes certified providers or full production acceptance. Consume Engine at an explicit revision/package version when implementing; do not test against an unrecorded sibling checkout.
+Small API now has a bounded experimental protected HTTP/GraphQL consumer and a separate public measurement fixture. The business and AI folders remain scenario plans; none establishes certified providers or full production acceptance. Consume Engine at an explicit revision or package version. The Engine loopback suite verifies HTTP and GraphQL overload responses with a shared in-process budget. The Small API profile still uses its original defaults. [Operation capacity evidence](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/operation-capacity-transports.md)
 
 The separate [portable Core consumer](portable-core/README.md) exercises generated typed operation registrations, appsettings module selection and shared business logic entirely in process. Its module recorders establish a bounded W1 integration proof and do not implement the three transport/provider sample lanes.
 
