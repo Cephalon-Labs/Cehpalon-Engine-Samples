@@ -44,7 +44,10 @@ def main():
     parser.add_argument('--dotnet', required=True)
     parser.add_argument('--engine-root', default=str(ROOT.parent / 'Cehpalon-Engine'))
     parser.add_argument('--output', required=True)
-    parser.add_argument('--integration', action='store_true', help='Retained preliminary proof, not a final clean-revision result')
+    revisions = parser.add_mutually_exclusive_group()
+    revisions.add_argument('--integration', action='store_true', help='Retained preliminary proof, not a final clean-revision result')
+    revisions.add_argument('--engine-revision', help='Exact clean Engine SHA for a separately scoped verification')
+    parser.add_argument('--capacity', action='store_true', help='Exercise the opt-in capacity profile on the selected Engine revision')
     args = parser.parse_args()
     engine = Path(args.engine_root).resolve()
     output = (ROOT / args.output).resolve()
@@ -94,8 +97,9 @@ def main():
             if p.is_file() and not {'bin', 'obj'}.intersection(p.relative_to(engine / 'src/Cehpalon.Engine.Tooling').parts)}
         lock = read_json(ROOT / 'tooling-small-api/engine-lock.json')
         if not args.integration:
-            check(not dirty and re.fullmatch('[0-9a-f]{40}', lock['engine_revision']) is not None
-                  and revision == lock['engine_revision'], 'clean Engine matches actual locked revision')
+            expected_revision = args.engine_revision or lock['engine_revision']
+            check(not dirty and re.fullmatch('[0-9a-f]{40}', expected_revision) is not None
+                  and revision == expected_revision, 'clean Engine matches exact selected revision')
         report['sdk'] = run([args.dotnet, '--version'], engine, 'sdk-version.txt')
         check(report['sdk'] == lock['sdk'], 'exact pinned SDK')
         source_engine = engine
@@ -174,7 +178,9 @@ def main():
         run([args.dotnet, assembly, '--self-test', '--output', result], consumer, 'self-test.txt')
         verify_self_test(read_json(result), check, report)
         verify_serve_early(cli, args.dotnet, assembly, consumer, output, run, check, report)
-        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save)
+        if args.capacity:
+            verify_capacity(args.dotnet, assembly, consumer, output, run, check, report)
+        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, capacity=args.capacity)
         report.update(status='passed', finished_utc=datetime.now(timezone.utc).isoformat())
     except Exception as error:
         report.update(status='failed', error=str(error), finished_utc=datetime.now(timezone.utc).isoformat())
@@ -294,7 +300,51 @@ def verify_serve_early(cli, dotnet, assembly, consumer, output, run, check, repo
                                   'invalid_ready_absent': True, 'existing_ready_preserved': True}
 
 
-def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save):
+def verify_capacity(dotnet, assembly, consumer, output, run, check, report):
+    limit_option = '--max-concurrent-operations'
+    result_path = output / 'capacity.json'
+    run([dotnet, assembly, '--self-test-capacity', '--output', result_path], consumer, 'capacity.txt')
+    proof = read_json(result_path)
+    check(proof.get('status') == 'passed' and proof.get('maximumConcurrentOperations') == 1
+          and proof.get('saturated') == {'http': 503, 'graphQL': 200, 'code': 'operation.capacity_exceeded'}
+          and proof.get('crossTenantDenials') == 4
+          and proof.get('store') == {'Factories': 2, 'Disposals': 2, 'Reads': 1, 'Writes': 1},
+          'one real shared protected budget denies overload, preserves cross-tenant denial and admits after release')
+
+    ready = output / 'capacity-ready.json'
+    command = [dotnet, assembly, '--serve', '--config', output / 'missing-config.json',
+               '--certificate', output / 'missing.pfx', '--public-key', output / 'missing.pem', '--ready', ready]
+    invalid = {}
+    for index, value in enumerate(['0', '-1', '+1', '1.0', ' 1', '2147483648', '١']):
+        log = f'capacity-invalid-{index}.txt'
+        run(command + [limit_option, value], consumer, log, expected=2)
+        payload = read_json(output / log)
+        check(payload.get('code') == 'usage.max_concurrent_operations' and not ready.exists()
+              and counter(payload['counters'], 'HostFactories') == 0,
+              'invalid capacity fails before reading config or credentials: case ' + str(index))
+        invalid[str(index)] = payload['code']
+    run(command + [limit_option, '1', limit_option, '2'], consumer, 'capacity-duplicate.txt', expected=2)
+    duplicate = read_json(output / 'capacity-duplicate.txt')
+    check(duplicate.get('code') == 'usage.option' and not ready.exists(), 'duplicate capacity is rejected')
+
+    off_config = consumer / 'appsettings.off.json'
+    run(command[:4] + [off_config] + command[5:] + [limit_option, '2147483647'], consumer, 'capacity-off.txt')
+    disabled = read_json(ready)
+    check(disabled.get('status') == 'disabled' and disabled.get('address') is None
+          and all(value == 0 for value in disabled['counters'].values()),
+          'maximum valid limit leaves all-off profile without services or credential reads')
+    exported = output / 'capacity-disabled-contracts'
+    run([dotnet, assembly, '--export-contracts', '--config', off_config, '--output', exported],
+        consumer, 'capacity-export-off.txt')
+    export = read_json(output / 'capacity-export-off.txt')
+    check(export.get('status') == 'passed' and export.get('files') == ['manifest.json']
+          and all(value == 0 for value in export['counters'].values()),
+          'all-off contract export has only a manifest and zero work')
+    report['capacity'] = {'proof': proof, 'invalid': invalid, 'duplicate': duplicate['code'],
+                          'disabled': disabled, 'export': export}
+
+
+def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save, capacity=False):
     helper = output / 'fixture-helper'
     helper.mkdir()
     (helper / 'FixtureMaterial.csproj').write_text(FIXTURE_PROJECT, encoding='utf-8')
@@ -314,8 +364,11 @@ def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, r
     report['private_fixture_permissions'] = fixture_observation
     material = read_json(fixture_root / 'material.json')
     ready = output / 'serve-ready.json'
-    command = list(map(str, [dotnet, assembly, '--serve', '--config', consumer / 'appsettings.json',
-         '--certificate', fixture_root / 'server.pfx', '--public-key', fixture_root / 'jwt-public.pem', '--ready', ready]))
+    command = [dotnet, assembly, '--serve', '--config', consumer / 'appsettings.json',
+               '--certificate', fixture_root / 'server.pfx', '--public-key', fixture_root / 'jwt-public.pem']
+    if capacity:
+        command.extend(['--max-concurrent-operations', '1'])
+    command = list(map(str, command + ['--ready', ready]))
     stdout_path = output / 'serve-stdout.txt'
     stderr_path = output / 'serve-stderr.txt'
     process = None

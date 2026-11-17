@@ -23,3 +23,11 @@ Original profile delivery Engine `535e6be86428a135da1b4abd8399ab9bd299a8bf` pass
 [Retained raw evidence](evidence/2026-10-29/retention-manifest.json) includes preliminary attempts, the failed pre-key-write helper privilege trial, emitted source/registrations, exact manifests and public serve observations. The [delivery report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/small-api-cli-profile.md) distinguishes these local passes from current hosted CI, which was rejected before all four jobs started for account payment/spending-limit reasons. Prior revision CI passes do not certify the current revision.
 
 The current Engine lock advances for the [offline contract export continuation](../tooling-contracts/README.md), which repeats this complete Small API matrix and the original console regression. Historical profile results above are retained separately from current-revision evidence and CI status.
+
+The optional Small API capacity validation uses the existing 39-case run and a separate shared-budget self-test. Select a clean Engine revision explicitly for this continuation.
+
+```powershell
+python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <checkout> --engine-revision 688efec571627ad5f9235934beccb578400ca782 --capacity --output .local/small-api-capacity
+```
+
+[Capacity evidence and hashes](evidence/2026-11-17-shared-host-capacity/SHA256SUMS.txt) cover actual generated protected saturation, cross-tenant denial, active serving with the flag and all-off behavior.
