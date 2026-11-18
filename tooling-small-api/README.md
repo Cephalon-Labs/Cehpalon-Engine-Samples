@@ -31,3 +31,11 @@ python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <ch
 ```
 
 [Capacity evidence and hashes](evidence/2026-11-17-shared-host-capacity/SHA256SUMS.txt) cover actual generated protected saturation, cross-tenant denial, active serving with the flag and all-off behavior.
+
+To verify the optional per-tenant cap, pass `--tenant-capacity` with the exact clean Engine revision. This also runs the original and shared-host capacity checks.
+
+```powershell
+python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <checkout> --engine-revision baaabf1af720b1c8f021b124663323e5b4c959d0 --tenant-capacity --output .local/tenant-capacity
+```
+
+[Evidence and hashes](evidence/2026-11-18-tenant-capacity/SHA256SUMS.txt) cover simultaneous tenant isolation, all-off behavior, and active serve with both limits.

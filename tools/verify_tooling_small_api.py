@@ -48,6 +48,7 @@ def main():
     revisions.add_argument('--integration', action='store_true', help='Retained preliminary proof, not a final clean-revision result')
     revisions.add_argument('--engine-revision', help='Exact clean Engine SHA for a separately scoped verification')
     parser.add_argument('--capacity', action='store_true', help='Exercise the opt-in capacity profile on the selected Engine revision')
+    parser.add_argument('--tenant-capacity', action='store_true', help='Verify both the host limit and the optional per-tenant limit')
     args = parser.parse_args()
     engine = Path(args.engine_root).resolve()
     output = (ROOT / args.output).resolve()
@@ -178,9 +179,13 @@ def main():
         run([args.dotnet, assembly, '--self-test', '--output', result], consumer, 'self-test.txt')
         verify_self_test(read_json(result), check, report)
         verify_serve_early(cli, args.dotnet, assembly, consumer, output, run, check, report)
-        if args.capacity:
+        if args.capacity or args.tenant_capacity:
             verify_capacity(args.dotnet, assembly, consumer, output, run, check, report)
-        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, capacity=args.capacity)
+        if args.tenant_capacity:
+            verify_tenant_capacity(args.dotnet, assembly, consumer, output, run, check, report)
+        serve_limits = (['--max-concurrent-operations', '2', '--max-concurrent-operations-per-tenant', '1']
+                        if args.tenant_capacity else ['--max-concurrent-operations', '1'] if args.capacity else [])
+        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=serve_limits)
         report.update(status='passed', finished_utc=datetime.now(timezone.utc).isoformat())
     except Exception as error:
         report.update(status='failed', error=str(error), finished_utc=datetime.now(timezone.utc).isoformat())
@@ -344,7 +349,46 @@ def verify_capacity(dotnet, assembly, consumer, output, run, check, report):
                           'disabled': disabled, 'export': export}
 
 
-def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save, capacity=False):
+def verify_tenant_capacity(dotnet, assembly, consumer, output, run, check, report):
+    path = output / 'tenant-capacity.json'
+    run([dotnet, assembly, '--self-test-tenant-capacity', '--output', path], consumer, 'tenant-capacity.txt')
+    proof = read_json(path)
+    check(proof.get('status') == 'passed' and proof.get('maximumConcurrentOperations') == 2
+          and proof.get('maximumConcurrentOperationsPerTenant') == 1 and proof.get('peerTenantReads') == 2
+          and proof.get('saturated') == {'http': 503, 'graphQL': 200, 'code': 'operation.capacity_exceeded'}
+          and proof.get('crossTenantDenials') == 4
+          and proof.get('store') == {'Factories': 4, 'Disposals': 4, 'Reads': 3, 'Writes': 1},
+          'peer tenant uses spare host capacity while the held tenant remains capped')
+
+    ready = output / 'tenant-capacity-ready.json'
+    total, tenant = '--max-concurrent-operations', '--max-concurrent-operations-per-tenant'
+    def command(config):
+        return [dotnet, assembly, '--serve', '--config', config,
+                '--certificate', output / 'missing-tenant.pfx', '--public-key', output / 'missing-tenant.pem', '--ready', ready]
+    invalid = {}
+    for name, options, expected in [
+        ('no-host-limit', [tenant, '1'], 'usage.max_concurrent_operations_per_tenant'),
+        ('greater-than-host', [total, '1', tenant, '2'], 'usage.max_concurrent_operations_per_tenant'),
+        ('zero-tenant', [total, '2', tenant, '0'], 'usage.max_concurrent_operations_per_tenant'),
+        ('duplicate-tenant', [total, '2', tenant, '1', tenant, '2'], 'usage.option'),
+    ]:
+        log = f'tenant-capacity-{name}.txt'
+        run(command(output / 'missing-tenant-config.json') + options, consumer, log, expected=2)
+        error = read_json(output / log)
+        check(error.get('code') == expected and not ready.exists()
+              and all(value == 0 for value in error['counters'].values()),
+              'tenant capacity rejects before config, credential reads or activation: ' + name)
+        invalid[name] = error['code']
+    run(command(consumer / 'appsettings.off.json') + [total, '2', tenant, '1'],
+        consumer, 'tenant-capacity-off.txt')
+    off = read_json(ready)
+    check(off.get('status') == 'disabled' and off.get('address') is None
+          and all(value == 0 for value in off['counters'].values()),
+          'all-off profile does no work with both capacity limits set')
+    report['tenant_capacity'] = {'proof': proof, 'invalid': invalid, 'disabled': off}
+
+
+def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=()):
     helper = output / 'fixture-helper'
     helper.mkdir()
     (helper / 'FixtureMaterial.csproj').write_text(FIXTURE_PROJECT, encoding='utf-8')
@@ -366,9 +410,7 @@ def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, r
     ready = output / 'serve-ready.json'
     command = [dotnet, assembly, '--serve', '--config', consumer / 'appsettings.json',
                '--certificate', fixture_root / 'server.pfx', '--public-key', fixture_root / 'jwt-public.pem']
-    if capacity:
-        command.extend(['--max-concurrent-operations', '1'])
-    command = list(map(str, command + ['--ready', ready]))
+    command = list(map(str, command + list(serve_limits) + ['--ready', ready]))
     stdout_path = output / 'serve-stdout.txt'
     stderr_path = output / 'serve-stderr.txt'
     process = None
