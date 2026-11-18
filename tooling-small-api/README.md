@@ -39,3 +39,11 @@ python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <ch
 ```
 
 [Evidence and hashes](evidence/2026-11-18-tenant-capacity/SHA256SUMS.txt) cover simultaneous tenant isolation, all-off behavior, and active serve with both limits.
+
+The shutdown continuation exercises active writes with both budget modes when the host stops.
+
+```powershell
+python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <checkout> --engine-revision cb9088cc9b02f3855107444e28bb1af592a13ad4 --drain --output .local/budget-drain
+```
+
+[Drain reports and hashes](evidence/2026-11-18-budget-drain/SHA256SUMS.txt) include the fixed dispatch observations before and after the change.

@@ -49,6 +49,7 @@ def main():
     revisions.add_argument('--engine-revision', help='Exact clean Engine SHA for a separately scoped verification')
     parser.add_argument('--capacity', action='store_true', help='Exercise the opt-in capacity profile on the selected Engine revision')
     parser.add_argument('--tenant-capacity', action='store_true', help='Verify both the host limit and the optional per-tenant limit')
+    parser.add_argument('--drain', action='store_true', help='Verify both capacity modes and graceful shutdown with admitted work')
     args = parser.parse_args()
     engine = Path(args.engine_root).resolve()
     output = (ROOT / args.output).resolve()
@@ -179,12 +180,15 @@ def main():
         run([args.dotnet, assembly, '--self-test', '--output', result], consumer, 'self-test.txt')
         verify_self_test(read_json(result), check, report)
         verify_serve_early(cli, args.dotnet, assembly, consumer, output, run, check, report)
-        if args.capacity or args.tenant_capacity:
+        tenant_capacity = args.tenant_capacity or args.drain
+        if args.capacity or tenant_capacity:
             verify_capacity(args.dotnet, assembly, consumer, output, run, check, report)
-        if args.tenant_capacity:
+        if tenant_capacity:
             verify_tenant_capacity(args.dotnet, assembly, consumer, output, run, check, report)
+        if args.drain:
+            verify_drain(args.dotnet, assembly, consumer, output, run, check, report)
         serve_limits = (['--max-concurrent-operations', '2', '--max-concurrent-operations-per-tenant', '1']
-                        if args.tenant_capacity else ['--max-concurrent-operations', '1'] if args.capacity else [])
+                        if tenant_capacity else ['--max-concurrent-operations', '1'] if args.capacity else [])
         verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=serve_limits)
         report.update(status='passed', finished_utc=datetime.now(timezone.utc).isoformat())
     except Exception as error:
@@ -386,6 +390,21 @@ def verify_tenant_capacity(dotnet, assembly, consumer, output, run, check, repor
           and all(value == 0 for value in off['counters'].values()),
           'all-off profile does no work with both capacity limits set')
     report['tenant_capacity'] = {'proof': proof, 'invalid': invalid, 'disabled': off}
+
+
+def verify_drain(dotnet, assembly, consumer, output, run, check, report):
+    path = output / 'drain.json'
+    run([dotnet, assembly, '--self-test-drain', '--output', path], consumer, 'drain.txt')
+    proof = read_json(path)
+    rows = proof.get('observations', [])
+    check(proof.get('status') == 'passed' and len(rows) == 2
+          and [row.get('tenantLimited') for row in rows] == [False, True],
+          'actual protected shutdown exercises both budget modes')
+    for row in rows:
+        check(row.get('http') == 200 and row.get('waitedForRelease') is True
+              and all(counter(row, key) == 1 for key in ['Factories', 'Writes', 'Disposals', 'HostDisposals']),
+              'held protected write and owned cleanup finish during shutdown: tenant limited=' + str(row['tenantLimited']))
+    report['drain'] = proof
 
 
 def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=()):
