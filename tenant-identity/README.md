@@ -13,3 +13,11 @@ python tools/verify_tenant_identity.py --dotnet D:/Cephalon/.tools/dotnet11/win-
 ```
 
 The consumer covers positive same-ID A/B reads, both cross-tenant directions, forged metadata, wrong resource ownership, default policy deny, next-call revocation, anonymous spoofing, retained contexts, actual overlapping calls and mutation while an identity lookup awaits. See the [contract ADR](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/adr/ADR-0007-tenant-identity-operation-boundary.md) for adapter and trust obligations.
+
+Snapshot observer measurements are available for four controlled admission states. Each host retains all 80 intervals, a five-guardrail run of the original tenant benchmark, source hashes and analysis.
+
+```text
+python tools/analyze_budget_snapshot_observation.py --input <snapshot-observation.json> --output <new-analysis.json>
+```
+
+The [raw series and checksums](evidence/2026-11-19-snapshot-observation/SHA256SUMS.txt) record zero measured allocation on the reading thread. The [report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/budget-snapshot-observation.md) includes cached-value comparisons, state order and interpretation limits.
