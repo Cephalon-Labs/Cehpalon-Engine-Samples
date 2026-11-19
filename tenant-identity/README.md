@@ -21,3 +21,11 @@ python tools/analyze_budget_snapshot_observation.py --input <snapshot-observatio
 ```
 
 The [raw series and checksums](evidence/2026-11-19-snapshot-observation/SHA256SUMS.txt) record zero measured allocation on the reading thread. The [report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/budget-snapshot-observation.md) includes cached-value comparisons, state order and interpretation limits.
+
+The concurrent observer series adds four authorized producers and one dedicated observer thread. Both complete revisions are retained, including control lanes and all observer allocations.
+
+```text
+python tools/analyze_budget_contention.py --input <contention-observation.json> --output <new-analysis.json>
+```
+
+[Concurrent reports and hashes](evidence/2026-11-19-budget-contention/SHA256SUMS.txt) contain five alternating pairs per host and revision, operation checksums, exact authority/cleanup counts and the candidate's generated Small API regression. [Interpretation and tradeoff](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/budget-contention-observation.md)
