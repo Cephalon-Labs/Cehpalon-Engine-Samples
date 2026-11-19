@@ -47,3 +47,11 @@ python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <ch
 ```
 
 [Drain reports and hashes](evidence/2026-11-18-budget-drain/SHA256SUMS.txt) include the fixed dispatch observations before and after the change.
+
+The snapshot continuation observes aggregate budget state at readiness, during held-write drain and after cleanup.
+
+```powershell
+python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <checkout> --engine-revision 46d07c9b9da9d38adbfc7f083ba1b3297d8ff82e --snapshots --output .local/budget-snapshots
+```
+
+[Snapshot reports and hashes](evidence/2026-11-19-budget-snapshots/SHA256SUMS.txt) contain aggregate counts and the recorded limits. Private fixture keys and tokens remain local.

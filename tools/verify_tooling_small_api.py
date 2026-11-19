@@ -50,6 +50,7 @@ def main():
     parser.add_argument('--capacity', action='store_true', help='Exercise the opt-in capacity profile on the selected Engine revision')
     parser.add_argument('--tenant-capacity', action='store_true', help='Verify both the host limit and the optional per-tenant limit')
     parser.add_argument('--drain', action='store_true', help='Verify both capacity modes and graceful shutdown with admitted work')
+    parser.add_argument('--snapshots', action='store_true', help='Verify aggregate capacity state during readiness and drain')
     args = parser.parse_args()
     engine = Path(args.engine_root).resolve()
     output = (ROOT / args.output).resolve()
@@ -180,16 +181,16 @@ def main():
         run([args.dotnet, assembly, '--self-test', '--output', result], consumer, 'self-test.txt')
         verify_self_test(read_json(result), check, report)
         verify_serve_early(cli, args.dotnet, assembly, consumer, output, run, check, report)
-        tenant_capacity = args.tenant_capacity or args.drain
+        tenant_capacity = args.tenant_capacity or args.drain or args.snapshots
         if args.capacity or tenant_capacity:
             verify_capacity(args.dotnet, assembly, consumer, output, run, check, report)
         if tenant_capacity:
             verify_tenant_capacity(args.dotnet, assembly, consumer, output, run, check, report)
-        if args.drain:
-            verify_drain(args.dotnet, assembly, consumer, output, run, check, report)
+        if args.drain or args.snapshots:
+            verify_drain(args.dotnet, assembly, consumer, output, run, check, report, snapshots=args.snapshots)
         serve_limits = (['--max-concurrent-operations', '2', '--max-concurrent-operations-per-tenant', '1']
                         if tenant_capacity else ['--max-concurrent-operations', '1'] if args.capacity else [])
-        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=serve_limits)
+        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=serve_limits, snapshots=args.snapshots)
         report.update(status='passed', finished_utc=datetime.now(timezone.utc).isoformat())
     except Exception as error:
         report.update(status='failed', error=str(error), finished_utc=datetime.now(timezone.utc).isoformat())
@@ -392,7 +393,7 @@ def verify_tenant_capacity(dotnet, assembly, consumer, output, run, check, repor
     report['tenant_capacity'] = {'proof': proof, 'invalid': invalid, 'disabled': off}
 
 
-def verify_drain(dotnet, assembly, consumer, output, run, check, report):
+def verify_drain(dotnet, assembly, consumer, output, run, check, report, snapshots=False):
     path = output / 'drain.json'
     run([dotnet, assembly, '--self-test-drain', '--output', path], consumer, 'drain.txt')
     proof = read_json(path)
@@ -404,10 +405,27 @@ def verify_drain(dotnet, assembly, consumer, output, run, check, report):
         check(row.get('http') == 200 and row.get('waitedForRelease') is True
               and all(counter(row, key) == 1 for key in ['Factories', 'Writes', 'Disposals', 'HostDisposals']),
               'held protected write and owned cleanup finish during shutdown: tenant limited=' + str(row['tenantLimited']))
+    if snapshots:
+        for row in rows:
+            check(row.get('held') == budget_snapshot(1, False)
+                  and row.get('closing') == budget_snapshot(1, True)
+                  and row.get('completed') == budget_snapshot(0, True),
+                  'coherent snapshots cover admitted work, closing and complete drain: tenant limited=' + str(row['tenantLimited']))
+            expected_tenant = tenant_snapshot(True) if row['tenantLimited'] else None
+            check(row.get('tenantCapacity') == expected_tenant,
+                  'closed tenant snapshot removes all active tenants and exposes aggregate fields only')
     report['drain'] = proof
 
 
-def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=()):
+def budget_snapshot(active, closed):
+    return {'MaximumConcurrentOperations': 2, 'ActiveOperations': active, 'IsAdmissionClosed': closed}
+
+
+def tenant_snapshot(closed):
+    return {'Total': budget_snapshot(0, closed), 'MaximumConcurrentOperationsPerTenant': 1, 'ActiveTenants': 0}
+
+
+def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=(), snapshots=False):
     helper = output / 'fixture-helper'
     helper.mkdir()
     (helper / 'FixtureMaterial.csproj').write_text(FIXTURE_PROJECT, encoding='utf-8')
@@ -450,6 +468,11 @@ def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, r
                     raise TimeoutError('Normal serve did not publish readiness within thirty seconds')
                 time.sleep(0.02)
             readiness = read_json(ready)
+            if snapshots:
+                check(readiness.get('capacity') == budget_snapshot(0, False)
+                      and readiness.get('tenantCapacity') == tenant_snapshot(False),
+                      'normal serve readiness records coherent open empty budget snapshots')
+                report['ready_capacity'] = {'capacity': readiness['capacity'], 'tenantCapacity': readiness['tenantCapacity']}
             address = urlsplit(readiness['address'])
             check(readiness.get('status') == 'ready' and address.scheme == 'https'
                   and address.hostname in {'localhost', '127.0.0.1'} and address.port is not None,
@@ -500,6 +523,10 @@ def verify_external_serve(dotnet, assembly, consumer, output, env, run, check, r
                     pass
             check(len(stopped_rows) == 1, 'normal serve reports one post-cleanup stopped observation')
             stopped = stopped_rows[0]
+            if snapshots:
+                check(stopped.get('capacity') == budget_snapshot(0, True)
+                      and stopped.get('tenantCapacity') == tenant_snapshot(True),
+                      'normal serve stopped report records closed budgets with zero operations or tenant identities')
             values = stopped['counters']; store = stopped['store']
             check(counter(values, 'HostFactories') == counter(values, 'ApiFactories') == 1
                   and counter(values, 'GraphQLFactories') == counter(values, 'GraphQLServices') == counter(values, 'ForbiddenFactories') == 0,
