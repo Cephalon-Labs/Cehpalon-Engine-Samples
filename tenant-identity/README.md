@@ -29,3 +29,11 @@ python tools/analyze_budget_contention.py --input <contention-observation.json> 
 ```
 
 [Concurrent reports and hashes](evidence/2026-11-19-budget-contention/SHA256SUMS.txt) contain five alternating pairs per host and revision, operation checksums, exact authority/cleanup counts and the candidate's generated Small API regression. [Interpretation and tradeoff](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/budget-contention-observation.md)
+
+Opt-in budget metrics can be observed through the standard MeterListener API. The periodic collection harness records all 20 collections at each of four controlled states, including the first collection and actual start times.
+
+```text
+python tools/analyze_budget_metrics.py --input <metrics-observation.json> --output <new-analysis.json>
+```
+
+[Metrics reports and hashes](evidence/2026-11-19-budget-metrics/SHA256SUMS.txt) include the final source and preparation revisions, original benchmark compatibility output and generated Small API proofs. [Metric names, ownership and results](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/budget-metrics.md)
