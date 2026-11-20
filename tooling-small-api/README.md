@@ -55,3 +55,11 @@ python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <ch
 ```
 
 [Snapshot reports and hashes](evidence/2026-11-19-budget-snapshots/SHA256SUMS.txt) contain aggregate counts and the recorded limits. Private fixture keys and tokens remain local.
+
+The live metrics continuation collects caller-owned gauges during real fixture HTTPS traffic through both transports and tenants, including controlled overlap of five admitted operations and shutdown. Generate with Engine revision `5f8f252e901e85c50d7fc6f4b760e457965ce3bb` and run:
+
+```text
+python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <checkout> --engine-revision 5f8f252e901e85c50d7fc6f4b760e457965ce3bb --live-metrics --output .local/live-metrics-new
+```
+
+The option includes the earlier capacity, tenant-capacity and drain checks. [Preserved initial and extended attempts](evidence/2026-11-20-live-metrics/README.md) retain each collection and actual cadence. These are bounded functional and collection-cost observations; the canonical performance gates remain open.

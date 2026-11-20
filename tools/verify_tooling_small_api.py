@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import analyze_live_budget_metrics
+
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_FILES = {'Consumer.csproj', 'Program.cs', 'SelfTest.cs', 'FixtureHost.cs', 'Catalog.cs', 'ContractExport.cs',
                   'appsettings.json', 'appsettings.graphql.json', 'appsettings.graphql-only.json',
@@ -51,6 +53,7 @@ def main():
     parser.add_argument('--tenant-capacity', action='store_true', help='Verify both the host limit and the optional per-tenant limit')
     parser.add_argument('--drain', action='store_true', help='Verify both capacity modes and graceful shutdown with admitted work')
     parser.add_argument('--snapshots', action='store_true', help='Verify aggregate capacity state during readiness and drain')
+    parser.add_argument('--live-metrics', action='store_true', help='Collect owned metrics during real generated HTTPS traffic and drain')
     args = parser.parse_args()
     engine = Path(args.engine_root).resolve()
     output = (ROOT / args.output).resolve()
@@ -181,16 +184,26 @@ def main():
         run([args.dotnet, assembly, '--self-test', '--output', result], consumer, 'self-test.txt')
         verify_self_test(read_json(result), check, report)
         verify_serve_early(cli, args.dotnet, assembly, consumer, output, run, check, report)
-        tenant_capacity = args.tenant_capacity or args.drain or args.snapshots
+        snapshots = args.snapshots or args.live_metrics
+        tenant_capacity = args.tenant_capacity or args.drain or snapshots
         if args.capacity or tenant_capacity:
             verify_capacity(args.dotnet, assembly, consumer, output, run, check, report)
         if tenant_capacity:
             verify_tenant_capacity(args.dotnet, assembly, consumer, output, run, check, report)
-        if args.drain or args.snapshots:
-            verify_drain(args.dotnet, assembly, consumer, output, run, check, report, snapshots=args.snapshots)
+        if args.drain or snapshots:
+            verify_drain(args.dotnet, assembly, consumer, output, run, check, report, snapshots=snapshots)
+        if args.live_metrics:
+            live_path = output / 'live-metrics.json'
+            run([args.dotnet, assembly, '--self-test-live-metrics', '--output', live_path], consumer, 'live-metrics.txt')
+            live_analysis = analyze_live_budget_metrics.analyze(live_path.read_bytes())
+            (output / 'live-metrics-analysis.json').write_text(json.dumps(live_analysis, indent=2) + '\n', encoding='utf-8', newline='\n')
+            check(live_analysis['status'] == 'validated' and live_analysis['completed_reads'] == 808
+                  and live_analysis['completed_writes'] == 2 and live_analysis['cross_tenant_denials'] == 8,
+                  'live HTTPS metrics reconcile both budget modes, two transports, tenant denials and owned shutdown')
+            report['live_metrics'] = live_analysis
         serve_limits = (['--max-concurrent-operations', '2', '--max-concurrent-operations-per-tenant', '1']
                         if tenant_capacity else ['--max-concurrent-operations', '1'] if args.capacity else [])
-        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=serve_limits, snapshots=args.snapshots)
+        verify_external_serve(args.dotnet, assembly, consumer, output, env, run, check, report, save, serve_limits=serve_limits, snapshots=snapshots)
         report.update(status='passed', finished_utc=datetime.now(timezone.utc).isoformat())
     except Exception as error:
         report.update(status='failed', error=str(error), finished_utc=datetime.now(timezone.utc).isoformat())

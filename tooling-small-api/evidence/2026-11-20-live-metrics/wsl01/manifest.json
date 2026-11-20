@@ -1,0 +1,2318 @@
+{
+  "started_utc": "2026-11-20T03:07:44.425583+00:00",
+  "status": "passed",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl",
+      "exit": 0,
+      "log": "engine-head.txt",
+      "sha256": "1f84c775de0bab801af15823d2eb27e0968211ab0de32fa24cb8917d6884ec9c"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl",
+      "exit": 0,
+      "log": "engine-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "--version"
+      ],
+      "cwd": "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl",
+      "exit": 0,
+      "log": "sdk-version.txt",
+      "sha256": "8f311fda85131eb472c3f117c2c4e441c86aaeb72740d76f44d89ff1e75ae7ae"
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--local",
+        "--no-hardlinks",
+        "--no-checkout",
+        "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "source-clone.txt",
+      "sha256": "ba48205363a16ff1c1441fde6b3351ae30114dc0c8e3bd26fb96ca7086835e5c"
+    },
+    {
+      "argv": [
+        "git",
+        "checkout",
+        "--detach",
+        "1021a4e388b8e38f6022a770556a01e523d35cb9"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "source-checkout.txt",
+      "sha256": "5b050b546c1bb648ad2beea73324e8bb3bc5a590529f1415974d9732b2152201"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-head.txt",
+      "sha256": "1f84c775de0bab801af15823d2eb27e0968211ab0de32fa24cb8917d6884ec9c"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj",
+        "--locked-mode",
+        "--configfile",
+        "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl",
+      "exit": 0,
+      "log": "cli-restore.txt",
+      "sha256": "8cbb532d460c9d927ee562f40bff44cd1597d689a629a041389c213f5a2575a2"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/.worktrees/dispatch-budget-wsl",
+      "exit": 0,
+      "log": "cli-build.txt",
+      "sha256": "81a8301ab8abd075f2ce4ef9cf3f2967224d93570f76df59d0f9a69515ee5d02"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--profile",
+        "small-api",
+        "--name",
+        "SmallApiProof",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new.txt",
+      "sha256": "8a42d9cc4c8ac62af5fc722b650aa0642e991dd255e171cb59b711a3a339a8fc"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "new",
+        "--profile",
+        "small-api",
+        "--name",
+        "SmallApiProof",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/determinism twin",
+        "--engine-root",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new-twin.txt",
+      "sha256": "bc30f5271815fb6db99d1d78e15e154b65af8715ab6d7bb20aa5167a7e9b5960"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.json-validate.txt",
+      "sha256": "35a1fdfcb916d9e5771ce01c6b5fa7889132f486960d842992bec2e817fa8264"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.graphql.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.graphql.json-validate.txt",
+      "sha256": "61a132ffe11d95405e684f9ae9bfbef35396736630fc480309468967ef4c2da5"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.graphql-only.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.graphql-only.json-validate.txt",
+      "sha256": "af5c3a51a89db7491aae6b020a06f0b71e2efd419fca4d865185b61a43ad2f33"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.off.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.off.json-validate.txt",
+      "sha256": "4e3612116dcddc8b2fa97e062d3b599cbad4a3a18779aac86ff1f6a3309df889"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/invalid-config.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "invalid-config-validate.txt",
+      "sha256": "ba76a40aa335a5adeff4705ada8177c5241f0b1166f8fa63f1db93021b57750b"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine-artifacts/bin/Cehpalon.Engine.Tooling/release/cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/worker-config.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "worker-config-validate.txt",
+      "sha256": "9551d63ebbb5ef35b1d48e4e46e5c10bd22c45a3cc193ca213fe32c22cec42b1"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-restore.txt",
+      "sha256": "828fbdbfda171f451e6db5884326148f01d6efb7260b66ef70632502e5a467aa"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "--locked-mode",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-locked-restore.txt",
+      "sha256": "232a305cf35db402790e6b1e711804ef944bb49dbd1e1dc356d36ee6eb21296c"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-build.txt",
+      "sha256": "170301b96c5b2cf66b92242dc8ca956225577ce913de3a47f4bfcd6a6030a1b0"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--self-test",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/self-test.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "self-test.txt",
+      "sha256": "c957cde5ea3d0b090e3888a408b2bb03b5cd28114a59ee053909fb7799802ee9"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.off.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/does-not-exist.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/does-not-exist.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/off-ready.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "serve-off.txt",
+      "sha256": "4633a6db779a356b28fcdf6f2e141f5c967143c8589ba799a47712373ca95844"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/invalid-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/does-not-exist.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/does-not-exist.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/invalid-ready.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "serve-invalid.txt",
+      "sha256": "f2bbd97bf4f7dd6499b80a253f9ce5d4f78dddd37f9cd5414e2bd38fb9559f8a"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/does-not-exist.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/does-not-exist.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/existing-ready.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "serve-existing-ready.txt",
+      "sha256": "37c86752008367bc769567189a6e8e5f9d937d2d5806b8d7e3f264602adb9e0a"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--self-test-capacity",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "capacity.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "0"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-0.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "-1"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-1.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "+1"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-2.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "1.0"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-3.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        " 1"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-4.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "2147483648"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-5.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "\u0661"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-6.txt",
+      "sha256": "b90fc003584ef7b91f3057ede4e54f78810ba6de63c71d75e7c98dd9ba1dca2d"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "1",
+        "--max-concurrent-operations",
+        "2"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-duplicate.txt",
+      "sha256": "b9db027a7593340575510d23559f5ea4d4574abefaeddc80d569bcc170528272"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.off.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-ready.json",
+        "--max-concurrent-operations",
+        "2147483647"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "capacity-off.txt",
+      "sha256": "4633a6db779a356b28fcdf6f2e141f5c967143c8589ba799a47712373ca95844"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--export-contracts",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.off.json",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/capacity-disabled-contracts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "capacity-export-off.txt",
+      "sha256": "334975b962518cf2e7c389ae4beb9445530ddc933f0e258682dea59c9a44b65c"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--self-test-tenant-capacity",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/tenant-capacity.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "tenant-capacity.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/tenant-capacity-ready.json",
+        "--max-concurrent-operations-per-tenant",
+        "1"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-no-host-limit.txt",
+      "sha256": "f8bfee539c07511f1d0b2f251d07e19cfbc40252f4dcf87997ce08eae16630da"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "1",
+        "--max-concurrent-operations-per-tenant",
+        "2"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-greater-than-host.txt",
+      "sha256": "f8bfee539c07511f1d0b2f251d07e19cfbc40252f4dcf87997ce08eae16630da"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "0"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-zero-tenant.txt",
+      "sha256": "f8bfee539c07511f1d0b2f251d07e19cfbc40252f4dcf87997ce08eae16630da"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant-config.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "1",
+        "--max-concurrent-operations-per-tenant",
+        "2"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-duplicate-tenant.txt",
+      "sha256": "b9db027a7593340575510d23559f5ea4d4574abefaeddc80d569bcc170528272"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.off.json",
+        "--certificate",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pfx",
+        "--public-key",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-tenant.pem",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "1"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "tenant-capacity-off.txt",
+      "sha256": "4633a6db779a356b28fcdf6f2e141f5c967143c8589ba799a47712373ca95844"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--self-test-drain",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/drain.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "drain.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--self-test-live-metrics",
+        "--output",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/live-metrics.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "live-metrics.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "restore",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper/FixtureMaterial.csproj",
+        "--configfile",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/NuGet.Config",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper-artifacts"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper",
+      "exit": 0,
+      "log": "fixture-helper-restore.txt",
+      "sha256": "6b4c2c91494ac0322580f13df0918aac8b96527c9be69dfb4b6b070db1e65f72"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "build",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper/FixtureMaterial.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper",
+      "exit": 0,
+      "log": "fixture-helper-build.txt",
+      "sha256": "e7f10075094a459b3215426f926b9d1969db00b5ed47f74aa9dbb9cb716b3756"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper-artifacts/bin/FixtureMaterial/release/FixtureMaterial.dll",
+        "/tmp/cehpalon-small-api-private-a9cdb1e7989b454caac2376db28eba30"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/fixture-helper",
+      "exit": 0,
+      "log": "fixture-helper-run.txt",
+      "sha256": "03452519b6e1ae1a166c272b2716e1780b79b3f5929f1b91470a48cbca09d9b1"
+    },
+    {
+      "argv": [
+        "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+        "--certificate",
+        "/tmp/cehpalon-small-api-private-a9cdb1e7989b454caac2376db28eba30/server.pfx",
+        "--public-key",
+        "/tmp/cehpalon-small-api-private-a9cdb1e7989b454caac2376db28eba30/jwt-public.pem",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "1",
+        "--ready",
+        "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/missing-ready-parent/ready.json"
+      ],
+      "cwd": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "serve-late-ready-failure.txt",
+      "sha256": "1990c66105d8c5507c92990ec0ec03c72a8d25e454036881f56837c0e5f25e9d"
+    }
+  ],
+  "checks": [
+    "clean Engine matches exact selected revision",
+    "exact pinned SDK",
+    "actual clean Engine clone under Unicode ampersand and space path",
+    "exact fourteen Small API scaffold files, no key/port/fixture state",
+    "same inputs produce identical published bytes across output paths",
+    "observed source manifest explicitly limits provenance",
+    "unique bounded source input Directory.Packages.props",
+    "observed source bytes match Directory.Packages.props",
+    "unique bounded source input NuGet.Config",
+    "observed source bytes match NuGet.Config",
+    "unique bounded source input global.json",
+    "observed source bytes match global.json",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Composition/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Core/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationResult.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationResult.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Core/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+    "source observation covers Core",
+    "source observation covers Composition",
+    "source observation covers CodeGeneration",
+    "source observation covers Identity.Contracts",
+    "source observation covers Tenancy",
+    "source observation covers Transports.Http",
+    "source observation covers Transports.GraphQL",
+    "pure profile config selects actual expected activation set: appsettings.json",
+    "host dependency precedes selected API entrypoints: appsettings.json",
+    "pure profile config selects actual expected activation set: appsettings.graphql.json",
+    "host dependency precedes selected API entrypoints: appsettings.graphql.json",
+    "pure profile config selects actual expected activation set: appsettings.graphql-only.json",
+    "host dependency precedes selected API entrypoints: appsettings.graphql-only.json",
+    "pure profile config selects actual expected activation set: appsettings.off.json",
+    "invalid profile rejected before any activation",
+    "actual initial consumer restore creates package lock",
+    "locked restore preserves actual consumer package graph",
+    "exact one emitted operation registry",
+    "actual three generated typed lazy gateway registrations",
+    "one Small API executable runtime",
+    "compiler/analyzer/CLI does not leak into consumer runtime",
+    "runtime contains actual Engine authority and transport adapters",
+    "complete exact thirty-nine real HTTPS self-test cases pass without shrinkage",
+    "actual case names cover complete tenant/transport/lifecycle corpus",
+    "both actual API-only and API-plus-GraphQL host profiles tested",
+    "api-only actual host/API activated and forbidden providers stayed off",
+    "api-only owned WebApplication disposed after listener shutdown",
+    "api-only owned business handlers disposed",
+    "api-only all three business operations deny both cross-tenant directions before work",
+    "api-only tenant state remains bounded at twenty thousand items",
+    "API-only actual GraphQL factory/services stay zero despite runtime package presence",
+    "api-graphql actual host/API activated and forbidden providers stayed off",
+    "api-graphql owned WebApplication disposed after listener shutdown",
+    "api-graphql owned business handlers disposed",
+    "api-graphql all three business operations deny both cross-tenant directions before work",
+    "api-graphql tenant state remains bounded at twenty thousand items",
+    "API-plus-GraphQL actual vendor services are registered only when enabled",
+    "all non-default activation scenarios recorded",
+    "invalid actually creates no host/listener/services/entrypoint factories",
+    "worker actually creates no host/listener/services/entrypoint factories",
+    "off actually creates no host/listener/services/entrypoint factories",
+    "GraphQL-only actually keeps HTTP API module disabled",
+    "GraphQL-only owned WebApplication is disposed",
+    "serve negative paths are actually nonexistent",
+    "normal serve all-off requires no certificate/key and activates nothing",
+    "normal serve invalid composition rejects with zero activation and no readiness before credential access",
+    "normal serve refuses existing readiness before activation without overwriting outsider bytes",
+    "one real shared protected budget denies overload, preserves cross-tenant denial and admits after release",
+    "invalid capacity fails before reading config or credentials: case 0",
+    "invalid capacity fails before reading config or credentials: case 1",
+    "invalid capacity fails before reading config or credentials: case 2",
+    "invalid capacity fails before reading config or credentials: case 3",
+    "invalid capacity fails before reading config or credentials: case 4",
+    "invalid capacity fails before reading config or credentials: case 5",
+    "invalid capacity fails before reading config or credentials: case 6",
+    "duplicate capacity is rejected",
+    "maximum valid limit leaves all-off profile without services or credential reads",
+    "all-off contract export has only a manifest and zero work",
+    "peer tenant uses spare host capacity while the held tenant remains capped",
+    "tenant capacity rejects before config, credential reads or activation: no-host-limit",
+    "tenant capacity rejects before config, credential reads or activation: greater-than-host",
+    "tenant capacity rejects before config, credential reads or activation: zero-tenant",
+    "tenant capacity rejects before config, credential reads or activation: duplicate-tenant",
+    "all-off profile does no work with both capacity limits set",
+    "actual protected shutdown exercises both budget modes",
+    "held protected write and owned cleanup finish during shutdown: tenant limited=False",
+    "held protected write and owned cleanup finish during shutdown: tenant limited=True",
+    "coherent snapshots cover admitted work, closing and complete drain: tenant limited=False",
+    "closed tenant snapshot removes all active tenants and exposes aggregate fields only",
+    "coherent snapshots cover admitted work, closing and complete drain: tenant limited=True",
+    "closed tenant snapshot removes all active tenants and exposes aggregate fields only",
+    "live HTTPS metrics reconcile both budget modes, two transports, tenant denials and owned shutdown",
+    "private fixture directory has verified current-user-only DACL or Unix0700/0600 before use",
+    "normal serve readiness records coherent open empty budget snapshots",
+    "normal serve starts actual loopback HTTPS with caller-supplied certificate/public key",
+    "normal serve accepts authenticated same-ID owner despite spoofed headers: alice",
+    "normal serve accepts authenticated same-ID owner despite spoofed headers: bob",
+    "normal serve denies actual cross-tenant request: alice",
+    "normal serve denies actual cross-tenant request: bob",
+    "normal serve rejects anonymous request",
+    "normal serve rejects token signed by an untrusted key",
+    "normal API-only serve has no GraphQL endpoint",
+    "normal serve documented stop command exits successfully after awaited cleanup",
+    "normal serve reports one post-cleanup stopped observation",
+    "normal serve stopped report records closed budgets with zero operations or tenant identities",
+    "normal serve keeps disabled module factories/services zero",
+    "normal serve awaited WebApplication disposal exactly once",
+    "normal serve denies before business and disposes both owner handlers",
+    "normal serve closes owned listener after graceful stop",
+    "late readiness failure honestly reports activated host and awaited cleanup before key disposal"
+  ],
+  "scope": "Experimental CLI-generated protected localhost Small API correctness only; no real IdP/database/broker, performance, packaging, supported-platform or production qualification",
+  "harness_sha256": "8cd7f7c2d41fd738eafa2ebf12cf20c54d8253ec8d9b947c9e782cce59ed4fa9",
+  "private_material_policy": "Ephemeral TLS PFX/JWT tokens/password stay in restricted ignored Windows .local/.private-fixtures or native Unix temporary directory; private material is excluded from retained raw evidence",
+  "engine_revision": "1021a4e388b8e38f6022a770556a01e523d35cb9",
+  "source_state": "exact clean committed source",
+  "tooling_source_sha256": {
+    "src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj": "13f69019239130e19687496413422b3172d49cbaeff7cccedf1b8d21c864e6ba",
+    "src/Cehpalon.Engine.Tooling/CliApplication.cs": "5896c924aefafb5a78fd44333696d6062ce1f8c238cd6777c95285c1639d9c59",
+    "src/Cehpalon.Engine.Tooling/FileSystem.cs": "d10d2ad39a2a30699b07922594e5a005330eb60a6385e34fd7e46b1119abe5ad",
+    "src/Cehpalon.Engine.Tooling/Program.cs": "959ddd47daa0cb91e700fe6c6476c65c460fb9c101c11ddfdaf340b62ed5b4a8",
+    "src/Cehpalon.Engine.Tooling/README.md": "e3141a12008ab8fab34be9a5ff105620df38e4bd8af3d004f96056eedbb9d00e",
+    "src/Cehpalon.Engine.Tooling/SmallApiTemplateFiles.cs": "fda8a7cd174de05c3452aecdfcc058e2f0bf4babb851518ce785482945edc425",
+    "src/Cehpalon.Engine.Tooling/TemplateFiles.cs": "6b5109c13e970c7b046835e298c5ad375d779583390ada60c6337cb5ddc7db8b",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/Catalog.cs.txt": "aaba1595043fc7bd1cf42f84d97df0f9c62c8a9146edecfdde3523779e2691d9",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/ContractExport.cs.txt": "861e160395ba5baf1cab8bff8f1281306c2dcab79d5a6d533a5ed4e084957fe7",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/FixtureHost.cs.txt": "74caeffa165756f9565e3c14beb3d58c88513fc1f9c4855dc5cd90285a0b2d21",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/Program.cs.txt": "ece19e280d41a4422510fcba8b68ab15fb18d88bb4a10f739c6d42d5c74b1281",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/SelfTest.cs.txt": "9a5f0630d7aac6644f0ad47cc3bca4489ebfe0990d8a857dc8638b6430e2401d",
+    "src/Cehpalon.Engine.Tooling/packages.lock.json": "d7b5ee33907d69d24acd9e4d6ad66eb225ea95977b85567732ca5519aad338b4"
+  },
+  "sdk": "11.0.100-rc.3.26522.148",
+  "consumer_engine_root": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces",
+  "new_result": {
+    "success": true,
+    "status": "passed",
+    "profile": "small-api",
+    "name": "SmallApiProof",
+    "output": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces",
+    "files": [
+      "Catalog.cs",
+      "Consumer.csproj",
+      "ContractExport.cs",
+      "FixtureHost.cs",
+      "NuGet.Config",
+      "Program.cs",
+      "README.md",
+      "SelfTest.cs",
+      "appsettings.graphql-only.json",
+      "appsettings.graphql.json",
+      "appsettings.json",
+      "appsettings.off.json",
+      "engine-source.json",
+      "global.json"
+    ],
+    "sourceInputs": 32
+  },
+  "generated_files_sha256": {
+    "Catalog.cs": "aaba1595043fc7bd1cf42f84d97df0f9c62c8a9146edecfdde3523779e2691d9",
+    "Consumer.csproj": "83a7f5fc38a020f98ef4af537a0e37a82a2a7931e3afebe29f22e3ee1bb88e3d",
+    "ContractExport.cs": "cb87c6c5bae3d996c32e12bd7422f48f856cf0eee2e3ca17011674ee6a0f257f",
+    "FixtureHost.cs": "74caeffa165756f9565e3c14beb3d58c88513fc1f9c4855dc5cd90285a0b2d21",
+    "NuGet.Config": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+    "Program.cs": "ece19e280d41a4422510fcba8b68ab15fb18d88bb4a10f739c6d42d5c74b1281",
+    "README.md": "e44ee3ce7f26ed28fe32344c8163f791eab5063da9bb298c82c8b03fe11d9307",
+    "SelfTest.cs": "9a5f0630d7aac6644f0ad47cc3bca4489ebfe0990d8a857dc8638b6430e2401d",
+    "appsettings.graphql-only.json": "6ee480bcd32a8c113baa8acb0065925bf9a730fe67980a17bc51cb0e45ee6392",
+    "appsettings.graphql.json": "dfc5e9d1449790700a4be90c68cc60353d4cb60f2f0b43a0423ee1e2674b9ee9",
+    "appsettings.json": "47c8a0d3bc87411c5de745f488c855dc3c163e8658c50139faae47b8d93cbb3a",
+    "appsettings.off.json": "2fc99a87f142e3cba1a2f1be85a4d326b331ba0d5f754b5d8bbf230fc4358137",
+    "engine-source.json": "1e0147bffd261c4b8d6f799f1fe7af9f1baa3db7556b02d35ecfa47676ee36e7",
+    "global.json": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e"
+  },
+  "observed_source_manifest": {
+    "schemaVersion": 1,
+    "provenance": "observed-source-bytes-not-git-attestation",
+    "sourceRoot": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/engine source \u0e44\u0e17\u0e22 & spaces",
+    "inputs": [
+      {
+        "path": "Directory.Packages.props",
+        "sha256": "f6dee39a015915dd9b51eba3b1cdadcc288df400a0fd0b236388fd1165ed00e5",
+        "bytes": 648
+      },
+      {
+        "path": "NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "global.json",
+        "sha256": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+        "bytes": 119
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+        "sha256": "0e1d6b857e0e6381f951c6fc480808603041752e868a3e05c76870b606e3a651",
+        "bytes": 752
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+        "sha256": "43239b3261a12851d8ff20826f044180d030af1da620fb3e94fbc18924c7de17",
+        "bytes": 12447
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+        "sha256": "6187016baba6d3f5319a053ce245d1670c658957bc47718f51ae89fe27e163d8",
+        "bytes": 4904
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+        "sha256": "0c846782b7aab61ec6d05f399ee135f643484727d68c84791869e75e4d7a5f25",
+        "bytes": 369
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+        "sha256": "e0fb34e20e9e15b64efb5068d6090a52834d9781cf4f83835c5954d5a4405ce2",
+        "bytes": 11409
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Contracts.cs",
+        "sha256": "6c38370e3c79e2bf4a374545912a254c74289be7a921d4c933759664c61fa010",
+        "bytes": 2567
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/PlanActivator.cs",
+        "sha256": "77fce0d6a3e80addc0022251b010b72efdd4f3da33d9774b4db907779c8571b2",
+        "bytes": 4445
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+        "sha256": "99c4640d85dbb93e3833d6e3c0ce9c515146aa61bcdbaabdb512332ddbbd74e5",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Contracts.cs",
+        "sha256": "4cdf7ed8da8a9074c513139913aee4578c877d065302be6530b897d9f0d177bc",
+        "bytes": 8065
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationRegistry.cs",
+        "sha256": "1913777dae7f0d065d4634665e724ceb436c1fa487bf01efb9d8bf9cd9e46012",
+        "bytes": 4671
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationResult.cs",
+        "sha256": "65b920c5a1befe0d21630146507a9d537e9450a4fc902ba7c8f24075408ab755",
+        "bytes": 1518
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+        "sha256": "d8f58c0cc534918c61b9f248f8954618ab478f3a6382787115c0fb5844a3dd62",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+        "sha256": "d4e1d14baa22c8a39997a7030214754facb747445455bbd072ee835c9ead2eda",
+        "bytes": 5451
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+        "sha256": "fc6e68d0ca576d1209625d770408208e476cd34b938e3b79e8774e67d5aedc3a",
+        "bytes": 635
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/Contracts.cs",
+        "sha256": "01fdec71b0ad189228705e5a576a6c31ec933ba74c946ccd4037214c1d7ec707",
+        "bytes": 13591
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+        "sha256": "0c3fdfc8653b00e2102882314e655242762a31509fb4c14dd6caad7d8c60256a",
+        "bytes": 12299
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/packages.lock.json",
+        "sha256": "b40c18ae5e41b9aea8ee31707b4533cbed25e18d9b80d4c34c0c5b3c259d94b4",
+        "bytes": 225
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+        "sha256": "1fbbec59d3dbac3f928c0f0db1b8d01658e8de34fb015582813966132b3327ed",
+        "bytes": 663
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+        "sha256": "92090ed339e6a5bd273679ece148df92b5a1ebf07c3f6e6aa02ed7039b408942",
+        "bytes": 7836
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+        "sha256": "820f96381eeb5051fd8ec6bd3ecaafbc1f9f6c5ac8d7fcc9bf4ec39e3a5eb60c",
+        "bytes": 5505
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+        "sha256": "a2e7236dce28f3e6884ce4b2d9b4da002b6795ed4a573c12fbfee46827140765",
+        "bytes": 20132
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+        "sha256": "c8d9378648f446b6b53b92cf067b2760ba90b81a2212fae795e89d6ddf7172ec",
+        "bytes": 582
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+        "sha256": "8989c2c26314b770f56d6ef26ed66d8d52317c442a11dcb1ee3b8f887935dd1b",
+        "bytes": 2490
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+        "sha256": "9e72a0fd1a7d510e50e6938506c23ad399c76af24e5059d6eaf481b67577820e",
+        "bytes": 11084
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+        "sha256": "68d39576413d0fdf775ac43dfb0c9d914d64d81a2058140d40d3fb260256c8f7",
+        "bytes": 141
+      }
+    ]
+  },
+  "config_validation": {
+    "appsettings.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [
+        "host",
+        "api"
+      ],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": true,
+          "reason": "support dependency of api"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    },
+    "appsettings.graphql.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [
+        "host",
+        "api",
+        "graphql"
+      ],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": true,
+          "reason": "support dependency of api"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    },
+    "appsettings.graphql-only.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [
+        "host",
+        "graphql"
+      ],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": true,
+          "reason": "support dependency of graphql"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    },
+    "appsettings.off.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": false,
+          "reason": "not selected or required"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    }
+  },
+  "consumer_package_lock_sha256": "b4196a00d92c96fb74de4eae1b2004519d6f4054090df0de9aa3e0dad8575b69",
+  "generated_registry_sha256": "5de79901e3c7a2ffe681c0d8b15289b3748b75363d3aef808455327b1c6f2171",
+  "runtime_libraries": [
+    "Cehpalon.Engine.Composition/1.0.0",
+    "Cehpalon.Engine.Core/1.0.0",
+    "Cehpalon.Engine.Identity.Contracts/1.0.0",
+    "Cehpalon.Engine.Tenancy/1.0.0",
+    "Cehpalon.Engine.Transports.GraphQL/1.0.0",
+    "Cehpalon.Engine.Transports.Http/1.0.0",
+    "ChilliCream.Nitro.App/32.0.2",
+    "GreenDonut.Abstractions/16.7.1",
+    "GreenDonut.Data.Abstractions/16.7.1",
+    "GreenDonut.Data.Primitives/16.7.1",
+    "GreenDonut.Data/16.7.1",
+    "GreenDonut/16.7.1",
+    "HotChocolate.Abstractions/16.7.1",
+    "HotChocolate.AspNetCore.Pipeline/16.7.1",
+    "HotChocolate.AspNetCore/16.7.1",
+    "HotChocolate.Authorization/16.7.1",
+    "HotChocolate.Caching.Memory/16.7.1",
+    "HotChocolate.CostAnalysis.Core/16.7.1",
+    "HotChocolate.CostAnalysis/16.7.1",
+    "HotChocolate.Execution.Abstractions/16.7.1",
+    "HotChocolate.Execution.Configuration.Abstractions/16.7.1",
+    "HotChocolate.Execution.Operation.Abstractions/16.7.1",
+    "HotChocolate.Execution.Pipeline/16.7.1",
+    "HotChocolate.Execution.Projections/16.7.1",
+    "HotChocolate.Features/16.7.1",
+    "HotChocolate.Fusion.Language/16.7.1",
+    "HotChocolate.Fusion.Utilities/16.7.1",
+    "HotChocolate.Language.SyntaxTree/16.7.1",
+    "HotChocolate.Language.Utf8.SyntaxTree/16.7.1",
+    "HotChocolate.Language.Utf8/16.7.1",
+    "HotChocolate.Language.Visitors/16.7.1",
+    "HotChocolate.Language.Web/16.7.1",
+    "HotChocolate.Language/16.7.1",
+    "HotChocolate.PersistedOperations.Abstractions/16.7.1",
+    "HotChocolate.PersistedOperations.Pipeline/16.7.1",
+    "HotChocolate.Primitives/16.7.1",
+    "HotChocolate.Subscriptions.InMemory/16.7.1",
+    "HotChocolate.Subscriptions/16.7.1",
+    "HotChocolate.Text.Json/16.7.1",
+    "HotChocolate.Transport.Formatters/16.7.1",
+    "HotChocolate.Transport.Sockets/16.7.1",
+    "HotChocolate.Types.Abstractions/16.7.1",
+    "HotChocolate.Types.CursorPagination.Extensions/16.7.1",
+    "HotChocolate.Types.CursorPagination/16.7.1",
+    "HotChocolate.Types.Errors/16.7.1",
+    "HotChocolate.Types.Mutations/16.7.1",
+    "HotChocolate.Types.Queries/16.7.1",
+    "HotChocolate.Types.Scalars.Upload/16.7.1",
+    "HotChocolate.Types/16.7.1",
+    "HotChocolate.Utilities.Base36/16.7.1",
+    "HotChocolate.Utilities.Buffers/16.7.1",
+    "HotChocolate.Utilities.DependencyInjection/16.7.1",
+    "HotChocolate.Utilities.Tasks/16.7.1",
+    "HotChocolate.Utilities/16.7.1",
+    "HotChocolate.Validation/16.7.1",
+    "HotChocolate/16.7.1",
+    "Microsoft.AspNetCore.Authentication.JwtBearer/11.0.0-rc.3.26522.148",
+    "Microsoft.Bcl.Cryptography/10.0.2",
+    "Microsoft.IdentityModel.Abstractions/8.19.2",
+    "Microsoft.IdentityModel.JsonWebTokens/8.19.2",
+    "Microsoft.IdentityModel.Logging/8.19.2",
+    "Microsoft.IdentityModel.Protocols.OpenIdConnect/8.19.2",
+    "Microsoft.IdentityModel.Protocols/8.19.2",
+    "Microsoft.IdentityModel.Tokens/8.19.2",
+    "PortableConsumer.SmallApiProof/1.0.0",
+    "System.IO.Hashing/8.0.0",
+    "System.IdentityModel.Tokens.Jwt/8.19.2",
+    "Yarp.ReverseProxy/2.3.0"
+  ],
+  "self_test": {
+    "observedAtUtc": "2026-11-20T03:08:41.1548319+00:00",
+    "framework": ".NET 11.0.0-rc.3.26522.148",
+    "os": "Ubuntu 22.04.5 LTS",
+    "scope": "Protected localhost HTTPS fixture, pinned JWT validation, generated Core gateway, tenant dispatcher, synthetic in-memory data. Not W0 public benchmark, real IdP/provider, supported-Windows, production, or full performance gate.",
+    "passed": 39,
+    "failed": 0,
+    "checks": [
+      {
+        "name": "invalid configuration fails before host/module factories",
+        "passed": true
+      },
+      {
+        "name": "unsupported worker profile fails before host/module factories",
+        "passed": true
+      },
+      {
+        "name": "all entrypoints disabled creates no WebApplication/listener/services",
+        "passed": true
+      },
+      {
+        "name": "api-only: strict custom CA trust and hostname",
+        "passed": true
+      },
+      {
+        "name": "api-only: wrong TLS hostname rejected",
+        "passed": true
+      },
+      {
+        "name": "api-only: untrusted TLS fixture CA rejected",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: anonymous/bad JWT denies before business",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: same ID A/B remains isolated despite metadata",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: both cross-tenant directions deny with zero business",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: revocation/owner mismatch/default policy deny",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: validation precedes business mutation",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: not-found/list/update/conflict semantics",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: abort observed and no delayed mutation",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: malformed/oversized body does no business",
+        "passed": true
+      },
+      {
+        "name": "api-only: disabled endpoints/schema/IDE/WS remain absent",
+        "passed": true
+      },
+      {
+        "name": "api-only: shutdown owns handlers and closes listener",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: strict custom CA trust and hostname",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: wrong TLS hostname rejected",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: untrusted TLS fixture CA rejected",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: anonymous/bad JWT denies before business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: same ID A/B remains isolated despite metadata",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: both cross-tenant directions deny with zero business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: revocation/owner mismatch/default policy deny",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: validation precedes business mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: not-found/list/update/conflict semantics",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: abort observed and no delayed mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: malformed/oversized body does no business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: anonymous/bad JWT denies before business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: same ID A/B remains isolated despite metadata",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: both cross-tenant directions deny with zero business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: revocation/owner mismatch/default policy deny",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: validation precedes business mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: not-found/list/update/conflict semantics",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: abort observed and no delayed mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: malformed/oversized body does no business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: disabled endpoints/schema/IDE/WS remain absent",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: introspection disabled",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: shutdown owns handlers and closes listener",
+        "passed": true
+      },
+      {
+        "name": "GraphQL-only keeps API entrypoint disabled",
+        "passed": true
+      }
+    ],
+    "profiles": [
+      {
+        "name": "api-only",
+        "crossTenantDeniedRequests": 6,
+        "startupMilliseconds": 226.1061,
+        "counters": {
+          "HostFactories": 1,
+          "HostDisposals": 1,
+          "ApiFactories": 1,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 4
+        },
+        "store": {
+          "Count": 20000,
+          "Factories": 10,
+          "Reads": 7,
+          "Writes": 1,
+          "Disposals": 10
+        }
+      },
+      {
+        "name": "api-graphql",
+        "crossTenantDeniedRequests": 12,
+        "startupMilliseconds": 517.659,
+        "counters": {
+          "HostFactories": 1,
+          "HostDisposals": 1,
+          "ApiFactories": 1,
+          "GraphQLFactories": 1,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 28,
+          "Endpoints": 5
+        },
+        "store": {
+          "Count": 20000,
+          "Factories": 20,
+          "Reads": 14,
+          "Writes": 2,
+          "Disposals": 20
+        }
+      }
+    ],
+    "scenarios": {
+      "invalid": {
+        "counters": {
+          "HostFactories": 0,
+          "HostDisposals": 0,
+          "ApiFactories": 0,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 0
+        },
+        "hasApplication": false
+      },
+      "worker": {
+        "counters": {
+          "HostFactories": 0,
+          "HostDisposals": 0,
+          "ApiFactories": 0,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 0
+        },
+        "hasApplication": false
+      },
+      "off": {
+        "counters": {
+          "HostFactories": 0,
+          "HostDisposals": 0,
+          "ApiFactories": 0,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 0
+        },
+        "hasApplication": false
+      },
+      "graphqlOnly": {
+        "counters": {
+          "HostFactories": 1,
+          "HostDisposals": 1,
+          "ApiFactories": 0,
+          "GraphQLFactories": 1,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 28,
+          "Endpoints": 2
+        },
+        "hasApplication": true,
+        "store": {
+          "Factories": 1,
+          "Disposals": 1
+        }
+      }
+    }
+  },
+  "normal_serve_early": {
+    "off": {
+      "status": "disabled",
+      "address": null,
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      },
+      "scope": "No store, TLS/JWT import, services or listener created."
+    },
+    "invalid": {
+      "status": "failed",
+      "code": "config.invalid",
+      "message": "Small API input, trust, configuration or fixture operation was rejected; no secrets are included.",
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      }
+    },
+    "existing_ready": {
+      "status": "failed",
+      "code": "ready.exists",
+      "message": "Small API input, trust, configuration or fixture operation was rejected; no secrets are included.",
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      }
+    },
+    "invalid_ready_absent": true,
+    "existing_ready_preserved": true
+  },
+  "capacity": {
+    "proof": {
+      "status": "passed",
+      "maximumConcurrentOperations": 1,
+      "maximumConcurrentOperationsPerTenant": null,
+      "peerTenantReads": 0,
+      "saturated": {
+        "http": 503,
+        "graphQL": 200,
+        "code": "operation.capacity_exceeded"
+      },
+      "crossTenantDenials": 4,
+      "store": {
+        "Factories": 2,
+        "Disposals": 2,
+        "Reads": 1,
+        "Writes": 1
+      }
+    },
+    "invalid": {
+      "0": "usage.max_concurrent_operations",
+      "1": "usage.max_concurrent_operations",
+      "2": "usage.max_concurrent_operations",
+      "3": "usage.max_concurrent_operations",
+      "4": "usage.max_concurrent_operations",
+      "5": "usage.max_concurrent_operations",
+      "6": "usage.max_concurrent_operations"
+    },
+    "duplicate": "usage.option",
+    "disabled": {
+      "status": "disabled",
+      "address": null,
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      },
+      "scope": "No store, TLS/JWT import, services or listener created."
+    },
+    "export": {
+      "status": "passed",
+      "files": [
+        "manifest.json"
+      ],
+      "counters": {
+        "HttpSchemaOperations": 0,
+        "GraphQLRegistrations": 0,
+        "GraphQLServices": 0,
+        "GraphQLSchemaBuilds": 0,
+        "GraphQLProvidersCreated": 0,
+        "GraphQLProvidersDisposed": 0,
+        "HandlerFactoryCalls": 0,
+        "DispatchCalls": 0,
+        "HostFactories": 0,
+        "TlsReads": 0,
+        "AuthorityCalls": 0
+      }
+    }
+  },
+  "tenant_capacity": {
+    "proof": {
+      "status": "passed",
+      "maximumConcurrentOperations": 2,
+      "maximumConcurrentOperationsPerTenant": 1,
+      "peerTenantReads": 2,
+      "saturated": {
+        "http": 503,
+        "graphQL": 200,
+        "code": "operation.capacity_exceeded"
+      },
+      "crossTenantDenials": 4,
+      "store": {
+        "Factories": 4,
+        "Disposals": 4,
+        "Reads": 3,
+        "Writes": 1
+      }
+    },
+    "invalid": {
+      "no-host-limit": "usage.max_concurrent_operations_per_tenant",
+      "greater-than-host": "usage.max_concurrent_operations_per_tenant",
+      "zero-tenant": "usage.max_concurrent_operations_per_tenant",
+      "duplicate-tenant": "usage.option"
+    },
+    "disabled": {
+      "status": "disabled",
+      "address": null,
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      },
+      "scope": "No store, TLS/JWT import, services or listener created."
+    }
+  },
+  "drain": {
+    "status": "passed",
+    "observations": [
+      {
+        "tenantLimited": false,
+        "http": 200,
+        "Factories": 1,
+        "Writes": 1,
+        "Disposals": 1,
+        "HostDisposals": 1,
+        "waitedForRelease": true,
+        "held": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": false
+        },
+        "closing": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": true
+        },
+        "completed": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 0,
+          "IsAdmissionClosed": true
+        },
+        "tenantCapacity": null
+      },
+      {
+        "tenantLimited": true,
+        "http": 200,
+        "Factories": 1,
+        "Writes": 1,
+        "Disposals": 1,
+        "HostDisposals": 1,
+        "waitedForRelease": true,
+        "held": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": false
+        },
+        "closing": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": true
+        },
+        "completed": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 0,
+          "IsAdmissionClosed": true
+        },
+        "tenantCapacity": {
+          "Total": {
+            "MaximumConcurrentOperations": 2,
+            "ActiveOperations": 0,
+            "IsAdmissionClosed": true
+          },
+          "MaximumConcurrentOperationsPerTenant": 1,
+          "ActiveTenants": 0
+        }
+      }
+    ]
+  },
+  "live_metrics": {
+    "status": "validated",
+    "input_sha256": "dbcd4293105e1f1aed5e7af0a41d2bd7ae9154b8fb7c1468806c6c9cbdc29c67",
+    "completed_reads": 800,
+    "completed_writes": 2,
+    "cross_tenant_denials": 8,
+    "cases": [
+      {
+        "tenant_limited": false,
+        "collections": 34,
+        "periodic_collections": 29,
+        "first_collection_microseconds": 753.031,
+        "median_collection_microseconds": 7.9350000000000005,
+        "minimum_collection_microseconds": 2.709,
+        "maximum_collection_microseconds": 753.031,
+        "allocated_bytes": [
+          24,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "start_intervals_milliseconds": [
+          121.668756,
+          13.631585,
+          12.401959,
+          14.272341,
+          12.24622,
+          13.643396,
+          10.262075,
+          12.369418,
+          12.354661,
+          12.354278,
+          12.322212,
+          12.37188,
+          10.285402,
+          12.434629,
+          12.359516,
+          12.404639,
+          12.434067,
+          10.294191,
+          12.390312,
+          12.416013,
+          12.362577,
+          12.226736,
+          12.231218,
+          11.753951,
+          10.808316,
+          0.123684,
+          13.165896,
+          11.727255,
+          12.253907,
+          12.365846,
+          10.11287,
+          0.604217,
+          9.38115
+        ]
+      },
+      {
+        "tenant_limited": true,
+        "collections": 12,
+        "periodic_collections": 7,
+        "first_collection_microseconds": 289.006,
+        "median_collection_microseconds": 6.047000000000001,
+        "minimum_collection_microseconds": 3.933,
+        "maximum_collection_microseconds": 289.006,
+        "allocated_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "start_intervals_milliseconds": [
+          8.483518,
+          10.595802,
+          12.660412,
+          12.217777,
+          11.782455,
+          0.503052,
+          11.306992,
+          17.377719,
+          10.180058,
+          10.423893,
+          1.022912
+        ]
+      }
+    ],
+    "scope": "Controlled HTTPS fixture and collection cost; per-gauge values can represent different instants"
+  },
+  "private_fixture_helper_source_sha256": "bee0294544f823d7b08dbe69a3ff492736d4392416668c83000b6853fde261fb",
+  "private_fixture_permissions": {
+    "status": "created",
+    "permissionsVerified": true,
+    "permissions": "Unix0700 directory and0600 files",
+    "scope": "Ephemeral private fixture; keys, password and tokens not printed"
+  },
+  "serve_process": {
+    "argv": [
+      "/home/tom/.local/share/cehpalon-benchmark-deployment/tuning-20261028/sdk/dotnet",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/consumer-artifacts/bin/Consumer/release/PortableConsumer.SmallApiProof.dll",
+      "--serve",
+      "--config",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/generated Small API \u0e44\u0e17\u0e22 & spaces/appsettings.json",
+      "--certificate",
+      "/tmp/cehpalon-small-api-private-a9cdb1e7989b454caac2376db28eba30/server.pfx",
+      "--public-key",
+      "/tmp/cehpalon-small-api-private-a9cdb1e7989b454caac2376db28eba30/jwt-public.pem",
+      "--max-concurrent-operations",
+      "2",
+      "--max-concurrent-operations-per-tenant",
+      "1",
+      "--ready",
+      "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.local/live-metrics-wsl01/serve-ready.json"
+    ],
+    "pid": 5598,
+    "owned": true,
+    "exit": 0,
+    "stdout": "serve-stdout.txt",
+    "stderr": "serve-stderr.txt",
+    "stdout_sha256": "91b7ae50fbcd98691cddb202d55b1bc94c8e561a7c97d42d34a866fc54c58285",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "ready_capacity": {
+    "capacity": {
+      "MaximumConcurrentOperations": 2,
+      "ActiveOperations": 0,
+      "IsAdmissionClosed": false
+    },
+    "tenantCapacity": {
+      "Total": {
+        "MaximumConcurrentOperations": 2,
+        "ActiveOperations": 0,
+        "IsAdmissionClosed": false
+      },
+      "MaximumConcurrentOperationsPerTenant": 1,
+      "ActiveTenants": 0
+    }
+  },
+  "late_ready_failure": {
+    "status": "failed",
+    "code": "consumer.failure",
+    "message": "Small API input, trust, configuration or fixture operation was rejected; no secrets are included.",
+    "counters": {
+      "HostFactories": 1,
+      "HostDisposals": 1,
+      "ApiFactories": 1,
+      "GraphQLFactories": 0,
+      "ForbiddenFactories": 0,
+      "GraphQLServices": 0,
+      "Endpoints": 4
+    }
+  },
+  "external_serve": {
+    "observations": [
+      {
+        "subject": "alice",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 200,
+        "body": {
+          "tenant": "tenant-a",
+          "id": 1,
+          "label": "item-00001",
+          "revision": 0,
+          "amountMinorUnits": 17
+        }
+      },
+      {
+        "subject": "bob",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-b",
+        "path": "/api/catalog/get",
+        "status": 200,
+        "body": {
+          "tenant": "tenant-b",
+          "id": 1,
+          "label": "item-00001",
+          "revision": 0,
+          "amountMinorUnits": 17
+        }
+      },
+      {
+        "subject": "alice",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-b",
+        "path": "/api/catalog/get",
+        "status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "subject": "bob",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "subject": "anonymous",
+        "credential_kind": "anonymous",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 401,
+        "body": null
+      },
+      {
+        "subject": "anonymous",
+        "credential_kind": "untrusted-signing-key",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 401,
+        "body": null
+      },
+      {
+        "subject": "alice",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-a",
+        "path": "/graphql",
+        "status": 404,
+        "body": null
+      }
+    ],
+    "stopped": {
+      "status": "stopped",
+      "counters": {
+        "HostFactories": 1,
+        "HostDisposals": 1,
+        "ApiFactories": 1,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 4
+      },
+      "capacity": {
+        "MaximumConcurrentOperations": 2,
+        "ActiveOperations": 0,
+        "IsAdmissionClosed": true
+      },
+      "tenantCapacity": {
+        "Total": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 0,
+          "IsAdmissionClosed": true
+        },
+        "MaximumConcurrentOperationsPerTenant": 1,
+        "ActiveTenants": 0
+      },
+      "store": {
+        "Factories": 2,
+        "Constructors": 2,
+        "Reads": 2,
+        "Writes": 0,
+        "Disposals": 2
+      }
+    },
+    "credentials_retained_in_raw": false,
+    "material_scope": "Ephemeral synthetic generated-serve proof material only; no production credentials"
+  },
+  "finished_utc": "2026-11-20T03:08:57.516126+00:00"
+}

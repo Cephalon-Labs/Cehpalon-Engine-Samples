@@ -1,0 +1,9 @@
+# Generated Small API live budget metrics
+
+`win01` and `wsl01` preserve the complete initial source revision. Both ran 400 reads and one held write per budget mode, but periodic active samples saw only the write. `win02` and `wsl02` preserve a separately declared extension: four extra reads pause inside authorized handlers so controlled and periodic collections can observe five admitted operations before shutdown. Each mode completes 404 reads and one write with 405 factories and 405 disposals. Each host also proves eight cross-tenant denials, disabled-host inactivity and no measurement callbacks after meter disposal.
+
+Both revisions passed 521 local Windows and 518 WSL component checks and 160 actual generated consumer checks per host, including the original 39 self-test cases. See [provenance](provenance.json), each lane's raw `live-metrics.json`, analysis, consumer manifest and component manifest. Original analysis outputs are retained byte-for-byte; final analyzer code can validate both workload revisions. Four initial altered datasets and eight extended altered datasets were rejected. The final harness sources are under `final-harness`.
+
+Collection costs include synchronous gauge callbacks and updating a preallocated dictionary. Copying rows for output is outside the timed interval. All first collections, allocations and actual inter-collection intervals remain in the reports. Gauge callbacks can reflect different instants while work changes. Exact relationships are checked at controlled held states. These observations do not establish a speedup, offered-rate ceiling, real provider support, canonical benchmark acceptance or production readiness.
+
+Only allowlisted reports are published. Restricted fixture files, private keys, JWTs and binaries remain outside this archive. Local Windows/WSL raw working directories are retained. [SHA-256 index](SHA256SUMS.txt) covers every other archive file as stored in Git.

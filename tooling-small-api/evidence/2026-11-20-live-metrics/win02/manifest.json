@@ -1,0 +1,2321 @@
+{
+  "started_utc": "2026-11-20T03:14:15.875255+00:00",
+  "status": "passed",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "D:\\Cephalon\\.worktrees\\live-budget-metrics",
+      "exit": 0,
+      "log": "engine-head.txt",
+      "sha256": "2309e336e99cf45b71f1c34a5e11468dfd99c39e4bb8afe13c37be70e54d729b"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "D:\\Cephalon\\.worktrees\\live-budget-metrics",
+      "exit": 0,
+      "log": "engine-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "--version"
+      ],
+      "cwd": "D:\\Cephalon\\.worktrees\\live-budget-metrics",
+      "exit": 0,
+      "log": "sdk-version.txt",
+      "sha256": "2a1983f9624c51ebc4e357db46400d4a0c586be897ce82123c46926dddf13fcf"
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--local",
+        "--no-hardlinks",
+        "--no-checkout",
+        "D:\\Cephalon\\.worktrees\\live-budget-metrics",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "source-clone.txt",
+      "sha256": "818b3d3fff40ea290c3769c073d640d8d15b25e541842426f09f851256714cfc"
+    },
+    {
+      "argv": [
+        "git",
+        "checkout",
+        "--detach",
+        "5f8f252e901e85c50d7fc6f4b760e457965ce3bb"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "source-checkout.txt",
+      "sha256": "e5babadf97252600dad1a96878c3ce0c2281378d92d225f8575a99f4ddd92716"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-head.txt",
+      "sha256": "2309e336e99cf45b71f1c34a5e11468dfd99c39e4bb8afe13c37be70e54d729b"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "clone-status.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\.worktrees\\live-budget-metrics\\src\\Cehpalon.Engine.Tooling\\Cehpalon.Engine.Tooling.csproj",
+        "--locked-mode",
+        "--configfile",
+        "D:\\Cephalon\\.worktrees\\live-budget-metrics\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\.worktrees\\live-budget-metrics",
+      "exit": 0,
+      "log": "cli-restore.txt",
+      "sha256": "aaa14b2da8497f6d6a811fca4ce821c42384e53f997ff28a266a066b08d31e34"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\.worktrees\\live-budget-metrics\\src\\Cehpalon.Engine.Tooling\\Cehpalon.Engine.Tooling.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\.worktrees\\live-budget-metrics",
+      "exit": 0,
+      "log": "cli-build.txt",
+      "sha256": "5819f493077b31e4a101c6c1bd3043c92f1095df7b616cd81592b300e279d79c"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--profile",
+        "small-api",
+        "--name",
+        "SmallApiProof",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new.txt",
+      "sha256": "5d0e445824c5d84d2c43642a89f9456e96013e25bdb7770f892c8bb59c735a88"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "new",
+        "--profile",
+        "small-api",
+        "--name",
+        "SmallApiProof",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\determinism twin",
+        "--engine-root",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples",
+      "exit": 0,
+      "log": "new-twin.txt",
+      "sha256": "9855a58c2e300c5c6085a17a32c51e047ad49087fda663a4a6e3d3c843bbe2d5"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.json-validate.txt",
+      "sha256": "c2993074b5e4fd0328ab4f4856be053708447e6b2fbf0d3ba7f9518c8a7e7fc9"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.graphql.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.graphql.json-validate.txt",
+      "sha256": "d7526c102b097b9fbab561cf15f5d6c04bf8e1d85bb586cdc0113ddd53bc3f9d"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.graphql-only.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.graphql-only.json-validate.txt",
+      "sha256": "1bbcc3ebc16db88207980b68a9b142403182607354006a85e95aabb5b1550e8d"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "appsettings.off.json-validate.txt",
+      "sha256": "cc1080dd70c2aa38b89b119709ef8c1c7a65367e0bdf5f6c47cfb2c92ed0159c"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\invalid-config.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "invalid-config-validate.txt",
+      "sha256": "71a0d645fae71e5fbd97bc76b3f52e69776ae56b79348e6e07dfdeb56c97f62c"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine-artifacts\\bin\\Cehpalon.Engine.Tooling\\release\\cehpalon.dll",
+        "validate",
+        "--profile",
+        "small-api",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\worker-config.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "worker-config-validate.txt",
+      "sha256": "089137b2f758ab20b6ac91b8a97f7e0a813af32cd60ed06b55d53227615b162e"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\Consumer.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-restore.txt",
+      "sha256": "15e0d8ca55e7d637563c64508d3691e79d67954f78e703478cfe066adb3f1e46"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\Consumer.csproj",
+        "--locked-mode",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-locked-restore.txt",
+      "sha256": "2a0d5b776f3f04e38fd6455dccfbd470205f463818a3c40f41dbf330358f72b3"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "consumer-build.txt",
+      "sha256": "6d4a20a61a19daccf68867e3db322a1444ca5bb38d01511d6e6185ef27dd1293"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--self-test",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\self-test.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "self-test.txt",
+      "sha256": "515ffd22219de442f75e6aa1cbd9883cc2931eafbc1fe84206476bac8dc9c2c0"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\does-not-exist.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\does-not-exist.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\off-ready.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "serve-off.txt",
+      "sha256": "285bb5c70fd5b88cfc616f17933b18adb01889021398e6e0e5f6493ab977a9f5"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\invalid-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\does-not-exist.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\does-not-exist.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\invalid-ready.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "serve-invalid.txt",
+      "sha256": "8f61b16f5f5bd66e517a27222e9d0cb9248ec8f551d65ea7faa9e1c9c88a8b2c"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\does-not-exist.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\does-not-exist.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\existing-ready.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "serve-existing-ready.txt",
+      "sha256": "772a6480b431a94eee0e9b399c4da369192a2277f265e9f9efbb0488a4067b06"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--self-test-capacity",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "capacity.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "0"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-0.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "-1"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-1.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "+1"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-2.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "1.0"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-3.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        " 1"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-4.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "2147483648"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-5.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "\u0661"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-invalid-6.txt",
+      "sha256": "6c14c4cf9f281f458de3cbffe7a21502423ee0ba8c3a0fab3ee7f245f111df73"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "1",
+        "--max-concurrent-operations",
+        "2"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "capacity-duplicate.txt",
+      "sha256": "10ff06d5380d01368d243fffdffd5b189ae6e999bb59e785b6eb161b1c44c0e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-ready.json",
+        "--max-concurrent-operations",
+        "2147483647"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "capacity-off.txt",
+      "sha256": "285bb5c70fd5b88cfc616f17933b18adb01889021398e6e0e5f6493ab977a9f5"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--export-contracts",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\capacity-disabled-contracts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "capacity-export-off.txt",
+      "sha256": "7e50e829e3efee96dc190173e0f9b61fe7bcd71a537d211f8e10b7f27cadbb71"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--self-test-tenant-capacity",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\tenant-capacity.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "tenant-capacity.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\tenant-capacity-ready.json",
+        "--max-concurrent-operations-per-tenant",
+        "1"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-no-host-limit.txt",
+      "sha256": "3e0a7d5166b1e31d7384dbe7aee5e40ec5e764f93bdc3bd29c79097a24dfc000"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "1",
+        "--max-concurrent-operations-per-tenant",
+        "2"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-greater-than-host.txt",
+      "sha256": "3e0a7d5166b1e31d7384dbe7aee5e40ec5e764f93bdc3bd29c79097a24dfc000"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "0"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-zero-tenant.txt",
+      "sha256": "3e0a7d5166b1e31d7384dbe7aee5e40ec5e764f93bdc3bd29c79097a24dfc000"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant-config.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "1",
+        "--max-concurrent-operations-per-tenant",
+        "2"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 2,
+      "log": "tenant-capacity-duplicate-tenant.txt",
+      "sha256": "10ff06d5380d01368d243fffdffd5b189ae6e999bb59e785b6eb161b1c44c0e6"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.off.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-tenant.pem",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\tenant-capacity-ready.json",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "1"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "tenant-capacity-off.txt",
+      "sha256": "285bb5c70fd5b88cfc616f17933b18adb01889021398e6e0e5f6493ab977a9f5"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--self-test-drain",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\drain.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "drain.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--self-test-live-metrics",
+        "--output",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\live-metrics.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 0,
+      "log": "live-metrics.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "restore",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper\\FixtureMaterial.csproj",
+        "--configfile",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\NuGet.Config",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper-artifacts"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper",
+      "exit": 0,
+      "log": "fixture-helper-restore.txt",
+      "sha256": "7afd31cbbb64ebf6143353c20761c18c973a5ae6d4ee0a52c84d277520484c2b"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "build",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper\\FixtureMaterial.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--artifacts-path",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper-artifacts",
+        "-p:UseSharedCompilation=false",
+        "-warnaserror"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper",
+      "exit": 0,
+      "log": "fixture-helper-build.txt",
+      "sha256": "e5edb554d37d3dbb2a5fb8e12a4f5ee7c6560c647c9364626e5ad248641b0247"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper-artifacts\\bin\\FixtureMaterial\\release\\FixtureMaterial.dll",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\.private-fixtures"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\fixture-helper",
+      "exit": 0,
+      "log": "fixture-helper-run.txt",
+      "sha256": "d0050b2e19ee9e1a42077cca34a2e2ca9f29bd5a180a6508524d3f88252c56ce"
+    },
+    {
+      "argv": [
+        "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+        "--serve",
+        "--config",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.json",
+        "--certificate",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\.private-fixtures\\server.pfx",
+        "--public-key",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\.private-fixtures\\jwt-public.pem",
+        "--max-concurrent-operations",
+        "2",
+        "--max-concurrent-operations-per-tenant",
+        "1",
+        "--ready",
+        "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\missing-ready-parent\\ready.json"
+      ],
+      "cwd": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+      "exit": 3,
+      "log": "serve-late-ready-failure.txt",
+      "sha256": "2d11ae883b5f63bd3e5668a044995fae60b8b853622818207c28fcac6c1f20c6"
+    }
+  ],
+  "checks": [
+    "clean Engine matches exact selected revision",
+    "exact pinned SDK",
+    "actual clean Engine clone under Unicode ampersand and space path",
+    "exact fourteen Small API scaffold files, no key/port/fixture state",
+    "same inputs produce identical published bytes across output paths",
+    "observed source manifest explicitly limits provenance",
+    "unique bounded source input Directory.Packages.props",
+    "observed source bytes match Directory.Packages.props",
+    "unique bounded source input NuGet.Config",
+    "observed source bytes match NuGet.Config",
+    "unique bounded source input global.json",
+    "observed source bytes match global.json",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+    "unique bounded source input src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "observed source bytes match src/Cehpalon.Engine.Composition/PlanActivator.cs",
+    "unique bounded source input src/Cehpalon.Engine.Composition/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Composition/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Core/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationRegistry.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/OperationResult.cs",
+    "observed source bytes match src/Cehpalon.Engine.Core/OperationResult.cs",
+    "unique bounded source input src/Cehpalon.Engine.Core/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Core/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+    "unique bounded source input src/Cehpalon.Engine.Tenancy/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Tenancy/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+    "unique bounded source input src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+    "observed source bytes match src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+    "source observation covers Core",
+    "source observation covers Composition",
+    "source observation covers CodeGeneration",
+    "source observation covers Identity.Contracts",
+    "source observation covers Tenancy",
+    "source observation covers Transports.Http",
+    "source observation covers Transports.GraphQL",
+    "pure profile config selects actual expected activation set: appsettings.json",
+    "host dependency precedes selected API entrypoints: appsettings.json",
+    "pure profile config selects actual expected activation set: appsettings.graphql.json",
+    "host dependency precedes selected API entrypoints: appsettings.graphql.json",
+    "pure profile config selects actual expected activation set: appsettings.graphql-only.json",
+    "host dependency precedes selected API entrypoints: appsettings.graphql-only.json",
+    "pure profile config selects actual expected activation set: appsettings.off.json",
+    "invalid profile rejected before any activation",
+    "actual initial consumer restore creates package lock",
+    "locked restore preserves actual consumer package graph",
+    "exact one emitted operation registry",
+    "actual three generated typed lazy gateway registrations",
+    "one Small API executable runtime",
+    "compiler/analyzer/CLI does not leak into consumer runtime",
+    "runtime contains actual Engine authority and transport adapters",
+    "complete exact thirty-nine real HTTPS self-test cases pass without shrinkage",
+    "actual case names cover complete tenant/transport/lifecycle corpus",
+    "both actual API-only and API-plus-GraphQL host profiles tested",
+    "api-only actual host/API activated and forbidden providers stayed off",
+    "api-only owned WebApplication disposed after listener shutdown",
+    "api-only owned business handlers disposed",
+    "api-only all three business operations deny both cross-tenant directions before work",
+    "api-only tenant state remains bounded at twenty thousand items",
+    "API-only actual GraphQL factory/services stay zero despite runtime package presence",
+    "api-graphql actual host/API activated and forbidden providers stayed off",
+    "api-graphql owned WebApplication disposed after listener shutdown",
+    "api-graphql owned business handlers disposed",
+    "api-graphql all three business operations deny both cross-tenant directions before work",
+    "api-graphql tenant state remains bounded at twenty thousand items",
+    "API-plus-GraphQL actual vendor services are registered only when enabled",
+    "all non-default activation scenarios recorded",
+    "invalid actually creates no host/listener/services/entrypoint factories",
+    "worker actually creates no host/listener/services/entrypoint factories",
+    "off actually creates no host/listener/services/entrypoint factories",
+    "GraphQL-only actually keeps HTTP API module disabled",
+    "GraphQL-only owned WebApplication is disposed",
+    "serve negative paths are actually nonexistent",
+    "normal serve all-off requires no certificate/key and activates nothing",
+    "normal serve invalid composition rejects with zero activation and no readiness before credential access",
+    "normal serve refuses existing readiness before activation without overwriting outsider bytes",
+    "one real shared protected budget denies overload, preserves cross-tenant denial and admits after release",
+    "invalid capacity fails before reading config or credentials: case 0",
+    "invalid capacity fails before reading config or credentials: case 1",
+    "invalid capacity fails before reading config or credentials: case 2",
+    "invalid capacity fails before reading config or credentials: case 3",
+    "invalid capacity fails before reading config or credentials: case 4",
+    "invalid capacity fails before reading config or credentials: case 5",
+    "invalid capacity fails before reading config or credentials: case 6",
+    "duplicate capacity is rejected",
+    "maximum valid limit leaves all-off profile without services or credential reads",
+    "all-off contract export has only a manifest and zero work",
+    "peer tenant uses spare host capacity while the held tenant remains capped",
+    "tenant capacity rejects before config, credential reads or activation: no-host-limit",
+    "tenant capacity rejects before config, credential reads or activation: greater-than-host",
+    "tenant capacity rejects before config, credential reads or activation: zero-tenant",
+    "tenant capacity rejects before config, credential reads or activation: duplicate-tenant",
+    "all-off profile does no work with both capacity limits set",
+    "actual protected shutdown exercises both budget modes",
+    "held protected write and owned cleanup finish during shutdown: tenant limited=False",
+    "held protected write and owned cleanup finish during shutdown: tenant limited=True",
+    "coherent snapshots cover admitted work, closing and complete drain: tenant limited=False",
+    "closed tenant snapshot removes all active tenants and exposes aggregate fields only",
+    "coherent snapshots cover admitted work, closing and complete drain: tenant limited=True",
+    "closed tenant snapshot removes all active tenants and exposes aggregate fields only",
+    "live HTTPS metrics reconcile both budget modes, two transports, tenant denials and owned shutdown",
+    "private fixture directory has verified current-user-only DACL or Unix0700/0600 before use",
+    "normal serve readiness records coherent open empty budget snapshots",
+    "normal serve starts actual loopback HTTPS with caller-supplied certificate/public key",
+    "normal serve accepts authenticated same-ID owner despite spoofed headers: alice",
+    "normal serve accepts authenticated same-ID owner despite spoofed headers: bob",
+    "normal serve denies actual cross-tenant request: alice",
+    "normal serve denies actual cross-tenant request: bob",
+    "normal serve rejects anonymous request",
+    "normal serve rejects token signed by an untrusted key",
+    "normal API-only serve has no GraphQL endpoint",
+    "normal serve documented stop command exits successfully after awaited cleanup",
+    "normal serve reports one post-cleanup stopped observation",
+    "normal serve stopped report records closed budgets with zero operations or tenant identities",
+    "normal serve keeps disabled module factories/services zero",
+    "normal serve awaited WebApplication disposal exactly once",
+    "normal serve denies before business and disposes both owner handlers",
+    "normal serve closes owned listener after graceful stop",
+    "late readiness failure honestly reports activated host and awaited cleanup before key disposal"
+  ],
+  "scope": "Experimental CLI-generated protected localhost Small API correctness only; no real IdP/database/broker, performance, packaging, supported-platform or production qualification",
+  "harness_sha256": "b5a875556a1c841cc8bb2e31836a18e6e5792494e1ee3bd6db1e54d4b31ee727",
+  "private_material_policy": "Ephemeral TLS PFX/JWT tokens/password stay in restricted ignored Windows .local/.private-fixtures or native Unix temporary directory; private material is excluded from retained raw evidence",
+  "engine_revision": "5f8f252e901e85c50d7fc6f4b760e457965ce3bb",
+  "source_state": "exact clean committed source",
+  "tooling_source_sha256": {
+    "src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj": "13f69019239130e19687496413422b3172d49cbaeff7cccedf1b8d21c864e6ba",
+    "src/Cehpalon.Engine.Tooling/CliApplication.cs": "5896c924aefafb5a78fd44333696d6062ce1f8c238cd6777c95285c1639d9c59",
+    "src/Cehpalon.Engine.Tooling/FileSystem.cs": "d10d2ad39a2a30699b07922594e5a005330eb60a6385e34fd7e46b1119abe5ad",
+    "src/Cehpalon.Engine.Tooling/packages.lock.json": "d7b5ee33907d69d24acd9e4d6ad66eb225ea95977b85567732ca5519aad338b4",
+    "src/Cehpalon.Engine.Tooling/Program.cs": "959ddd47daa0cb91e700fe6c6476c65c460fb9c101c11ddfdaf340b62ed5b4a8",
+    "src/Cehpalon.Engine.Tooling/README.md": "e3141a12008ab8fab34be9a5ff105620df38e4bd8af3d004f96056eedbb9d00e",
+    "src/Cehpalon.Engine.Tooling/SmallApiTemplateFiles.cs": "fda8a7cd174de05c3452aecdfcc058e2f0bf4babb851518ce785482945edc425",
+    "src/Cehpalon.Engine.Tooling/TemplateFiles.cs": "6b5109c13e970c7b046835e298c5ad375d779583390ada60c6337cb5ddc7db8b",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/Catalog.cs.txt": "eaf75d58db602d5c47999302c8302a6275ab9346bca3122d0d4363cb136daf47",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/ContractExport.cs.txt": "861e160395ba5baf1cab8bff8f1281306c2dcab79d5a6d533a5ed4e084957fe7",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/FixtureHost.cs.txt": "74caeffa165756f9565e3c14beb3d58c88513fc1f9c4855dc5cd90285a0b2d21",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/Program.cs.txt": "ece19e280d41a4422510fcba8b68ab15fb18d88bb4a10f739c6d42d5c74b1281",
+    "src/Cehpalon.Engine.Tooling/Templates/SmallApi/SelfTest.cs.txt": "fff7fa5f3c572435c7dbfefa7aa3a4ebf08dee34fee7691bc7447579899880f5"
+  },
+  "sdk": "11.0.100-rc.3.26522.148",
+  "consumer_engine_root": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces",
+  "new_result": {
+    "success": true,
+    "status": "passed",
+    "profile": "small-api",
+    "name": "SmallApiProof",
+    "output": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces",
+    "files": [
+      "Catalog.cs",
+      "Consumer.csproj",
+      "ContractExport.cs",
+      "FixtureHost.cs",
+      "NuGet.Config",
+      "Program.cs",
+      "README.md",
+      "SelfTest.cs",
+      "appsettings.graphql-only.json",
+      "appsettings.graphql.json",
+      "appsettings.json",
+      "appsettings.off.json",
+      "engine-source.json",
+      "global.json"
+    ],
+    "sourceInputs": 32
+  },
+  "generated_files_sha256": {
+    "appsettings.graphql-only.json": "6ee480bcd32a8c113baa8acb0065925bf9a730fe67980a17bc51cb0e45ee6392",
+    "appsettings.graphql.json": "dfc5e9d1449790700a4be90c68cc60353d4cb60f2f0b43a0423ee1e2674b9ee9",
+    "appsettings.json": "47c8a0d3bc87411c5de745f488c855dc3c163e8658c50139faae47b8d93cbb3a",
+    "appsettings.off.json": "2fc99a87f142e3cba1a2f1be85a4d326b331ba0d5f754b5d8bbf230fc4358137",
+    "Catalog.cs": "eaf75d58db602d5c47999302c8302a6275ab9346bca3122d0d4363cb136daf47",
+    "Consumer.csproj": "2eee990b1f2e0df889454df59900101827467069206f46bca68edcd84412ac61",
+    "ContractExport.cs": "3ca6092d71fb19fc2117ff746113d28beee9a06c137d2a340012505269aac771",
+    "engine-source.json": "388d6f8a01e4f51b85cb667078f2b88af1ec288df07d140962d9aef85fd79934",
+    "FixtureHost.cs": "74caeffa165756f9565e3c14beb3d58c88513fc1f9c4855dc5cd90285a0b2d21",
+    "global.json": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+    "NuGet.Config": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+    "Program.cs": "ece19e280d41a4422510fcba8b68ab15fb18d88bb4a10f739c6d42d5c74b1281",
+    "README.md": "e44ee3ce7f26ed28fe32344c8163f791eab5063da9bb298c82c8b03fe11d9307",
+    "SelfTest.cs": "fff7fa5f3c572435c7dbfefa7aa3a4ebf08dee34fee7691bc7447579899880f5"
+  },
+  "observed_source_manifest": {
+    "schemaVersion": 1,
+    "provenance": "observed-source-bytes-not-git-attestation",
+    "sourceRoot": "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\engine source \u0e44\u0e17\u0e22 & spaces",
+    "inputs": [
+      {
+        "path": "Directory.Packages.props",
+        "sha256": "f6dee39a015915dd9b51eba3b1cdadcc288df400a0fd0b236388fd1165ed00e5",
+        "bytes": 648
+      },
+      {
+        "path": "NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "global.json",
+        "sha256": "be8663081fd82196ac86e65e9021d58d7c03a13574ce8cd4dc803937fc3ba30e",
+        "bytes": 119
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj",
+        "sha256": "0e1d6b857e0e6381f951c6fc480808603041752e868a3e05c76870b606e3a651",
+        "bytes": 752
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "bytes": 217
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs",
+        "sha256": "43239b3261a12851d8ff20826f044180d030af1da620fb3e94fbc18924c7de17",
+        "bytes": 12447
+      },
+      {
+        "path": "src/Cehpalon.Engine.CodeGeneration/packages.lock.json",
+        "sha256": "6187016baba6d3f5319a053ce245d1670c658957bc47718f51ae89fe27e163d8",
+        "bytes": 4904
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj",
+        "sha256": "0c846782b7aab61ec6d05f399ee135f643484727d68c84791869e75e4d7a5f25",
+        "bytes": 369
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/CompositionCompiler.cs",
+        "sha256": "e0fb34e20e9e15b64efb5068d6090a52834d9781cf4f83835c5954d5a4405ce2",
+        "bytes": 11409
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/Contracts.cs",
+        "sha256": "6c38370e3c79e2bf4a374545912a254c74289be7a921d4c933759664c61fa010",
+        "bytes": 2567
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/PlanActivator.cs",
+        "sha256": "77fce0d6a3e80addc0022251b010b72efdd4f3da33d9774b4db907779c8571b2",
+        "bytes": 4445
+      },
+      {
+        "path": "src/Cehpalon.Engine.Composition/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj",
+        "sha256": "99c4640d85dbb93e3833d6e3c0ce9c515146aa61bcdbaabdb512332ddbbd74e5",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/Contracts.cs",
+        "sha256": "4cdf7ed8da8a9074c513139913aee4578c877d065302be6530b897d9f0d177bc",
+        "bytes": 8065
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationRegistry.cs",
+        "sha256": "1913777dae7f0d065d4634665e724ceb436c1fa487bf01efb9d8bf9cd9e46012",
+        "bytes": 4671
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/OperationResult.cs",
+        "sha256": "65b920c5a1befe0d21630146507a9d537e9450a4fc902ba7c8f24075408ab755",
+        "bytes": 1518
+      },
+      {
+        "path": "src/Cehpalon.Engine.Core/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj",
+        "sha256": "d8f58c0cc534918c61b9f248f8954618ab478f3a6382787115c0fb5844a3dd62",
+        "bytes": 404
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs",
+        "sha256": "d4e1d14baa22c8a39997a7030214754facb747445455bbd072ee835c9ead2eda",
+        "bytes": 5451
+      },
+      {
+        "path": "src/Cehpalon.Engine.Identity.Contracts/packages.lock.json",
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "bytes": 66
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj",
+        "sha256": "fc6e68d0ca576d1209625d770408208e476cd34b938e3b79e8774e67d5aedc3a",
+        "bytes": 635
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/Contracts.cs",
+        "sha256": "01fdec71b0ad189228705e5a576a6c31ec933ba74c946ccd4037214c1d7ec707",
+        "bytes": 13591
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs",
+        "sha256": "0c3fdfc8653b00e2102882314e655242762a31509fb4c14dd6caad7d8c60256a",
+        "bytes": 12299
+      },
+      {
+        "path": "src/Cehpalon.Engine.Tenancy/packages.lock.json",
+        "sha256": "b40c18ae5e41b9aea8ee31707b4533cbed25e18d9b80d4c34c0c5b3c259d94b4",
+        "bytes": 225
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj",
+        "sha256": "1fbbec59d3dbac3f928c0f0db1b8d01658e8de34fb015582813966132b3327ed",
+        "bytes": 663
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs",
+        "sha256": "92090ed339e6a5bd273679ece148df92b5a1ebf07c3f6e6aa02ed7039b408942",
+        "bytes": 7836
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs",
+        "sha256": "820f96381eeb5051fd8ec6bd3ecaafbc1f9f6c5ac8d7fcc9bf4ec39e3a5eb60c",
+        "bytes": 5505
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json",
+        "sha256": "a2e7236dce28f3e6884ce4b2d9b4da002b6795ed4a573c12fbfee46827140765",
+        "bytes": 20132
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj",
+        "sha256": "c8d9378648f446b6b53b92cf067b2760ba90b81a2212fae795e89d6ddf7172ec",
+        "bytes": 582
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/Contracts.cs",
+        "sha256": "8989c2c26314b770f56d6ef26ed66d8d52317c442a11dcb1ee3b8f887935dd1b",
+        "bytes": 2490
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs",
+        "sha256": "9e72a0fd1a7d510e50e6938506c23ad399c76af24e5059d6eaf481b67577820e",
+        "bytes": 11084
+      },
+      {
+        "path": "src/Cehpalon.Engine.Transports.Http/packages.lock.json",
+        "sha256": "68d39576413d0fdf775ac43dfb0c9d914d64d81a2058140d40d3fb260256c8f7",
+        "bytes": 141
+      }
+    ]
+  },
+  "config_validation": {
+    "appsettings.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [
+        "host",
+        "api"
+      ],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": true,
+          "reason": "support dependency of api"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    },
+    "appsettings.graphql.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [
+        "host",
+        "api",
+        "graphql"
+      ],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": true,
+          "reason": "support dependency of api"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    },
+    "appsettings.graphql-only.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [
+        "host",
+        "graphql"
+      ],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": true,
+          "reason": "explicit Enabled:true"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": true,
+          "reason": "support dependency of graphql"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    },
+    "appsettings.off.json": {
+      "success": true,
+      "status": "passed",
+      "profile": "small-api",
+      "schemaVersion": 1,
+      "activationOrder": [],
+      "modules": [
+        {
+          "id": "ai",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "api",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "broker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "cache",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "database",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "graphql",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "host",
+          "role": 0,
+          "isEnabled": false,
+          "reason": "not selected or required"
+        },
+        {
+          "id": "retrieval",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        },
+        {
+          "id": "worker",
+          "role": 1,
+          "isEnabled": false,
+          "reason": "explicit Enabled:false"
+        }
+      ]
+    }
+  },
+  "consumer_package_lock_sha256": "479eb3536165ec6725ab1a689f345486017e921784fab9414b3b0912966dfbf9",
+  "generated_registry_sha256": "5de79901e3c7a2ffe681c0d8b15289b3748b75363d3aef808455327b1c6f2171",
+  "runtime_libraries": [
+    "Cehpalon.Engine.Composition/1.0.0",
+    "Cehpalon.Engine.Core/1.0.0",
+    "Cehpalon.Engine.Identity.Contracts/1.0.0",
+    "Cehpalon.Engine.Tenancy/1.0.0",
+    "Cehpalon.Engine.Transports.GraphQL/1.0.0",
+    "Cehpalon.Engine.Transports.Http/1.0.0",
+    "ChilliCream.Nitro.App/32.0.2",
+    "GreenDonut.Abstractions/16.7.1",
+    "GreenDonut.Data.Abstractions/16.7.1",
+    "GreenDonut.Data.Primitives/16.7.1",
+    "GreenDonut.Data/16.7.1",
+    "GreenDonut/16.7.1",
+    "HotChocolate.Abstractions/16.7.1",
+    "HotChocolate.AspNetCore.Pipeline/16.7.1",
+    "HotChocolate.AspNetCore/16.7.1",
+    "HotChocolate.Authorization/16.7.1",
+    "HotChocolate.Caching.Memory/16.7.1",
+    "HotChocolate.CostAnalysis.Core/16.7.1",
+    "HotChocolate.CostAnalysis/16.7.1",
+    "HotChocolate.Execution.Abstractions/16.7.1",
+    "HotChocolate.Execution.Configuration.Abstractions/16.7.1",
+    "HotChocolate.Execution.Operation.Abstractions/16.7.1",
+    "HotChocolate.Execution.Pipeline/16.7.1",
+    "HotChocolate.Execution.Projections/16.7.1",
+    "HotChocolate.Features/16.7.1",
+    "HotChocolate.Fusion.Language/16.7.1",
+    "HotChocolate.Fusion.Utilities/16.7.1",
+    "HotChocolate.Language.SyntaxTree/16.7.1",
+    "HotChocolate.Language.Utf8.SyntaxTree/16.7.1",
+    "HotChocolate.Language.Utf8/16.7.1",
+    "HotChocolate.Language.Visitors/16.7.1",
+    "HotChocolate.Language.Web/16.7.1",
+    "HotChocolate.Language/16.7.1",
+    "HotChocolate.PersistedOperations.Abstractions/16.7.1",
+    "HotChocolate.PersistedOperations.Pipeline/16.7.1",
+    "HotChocolate.Primitives/16.7.1",
+    "HotChocolate.Subscriptions.InMemory/16.7.1",
+    "HotChocolate.Subscriptions/16.7.1",
+    "HotChocolate.Text.Json/16.7.1",
+    "HotChocolate.Transport.Formatters/16.7.1",
+    "HotChocolate.Transport.Sockets/16.7.1",
+    "HotChocolate.Types.Abstractions/16.7.1",
+    "HotChocolate.Types.CursorPagination.Extensions/16.7.1",
+    "HotChocolate.Types.CursorPagination/16.7.1",
+    "HotChocolate.Types.Errors/16.7.1",
+    "HotChocolate.Types.Mutations/16.7.1",
+    "HotChocolate.Types.Queries/16.7.1",
+    "HotChocolate.Types.Scalars.Upload/16.7.1",
+    "HotChocolate.Types/16.7.1",
+    "HotChocolate.Utilities.Base36/16.7.1",
+    "HotChocolate.Utilities.Buffers/16.7.1",
+    "HotChocolate.Utilities.DependencyInjection/16.7.1",
+    "HotChocolate.Utilities.Tasks/16.7.1",
+    "HotChocolate.Utilities/16.7.1",
+    "HotChocolate.Validation/16.7.1",
+    "HotChocolate/16.7.1",
+    "Microsoft.AspNetCore.Authentication.JwtBearer/11.0.0-rc.3.26522.148",
+    "Microsoft.Bcl.Cryptography/10.0.2",
+    "Microsoft.IdentityModel.Abstractions/8.19.2",
+    "Microsoft.IdentityModel.JsonWebTokens/8.19.2",
+    "Microsoft.IdentityModel.Logging/8.19.2",
+    "Microsoft.IdentityModel.Protocols.OpenIdConnect/8.19.2",
+    "Microsoft.IdentityModel.Protocols/8.19.2",
+    "Microsoft.IdentityModel.Tokens/8.19.2",
+    "PortableConsumer.SmallApiProof/1.0.0",
+    "System.IO.Hashing/8.0.0",
+    "System.IdentityModel.Tokens.Jwt/8.19.2",
+    "Yarp.ReverseProxy/2.3.0"
+  ],
+  "self_test": {
+    "observedAtUtc": "2026-11-20T03:14:40.0118234+00:00",
+    "framework": ".NET 11.0.0-rc.3.26522.148",
+    "os": "Microsoft Windows 10.0.26300",
+    "scope": "Protected localhost HTTPS fixture, pinned JWT validation, generated Core gateway, tenant dispatcher, synthetic in-memory data. Not W0 public benchmark, real IdP/provider, supported-Windows, production, or full performance gate.",
+    "passed": 39,
+    "failed": 0,
+    "checks": [
+      {
+        "name": "invalid configuration fails before host/module factories",
+        "passed": true
+      },
+      {
+        "name": "unsupported worker profile fails before host/module factories",
+        "passed": true
+      },
+      {
+        "name": "all entrypoints disabled creates no WebApplication/listener/services",
+        "passed": true
+      },
+      {
+        "name": "api-only: strict custom CA trust and hostname",
+        "passed": true
+      },
+      {
+        "name": "api-only: wrong TLS hostname rejected",
+        "passed": true
+      },
+      {
+        "name": "api-only: untrusted TLS fixture CA rejected",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: anonymous/bad JWT denies before business",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: same ID A/B remains isolated despite metadata",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: both cross-tenant directions deny with zero business",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: revocation/owner mismatch/default policy deny",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: validation precedes business mutation",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: not-found/list/update/conflict semantics",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: abort observed and no delayed mutation",
+        "passed": true
+      },
+      {
+        "name": "api-only/http: malformed/oversized body does no business",
+        "passed": true
+      },
+      {
+        "name": "api-only: disabled endpoints/schema/IDE/WS remain absent",
+        "passed": true
+      },
+      {
+        "name": "api-only: shutdown owns handlers and closes listener",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: strict custom CA trust and hostname",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: wrong TLS hostname rejected",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: untrusted TLS fixture CA rejected",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: anonymous/bad JWT denies before business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: same ID A/B remains isolated despite metadata",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: both cross-tenant directions deny with zero business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: revocation/owner mismatch/default policy deny",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: validation precedes business mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: not-found/list/update/conflict semantics",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: abort observed and no delayed mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/http: malformed/oversized body does no business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: anonymous/bad JWT denies before business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: same ID A/B remains isolated despite metadata",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: both cross-tenant directions deny with zero business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: revocation/owner mismatch/default policy deny",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: validation precedes business mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: not-found/list/update/conflict semantics",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: abort observed and no delayed mutation",
+        "passed": true
+      },
+      {
+        "name": "api-graphql/graphql: malformed/oversized body does no business",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: disabled endpoints/schema/IDE/WS remain absent",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: introspection disabled",
+        "passed": true
+      },
+      {
+        "name": "api-graphql: shutdown owns handlers and closes listener",
+        "passed": true
+      },
+      {
+        "name": "GraphQL-only keeps API entrypoint disabled",
+        "passed": true
+      }
+    ],
+    "profiles": [
+      {
+        "name": "api-only",
+        "crossTenantDeniedRequests": 6,
+        "startupMilliseconds": 353.0812,
+        "counters": {
+          "HostFactories": 1,
+          "HostDisposals": 1,
+          "ApiFactories": 1,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 4
+        },
+        "store": {
+          "Count": 20000,
+          "Factories": 10,
+          "Reads": 7,
+          "Writes": 1,
+          "Disposals": 10
+        }
+      },
+      {
+        "name": "api-graphql",
+        "crossTenantDeniedRequests": 12,
+        "startupMilliseconds": 1332.1997,
+        "counters": {
+          "HostFactories": 1,
+          "HostDisposals": 1,
+          "ApiFactories": 1,
+          "GraphQLFactories": 1,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 28,
+          "Endpoints": 5
+        },
+        "store": {
+          "Count": 20000,
+          "Factories": 20,
+          "Reads": 14,
+          "Writes": 2,
+          "Disposals": 20
+        }
+      }
+    ],
+    "scenarios": {
+      "invalid": {
+        "counters": {
+          "HostFactories": 0,
+          "HostDisposals": 0,
+          "ApiFactories": 0,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 0
+        },
+        "hasApplication": false
+      },
+      "worker": {
+        "counters": {
+          "HostFactories": 0,
+          "HostDisposals": 0,
+          "ApiFactories": 0,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 0
+        },
+        "hasApplication": false
+      },
+      "off": {
+        "counters": {
+          "HostFactories": 0,
+          "HostDisposals": 0,
+          "ApiFactories": 0,
+          "GraphQLFactories": 0,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 0,
+          "Endpoints": 0
+        },
+        "hasApplication": false
+      },
+      "graphqlOnly": {
+        "counters": {
+          "HostFactories": 1,
+          "HostDisposals": 1,
+          "ApiFactories": 0,
+          "GraphQLFactories": 1,
+          "ForbiddenFactories": 0,
+          "GraphQLServices": 28,
+          "Endpoints": 2
+        },
+        "hasApplication": true,
+        "store": {
+          "Factories": 1,
+          "Disposals": 1
+        }
+      }
+    }
+  },
+  "normal_serve_early": {
+    "off": {
+      "status": "disabled",
+      "address": null,
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      },
+      "scope": "No store, TLS/JWT import, services or listener created."
+    },
+    "invalid": {
+      "status": "failed",
+      "code": "config.invalid",
+      "message": "Small API input, trust, configuration or fixture operation was rejected; no secrets are included.",
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      }
+    },
+    "existing_ready": {
+      "status": "failed",
+      "code": "ready.exists",
+      "message": "Small API input, trust, configuration or fixture operation was rejected; no secrets are included.",
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      }
+    },
+    "invalid_ready_absent": true,
+    "existing_ready_preserved": true
+  },
+  "capacity": {
+    "proof": {
+      "status": "passed",
+      "maximumConcurrentOperations": 1,
+      "maximumConcurrentOperationsPerTenant": null,
+      "peerTenantReads": 0,
+      "saturated": {
+        "http": 503,
+        "graphQL": 200,
+        "code": "operation.capacity_exceeded"
+      },
+      "crossTenantDenials": 4,
+      "store": {
+        "Factories": 2,
+        "Disposals": 2,
+        "Reads": 1,
+        "Writes": 1
+      }
+    },
+    "invalid": {
+      "0": "usage.max_concurrent_operations",
+      "1": "usage.max_concurrent_operations",
+      "2": "usage.max_concurrent_operations",
+      "3": "usage.max_concurrent_operations",
+      "4": "usage.max_concurrent_operations",
+      "5": "usage.max_concurrent_operations",
+      "6": "usage.max_concurrent_operations"
+    },
+    "duplicate": "usage.option",
+    "disabled": {
+      "status": "disabled",
+      "address": null,
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      },
+      "scope": "No store, TLS/JWT import, services or listener created."
+    },
+    "export": {
+      "status": "passed",
+      "files": [
+        "manifest.json"
+      ],
+      "counters": {
+        "HttpSchemaOperations": 0,
+        "GraphQLRegistrations": 0,
+        "GraphQLServices": 0,
+        "GraphQLSchemaBuilds": 0,
+        "GraphQLProvidersCreated": 0,
+        "GraphQLProvidersDisposed": 0,
+        "HandlerFactoryCalls": 0,
+        "DispatchCalls": 0,
+        "HostFactories": 0,
+        "TlsReads": 0,
+        "AuthorityCalls": 0
+      }
+    }
+  },
+  "tenant_capacity": {
+    "proof": {
+      "status": "passed",
+      "maximumConcurrentOperations": 2,
+      "maximumConcurrentOperationsPerTenant": 1,
+      "peerTenantReads": 2,
+      "saturated": {
+        "http": 503,
+        "graphQL": 200,
+        "code": "operation.capacity_exceeded"
+      },
+      "crossTenantDenials": 4,
+      "store": {
+        "Factories": 4,
+        "Disposals": 4,
+        "Reads": 3,
+        "Writes": 1
+      }
+    },
+    "invalid": {
+      "no-host-limit": "usage.max_concurrent_operations_per_tenant",
+      "greater-than-host": "usage.max_concurrent_operations_per_tenant",
+      "zero-tenant": "usage.max_concurrent_operations_per_tenant",
+      "duplicate-tenant": "usage.option"
+    },
+    "disabled": {
+      "status": "disabled",
+      "address": null,
+      "counters": {
+        "HostFactories": 0,
+        "HostDisposals": 0,
+        "ApiFactories": 0,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 0
+      },
+      "scope": "No store, TLS/JWT import, services or listener created."
+    }
+  },
+  "drain": {
+    "status": "passed",
+    "observations": [
+      {
+        "tenantLimited": false,
+        "http": 200,
+        "Factories": 1,
+        "Writes": 1,
+        "Disposals": 1,
+        "HostDisposals": 1,
+        "waitedForRelease": true,
+        "held": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": false
+        },
+        "closing": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": true
+        },
+        "completed": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 0,
+          "IsAdmissionClosed": true
+        },
+        "tenantCapacity": null
+      },
+      {
+        "tenantLimited": true,
+        "http": 200,
+        "Factories": 1,
+        "Writes": 1,
+        "Disposals": 1,
+        "HostDisposals": 1,
+        "waitedForRelease": true,
+        "held": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": false
+        },
+        "closing": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 1,
+          "IsAdmissionClosed": true
+        },
+        "completed": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 0,
+          "IsAdmissionClosed": true
+        },
+        "tenantCapacity": {
+          "Total": {
+            "MaximumConcurrentOperations": 2,
+            "ActiveOperations": 0,
+            "IsAdmissionClosed": true
+          },
+          "MaximumConcurrentOperationsPerTenant": 1,
+          "ActiveTenants": 0
+        }
+      }
+    ]
+  },
+  "live_metrics": {
+    "status": "validated",
+    "input_sha256": "c6dcd87f43991071a266cb1ab05e5a01e889a3a7dca008c3aa4a3767001b03b0",
+    "completed_reads": 808,
+    "completed_writes": 2,
+    "cross_tenant_denials": 8,
+    "cases": [
+      {
+        "tenant_limited": false,
+        "collections": 28,
+        "periodic_collections": 22,
+        "observed_active_values": [
+          0,
+          1,
+          5
+        ],
+        "first_collection_microseconds": 832.6,
+        "median_collection_microseconds": 7.05,
+        "minimum_collection_microseconds": 3.9,
+        "maximum_collection_microseconds": 832.6,
+        "allocated_bytes": [
+          24,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "start_intervals_milliseconds": [
+          125.0801,
+          14.7697,
+          15.7049,
+          17.6079,
+          9.1966,
+          18.5128,
+          16.1167,
+          15.4782,
+          15.5704,
+          15.2538,
+          15.5904,
+          16.055,
+          16.0786,
+          15.0958,
+          13.264,
+          12.3324,
+          12.4787,
+          4.9977,
+          19.6749,
+          11.2181,
+          20.0817,
+          15.9472,
+          2.231,
+          12.9761,
+          5.4539,
+          9.9989,
+          1.1074
+        ]
+      },
+      {
+        "tenant_limited": true,
+        "collections": 14,
+        "periodic_collections": 8,
+        "observed_active_values": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "first_collection_microseconds": 295.2,
+        "median_collection_microseconds": 6.0,
+        "minimum_collection_microseconds": 2.7,
+        "maximum_collection_microseconds": 295.2,
+        "allocated_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "start_intervals_milliseconds": [
+          13.5205,
+          11.7735,
+          15.7116,
+          15.5879,
+          3.5809,
+          11.605,
+          15.1148,
+          15.9822,
+          16.0611,
+          2.1834,
+          13.9347,
+          0.471,
+          1.3179
+        ]
+      }
+    ],
+    "scope": "Controlled HTTPS fixture and collection cost; per-gauge values can represent different instants"
+  },
+  "private_fixture_helper_source_sha256": "e9b485646845c2dd941c0bc88ec428455639f34ce475a681cb76649476006cc0",
+  "private_fixture_permissions": {
+    "status": "created",
+    "permissionsVerified": true,
+    "permissions": "current-user-only protected DACL",
+    "scope": "Ephemeral private fixture; keys, password and tokens not printed"
+  },
+  "serve_process": {
+    "argv": [
+      "D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\consumer-artifacts\\bin\\Consumer\\release\\PortableConsumer.SmallApiProof.dll",
+      "--serve",
+      "--config",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\generated Small API \u0e44\u0e17\u0e22 & spaces\\appsettings.json",
+      "--certificate",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\.private-fixtures\\server.pfx",
+      "--public-key",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\.private-fixtures\\jwt-public.pem",
+      "--max-concurrent-operations",
+      "2",
+      "--max-concurrent-operations-per-tenant",
+      "1",
+      "--ready",
+      "D:\\Cephalon\\Cehpalon-Engine-Samples\\.local\\live-metrics-win02\\serve-ready.json"
+    ],
+    "pid": 436660,
+    "owned": true,
+    "exit": 0,
+    "stdout": "serve-stdout.txt",
+    "stderr": "serve-stderr.txt",
+    "stdout_sha256": "e225fa21a6816e2b4123ff628c9d609fe7286990d676aa48b7d02273cbc53f14",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "ready_capacity": {
+    "capacity": {
+      "MaximumConcurrentOperations": 2,
+      "ActiveOperations": 0,
+      "IsAdmissionClosed": false
+    },
+    "tenantCapacity": {
+      "Total": {
+        "MaximumConcurrentOperations": 2,
+        "ActiveOperations": 0,
+        "IsAdmissionClosed": false
+      },
+      "MaximumConcurrentOperationsPerTenant": 1,
+      "ActiveTenants": 0
+    }
+  },
+  "late_ready_failure": {
+    "status": "failed",
+    "code": "consumer.failure",
+    "message": "Small API input, trust, configuration or fixture operation was rejected; no secrets are included.",
+    "counters": {
+      "HostFactories": 1,
+      "HostDisposals": 1,
+      "ApiFactories": 1,
+      "GraphQLFactories": 0,
+      "ForbiddenFactories": 0,
+      "GraphQLServices": 0,
+      "Endpoints": 4
+    }
+  },
+  "external_serve": {
+    "observations": [
+      {
+        "subject": "alice",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 200,
+        "body": {
+          "tenant": "tenant-a",
+          "id": 1,
+          "label": "item-00001",
+          "revision": 0,
+          "amountMinorUnits": 17
+        }
+      },
+      {
+        "subject": "bob",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-b",
+        "path": "/api/catalog/get",
+        "status": 200,
+        "body": {
+          "tenant": "tenant-b",
+          "id": 1,
+          "label": "item-00001",
+          "revision": 0,
+          "amountMinorUnits": 17
+        }
+      },
+      {
+        "subject": "alice",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-b",
+        "path": "/api/catalog/get",
+        "status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "subject": "bob",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Access denied.",
+          "status": 403,
+          "code": "access.denied"
+        }
+      },
+      {
+        "subject": "anonymous",
+        "credential_kind": "anonymous",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 401,
+        "body": null
+      },
+      {
+        "subject": "anonymous",
+        "credential_kind": "untrusted-signing-key",
+        "tenant": "tenant-a",
+        "path": "/api/catalog/get",
+        "status": 401,
+        "body": null
+      },
+      {
+        "subject": "alice",
+        "credential_kind": "owner-fixture-token",
+        "tenant": "tenant-a",
+        "path": "/graphql",
+        "status": 404,
+        "body": null
+      }
+    ],
+    "stopped": {
+      "status": "stopped",
+      "counters": {
+        "HostFactories": 1,
+        "HostDisposals": 1,
+        "ApiFactories": 1,
+        "GraphQLFactories": 0,
+        "ForbiddenFactories": 0,
+        "GraphQLServices": 0,
+        "Endpoints": 4
+      },
+      "capacity": {
+        "MaximumConcurrentOperations": 2,
+        "ActiveOperations": 0,
+        "IsAdmissionClosed": true
+      },
+      "tenantCapacity": {
+        "Total": {
+          "MaximumConcurrentOperations": 2,
+          "ActiveOperations": 0,
+          "IsAdmissionClosed": true
+        },
+        "MaximumConcurrentOperationsPerTenant": 1,
+        "ActiveTenants": 0
+      },
+      "store": {
+        "Factories": 2,
+        "Constructors": 2,
+        "Reads": 2,
+        "Writes": 0,
+        "Disposals": 2
+      }
+    },
+    "credentials_retained_in_raw": false,
+    "material_scope": "Ephemeral synthetic generated-serve proof material only; no production credentials"
+  },
+  "finished_utc": "2026-11-20T03:14:55.007735+00:00"
+}
