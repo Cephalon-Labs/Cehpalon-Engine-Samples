@@ -1,0 +1,9 @@
+# Optional session-status boundary evidence
+
+See summary.json and manifests for exact clean Engine9850bed/Samples2f8643f source, complete Windows842/WSL839 components, Session66 perhost and actual generated HTTPS consumer206 perhost. Prior131 consumer and776/773 components retained, with explicit identity-shape compatibility correction. Registry/source digests match. No benchmark or full provider qualification.
+
+Final components/consumer are separate from attempts. Root failedWindows01 remains failed33/34 Identity: strict propertylist had not yet included approved SessionId; test-only correction keeps exactnames and checks string/read-only/Nullable. Its exact executing source is recovered from pinnedcommit and every recorded digest checked. Focused01 initializeslock;02locked labels/docs;03stronger rollback assertion; consumerprep fails beforeclone/build anddev01passes206. No attempt is discarded or relabeled. boundary-review.json is source-review attestation, not independent SDK/probe execution.
+
+Host ticket caching does not skip configured protected source rechecks. ActualJwtBearer callback1/status3 proves same-request readset revalidation; actual provider constructor0disabled/1selected is separate from prebuilt control data. PlainCore/unrelatedRequireAuthorization/hostUser are not automatically guarded. Observation cap is not I/O timeout/end-to-end revocation; providers own uniqueIDs/tombstones/consistency/timeouts. Already admitted work mayfinish. No raw sessionIDs in audit; managementaudit remains hostowned.
+
+Public allowlist excludes binaries/actualephemeralcredentials/privatekeys/tokens/certs/ciphertext/plaintextcredential. Original rawsource/log line endings and trailingblanks preserved; SHA256SUMS records bytefidelity. #3 Blocked, #20 and originalbenchmark criteria unchanged.
