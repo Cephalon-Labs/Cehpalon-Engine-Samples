@@ -32,11 +32,12 @@ await Check("public profile skips authentication policy audit and GraphQL servic
     Require((await client.PostAsJsonAsync("/document/read",new DocumentRequest("A","shared"))).StatusCode==HttpStatusCode.NotFound);
 });
 await using var host=new Host();await host.Start(tls,jwt);using var http=tls.Client(host.Address);
-async Task<(HttpStatusCode Status,string Body)> Post(string path,object body,string? token)
+async Task<(HttpStatusCode Status,string Body)> Post(string path,object body,string? token,HttpClient? target=null,string? cookie=null)
 {
     using var request=new HttpRequestMessage(HttpMethod.Post,path){Content=JsonContent.Create(body)};
     if(token is not null)request.Headers.Authorization=new("Bearer",token);
-    using var response=await http.SendAsync(request);return(response.StatusCode,await response.Content.ReadAsStringAsync());
+    if(cookie is not null)request.Headers.Add("Cookie",cookie);
+    using var response=await (target??http).SendAsync(request);return(response.StatusCode,await response.Content.ReadAsStringAsync());
 }
 async Task<(HttpStatusCode Status,string Body)> Graph(string field,string tenant,string? token,bool mutation=false)
     =>await Post("/graphql",new{query=(mutation?"mutation":"query")+" { "+field+"(input: { tenant: \""+tenant+"\", resourceId: \"shared\" }) { tenant revision } }"},token);
@@ -146,6 +147,172 @@ await Check("audit and GraphQL disabled create no owned stores/services/endpoint
     Require((await client.SendAsync(request)).IsSuccessStatusCode&&h.Audit is null&&h.AuditFactories==0&&h.GraphQLServices==0);
     Require((await client.PostAsJsonAsync("/graphql",new{query="{x}"})).StatusCode==HttpStatusCode.NotFound);
     Require((await client.PostAsJsonAsync("/history",new HistoryRequest("A"))).StatusCode==HttpStatusCode.NotFound);
+});
+await Check("default public JWKS pins key ID and algorithm without fallback",async()=>
+{
+    var before=host.Business.Factories;
+    Require((await Post("/document/read",read,jwt.Token(kid:"unknown-key"))).Status==HttpStatusCode.Unauthorized);
+    Require((await Post("/document/read",read,jwt.Token(algorithm:"PS256"))).Status==HttpStatusCode.Unauthorized&&host.Business.Factories==before);
+    Require(host.KeyProviderCalls==1);
+});
+await Check("one login switches A to B and following requests select independently",async()=>
+{
+    var login=jwt.Token("switcher");
+    Require((await Post("/tenant/select",new SwitchRequest("A"),login)).Status==HttpStatusCode.OK);
+    var selected=await Post("/tenant/select",new SwitchRequest("B"),login);
+    Require(selected.Status==HttpStatusCode.OK&&JsonDocument.Parse(selected.Body).RootElement.GetProperty("tenant").GetString()=="B");
+    var b=await Post("/document/read",new DocumentRequest("B","shared"),login);
+    var a=await Post("/document/read",read,login);
+    Require(JsonDocument.Parse(b.Body).RootElement.GetProperty("tenant").GetString()=="B"&&JsonDocument.Parse(a.Body).RootElement.GetProperty("tenant").GetString()=="A");
+});
+await Check("unauthorized destination denies switch without changing login authority",async()=>
+{
+    var before=host.Business.Factories;
+    Require((await Post("/tenant/select",new SwitchRequest("B"),alice)).Status==HttpStatusCode.Forbidden&&host.Business.Factories==before);
+    Require((await Post("/document/read",read,alice)).Status==HttpStatusCode.OK);
+    before=host.Business.Factories;Require((await Post("/tenant/select",new SwitchRequest("*"),alice)).Status==HttpStatusCode.BadRequest&&host.Business.Factories==before);
+});
+await Check("switch does not cache a grant across destination membership revocation",async()=>
+{
+    var login=jwt.Token("switcher");Require((await Post("/tenant/select",new SwitchRequest("B"),login)).Status==HttpStatusCode.OK);
+    host.Authority!.RevokeB=true;var before=host.Business.Factories;
+    try
+    {
+        Require((await Post("/document/read",new DocumentRequest("B","shared"),login)).Status==HttpStatusCode.Forbidden&&host.Business.Factories==before);
+        Require((await Post("/document/read",read,login)).Status==HttpStatusCode.OK);
+    }
+    finally{host.Authority.RevokeB=false;}
+});
+await Check("parallel requests retain independent A and B checked contexts",async()=>
+{
+    var both=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);var release=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);var entered=0;
+    host.Business.DocumentGate=async(_,token)=>{if(Interlocked.Increment(ref entered)==2)both.TrySetResult();await release.Task.WaitAsync(token);};
+    var login=jwt.Token("switcher");var a=Post("/document/read",read,login);var b=Post("/document/read",new DocumentRequest("B","shared"),login);
+    try
+    {
+        await both.Task.WaitAsync(TimeSpan.FromSeconds(5));release.TrySetResult();var results=await Task.WhenAll(a,b);
+        Require(results.All(r=>r.Status==HttpStatusCode.OK));
+        Require(JsonDocument.Parse(results[0].Body).RootElement.GetProperty("tenant").GetString()=="A"&&JsonDocument.Parse(results[1].Body).RootElement.GetProperty("tenant").GetString()=="B");
+    }
+    finally{release.TrySetResult();await Task.WhenAll(a,b);host.Business.DocumentGate=null;}
+});
+await Check("single-tenant memberships do not imply an aggregate read grant",async()=>
+{
+    var before=host.Business.Factories;var result=await Post("/document/read-all",new ReadSetRequest("shared"),jwt.Token("switcher"));
+    Require(result.Status==HttpStatusCode.Forbidden&&!result.Body.Contains("\"results\"")&&host.Business.Factories==before);
+});
+await Check("parallel GraphQL sibling fields keep A and B request contexts isolated",async()=>
+{
+    var both=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);var release=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);var entered=0;
+    host.Business.DocumentGate=async(_,token)=>{if(Interlocked.Increment(ref entered)==2)both.TrySetResult();await release.Task.WaitAsync(token);};
+    var call=Post("/graphql",new{query="query { a: document(input: { tenant: \"A\", resourceId: \"shared\" }) { tenant revision } b: document(input: { tenant: \"B\", resourceId: \"shared\" }) { tenant revision } }"},jwt.Token("switcher"));
+    try
+    {
+        await both.Task.WaitAsync(TimeSpan.FromSeconds(5));release.TrySetResult();var result=await call;
+        var json=JsonDocument.Parse(result.Body).RootElement;Require(!json.TryGetProperty("errors",out _));
+        Require(json.GetProperty("data").GetProperty("a").GetProperty("tenant").GetString()=="A"&&json.GetProperty("data").GetProperty("b").GetProperty("tenant").GetString()=="B");
+    }
+    finally{release.TrySetResult();await call;host.Business.DocumentGate=null;}
+});
+await Check("explicit read grant returns all and only its authorized tenants",async()=>
+{
+    var result=await Post("/document/read-all",new ReadSetRequest("shared"),jwt.Token("reporter"));
+    var rows=JsonDocument.Parse(result.Body).RootElement.GetProperty("results").EnumerateArray().ToArray();
+    Require(result.Status==HttpStatusCode.OK&&rows.Length==2&&rows.Select(r=>r.GetProperty("tenant").GetString()).Order().SequenceEqual(new[]{"A","B"}));
+    result=await Post("/document/read-all",new ReadSetRequest("shared"),jwt.Token("limited-reporter"));
+    rows=JsonDocument.Parse(result.Body).RootElement.GetProperty("results").EnumerateArray().ToArray();
+    Require(result.Status==HttpStatusCode.OK&&rows.Length==1&&rows[0].GetProperty("tenant").GetString()=="A");
+});
+await Check("caller subset cannot expand the trusted read set or use wildcard",async()=>
+{
+    var result=await Post("/document/read-all",new ReadSetRequest("shared",["B"]),jwt.Token("reporter"));
+    var rows=JsonDocument.Parse(result.Body).RootElement.GetProperty("results").EnumerateArray().ToArray();Require(result.Status==HttpStatusCode.OK&&rows.Length==1&&rows[0].GetProperty("tenant").GetString()=="B");
+    var before=host.Business.Factories;
+    Require((await Post("/document/read-all",new ReadSetRequest("shared",["B"]),jwt.Token("limited-reporter"))).Status==HttpStatusCode.Forbidden);
+    Require((await Post("/document/read-all",new ReadSetRequest("shared",["*"]),jwt.Token("reporter"))).Status==HttpStatusCode.BadRequest);
+    Require((await Post("/document/read-all",new ReadSetRequest("shared",["A","A"]),jwt.Token("reporter"))).Status==HttpStatusCode.BadRequest&&host.Business.Factories==before);
+});
+await Check("GraphQL uses generated switch and read-set gateways",async()=>
+{
+    var selected=await Post("/graphql",new{query="mutation { selectTenant(input: { tenant: \"B\" }) { tenant } }"},jwt.Token("switcher"));
+    Require(!selected.Body.Contains("\"errors\"")&&selected.Body.Contains("\"tenant\":\"B\""));
+    var all=await Post("/graphql",new{query="query { readSet(input: { resourceId: \"shared\" }) { results { tenant revision } } }"},jwt.Token("reporter"));
+    Require(!all.Body.Contains("\"errors\"")&&all.Body.Contains("\"tenant\":\"A\"")&&all.Body.Contains("\"tenant\":\"B\""));
+    var before=host.Business.Factories;
+    var denied=await Post("/graphql",new{query="query { readSet(input: { resourceId: \"shared\" }) { results { tenant revision } } }"},jwt.Token("alice"));
+    Require(denied.Body.Contains("access.denied")&&host.Business.Factories==before);
+});
+await Check("late tenant denial discards partial response and retains parent audit lineage",async()=>
+{
+    var first=host.Audit!.Count;var before=host.Business.Factories;var disposed=host.Business.Disposals;
+    host.Business.ReadSetHook=tenant=>{if(tenant.Value=="A")host.Authority!.RevokeB=true;};
+    try
+    {
+        var result=await Post("/document/read-all",new ReadSetRequest("shared"),jwt.Token("reporter"));
+        Require(result.Status==HttpStatusCode.Forbidden&&!result.Body.Contains("\"results\"")&&!result.Body.Contains("\"tenant\":\"A\""));
+        Require(host.Business.Factories==before+1&&host.Business.Disposals==disposed+1);
+        var events=host.Audit.Snapshot().Skip(first).ToArray();var root=events.Single(e=>e.ResourceKind=="tenant-read-set"&&e.Stage==Cehpalon.Engine.Tenancy.TenantAuditStage.Authorization);
+        Require(root.AuthorizedTenant is null&&root.ParentInvocationId is null);
+        Require(events.Single(e=>e.InvocationId==root.InvocationId&&e.Stage==Cehpalon.Engine.Tenancy.TenantAuditStage.Terminal).Outcome==Cehpalon.Engine.Tenancy.TenantAuditOutcome.Denied);
+        Require(events.Where(e=>e.ResourceKind!="tenant-read-set").All(e=>e.ParentInvocationId==root.InvocationId));
+    }
+    finally{host.Authority!.RevokeB=false;host.Business.ReadSetHook=null;}
+});
+await Check("successful read set requires root audit before reads and closes every child",async()=>
+{
+    var before=host.Business.Factories;var first=host.Audit!.Count;
+    host.Audit.AppendHook=e=>{if(e.ResourceKind=="tenant-read-set"&&e.Stage==Cehpalon.Engine.Tenancy.TenantAuditStage.Authorization)Require(host.Business.Factories==before);};
+    try
+    {
+        Require((await Post("/document/read-all",new ReadSetRequest("shared"),jwt.Token("reporter"))).Status==HttpStatusCode.OK);
+        var events=host.Audit.Snapshot().Skip(first).ToArray();var roots=events.Where(e=>e.ResourceKind=="tenant-read-set").ToArray();
+        Require(roots.Length==2&&roots.All(e=>e.AuthorizedTenant is null)&&roots[^1].Outcome==Cehpalon.Engine.Tenancy.TenantAuditOutcome.Succeeded);
+        var children=events.Where(e=>e.ParentInvocationId==roots[0].InvocationId).ToArray();Require(children.Length==4&&children.Select(e=>e.AuthorizedTenant!.Value).Distinct().Count()==2);
+        Require(host.Business.Factories==host.Business.Disposals);
+    }
+    finally{host.Audit.AppendHook=null;}
+});
+await Check("read sets preserve tenant checks when audit and GraphQL are disabled",async()=>
+{
+    await using var h=new Host();await h.Start(tls,jwt,graphql:false,audit:false);using var client=tls.Client(h.Address);
+    var result=await Post("/document/read-all",new ReadSetRequest("shared"),jwt.Token("reporter"),client);
+    Require(result.Status==HttpStatusCode.OK&&h.AuditFactories==0&&h.Audit is null&&h.GraphQLServices==0&&h.Business.Factories==2&&h.Business.Disposals==2);
+});
+foreach(var algorithm in new[]{"RS256","PS256","ES256","HS256"})
+{
+    using var profile=new JwtProfileFixture(algorithm);using var wrongKey=new JwtProfileFixture(algorithm);await using var h=new Host();
+    await h.Start(tls,jwt,jwtProfile:profile);using var client=tls.Client(h.Address);
+    await Check("configured "+algorithm+" profile authenticates HTTP and GraphQL",async()=>
+    {
+        Require((await Post("/document/read",read,profile.Token(),client)).Status==HttpStatusCode.OK);
+        var graph=await Post("/graphql",new{query="query { document(input: { tenant: \"A\", resourceId: \"shared\" }) { tenant revision } }"},profile.Token(),client);
+        Require(graph.Status==HttpStatusCode.OK&&!graph.Body.Contains("\"errors\"")&&h.KeyProviderCalls==1);
+    });
+    await Check("configured "+algorithm+" profile rejects unsigned wrong key and unknown kid",async()=>
+    {
+        var before=h.Business.Factories;
+        Require((await Post("/document/read",read,wrongKey.Token(),client)).Status==HttpStatusCode.Unauthorized);
+        Require((await Post("/document/read",read,profile.Token(unsigned:true),client)).Status==HttpStatusCode.Unauthorized);
+        Require((await Post("/document/read",read,profile.Token(kid:"not-in-profile"),client)).Status==HttpStatusCode.Unauthorized&&h.Business.Factories==before);
+    });
+}
+await Check("disabled security never loads a configured authentication key provider",async()=>
+{
+    using var profile=new JwtProfileFixture("HS256");await using var h=new Host();await h.Start(tls,jwt,false,false,false,false,true,jwtProfile:profile);
+    Require(h.SecurityFactories==0&&h.KeyProviderCalls==0&&h.AuthenticationServices==0);
+});
+await Check("actual cookie handler maps a live encrypted ticket without JWT or persistent keys",async()=>
+{
+    await using var h=new Host();await h.Start(tls,jwt,cookieAuthentication:true);using var client=tls.Client(h.Address);
+    var cookie=h.FixtureCookie();var result=await Post("/document/read",read,null,client,cookie);
+    Require(result.Status==HttpStatusCode.OK&&h.KeyProviderCalls==0&&h.IdentityScheme=="fixture-cookie");
+    var graph=await Post("/graphql",new{query="query { document(input: { tenant: \"A\", resourceId: \"shared\" }) { tenant revision } }"},null,client,cookie);
+    Require(graph.Status==HttpStatusCode.OK&&!graph.Body.Contains("\"errors\""));
+    var before=h.Business.Factories;
+    Require((await Post("/document/read",read,null,client,cookie+"!")).Status==HttpStatusCode.Unauthorized);
+    Require((await Post("/document/read",read,null,client,h.FixtureCookie(expired:true))).Status==HttpStatusCode.Unauthorized);
+    Require((await Post("/document/read",read,alice,client)).Status==HttpStatusCode.Unauthorized&&h.Business.Factories==before);
+    Require((await Post("/document/read",new DocumentRequest("B","shared"),null,client,cookie)).Status==HttpStatusCode.Forbidden&&h.Business.Factories==before);
 });
 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
 await using(var stream=new FileStream(output,FileMode.CreateNew))await JsonSerializer.SerializeAsync(stream,new{passed,failed,checks,scope="Local ephemeral TLS/JWT fixture; no external IdP or durable audit provider qualification",businessFactories=host.Business.Factories,businessDisposals=host.Business.Disposals,auditEvents=host.Audit!.Count});

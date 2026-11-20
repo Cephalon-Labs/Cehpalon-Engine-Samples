@@ -23,13 +23,20 @@ def main():
     env = dict(os.environ, DOTNET_NOLOGO='1', DOTNET_CLI_TELEMETRY_OPTOUT='1')
     report = {'status':'started', 'engine_revision':subprocess.check_output(['git','-C',str(engine),'rev-parse','HEAD'],text=True).strip(),
               'engine_dirty':bool(subprocess.check_output(['git','-C',str(engine),'status','--porcelain'],text=True).strip()),
+              'consumer_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+              'consumer_source_dirty':bool(subprocess.check_output(['git','status','--porcelain','--','security-api','tools/verify_optional_security.py'],cwd=ROOT,text=True).strip()),
               'scope':'Local generated Core/Composition HTTP/GraphQL/JWT RBAC/ABAC/audit fixture; no supported-host, durable provider or benchmark qualification',
               'source_sha256':{}}
     for root in [ROOT/'security-api', engine/'src']:
         for file in sorted(root.rglob('*')):
-            if file.is_file() and not {'obj','bin','evidence'}.intersection(file.relative_to(root).parts) and file.suffix in ('.cs','.csproj','.json','.txt'):
+            if file.is_file() and not {'obj','bin','evidence','.local'}.intersection(file.relative_to(root).parts) and file.suffix in ('.cs','.csproj','.json','.txt'):
                 key = ('consumer/' if root==ROOT/'security-api' else 'engine/')+file.relative_to(root).as_posix()
                 report['source_sha256'][key]=hashlib.sha256(file.read_bytes()).hexdigest()
+    for file in [Path(__file__).resolve(), ROOT/'global.json', ROOT/'NuGet.Config', engine/'global.json', engine/'NuGet.Config', engine/'Directory.Packages.props']:
+        prefix = 'engine/' if file.is_relative_to(engine) else 'consumer/'
+        relative = file.relative_to(engine if prefix=='engine/' else ROOT).as_posix()
+        report['source_sha256'][prefix+relative]=hashlib.sha256(file.read_bytes()).hexdigest()
+    (output/'frozen-verifier.py.txt').write_bytes(Path(__file__).read_bytes())
     artifacts=output/'artifacts'
     def run(args, name):
         result=subprocess.run([a.dotnet,*map(str,args)],cwd=ROOT,env=env,capture_output=True)
@@ -43,6 +50,10 @@ def main():
         if report['sdk']!=json.loads((engine/'global.json').read_text())['sdk']['version']: raise ValueError('SDK mismatch')
         common=['--artifacts-path',artifacts,'-p:EngineRoot='+str(engine)]
         run(['restore','security-api/SecurityApi.Consumer.csproj','--configfile',ROOT/'NuGet.Config',*common,*([] if a.initialize_lock else ['--locked-mode'])],'restore.txt')
+        # First lock initialization is explicit; freeze the resulting graph before compilation.
+        lock=ROOT/'security-api/packages.lock.json'
+        report['source_sha256']['consumer/packages.lock.json']=hashlib.sha256(lock.read_bytes()).hexdigest()
+        save()
         run(['build','security-api/SecurityApi.Consumer.csproj','-c','Release','--no-restore',*common,'-p:UseSharedCompilation=false','-warnaserror'],'build.txt')
         dll=artifacts/'bin/SecurityApi.Consumer/release/SecurityApi.Consumer.dll'
         run([dll,'--output='+str(output/'tests.json')],'run.txt')

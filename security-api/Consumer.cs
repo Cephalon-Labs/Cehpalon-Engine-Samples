@@ -5,6 +5,12 @@ using Cehpalon.Engine.Composition;
 using Cehpalon.Engine.Core;
 using Cehpalon.Engine.Identity;
 using Cehpalon.Engine.Identity.AspNetCore;
+using Cehpalon.Engine.Identity.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using Cehpalon.Engine.Tenancy;
 using Cehpalon.Engine.Transports.Http;
 using Cehpalon.Engine.Transports.GraphQL;
@@ -15,12 +21,18 @@ using Microsoft.IdentityModel.Tokens;
 namespace SecurityApi;
 
 public sealed record DocumentRequest(string Tenant,string ResourceId);
+public sealed record SwitchRequest(string Tenant);
+public sealed record SwitchResult(string Tenant);
+public sealed record ReadSetRequest(string ResourceId,string[]? Tenants=null);
+public sealed record ReadSetResult(DocumentResult[] Results);
 public sealed record HistoryRequest(string Tenant,int Limit=50,string? Cursor=null);
 public sealed record DocumentResult(string Tenant,int Revision);
 public sealed record HistoryResult(string Tenant,int Count,string[] Outcomes,string? NextCursor);
 
 public static class Bindings
 {
+    public static readonly OperationBinding<SwitchRequest,SwitchResult> Switch=new("tenant.select",r=>Tenant(r.Tenant)?null:Invalid());
+    public static readonly OperationBinding<ReadSetRequest,ReadSetResult> ReadSet=new("document.read_all",r=>r.ResourceId=="shared"&&(r.Tenants is null||r.Tenants.Length is >0 and <=64&&r.Tenants.All(Tenant)&&r.Tenants.Distinct(StringComparer.Ordinal).Count()==r.Tenants.Length)?null:Invalid());
     public static readonly OperationBinding<DocumentRequest,DocumentResult> Read=new("document.read",Validate);
     public static readonly OperationBinding<DocumentRequest,DocumentResult> Rbac=new("document.rbac",Validate);
     public static readonly OperationBinding<DocumentRequest,DocumentResult> Abac=new("document.abac",Validate);
@@ -32,13 +44,13 @@ public static class Bindings
 }
 
 // Controlled authority fixture; never read roles/department/tenant membership from the request.
-public sealed class Authority : ITenantMembershipSource,IResourceScopeSource,IAuthorizationFactsSource
+public sealed class Authority : ITenantMembershipSource,IResourceScopeSource,IAuthorizationFactsSource,ITenantReadSetSource
 {
-    public bool ReaderRevoked;
+    public bool ReaderRevoked;public volatile bool RevokeB;
     public ValueTask<TenantMembershipSnapshot?> ResolveAsync(IdentitySnapshot identity,TenantId tenant,CancellationToken token)
     {
         token.ThrowIfCancellationRequested();var subject=identity.Principal.Subject;
-        var allowed=subject is "alice" or "no-role" or "wrong-department" or "auditor" && tenant.Value=="A" || subject=="bob"&&tenant.Value=="B";
+        var allowed=((subject is "alice" or "no-role" or "wrong-department" or "auditor" or "limited-reporter")&&tenant.Value=="A" || subject=="bob"&&tenant.Value=="B" || subject is "switcher" or "reporter" && tenant.Value is "A" or "B")&&!(RevokeB&&tenant.Value=="B");
         return ValueTask.FromResult<TenantMembershipSnapshot?>(allowed?new(identity.Principal,tenant,true,DateTimeOffset.UtcNow.AddMinutes(-5),DateTimeOffset.UtcNow.AddMinutes(5),"m1"):null);
     }
     public ValueTask<ResourceScopeSnapshot?> ResolveAsync(TenantId tenant,string kind,string id,CancellationToken token)
@@ -46,12 +58,22 @@ public sealed class Authority : ITenantMembershipSource,IResourceScopeSource,IAu
     public ValueTask<AuthorizationFacts?> ResolveAsync(TenantAccessRequest r,CancellationToken token)
     {
         token.ThrowIfCancellationRequested();var subject=r.Identity.Principal.Subject;
-        string[] roles=subject=="auditor"?["auditor"]:subject=="no-role"||ReaderRevoked?[]:["reader"];
+        string[] roles=subject=="auditor"?["auditor"]:subject=="no-role"||ReaderRevoked?[]:["reader","member"];
         return ValueTask.FromResult<AuthorizationFacts?>(new(r.Identity.Principal,r.Tenant,r.Membership.Version,r.Resource.Kind,r.Resource.ResourceId,r.Resource.Version,
             DateTimeOffset.UtcNow.AddMinutes(-1),DateTimeOffset.UtcNow.AddMinutes(1),roles,
             new([new("department",subject=="wrong-department"?"sales":"finance")]),new([new("department","finance")]),new([new("network","private")])));
     }
+    public ValueTask<TenantReadSetSnapshot?> ResolveAsync(TenantReadSetRequest request,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();var subject=request.Identity.Principal.Subject;
+        if(request.OperationId!="document.read_all"||subject is not("reporter" or "limited-reporter"))return ValueTask.FromResult<TenantReadSetSnapshot?>(null);
+        TenantId[] tenants=subject=="reporter"?[new("A"),new("B")]:[new("A")];
+        return ValueTask.FromResult<TenantReadSetSnapshot?>(new(request.Identity.Principal,request.OperationId,request.ResourceKind,request.ResourceId,tenants,
+            DateTimeOffset.UtcNow.AddMinutes(-1),DateTimeOffset.UtcNow.AddMinutes(1),"read-set-v1"));
+    }
     public static AccessRule[] Rules()=>[
+        new("tenant.select","select","tenant",["member"]),
+        new("document.read_all","read","document",["reader"],[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department")]),
         new("document.read","read","document",["reader"],[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department"),AttributePredicate.EqualTo(AttributeScope.Environment,"network","private")]),
         new("document.rbac","read","document",["reader"]),
         new("document.abac","read","document",allAttributes:[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department")]),
@@ -64,7 +86,7 @@ public sealed class Authority : ITenantMembershipSource,IResourceScopeSource,IAu
 public sealed class MemoryAuditStore:ITenantAuditSink,ITenantAuditHistorySource
 {
     private readonly object gate=new();private readonly List<TenantAuditEvent> events=[];
-    public bool Fail;public int Count{get{lock(gate)return events.Count;}}
+    public bool Fail;public Action<TenantAuditEvent>? AppendHook;public int Count{get{lock(gate)return events.Count;}}
     public TenantAuditEvent[] Snapshot(){lock(gate)return events.ToArray();}
     public ValueTask AppendAsync(TenantAuditEvent entry,CancellationToken token)
     {
@@ -72,7 +94,7 @@ public sealed class MemoryAuditStore:ITenantAuditSink,ITenantAuditHistorySource
         {
             if(Fail||events.Count>=1024)throw new IOException("Fixture audit unavailable.");
             if(events.Any(e=>e.InvocationId==entry.InvocationId&&e.Stage==entry.Stage))throw new InvalidOperationException("Duplicate fixture audit record.");
-            events.Add(entry);
+            AppendHook?.Invoke(entry);events.Add(entry);
         }
         return ValueTask.CompletedTask;
     }
@@ -89,7 +111,7 @@ public sealed class MemoryAuditStore:ITenantAuditSink,ITenantAuditHistorySource
 
 public sealed class BusinessState
 {
-    public int Factories,Disposals;private readonly Dictionary<string,int> revisions=new(StringComparer.Ordinal);
+    public int Factories,Disposals;public Action<TenantId>? ReadSetHook;public Func<TenantId,CancellationToken,Task>? ReadSetGate;public Func<TenantId,CancellationToken,Task>? DocumentGate;private readonly Dictionary<string,int> revisions=new(StringComparer.Ordinal);
     public DocumentResult Read(TenantOperationContext context,bool write)
     {
         context.DemandAccess(context.Tenant,"document","shared",write?"write":"read");
@@ -98,8 +120,8 @@ public sealed class BusinessState
 }
 public sealed class DocumentHandler(BusinessState state):ITenantOperationHandler<DocumentRequest,DocumentResult>,IDisposable
 {
-    public ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest request,TenantOperationContext context,CancellationToken token)
-    {token.ThrowIfCancellationRequested();return ValueTask.FromResult(OperationResult<DocumentResult>.Success(state.Read(context,context.Action=="write")));}
+    public async ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest request,TenantOperationContext context,CancellationToken token)
+    {if(state.DocumentGate is not null)await state.DocumentGate(context.Tenant,token);token.ThrowIfCancellationRequested();return OperationResult<DocumentResult>.Success(state.Read(context,context.Action=="write"));}
     public void Dispose()=>Interlocked.Increment(ref state.Disposals);
 }
 public sealed class HistoryHandler(TenantAuditHistoryReader reader,BusinessState state):ITenantOperationHandler<HistoryRequest,HistoryResult>,IDisposable
@@ -124,11 +146,11 @@ public sealed class UpdateGateway(TenantOperationDispatcher dispatcher):IOperati
 [Operation("history.read")]
 public sealed class HistoryGateway(TenantOperationDispatcher dispatcher):IOperationHandler<HistoryRequest,HistoryResult>
 {public ValueTask<OperationResult<HistoryResult>> HandleAsync(HistoryRequest r,OperationContext c,CancellationToken t)=>dispatcher.DispatchAsync<HistoryRequest,HistoryResult>("history.read",r,c,t);}
-public sealed class Gateways(TenantOperationDispatcher dispatcher):IOperationHandlerFactory
+public sealed class Gateways(TenantOperationDispatcher dispatcher,TenantReadSetDispatcher readSetDispatcher,BusinessState state):IOperationHandlerFactory
 {
     public THandler Create<THandler>() where THandler:class=>(THandler)(object)(typeof(THandler)==typeof(ReadGateway)?new ReadGateway(dispatcher):
         typeof(THandler)==typeof(RbacGateway)?new RbacGateway(dispatcher):typeof(THandler)==typeof(AbacGateway)?new AbacGateway(dispatcher):
-        typeof(THandler)==typeof(UpdateGateway)?new UpdateGateway(dispatcher):typeof(THandler)==typeof(HistoryGateway)?new HistoryGateway(dispatcher):throw new InvalidOperationException("Unknown generated gateway."));
+        typeof(THandler)==typeof(SwitchGateway)?new SwitchGateway(dispatcher):typeof(THandler)==typeof(ReadSetGateway)?new ReadSetGateway(readSetDispatcher,state):typeof(THandler)==typeof(UpdateGateway)?new UpdateGateway(dispatcher):typeof(THandler)==typeof(HistoryGateway)?new HistoryGateway(dispatcher):throw new InvalidOperationException("Unknown generated gateway."));
 }
 
 public sealed class Bridge(Host host):ITransportOperationDispatcher
@@ -136,26 +158,35 @@ public sealed class Bridge(Host host):ITransportOperationDispatcher
     public ValueTask<OperationResult<TResponse>> DispatchAsync<TRequest,TResponse>(HttpContext http,string id,TRequest request,OperationContext context,CancellationToken token)
     {
         DocumentHandler Factory(){Interlocked.Increment(ref host.Business.Factories);return new(host.Business);}
-        var builder=new TenantOperationRegistryBuilder();
+        var builder=new TenantOperationRegistryBuilder().RegisterTenantSelection();
         foreach(var op in new[]{"document.read","document.rbac","document.abac","document.update"})
             builder.Register<DocumentRequest,DocumentResult>(op,op=="document.update"?"write":"read","document",r=>r with{},r=>new(new(r.Tenant),r.ResourceId),Factory);
         if(host.Audit is not null)builder.Register<HistoryRequest,HistoryResult>("history.read","read","audit-history",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref host.Business.Factories);return new HistoryHandler(new(host.Audit),host.Business);});
-        var services=new TenantSecurityServices(new AspNetCoreJwtIdentitySource(new HttpContextAccessor{HttpContext=http},JwtBearerDefaults.AuthenticationScheme),
-            new([JwtFixture.Issuer],[JwtBearerDefaults.AuthenticationScheme]),host.Authority!,host.Authority!,TimeSpan.FromSeconds(30),host.Policy,audit:host.Audit is null?null:new(host.Audit));
+        var accessor=new FixedContextAccessor(http);
+        IIdentitySource identitySource=host.CookieAuthentication
+            ?new AspNetCoreIdentitySource(accessor,host.IdentityScheme,new TicketPropertyIdentityMapper(JwtFixture.Issuer))
+            :new AspNetCoreJwtIdentitySource(accessor,host.IdentityScheme);
+        var services=new TenantSecurityServices(identitySource,
+            new([JwtFixture.Issuer],[host.IdentityScheme]),host.Authority!,host.Authority!,TimeSpan.FromSeconds(30),host.Policy,audit:host.Audit is null?null:new(host.Audit));
         var dispatcher=new TenantOperationDispatcher(builder.Build(),services);var core=new OperationRegistryBuilder();
-        Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core,new Gateways(dispatcher));
+        Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core,new Gateways(dispatcher,new(services,host.Authority!),host.Business));
         return new OperationDispatcher(core.Build()).DispatchAsync<TRequest,TResponse>(id,request,context,token);
     }
+    // This request-owned adapter must not mutate ASP.NET's ambient static AsyncLocal holder.
+    private sealed class FixedContextAccessor(HttpContext context):IHttpContextAccessor
+    {public HttpContext? HttpContext{get;set;}=context;}
 }
 
 public sealed class Host:IAsyncDisposable
 {
     public WebApplication? App;private ActivationLease? lease;
     public Authority? Authority;public RoleAttributeAccessPolicy? Policy;public MemoryAuditStore? Audit;
-    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices;
+    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices,KeyProviderCalls;
+    public string IdentityScheme{get;private set;}="Bearer";public bool CookieAuthentication{get;private set;}
     public Uri Address=>new(App!.Urls.Single());
-    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false)
+    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false)
     {
+        CookieAuthentication=cookieAuthentication;IdentityScheme=cookieAuthentication?"fixture-cookie":"Bearer";
         var config=System.Text.Json.JsonSerializer.Serialize(new{Cehpalon=new{SchemaVersion=1,Architecture="Modular",Topology="SingleProcess",Pattern="RequestReply",Modules=new{
             api=new{Enabled=api},graphql=new{Enabled=graphql},security=new{Enabled=security},audit=new{Enabled=audit},@public=new{Enabled=publicEndpoint}}}});
         var hostDependencies=new List<string>();if(api||graphql)hostDependencies.Add("security");if(audit)hostDependencies.Add("audit");
@@ -173,15 +204,29 @@ public sealed class Host:IAsyncDisposable
                 if(security)
                 {
                     builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(this));
-                    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o=>{
-                        o.MapInboundClaims=false;o.IncludeErrorDetails=false;o.TokenValidationParameters=new(){ValidateIssuerSigningKey=true,IssuerSigningKey=jwt.PublicKey,
-                            ValidateIssuer=true,ValidIssuer=JwtFixture.Issuer,ValidateAudience=true,ValidAudience=JwtFixture.Audience,ValidateLifetime=true,RequireExpirationTime=true,
-                            RequireSignedTokens=true,ClockSkew=TimeSpan.Zero,ValidAlgorithms=[SecurityAlgorithms.RsaSha256],ValidTypes=["at+jwt"]};});
+                    if(cookieAuthentication)
+                    {
+                        builder.Services.AddAuthentication(IdentityScheme).AddCookie(IdentityScheme,o=>{
+                            o.Cookie.Name="cehpalon.fixture";o.Cookie.SecurePolicy=CookieSecurePolicy.Always;o.SlidingExpiration=false;
+                            o.Events.OnRedirectToLogin=c=>{c.Response.StatusCode=StatusCodes.Status401Unauthorized;return Task.CompletedTask;};
+                            o.Events.OnRedirectToAccessDenied=c=>{c.Response.StatusCode=StatusCodes.Status403Forbidden;return Task.CompletedTask;};});
+                        builder.Services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
+                    }
+                    else
+                    {
+                        var settings=jwtProfile?.Settings??new JwtProfileSettings{Scheme=IdentityScheme,Issuer=JwtFixture.Issuer,Audience=JwtFixture.Audience,Algorithm="RS256",KeySource=JwtKeySource.PublicJwks};
+                        var configBytes=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new{Authentication=settings});
+                        builder.Configuration.AddJsonStream(new MemoryStream(configBytes));
+                        var profile=new JwtAuthenticationProfile(builder.Configuration.GetSection("Authentication").Get<JwtProfileSettings>()!);
+                        var authentication=builder.Services.AddAuthentication(IdentityScheme);
+                        if(profile.KeySource==JwtKeySource.PublicJwks)authentication.AddCehpalonJwtBearer(profile,publicJwks:()=>{KeyProviderCalls++;return jwtProfile is null?jwt.PublicJwks():jwtProfile.PublicJwks();});
+                        else authentication.AddCehpalonJwtBearer(profile,providedKeys:()=>{KeyProviderCalls++;return [jwtProfile!.VerificationKey];});
+                    }
                     builder.Services.AddAuthorization();
                 }
                 if(graphql)
                 {
-                    var catalog=new GraphQLOperationCatalog.Builder().AddQuery("document",Bindings.Read).AddQuery("rbac",Bindings.Rbac).AddQuery("abac",Bindings.Abac).AddMutation("updateDocument",Bindings.Update);
+                    var catalog=new GraphQLOperationCatalog.Builder().AddQuery("readSet",Bindings.ReadSet).AddQuery("document",Bindings.Read).AddQuery("rbac",Bindings.Rbac).AddQuery("abac",Bindings.Abac).AddMutation("updateDocument",Bindings.Update).AddMutation("selectTenant",Bindings.Switch);
                     if(audit)catalog.AddQuery("history",Bindings.History);builder.Services.AddCehpalonGraphQL(catalog.Build());
                 }
                 GraphQLServices=builder.Services.Count(s=>(s.ServiceType.FullName??"").StartsWith("HotChocolate.",StringComparison.Ordinal));
@@ -191,11 +236,22 @@ public sealed class Host:IAsyncDisposable
                 {
                     if(security){app.UseAuthentication();app.UseAuthorization();}
                     if(publicEndpoint)app.MapGet("/health",()=>Results.Ok(new{status="ok"}));
-                    if(api){app.MapOperation("/document/read",Bindings.Read);app.MapOperation("/document/rbac",Bindings.Rbac);app.MapOperation("/document/abac",Bindings.Abac);app.MapOperation("/document/update",Bindings.Update);if(audit)app.MapOperation("/history",Bindings.History);}
+                    if(api){app.MapOperation("/tenant/select",Bindings.Switch);app.MapOperation("/document/read-all",Bindings.ReadSet);app.MapOperation("/document/read",Bindings.Read);app.MapOperation("/document/rbac",Bindings.Rbac);app.MapOperation("/document/abac",Bindings.Abac);app.MapOperation("/document/update",Bindings.Update);if(audit)app.MapOperation("/history",Bindings.History);}
                     if(graphql)app.MapCehpalonGraphQL();await app.StartAsync(token);return new HostLease(app);
                 }
                 catch{await app.DisposeAsync();throw;}
             })]);
+    }
+    // Fixture-only cookie creation uses the real handler ticket format and an ephemeral provider.
+    // No login endpoint, password flow, persisted key ring or account-management claim is introduced.
+    public string FixtureCookie(string subject="alice",bool expired=false)
+    {
+        if(!CookieAuthentication)throw new InvalidOperationException("Cookie fixture is not selected.");
+        var now=DateTimeOffset.UtcNow;
+        var properties=new AuthenticationProperties{IssuedUtc=now.AddMinutes(-5),ExpiresUtc=expired?now.AddMinutes(-1):now.AddMinutes(5)};
+        var principal=new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier,subject)],IdentityScheme));
+        var format=App!.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(IdentityScheme).TicketDataFormat;
+        return "cehpalon.fixture="+format.Protect(new AuthenticationTicket(principal,properties,IdentityScheme));
     }
     public async ValueTask DisposeAsync(){if(lease is not null)await lease.DisposeAsync();}
     private sealed class Empty:IAsyncDisposable{public ValueTask DisposeAsync()=>ValueTask.CompletedTask;}

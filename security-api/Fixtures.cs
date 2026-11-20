@@ -23,14 +23,16 @@ public sealed class JwtFixture : IDisposable
 {
     public const string Issuer="urn:cehpalon:small-api-fixture", Audience="cehpalon-small-api-fixture";
     private readonly RSA key=RSA.Create(2048);
-    public SecurityKey PublicKey => new RsaSecurityKey(key.ExportParameters(false));
-    public string Token(string subject="alice",string issuer=Issuer,string audience=Audience,bool expired=false,bool duplicateSubject=false,string type="at+jwt")
+    public SecurityKey PublicKey => new RsaSecurityKey(key.ExportParameters(false)){KeyId="fixture-rsa"};
+    public string PublicJwks()=>System.Text.Json.JsonSerializer.Serialize(new{keys=new[]{new{kty="RSA",kid="fixture-rsa",use="sig",alg="RS256",n=Base64UrlEncoder.Encode(key.ExportParameters(false).Modulus!),e=Base64UrlEncoder.Encode(key.ExportParameters(false).Exponent!)}}});
+    public string Token(string subject="alice",string issuer=Issuer,string audience=Audience,bool expired=false,bool duplicateSubject=false,string type="at+jwt",string algorithm=SecurityAlgorithms.RsaSha256,string? kid=null)
     {
         var now=DateTime.UtcNow;
         var claims=new List<Claim>{new("sub",subject)};
         if(duplicateSubject) claims.Add(new("sub","mallory"));
-        var token=new JwtSecurityToken(issuer,audience,claims,now.AddMinutes(-5),expired?now.AddMinutes(-1):now.AddMinutes(5),new SigningCredentials(new RsaSecurityKey(key),SecurityAlgorithms.RsaSha256));
+        var token=new JwtSecurityToken(issuer,audience,claims,now.AddMinutes(-5),expired?now.AddMinutes(-1):now.AddMinutes(5),new SigningCredentials(new RsaSecurityKey(key){KeyId="fixture-rsa"},algorithm));
         token.Header["typ"]=type;
+        if(kid is not null)token.Header["kid"]=kid;
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
     public static bool ExactClaims(ClaimsPrincipal principal)
