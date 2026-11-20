@@ -164,7 +164,14 @@ def arm(prepared, output, tenant, enabled, profile):
         client.send(json.dumps({key: private[key] for key in ['address', 'root', 'alice', 'bob']}))
         private.clear()
         warmed = client.receive('warmed'); record['warmup_signal'] = warmed
-        assert warmed['passed'] and warmed['connections'] == 32
+        if not warmed['passed'] or warmed['connections'] != 32:
+            # The client is waiting at its phase barrier. Let its finally persist
+            # every warmup row before stopping the host or terminating anything.
+            client.send('ABORT')
+            record['persisted_signal'] = client.receive('persisted')
+            client.process.wait(timeout=15)
+            record['failure_phase'] = 'warmup'
+            raise RuntimeError('Warmup rejected; client rows preserved')
         host.send('BEGIN'); record['begin_signal'] = host.receive('begin')
         client.send('MEASURE'); measured = client.receive('measured')
         host.send('END'); record['end_signal'] = host.receive('end')
@@ -214,7 +221,11 @@ def run(args):
                     name = f'{"tenant" if tenant else "host"}-{pair:02d}-{"listener" if enabled else "baseline"}'
                     entry = {'name': name, 'tenant': tenant, 'pair': pair, 'listener': enabled, 'status': 'started'}
                     manifest['arms'].append(entry); save(output / 'manifest.json', manifest)
-                    arm(prepared, output / name, tenant, enabled, args.profile)
+                    try:
+                        arm(prepared, output / name, tenant, enabled, args.profile)
+                    except Exception:
+                        entry['status'] = 'failed'
+                        raise
                     entry['status'] = 'passed'; save(output / 'manifest.json', manifest)
         manifest['status'] = 'passed'
     except Exception as error:
