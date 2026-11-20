@@ -1,0 +1,203 @@
+using System.Globalization;
+using System.Net;
+using Cehpalon.Engine.Authorization;
+using Cehpalon.Engine.Composition;
+using Cehpalon.Engine.Core;
+using Cehpalon.Engine.Identity;
+using Cehpalon.Engine.Identity.AspNetCore;
+using Cehpalon.Engine.Tenancy;
+using Cehpalon.Engine.Transports.Http;
+using Cehpalon.Engine.Transports.GraphQL;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.IdentityModel.Tokens;
+
+namespace SecurityApi;
+
+public sealed record DocumentRequest(string Tenant,string ResourceId);
+public sealed record HistoryRequest(string Tenant,int Limit=50,string? Cursor=null);
+public sealed record DocumentResult(string Tenant,int Revision);
+public sealed record HistoryResult(string Tenant,int Count,string[] Outcomes,string? NextCursor);
+
+public static class Bindings
+{
+    public static readonly OperationBinding<DocumentRequest,DocumentResult> Read=new("document.read",Validate);
+    public static readonly OperationBinding<DocumentRequest,DocumentResult> Rbac=new("document.rbac",Validate);
+    public static readonly OperationBinding<DocumentRequest,DocumentResult> Abac=new("document.abac",Validate);
+    public static readonly OperationBinding<DocumentRequest,DocumentResult> Update=new("document.update",Validate);
+    public static readonly OperationBinding<HistoryRequest,HistoryResult> History=new("history.read",r=>Tenant(r.Tenant)&&r.Limit is >=1 and <=200&&(r.Cursor is null||int.TryParse(r.Cursor,NumberStyles.None,CultureInfo.InvariantCulture,out var n)&&n>=0)?null:Invalid());
+    private static OperationError? Validate(DocumentRequest r)=>Tenant(r.Tenant)&&r.ResourceId=="shared"?null:Invalid();
+    private static bool Tenant(string value)=>value is "A" or "B";
+    private static OperationError Invalid()=>new("request.invalid","Invalid input.");
+}
+
+// Controlled authority fixture; never read roles/department/tenant membership from the request.
+public sealed class Authority : ITenantMembershipSource,IResourceScopeSource,IAuthorizationFactsSource
+{
+    public bool ReaderRevoked;
+    public ValueTask<TenantMembershipSnapshot?> ResolveAsync(IdentitySnapshot identity,TenantId tenant,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();var subject=identity.Principal.Subject;
+        var allowed=subject is "alice" or "no-role" or "wrong-department" or "auditor" && tenant.Value=="A" || subject=="bob"&&tenant.Value=="B";
+        return ValueTask.FromResult<TenantMembershipSnapshot?>(allowed?new(identity.Principal,tenant,true,DateTimeOffset.UtcNow.AddMinutes(-5),DateTimeOffset.UtcNow.AddMinutes(5),"m1"):null);
+    }
+    public ValueTask<ResourceScopeSnapshot?> ResolveAsync(TenantId tenant,string kind,string id,CancellationToken token)
+    {token.ThrowIfCancellationRequested();return ValueTask.FromResult<ResourceScopeSnapshot?>(new(tenant,kind,id,"r1"));}
+    public ValueTask<AuthorizationFacts?> ResolveAsync(TenantAccessRequest r,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();var subject=r.Identity.Principal.Subject;
+        string[] roles=subject=="auditor"?["auditor"]:subject=="no-role"||ReaderRevoked?[]:["reader"];
+        return ValueTask.FromResult<AuthorizationFacts?>(new(r.Identity.Principal,r.Tenant,r.Membership.Version,r.Resource.Kind,r.Resource.ResourceId,r.Resource.Version,
+            DateTimeOffset.UtcNow.AddMinutes(-1),DateTimeOffset.UtcNow.AddMinutes(1),roles,
+            new([new("department",subject=="wrong-department"?"sales":"finance")]),new([new("department","finance")]),new([new("network","private")])));
+    }
+    public static AccessRule[] Rules()=>[
+        new("document.read","read","document",["reader"],[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department"),AttributePredicate.EqualTo(AttributeScope.Environment,"network","private")]),
+        new("document.rbac","read","document",["reader"]),
+        new("document.abac","read","document",allAttributes:[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department")]),
+        new("document.update","write","document",["reader"],[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department")]),
+        new("history.read","read","audit-history",["auditor"])
+    ];
+}
+
+// Bounded fixture store. Production consumers supply durable append/history implementations.
+public sealed class MemoryAuditStore:ITenantAuditSink,ITenantAuditHistorySource
+{
+    private readonly object gate=new();private readonly List<TenantAuditEvent> events=[];
+    public bool Fail;public int Count{get{lock(gate)return events.Count;}}
+    public TenantAuditEvent[] Snapshot(){lock(gate)return events.ToArray();}
+    public ValueTask AppendAsync(TenantAuditEvent entry,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();lock(gate)
+        {
+            if(Fail||events.Count>=1024)throw new IOException("Fixture audit unavailable.");
+            if(events.Any(e=>e.InvocationId==entry.InvocationId&&e.Stage==entry.Stage))throw new InvalidOperationException("Duplicate fixture audit record.");
+            events.Add(entry);
+        }
+        return ValueTask.CompletedTask;
+    }
+    public ValueTask<TenantAuditHistoryPage> ReadAsync(TenantId tenant,int limit,string? cursor,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();var offset=cursor is null?0:int.Parse(cursor,NumberStyles.None,CultureInfo.InvariantCulture);
+        lock(gate)
+        {
+            var rows=events.Where(e=>tenant.Equals(e.AuthorizedTenant)).ToArray();var page=rows.Skip(offset).Take(limit).ToArray();
+            var next=offset+page.Length;return ValueTask.FromResult(new TenantAuditHistoryPage(page,next<rows.Length?next.ToString(CultureInfo.InvariantCulture):null));
+        }
+    }
+}
+
+public sealed class BusinessState
+{
+    public int Factories,Disposals;private readonly Dictionary<string,int> revisions=new(StringComparer.Ordinal);
+    public DocumentResult Read(TenantOperationContext context,bool write)
+    {
+        context.DemandAccess(context.Tenant,"document","shared",write?"write":"read");
+        lock(revisions){revisions.TryGetValue(context.Tenant.Value,out var revision);if(write)revisions[context.Tenant.Value]=++revision;return new(context.Tenant.Value,revision);}
+    }
+}
+public sealed class DocumentHandler(BusinessState state):ITenantOperationHandler<DocumentRequest,DocumentResult>,IDisposable
+{
+    public ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest request,TenantOperationContext context,CancellationToken token)
+    {token.ThrowIfCancellationRequested();return ValueTask.FromResult(OperationResult<DocumentResult>.Success(state.Read(context,context.Action=="write")));}
+    public void Dispose()=>Interlocked.Increment(ref state.Disposals);
+}
+public sealed class HistoryHandler(TenantAuditHistoryReader reader,BusinessState state):ITenantOperationHandler<HistoryRequest,HistoryResult>,IDisposable
+{
+    public async ValueTask<OperationResult<HistoryResult>> HandleAsync(HistoryRequest request,TenantOperationContext context,CancellationToken token)
+    {var page=await reader.ReadAsync(context,request.Limit,request.Cursor,token);return OperationResult<HistoryResult>.Success(new(context.Tenant.Value,page.Entries.Count,page.Entries.Select(e=>e.Outcome.ToString()).ToArray(),page.NextCursor));}
+    public void Dispose()=>Interlocked.Increment(ref state.Disposals);
+}
+
+[Operation("document.read")]
+public sealed class ReadGateway(TenantOperationDispatcher dispatcher):IOperationHandler<DocumentRequest,DocumentResult>
+{public ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest r,OperationContext c,CancellationToken t)=>dispatcher.DispatchAsync<DocumentRequest,DocumentResult>("document.read",r,c,t);}
+[Operation("document.rbac")]
+public sealed class RbacGateway(TenantOperationDispatcher dispatcher):IOperationHandler<DocumentRequest,DocumentResult>
+{public ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest r,OperationContext c,CancellationToken t)=>dispatcher.DispatchAsync<DocumentRequest,DocumentResult>("document.rbac",r,c,t);}
+[Operation("document.abac")]
+public sealed class AbacGateway(TenantOperationDispatcher dispatcher):IOperationHandler<DocumentRequest,DocumentResult>
+{public ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest r,OperationContext c,CancellationToken t)=>dispatcher.DispatchAsync<DocumentRequest,DocumentResult>("document.abac",r,c,t);}
+[Operation("document.update")]
+public sealed class UpdateGateway(TenantOperationDispatcher dispatcher):IOperationHandler<DocumentRequest,DocumentResult>
+{public ValueTask<OperationResult<DocumentResult>> HandleAsync(DocumentRequest r,OperationContext c,CancellationToken t)=>dispatcher.DispatchAsync<DocumentRequest,DocumentResult>("document.update",r,c,t);}
+[Operation("history.read")]
+public sealed class HistoryGateway(TenantOperationDispatcher dispatcher):IOperationHandler<HistoryRequest,HistoryResult>
+{public ValueTask<OperationResult<HistoryResult>> HandleAsync(HistoryRequest r,OperationContext c,CancellationToken t)=>dispatcher.DispatchAsync<HistoryRequest,HistoryResult>("history.read",r,c,t);}
+public sealed class Gateways(TenantOperationDispatcher dispatcher):IOperationHandlerFactory
+{
+    public THandler Create<THandler>() where THandler:class=>(THandler)(object)(typeof(THandler)==typeof(ReadGateway)?new ReadGateway(dispatcher):
+        typeof(THandler)==typeof(RbacGateway)?new RbacGateway(dispatcher):typeof(THandler)==typeof(AbacGateway)?new AbacGateway(dispatcher):
+        typeof(THandler)==typeof(UpdateGateway)?new UpdateGateway(dispatcher):typeof(THandler)==typeof(HistoryGateway)?new HistoryGateway(dispatcher):throw new InvalidOperationException("Unknown generated gateway."));
+}
+
+public sealed class Bridge(Host host):ITransportOperationDispatcher
+{
+    public ValueTask<OperationResult<TResponse>> DispatchAsync<TRequest,TResponse>(HttpContext http,string id,TRequest request,OperationContext context,CancellationToken token)
+    {
+        DocumentHandler Factory(){Interlocked.Increment(ref host.Business.Factories);return new(host.Business);}
+        var builder=new TenantOperationRegistryBuilder();
+        foreach(var op in new[]{"document.read","document.rbac","document.abac","document.update"})
+            builder.Register<DocumentRequest,DocumentResult>(op,op=="document.update"?"write":"read","document",r=>r with{},r=>new(new(r.Tenant),r.ResourceId),Factory);
+        if(host.Audit is not null)builder.Register<HistoryRequest,HistoryResult>("history.read","read","audit-history",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref host.Business.Factories);return new HistoryHandler(new(host.Audit),host.Business);});
+        var services=new TenantSecurityServices(new AspNetCoreJwtIdentitySource(new HttpContextAccessor{HttpContext=http},JwtBearerDefaults.AuthenticationScheme),
+            new([JwtFixture.Issuer],[JwtBearerDefaults.AuthenticationScheme]),host.Authority!,host.Authority!,TimeSpan.FromSeconds(30),host.Policy,audit:host.Audit is null?null:new(host.Audit));
+        var dispatcher=new TenantOperationDispatcher(builder.Build(),services);var core=new OperationRegistryBuilder();
+        Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core,new Gateways(dispatcher));
+        return new OperationDispatcher(core.Build()).DispatchAsync<TRequest,TResponse>(id,request,context,token);
+    }
+}
+
+public sealed class Host:IAsyncDisposable
+{
+    public WebApplication? App;private ActivationLease? lease;
+    public Authority? Authority;public RoleAttributeAccessPolicy? Policy;public MemoryAuditStore? Audit;
+    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices;
+    public Uri Address=>new(App!.Urls.Single());
+    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false)
+    {
+        var config=System.Text.Json.JsonSerializer.Serialize(new{Cehpalon=new{SchemaVersion=1,Architecture="Modular",Topology="SingleProcess",Pattern="RequestReply",Modules=new{
+            api=new{Enabled=api},graphql=new{Enabled=graphql},security=new{Enabled=security},audit=new{Enabled=audit},@public=new{Enabled=publicEndpoint}}}});
+        var hostDependencies=new List<string>();if(api||graphql)hostDependencies.Add("security");if(audit)hostDependencies.Add("audit");
+        var compiled=CompositionCompiler.Compile(config,[new("host",ModuleRole.Support,hostDependencies),new("api",ModuleRole.EntryPoint,["host","security"]),new("graphql",ModuleRole.EntryPoint,["host","security"]),
+            new("public",ModuleRole.EntryPoint,["host"]),new("security",ModuleRole.Support),new("audit",ModuleRole.Support)]);
+        if(!compiled.IsSuccess)throw new ArgumentException("Invalid security composition.");
+        lease=await PlanActivator.ActivateAsync(compiled.Plan!,[
+            new("security",_=>{SecurityFactories++;Authority=new();Policy=new(SecurityApi.Authority.Rules(),Authority);return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
+            new("audit",_=>{AuditFactories++;Audit=new();return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
+            new("api",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),new("graphql",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),new("public",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),
+            new("host",async token=>
+            {
+                HostFactories++;var builder=WebApplication.CreateSlimBuilder(new WebApplicationOptions{Args=[],EnvironmentName="Production"});builder.Logging.ClearProviders();
+                builder.WebHost.ConfigureKestrel(k=>k.Listen(IPAddress.Loopback,0,l=>{l.Protocols=HttpProtocols.Http1;l.UseHttps(tls.Server);}));
+                if(security)
+                {
+                    builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(this));
+                    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o=>{
+                        o.MapInboundClaims=false;o.IncludeErrorDetails=false;o.TokenValidationParameters=new(){ValidateIssuerSigningKey=true,IssuerSigningKey=jwt.PublicKey,
+                            ValidateIssuer=true,ValidIssuer=JwtFixture.Issuer,ValidateAudience=true,ValidAudience=JwtFixture.Audience,ValidateLifetime=true,RequireExpirationTime=true,
+                            RequireSignedTokens=true,ClockSkew=TimeSpan.Zero,ValidAlgorithms=[SecurityAlgorithms.RsaSha256],ValidTypes=["at+jwt"]};});
+                    builder.Services.AddAuthorization();
+                }
+                if(graphql)
+                {
+                    var catalog=new GraphQLOperationCatalog.Builder().AddQuery("document",Bindings.Read).AddQuery("rbac",Bindings.Rbac).AddQuery("abac",Bindings.Abac).AddMutation("updateDocument",Bindings.Update);
+                    if(audit)catalog.AddQuery("history",Bindings.History);builder.Services.AddCehpalonGraphQL(catalog.Build());
+                }
+                GraphQLServices=builder.Services.Count(s=>(s.ServiceType.FullName??"").StartsWith("HotChocolate.",StringComparison.Ordinal));
+                AuthenticationServices=builder.Services.Count(s=>(s.ServiceType.FullName??"").StartsWith("Microsoft.AspNetCore.Authentication.",StringComparison.Ordinal));
+                var app=builder.Build();App=app;
+                try
+                {
+                    if(security){app.UseAuthentication();app.UseAuthorization();}
+                    if(publicEndpoint)app.MapGet("/health",()=>Results.Ok(new{status="ok"}));
+                    if(api){app.MapOperation("/document/read",Bindings.Read);app.MapOperation("/document/rbac",Bindings.Rbac);app.MapOperation("/document/abac",Bindings.Abac);app.MapOperation("/document/update",Bindings.Update);if(audit)app.MapOperation("/history",Bindings.History);}
+                    if(graphql)app.MapCehpalonGraphQL();await app.StartAsync(token);return new HostLease(app);
+                }
+                catch{await app.DisposeAsync();throw;}
+            })]);
+    }
+    public async ValueTask DisposeAsync(){if(lease is not null)await lease.DisposeAsync();}
+    private sealed class Empty:IAsyncDisposable{public ValueTask DisposeAsync()=>ValueTask.CompletedTask;}
+    private sealed class HostLease(WebApplication app):IAsyncDisposable{public async ValueTask DisposeAsync(){await app.StopAsync();await app.DisposeAsync();}}
+}

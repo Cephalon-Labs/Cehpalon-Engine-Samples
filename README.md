@@ -8,6 +8,8 @@ All three lanes were selected by the user:
 - [Multitenant business](multitenant-business/README.md): API, Worker, SQL, event recovery and tenant isolation
 - [AI / Agent / Retrieval](ai-retrieval/README.md): model/provider portability, scoped retrieval, tool authorization and bounded evaluations
 
+The optional [security API consumer](security-api/README.md) demonstrates actual signed-token HTTPS authentication, RBAC/ABAC, generated HTTP/GraphQL gateways and tenant-scoped operation audit/history. Security and audit are independently selected; the authority and memory history store are controlled fixtures rather than certified external providers.
+
 Small API now has a bounded experimental protected HTTP/GraphQL consumer and a separate public measurement fixture. The business and AI folders remain scenario plans; none establishes certified providers or full production acceptance. Consume Engine at an explicit revision or package version. The Engine loopback suite verifies HTTP and GraphQL overload responses with a shared in-process budget. The Small API profile still uses its original defaults. [Operation capacity evidence](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/operation-capacity-transports.md)
 
 The separate [portable Core consumer](portable-core/README.md) exercises generated typed operation registrations, appsettings module selection and shared business logic entirely in process. Its module recorders establish a bounded W1 integration proof and do not implement the three transport/provider sample lanes.
