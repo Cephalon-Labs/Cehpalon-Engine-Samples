@@ -316,6 +316,7 @@ await Check("actual cookie handler maps a live encrypted ticket without JWT or p
 });
 var jweProfiles=await JweChecks.Run(tls,jwt,Check);
 var keyRingProfiles=await KeyRingChecks.Run(tls,jwt,Check);
+var sessionProfiles=await SessionChecks.Run(tls,jwt,Check);
 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-await using(var stream=new FileStream(output,FileMode.CreateNew))await JsonSerializer.SerializeAsync(stream,new{passed,failed,checks,scope="Local ephemeral TLS/JWT fixture; no external IdP or durable audit provider qualification",businessFactories=host.Business.Factories,businessDisposals=host.Business.Disposals,auditEvents=host.Audit!.Count,jweProfiles,keyRingProfiles});
+await using(var stream=new FileStream(output,FileMode.CreateNew))await JsonSerializer.SerializeAsync(stream,new{passed,failed,checks,scope="Local ephemeral TLS/JWT fixture; no external IdP or durable audit provider qualification",businessFactories=host.Business.Factories,businessDisposals=host.Business.Disposals,auditEvents=host.Audit!.Count,jweProfiles,keyRingProfiles,sessionProfiles});
 Console.WriteLine(JsonSerializer.Serialize(new{passed,failed,output}));return failed==0?0:1;

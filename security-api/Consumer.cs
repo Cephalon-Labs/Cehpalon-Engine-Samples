@@ -163,9 +163,16 @@ public sealed class Bridge(Host host):ITransportOperationDispatcher
             builder.Register<DocumentRequest,DocumentResult>(op,op=="document.update"?"write":"read","document",r=>r with{},r=>new(new(r.Tenant),r.ResourceId),Factory);
         if(host.Audit is not null)builder.Register<HistoryRequest,HistoryResult>("history.read","read","audit-history",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref host.Business.Factories);return new HistoryHandler(new(host.Audit),host.Business);});
         var accessor=new FixedContextAccessor(http);
-        IIdentitySource identitySource=host.CookieAuthentication
-            ?new AspNetCoreIdentitySource(accessor,host.IdentityScheme,new TicketPropertyIdentityMapper(JwtFixture.Issuer))
-            :new AspNetCoreJwtIdentitySource(accessor,host.IdentityScheme);
+        IIdentitySource identitySource;
+        if(host.CookieAuthentication)
+        {
+            IAuthenticatedTicketIdentityMapper mapper=new TicketPropertyIdentityMapper(JwtFixture.Issuer);
+            if(host.Sessions is not null)mapper=new SessionBoundTicketIdentityMapper(mapper);
+            identitySource=new AspNetCoreIdentitySource(accessor,host.IdentityScheme,mapper);
+        }
+        else identitySource=host.Sessions is null?new AspNetCoreJwtIdentitySource(accessor,host.IdentityScheme)
+            :new AspNetCoreJwtIdentitySource(accessor,host.IdentityScheme,null,"sid");
+        if(host.Sessions is not null)identitySource=new SessionValidatingIdentitySource(identitySource,host.Sessions,TimeSpan.FromSeconds(30));
         var services=new TenantSecurityServices(identitySource,
             new([JwtFixture.Issuer],[host.IdentityScheme]),host.Authority!,host.Authority!,TimeSpan.FromSeconds(30),host.Policy,audit:host.Audit is null?null:new(host.Audit));
         var dispatcher=new TenantOperationDispatcher(builder.Build(),services);var core=new OperationRegistryBuilder();
@@ -181,10 +188,11 @@ public sealed class Host:IAsyncDisposable
 {
     public WebApplication? App;private ActivationLease? lease;
     public Authority? Authority;public RoleAttributeAccessPolicy? Policy;public MemoryAuditStore? Audit;
-    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices,KeyProviderCalls,DecryptionKeyProviderCalls,KeyRingProviderCalls;
+    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices,KeyProviderCalls,DecryptionKeyProviderCalls,KeyRingProviderCalls,SessionFactoryCalls,SessionAuthenticationCallbacks;
+    public IIdentitySessionStatusSource? Sessions{get;private set;}
     public string IdentityScheme{get;private set;}="Bearer";public bool CookieAuthentication{get;private set;}
     public Uri Address=>new(App!.Urls.Single());
-    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null)
+    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null,SessionFixture? sessionProfile=null)
     {
         if((jweProfile is not null?1:0)+(jwtProfile is not null?1:0)+(cookieAuthentication?1:0)+(keyRingProfile is not null?1:0)>1)throw new ArgumentException("Select exactly one fixture authentication profile.");
         CookieAuthentication=cookieAuthentication;IdentityScheme=cookieAuthentication?"fixture-cookie":"Bearer";
@@ -195,7 +203,7 @@ public sealed class Host:IAsyncDisposable
             new("public",ModuleRole.EntryPoint,["host"]),new("security",ModuleRole.Support),new("audit",ModuleRole.Support)]);
         if(!compiled.IsSuccess)throw new ArgumentException("Invalid security composition.");
         lease=await PlanActivator.ActivateAsync(compiled.Plan!,[
-            new("security",_=>{SecurityFactories++;Authority=new();Policy=new(SecurityApi.Authority.Rules(),Authority);return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
+            new("security",_=>{SecurityFactories++;if(sessionProfile is not null){SessionFactoryCalls++;Sessions=sessionProfile.Create();}Authority=new();Policy=new(SecurityApi.Authority.Rules(),Authority);return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
             new("audit",_=>{AuditFactories++;Audit=new();return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
             new("api",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),new("graphql",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),new("public",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),
             new("host",async token=>
@@ -226,6 +234,11 @@ public sealed class Host:IAsyncDisposable
                             decryptionKeys:jweProfile is null?null:()=>{DecryptionKeyProviderCalls++;return [jweProfile.DecryptionKey];});
                         else authentication.AddCehpalonJwtBearer(profile,providedKeys:()=>{KeyProviderCalls++;return [jwtProfile!.VerificationKey];});
                     }
+                    if(sessionProfile is not null&&!cookieAuthentication)builder.Services.PostConfigure<JwtBearerOptions>(IdentityScheme,options=>
+                    {
+                        var previous=options.Events.OnTokenValidated;
+                        options.Events.OnTokenValidated=async context=>{Interlocked.Increment(ref SessionAuthenticationCallbacks);await previous(context);};
+                    });
                     builder.Services.AddAuthorization();
                 }
                 if(graphql)
@@ -248,12 +261,13 @@ public sealed class Host:IAsyncDisposable
     }
     // Fixture-only cookie creation uses the real handler ticket format and an ephemeral provider.
     // No login endpoint, password flow, persisted key ring or account-management claim is introduced.
-    public string FixtureCookie(string subject="alice",bool expired=false)
+    public string FixtureCookie(string subject="alice",bool expired=false,string? sessionId=null)
     {
         if(!CookieAuthentication)throw new InvalidOperationException("Cookie fixture is not selected.");
         var now=DateTimeOffset.UtcNow;
         var properties=new AuthenticationProperties{IssuedUtc=now.AddMinutes(-5),ExpiresUtc=expired?now.AddMinutes(-1):now.AddMinutes(5)};
-        var principal=new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier,subject)],IdentityScheme));
+        var claims=new List<Claim>{new(ClaimTypes.NameIdentifier,subject)};if(sessionId is not null)claims.Add(new("sid",sessionId));
+        var principal=new ClaimsPrincipal(new ClaimsIdentity(claims,IdentityScheme));
         var format=App!.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(IdentityScheme).TicketDataFormat;
         return "cehpalon.fixture="+format.Protect(new AuthenticationTicket(principal,properties,IdentityScheme));
     }
