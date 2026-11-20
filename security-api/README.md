@@ -44,3 +44,29 @@ The established cookie handler is also exercised with an encrypted authenticatio
 `/document/read-all` and GraphQL `readSet` are separately registered read operations. A user with A and B membership still receives denial without a distinct trusted read-set grant. The authoritative grant fixes principal, operation, resource and a bounded exact tenant set; `Tenants: null` means every tenant in that grant. A limited grant to A yields only A; callers can request a contained subset, not add B, wildcard `*` or duplicates. Each tenant still passes normal membership/resource/RBAC/ABAC checks. The same tenant-scoped data port supplies the results.
 
 The engine collects results privately. A later B membership denial discards the response even if an earlier authorized A read ran. This is not an atomic cross-tenant database snapshot or rollback guarantee, and the trusted registered read handler must avoid writes. With audit selected, a control-plane grant/terminal pair has no authorized-tenant stamp; per-tenant pairs link to it through `ParentInvocationId`. Ordinary tenant history cannot expose those control-plane records. The bounded consumer grant has two tenants; large catalogs, durable reporting and cross-provider snapshot guarantees require their own implementation and evidence.
+
+## Optional nested signed JWE
+
+The encrypted profile explicitly selects `TokenProtection: "EncryptedSigned"`, the inner signing `Algorithm`, outer `KeyManagementAlgorithm` and `ContentEncryptionAlgorithm`. This fixture uses the pinned library's proven authenticated `A256CBC-HS512` content mode with separately selected `RSA-OAEP` or `dir` key management. These are explicit configured profiles, not fallback from an unsupported GCM/OAEP-256 choice. Unsupported choices reject; broader algorithm/provider qualification remains separate.
+
+```json
+{
+  "Authentication": {
+    "Scheme": "Bearer",
+    "Issuer": "https://issuer.example/realm",
+    "Audience": "example-api",
+    "Algorithm": "RS256",
+    "TokenType": "at+jwt",
+    "KeySource": "PublicJwks",
+    "TokenProtection": "EncryptedSigned",
+    "KeyManagementAlgorithm": "dir",
+    "ContentEncryptionAlgorithm": "A256CBC-HS512"
+  }
+}
+```
+
+The application supplies the inner signature verification public JWKS and a distinct trusted `decryptionKeys` provider. Direct CBC-HMAC uses a 64-byte secret; RSA-OAEP uses a separate RSA decryption private key. No decryption secret/private key belongs in appsettings or the public signing JWKS. The fixture owns ephemeral separate keys and never saves the actual credential, plaintext or ciphertext to evidence.
+
+HTTPS HTTP/GraphQL requests exercise standard-library decryption and inner signature/issuer/audience/lifetime checks before the same tenant dispatcher. The encrypted profile rejects plaintext downgrade, wrong decryption/signature keys, unknown kid, unapproved outer algorithm/content mode, tampered ciphertext/tag, unsigned or misbound inner tokens and disallowed header/compression shapes before business factories. Tenant selection, cross-tenant denial, explicit read-set grants and required audit remain unchanged after decryption. The signed-only default continues to use its existing tests; disabled JWE security runs no signing/decryption key callback. This is local encrypted-token interoperability evidence, not real KMS/HSM/IdP rotation, account lifecycle or production qualification.
+
+The direct-encryption profile also requires the compact encrypted-key segment to be empty, including when ciphertext/tag would otherwise validate. Both HTTP and GraphQL reject a nonempty direct encrypted-key segment before business work. This is strict envelope-format validation; accepting the unused segment in an underlying implementation is not, by itself, evidence of a changed authenticated identity.
