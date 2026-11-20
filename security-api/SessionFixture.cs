@@ -9,7 +9,7 @@ public sealed class SessionFixture
     private readonly Dictionary<(string Issuer,string Subject,string Scheme,string Session),bool> sessions=[];
     public int FactoryCalls,ProviderConstructors,StatusCalls;
     public bool FailCreation,FailLookup;
-    public SessionReply Reply;
+    public SessionReply Reply;public TimeProvider? Clock;public TimeSpan StatusLifetime=TimeSpan.FromMinutes(2);
     public Func<IdentitySnapshot,CancellationToken,Task>? LookupGate;
     public IIdentitySessionStatusSource Create()
     {
@@ -51,14 +51,14 @@ public sealed class SessionFixture
         bool active;
         lock(gate)if(!sessions.TryGetValue((identity.Principal.Issuer,identity.Principal.Subject,identity.AuthenticationScheme,identity.SessionId),out active))return null;
         if(Reply==SessionReply.Missing)return null;
-        var now=DateTimeOffset.UtcNow;
+        var now=Clock?.GetUtcNow()??DateTimeOffset.UtcNow;
         return new(new(Reply==SessionReply.WrongIssuer?"urn:other-issuer":identity.Principal.Issuer,
             Reply==SessionReply.WrongSubject?"another-subject":identity.Principal.Subject),
             Reply==SessionReply.WrongScheme?"another-scheme":identity.AuthenticationScheme,
             Reply==SessionReply.WrongSession?"another-session":identity.SessionId,
             active&&Reply!=SessionReply.Inactive,
             Reply==SessionReply.Future?now.AddMinutes(1):now.AddMinutes(-1),
-            Reply==SessionReply.Expired?now.AddSeconds(-1):now.AddMinutes(2));
+            Reply==SessionReply.Expired?now.AddSeconds(-1):now.Add(StatusLifetime));
     }
 }
 
