@@ -217,7 +217,7 @@ public sealed class Host:IAsyncDisposable
                         var settings=jwtProfile?.Settings??new JwtProfileSettings{Scheme=IdentityScheme,Issuer=JwtFixture.Issuer,Audience=JwtFixture.Audience,Algorithm="RS256",KeySource=JwtKeySource.PublicJwks};
                         var configBytes=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new{Authentication=settings});
                         builder.Configuration.AddJsonStream(new MemoryStream(configBytes));
-                        var profile=new JwtAuthenticationProfile(builder.Configuration.GetSection("Authentication").Get<JwtProfileSettings>()!);
+                        var profile=JwtAuthenticationProfile.FromConfiguration(builder.Configuration.GetSection("Authentication"));
                         var authentication=builder.Services.AddAuthentication(IdentityScheme);
                         if(profile.KeySource==JwtKeySource.PublicJwks)authentication.AddCehpalonJwtBearer(profile,publicJwks:()=>{KeyProviderCalls++;return jwtProfile is null?jwt.PublicJwks():jwtProfile.PublicJwks();});
                         else authentication.AddCehpalonJwtBearer(profile,providedKeys:()=>{KeyProviderCalls++;return [jwtProfile!.VerificationKey];});
