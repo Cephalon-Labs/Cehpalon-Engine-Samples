@@ -134,12 +134,17 @@ def analyze(root):
         selected = [pair for pair in pairs if pair['tenant'] == tenant]
         metrics = {}
         for key in selected[0]['differences']:
-            metrics[key] = {'paired_differences': distribution([p['differences'][key]['listener_minus_baseline'] for p in selected]),
+            differences = distribution([p['differences'][key]['listener_minus_baseline'] for p in selected])
+            # Signed differences have no ratio-scale origin; CV is meaningful
+            # for the positive arm measurements, not these paired deltas.
+            differences.pop('sample_cv_percent')
+            metrics[key] = {'paired_differences': differences,
                             'baseline': distribution([r['values'][key] for r in summaries if r['tenant'] == tenant and not r['listener']]),
                             'listener': distribution([r['values'][key] for r in summaries if r['tenant'] == tenant and r['listener']])}
         groups.append({'tenant': tenant, 'metrics': metrics})
     return {'status': 'validated', 'profile': manifest['profile'], 'arms': summaries, 'pairs': pairs, 'groups': groups,
             'input_sha256': digests, 'measured_reads': len(summaries) * (256 if conformance else 5000),
+            'analysis_source_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             'qualification': 'Unchanged canonical gates; shared-host descriptive paired observation only. Negative deltas do not establish a speedup.'}
 
 
