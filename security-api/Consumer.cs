@@ -208,7 +208,7 @@ public sealed class Bridge(Host host):ITransportOperationDispatcher
         if(trailProfile is not null)
         {
             foreach(var operation in new[]{("entity.create","create"),("entity.update","update"),("entity.delete","delete")})
-                builder.Register<EntityMutationRequest,EntityMutationResult>(operation.Item1,operation.Item2,"entity",r=>r with{},r=>new(new(r.Tenant),r.EntityId),()=>{Interlocked.Increment(ref trailProfile.MutationFactories);return new EntityMutationHandler(trailProfile,host.Trail,host.Observation,host.Preparation);});
+                builder.Register<EntityMutationRequest,EntityMutationResult>(operation.Item1,operation.Item2,"entity",r=>r with{},r=>new(new(r.Tenant),r.EntityId),()=>{Interlocked.Increment(ref trailProfile.MutationFactories);return host.Execution is null?new EntityMutationHandler(trailProfile,host.Trail,host.Observation,host.Preparation):new AuditExecutionHandler(trailProfile,host.Trail,host.Execution,host.Preparation!,host.Observation);});
             if(trailEnabled)builder.Register<TrailHistoryRequest,TrailHistoryResult>("trail.history","read","audit-trail",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref trailProfile.HistoryFactories);return new TrailHistoryHandler(trailProfile);});
         }
         return builder;
@@ -226,14 +226,16 @@ public sealed class Host:IAsyncDisposable
     public AuditTrailFixture? TrailProfile{get;private set;}public TenantChangeAuditRecorder? Trail{get;private set;}public int TrailModuleFactories;
     public ObservationFixture? Observation{get;private set;}
     public AuditPreparationFixture? Preparation{get;private set;}
+    public AuditExecutionFixture? Execution{get;private set;}
     public TenantOperationRegistry? TenantRegistry{get;private set;}
     public TenantOperationRegistry? AlternativeTenantRegistry{get;private set;}
     public IIdentitySessionStatusSource? Sessions{get;private set;}
     public string IdentityScheme{get;private set;}="Bearer";public bool CookieAuthentication{get;private set;}
     public Uri Address=>new(App!.Urls.Single());
-    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null,SessionFixture? sessionProfile=null,ObservationFixture? observationProfile=null,AuditTrailFixture? trailProfile=null,AuditPreparationFixture? preparationProfile=null)
+    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null,SessionFixture? sessionProfile=null,ObservationFixture? observationProfile=null,AuditTrailFixture? trailProfile=null,AuditPreparationFixture? preparationProfile=null,AuditExecutionFixture? executionProfile=null)
     {
         if((jweProfile is not null?1:0)+(jwtProfile is not null?1:0)+(cookieAuthentication?1:0)+(keyRingProfile is not null?1:0)>1)throw new ArgumentException("Select exactly one fixture authentication profile.");
+        Execution=executionProfile;if(executionProfile is not null)preparationProfile??=new();
         Preparation=preparationProfile;TrailProfile=trailProfile;var trailEnabled=trailProfile is not null&&trailProfile.Mode!=TenantChangeAuditMode.Disabled;Observation=observationProfile;Business.Observation=observationProfile;CookieAuthentication=cookieAuthentication;IdentityScheme=cookieAuthentication?"fixture-cookie":"Bearer";
         var config=System.Text.Json.JsonSerializer.Serialize(new{Cehpalon=new{SchemaVersion=1,Architecture="Modular",Topology="SingleProcess",Pattern="RequestReply",Modules=new{
             api=new{Enabled=api},graphql=new{Enabled=graphql},security=new{Enabled=security},audit=new{Enabled=audit},trail=new{Enabled=trailEnabled},@public=new{Enabled=publicEndpoint}}}});
