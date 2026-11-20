@@ -1,0 +1,13 @@
+# Windows warmup drop evidence
+
+Historical replay proves five overdue busy-lane decisions occurred in an 11.8 us burst over an 8 ms offered schedule, with 32 recorded requests pending at each drop. The missing historical GC/kernel trace cannot be reconstructed.
+
+Four fixed new EventPipe warmups (baseline/listener/listener/baseline) each validate 1,500 reads and zero drops. All 806 producer await intervals and 6,000 request stage windows remain in analysis.json; no matching-drop retry was made. Independent process/native-thread/QPC receipt checks, terminal marker counts, known CLR templates and positive GC/TPL controls pass. Original analysis-initial.json is retained; final analysis adds planned server-stage/tail and pool endpoint fields without changing execution or raw inputs. Windows and WSL offline replay bytes match.
+
+Initial source/compiler failure, unused preparation 01, preparation 02's controls and rejected server-stage preflight, corrected preparation 03's controls/preflight and all four fixed warmups are preserved. The first fixture analysis missed TaskScheduled/Transfer; the same raw data validates with the corrected parser. The first server hook lacked the base request activity; its conformance is rejected and not used to authorize the fixed warmups. See each frozen source/protocol and rejection record. Fixture forced collection is isolated from HTTPS work.
+
+The current Windows token is unelevated and has no SeSystemProfilePrivilege or SeDebugPrivilege. No kernel session was started. CLR suspension overlap and managed task envelopes are not OS ready-to-running time or exclusive causal shares. In particular, GC suspension itself may include scheduling of GC threads. Uncovered time remains unknown. New zero-drop executions do not resolve the original five-drop runtime cause or qualify the old Windows benchmark.
+
+Raw private nettraces remain in ignored local storage. private-trace-index.json records all original hashes/sizes. Public exports omit unapproved payloads, strings and raw pointer identities; receipt/normalized-event JSON and large analysis JSON are losslessly gzip compressed with separate raw/stored hashes. Reconstruct entries from raw-integrity.json into a fresh directory, verify raw SHA-256 and use final-tools for analysis. Keep extraction inside that directory. No credentials, private handshake, raw nettrace or binaries are published.
+
+[Protocol](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/validation/windows-warmup-drops.md) and [report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/windows-warmup-drops.md). #3 stays Blocked; #18/#20 In Progress/M0 and original benchmark criteria remain unchanged.

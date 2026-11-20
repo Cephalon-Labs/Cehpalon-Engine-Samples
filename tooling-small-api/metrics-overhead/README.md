@@ -19,3 +19,5 @@ The workload mixes HTTP/GraphQL and both fixture tenants, with six alternating p
 Run `tools/verify_https_metrics_evidence.py --input <actual-conformance> --output <new-report>` to validate real captured data and reject 17 altered datasets. Use `tools/summarize_https_metrics_attempt.py` for an incomplete attempt; it preserves failed/unpaired arms and does not pool executions or qualify them. The controller waits for a rejected warmup's partial report before stopping owned children.
 
 [Retained source, complete WSL series and incomplete Windows attempts](../evidence/2026-11-20-https-metrics-overhead/README.md) include every entered arm. Final analysis removes CV for signed paired differences; original outputs remain available. [Results and limits](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/https-metrics-overhead.md).
+
+The [separate Windows warmup investigation](../metrics-trace/README.md) adds process-scoped CLR/TPL traces and numeric producer/request receipts to an explicitly augmented diagnostic copy. It preserves the original comparison and does not retry until a drop matches or change its acceptance criteria.
