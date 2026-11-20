@@ -26,7 +26,8 @@ public sealed class AuditTrailFixture
     public TenantChangeAuditPolicy Policy{get;}
     public TenantChangeAuditPolicy HistoryPolicy{get;set;}
     public MemoryTrailStore? Store{get;private set;}
-    public int FactoryCalls,ProviderConstructors,ValueFactoryCalls,MutationFactories,MutationDisposals,HistoryFactories,HistoryDisposals;
+    public int FactoryCalls,ProviderConstructors,ValueFactoryCalls,MutationFactories,MutationDisposals,HistoryFactories,HistoryDisposals,AppendCalls;
+    public Func<TenantChangeAuditRecord,CancellationToken,Task>? AppendGate;
     public bool FailSinkCreation,FailValues,WrongReceiptVersion;
     public static TenantChangeAuditPolicy BuildPolicy(TenantChangeAuditMode mode,bool titleOnly=false,bool redactTitle=false,bool noRules=false)
     {
@@ -63,11 +64,13 @@ public sealed class AuditTrailFixture
     public sealed class MemoryTrailStore:ITenantChangeAuditSink,ITenantChangeAuditHistorySource
     {
         private readonly object gate=new();private readonly List<TenantChangeAuditRecord> rows=[];public bool Fail,LeakForeignHistory;
-        public MemoryTrailStore(AuditTrailFixture owner)=>Interlocked.Increment(ref owner.ProviderConstructors);
+        private readonly AuditTrailFixture owner;
+        public MemoryTrailStore(AuditTrailFixture owner){this.owner=owner;Interlocked.Increment(ref owner.ProviderConstructors);}
         public TenantChangeAuditRecord[] Snapshot(){lock(gate)return rows.ToArray();}
-        public ValueTask AppendAsync(TenantChangeAuditRecord record,CancellationToken token)
+        public async ValueTask AppendAsync(TenantChangeAuditRecord record,CancellationToken token)
         {
-            token.ThrowIfCancellationRequested();lock(gate){if(Fail)throw new IOException("Controlled trail persistence failure.");if(rows.Count>=256||rows.Any(r=>r.Receipt.ReceiptId==record.Receipt.ReceiptId))throw new InvalidOperationException("Bounded fixture trail storage rejected append.");rows.Add(record);}return ValueTask.CompletedTask;
+            Interlocked.Increment(ref owner.AppendCalls);if(owner.AppendGate is not null)await owner.AppendGate(record,token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();lock(gate){if(Fail)throw new IOException("Controlled trail persistence failure.");if(rows.Count>=256||rows.Any(r=>r.Receipt.ReceiptId==record.Receipt.ReceiptId))throw new InvalidOperationException("Bounded fixture trail storage rejected append.");rows.Add(record);}
         }
         public ValueTask<TenantChangeAuditPage> ReadAsync(TenantId tenant,int limit,string? cursor,CancellationToken token)
         {
@@ -77,11 +80,19 @@ public sealed class AuditTrailFixture
     }
 }
 
-public sealed class EntityMutationHandler(AuditTrailFixture fixture,TenantChangeAuditRecorder? recorder,ObservationFixture? observation):ITenantOperationHandler<EntityMutationRequest,EntityMutationResult>,IDisposable
+public sealed class EntityMutationHandler(AuditTrailFixture fixture,TenantChangeAuditRecorder? recorder,ObservationFixture? observation,AuditPreparationFixture? preparationProfile=null):ITenantOperationHandler<EntityMutationRequest,EntityMutationResult>,IDisposable
 {
     public async ValueTask<OperationResult<EntityMutationResult>> HandleAsync(EntityMutationRequest request,TenantOperationContext context,CancellationToken token)
     {
         token.ThrowIfCancellationRequested();context.DemandAccess(new(request.Tenant),"entity",request.EntityId,context.Action);
+        TenantChangeAuditPreparation? prepared=null;
+        if(preparationProfile is not null&&recorder is not null)
+        {
+            if(preparationProfile.BeforePrepare is not null)await preparationProfile.BeforePrepare(context,token).ConfigureAwait(false);
+            Interlocked.Increment(ref preparationProfile.PrepareCalls);
+            prepared=(preparationProfile.RecorderOverride??recorder).Prepare(context,token);
+            preparationProfile.Captured=prepared;
+        }
         var changed=fixture.Mutate(request.Tenant,request.EntityId,context.Action,request.Title,request.Amount,request.Secret);
         observation?.At("after-domain-mutation",request.Tenant);
         if(recorder is not null)
@@ -90,10 +101,16 @@ public sealed class EntityMutationHandler(AuditTrailFixture fixture,TenantChange
             var receipt=new TenantChangeReceipt(Guid.NewGuid(),context.Identity.Principal,context.Identity.AuthenticationScheme,context.Tenant,context.OperationId,context.Action,
                 context.Resource.Kind,context.Resource.ResourceId,fixture.WrongReceiptVersion?"incorrect-authorization-version":context.Resource.Version,kind,
                 changed.Before?.Version,changed.After?.Version,(observation?.Clock??TimeProvider.System).GetUtcNow());
-            try{await recorder.RecordAsync(context,receipt,()=>fixture.Values(changed.Before,changed.After),token);}
+            try
+            {
+                if(prepared is not null)await preparationProfile!.Complete(prepared,receipt,()=>fixture.Values(changed.Before,changed.After),fixture,token);
+                else await recorder.RecordAsync(context,receipt,()=>fixture.Values(changed.Before,changed.After),token);
+            }
             catch(TenantChangeAuditWriteException error) when(error.MayHaveCommitted)
             {return OperationResult<EntityMutationResult>.Failure(new("audit_trail.write_failed_may_have_committed","The domain change may have committed while audit persistence failed."));}
         }
+        if(preparationProfile?.Completion==PreparationCompletion.Deferred)
+            return OperationResult<EntityMutationResult>.Failure(new("audit_preparation.deferred_fixture","The fixture deliberately deferred completion beyond its checked scope."));
         return OperationResult<EntityMutationResult>.Success(new(request.Tenant,request.EntityId,changed.After?.Version));
     }
     public void Dispose()=>Interlocked.Increment(ref fixture.MutationDisposals);
