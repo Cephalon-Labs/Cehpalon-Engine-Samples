@@ -181,12 +181,12 @@ public sealed class Host:IAsyncDisposable
 {
     public WebApplication? App;private ActivationLease? lease;
     public Authority? Authority;public RoleAttributeAccessPolicy? Policy;public MemoryAuditStore? Audit;
-    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices,KeyProviderCalls,DecryptionKeyProviderCalls;
+    public readonly BusinessState Business=new();public int SecurityFactories,AuditFactories,HostFactories,GraphQLServices,AuthenticationServices,KeyProviderCalls,DecryptionKeyProviderCalls,KeyRingProviderCalls;
     public string IdentityScheme{get;private set;}="Bearer";public bool CookieAuthentication{get;private set;}
     public Uri Address=>new(App!.Urls.Single());
-    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null)
+    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null)
     {
-        if(jweProfile is not null&&(jwtProfile is not null||cookieAuthentication))throw new ArgumentException("Select exactly one fixture authentication profile.");
+        if((jweProfile is not null?1:0)+(jwtProfile is not null?1:0)+(cookieAuthentication?1:0)+(keyRingProfile is not null?1:0)>1)throw new ArgumentException("Select exactly one fixture authentication profile.");
         CookieAuthentication=cookieAuthentication;IdentityScheme=cookieAuthentication?"fixture-cookie":"Bearer";
         var config=System.Text.Json.JsonSerializer.Serialize(new{Cehpalon=new{SchemaVersion=1,Architecture="Modular",Topology="SingleProcess",Pattern="RequestReply",Modules=new{
             api=new{Enabled=api},graphql=new{Enabled=graphql},security=new{Enabled=security},audit=new{Enabled=audit},@public=new{Enabled=publicEndpoint}}}});
@@ -215,12 +215,13 @@ public sealed class Host:IAsyncDisposable
                     }
                     else
                     {
-                        var settings=jweProfile?.Settings??jwtProfile?.Settings??new JwtProfileSettings{Scheme=IdentityScheme,Issuer=JwtFixture.Issuer,Audience=JwtFixture.Audience,Algorithm="RS256",KeySource=JwtKeySource.PublicJwks};
+                        var settings=keyRingProfile?.Settings??jweProfile?.Settings??jwtProfile?.Settings??new JwtProfileSettings{Scheme=IdentityScheme,Issuer=JwtFixture.Issuer,Audience=JwtFixture.Audience,Algorithm="RS256",KeySource=JwtKeySource.PublicJwks};
                         var configBytes=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new{Authentication=settings});
                         builder.Configuration.AddJsonStream(new MemoryStream(configBytes));
                         var profile=JwtAuthenticationProfile.FromConfiguration(builder.Configuration.GetSection("Authentication"));
                         var authentication=builder.Services.AddAuthentication(IdentityScheme);
-                        if(profile.KeySource==JwtKeySource.PublicJwks)authentication.AddCehpalonJwtBearer(profile,
+                        if(keyRingProfile is not null)authentication.AddCehpalonJwtBearerKeyRing(()=>{KeyRingProviderCalls++;return keyRingProfile.CreateRing(profile);});
+                        else if(profile.KeySource==JwtKeySource.PublicJwks)authentication.AddCehpalonJwtBearer(profile,
                             publicJwks:()=>{KeyProviderCalls++;return jwtProfile is null?jwt.PublicJwks():jwtProfile.PublicJwks();},
                             decryptionKeys:jweProfile is null?null:()=>{DecryptionKeyProviderCalls++;return [jweProfile.DecryptionKey];});
                         else authentication.AddCehpalonJwtBearer(profile,providedKeys:()=>{KeyProviderCalls++;return [jwtProfile!.VerificationKey];});
