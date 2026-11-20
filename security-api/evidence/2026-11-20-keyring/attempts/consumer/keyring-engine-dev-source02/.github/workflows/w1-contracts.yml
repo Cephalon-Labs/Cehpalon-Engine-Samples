@@ -1,0 +1,62 @@
+name: Portable component and adapter contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - Tests/Core.ContractTests/**
+      - Tests/Composition.ContractTests/**
+      - Tests/CodeGeneration.ContractTests/**
+      - Tests/Jwe.ContractTests/**
+      - Tests/AuthProfile.ContractTests/**
+      - Tests/TenantReadSet.ContractTests/**
+      - Tests/Access.ContractTests/**
+      - Tests/Identity.ContractTests/**
+      - Tests/Tenancy.ContractTests/**
+      - Tests/Http.ContractTests/**
+      - Tests/GraphQL.ContractTests/**
+      - Tests/Tooling.ContractTests/**
+      - Benchmarks/W1.Components/**
+      - Benchmarks/Tenancy.Components/**
+      - Benchmarks/Tooling.Components/**
+      - tools/verify_w1.py
+      - Cehpalon.Engine.slnx
+      - Directory.Packages.props
+      - NuGet.Config
+      - global.json
+      - .github/workflows/w1-contracts.yml
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Locked Release build, contract suites and actual generated consumer
+        run: python tools/verify_w1.py --dotnet dotnet --output .local/w1-ci
+      - name: Preserve component results and failed attempts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: w1-contracts-${{ matrix.os }}
+          path: |
+            .local/w1-ci/*.json
+            .local/w1-ci/*.txt

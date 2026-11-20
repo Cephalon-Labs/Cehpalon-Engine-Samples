@@ -1,0 +1,53 @@
+[
+  {
+    "name": "valid-first normal and file-local handler same displayname",
+    "inputErrors": [],
+    "generatorDiagnostics": [],
+    "trees": [
+      "// \u003Cauto-generated/\u003E\n#nullable enable\nnamespace Cehpalon.Engine.Generated\n{\n    internal static class OperationRegistrations\n    {\n        internal static void RegisterAll(global::Cehpalon.Engine.Core.OperationRegistryBuilder builder, global::Cehpalon.Engine.Core.IOperationHandlerFactory factory)\n        {\n            if (builder is null) throw new global::System.ArgumentNullException(nameof(builder));\n            if (factory is null) throw new global::System.ArgumentNullException(nameof(factory));\n            builder.Register\u003Cstring, string\u003E(\u0022normal.run\u0022, () =\u003E factory.Create\u003Cglobal::Fixture.Echo\u003E());\n        }\n    }\n}\n"
+    ],
+    "outputErrors": []
+  },
+  {
+    "name": "file-first same semantic collision reversed",
+    "inputErrors": [],
+    "generatorDiagnostics": [
+      "input0.cs(1,103): error CEHGEN003: Type \u0027global::Fixture.Echo\u0027 must be accessible from an assembly-level generated class and cannot be file-local"
+    ],
+    "trees": [],
+    "outputErrors": []
+  },
+  {
+    "name": "file-local alone baseline",
+    "inputErrors": [],
+    "generatorDiagnostics": [
+      "input0.cs(1,103): error CEHGEN003: Type \u0027global::Fixture.Echo\u0027 must be accessible from an assembly-level generated class and cannot be file-local"
+    ],
+    "trees": [],
+    "outputErrors": []
+  },
+  {
+    "name": "duplicate attribute split across partial declarations",
+    "inputErrors": [
+      "input1.cs(1,104): error CS0579: Duplicate \u0027Operation\u0027 attribute"
+    ],
+    "generatorDiagnostics": [],
+    "trees": [
+      "// \u003Cauto-generated/\u003E\n#nullable enable\nnamespace Cehpalon.Engine.Generated\n{\n    internal static class OperationRegistrations\n    {\n        internal static void RegisterAll(global::Cehpalon.Engine.Core.OperationRegistryBuilder builder, global::Cehpalon.Engine.Core.IOperationHandlerFactory factory)\n        {\n            if (builder is null) throw new global::System.ArgumentNullException(nameof(builder));\n            if (factory is null) throw new global::System.ArgumentNullException(nameof(factory));\n            builder.Register\u003Cstring, string\u003E(\u0022first.run\u0022, () =\u003E factory.Create\u003Cglobal::Fixture.Echo\u003E());\n        }\n    }\n}\n"
+    ],
+    "outputErrors": [
+      "input1.cs(1,104): error CS0579: Duplicate \u0027Operation\u0027 attribute"
+    ]
+  },
+  {
+    "name": "reserved generated name exists as namespace",
+    "inputErrors": [],
+    "generatorDiagnostics": [],
+    "trees": [
+      "// \u003Cauto-generated/\u003E\n#nullable enable\nnamespace Cehpalon.Engine.Generated\n{\n    internal static class OperationRegistrations\n    {\n        internal static void RegisterAll(global::Cehpalon.Engine.Core.OperationRegistryBuilder builder, global::Cehpalon.Engine.Core.IOperationHandlerFactory factory)\n        {\n            if (builder is null) throw new global::System.ArgumentNullException(nameof(builder));\n            if (factory is null) throw new global::System.ArgumentNullException(nameof(factory));\n            builder.Register\u003Cstring, string\u003E(\u0022normal.run\u0022, () =\u003E factory.Create\u003Cglobal::Fixture.Echo\u003E());\n        }\n    }\n}\n"
+    ],
+    "outputErrors": [
+      "Cehpalon.Engine.CodeGeneration\\Cehpalon.Engine.CodeGeneration.OperationRegistryGenerator\\OperationRegistrations.g.cs(5,27): error CS0101: The namespace \u0027Cehpalon.Engine.Generated\u0027 already contains a definition for \u0027OperationRegistrations\u0027"
+    ]
+  }
+]

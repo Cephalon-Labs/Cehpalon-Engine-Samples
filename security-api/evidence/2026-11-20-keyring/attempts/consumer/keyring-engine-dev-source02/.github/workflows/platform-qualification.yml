@@ -1,0 +1,47 @@
+name: Platform qualification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sdk-driver-smoke:
+    name: SDK and driver smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Record SDK and runner
+        run: dotnet --info
+      - name: Restore locked driver graph
+        run: dotnet restore Tests/PlatformQualification/PlatformQualification.csproj --locked-mode --artifacts-path Tests/PlatformQualification/.artifacts/ci --configfile Tests/PlatformQualification/NuGet.Config
+      - name: Build bounded qualification harness
+        run: dotnet build Tests/PlatformQualification/PlatformQualification.csproj --configuration Release --no-restore --artifacts-path Tests/PlatformQualification/.artifacts/ci
+      - name: Run platform and package smoke
+        run: dotnet Tests/PlatformQualification/.artifacts/ci/bin/PlatformQualification/release/PlatformQualification.dll --output=Tests/PlatformQualification/evidence/ci-smoke.json
+      - name: Preserve qualification output
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: platform-qualification-${{ matrix.os }}
+          path: Tests/PlatformQualification/evidence/ci-smoke.json
+          if-no-files-found: warn
+          retention-days: 14

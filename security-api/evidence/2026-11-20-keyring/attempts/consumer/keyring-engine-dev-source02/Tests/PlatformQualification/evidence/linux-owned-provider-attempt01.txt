@@ -1,0 +1,28 @@
+PASS net11-runtime-and-architecture
+PASS platform-config-provider-precedence
+PASS npgsql-assembly-and-datasource-disposal
+PASS rabbitmq-client-assembly-and-configuration
+PASS https-and-http-only-graphql-startup
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[3]
+      Connection 0HNPK3KF02FN6 established using the following protocol: Tls13
+PASS https-fixture-custom-ca-chain-and-hostname
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed, see inner exception.
+       ---> Interop+OpenSsl+SslException: SSL Handshake failed with OpenSSL error - SSL_ERROR_SSL.
+       ---> Interop+Crypto+OpenSslCryptographicException: error:0A000412:SSL routines::sslv3 alert bad certificate
+         --- End of inner exception stack trace ---
+         at Interop.OpenSsl.DoSslHandshake(SafeSslHandle context, ReadOnlySpan`1 input, Int32& consumed, ProtocolToken& token)
+         at System.Net.Security.SslStreamPal.HandshakeInternal(SafeDeleteSslContext& context, ReadOnlySpan`1 inputBuffer, Int32& consumed, SslAuthenticationOptions sslAuthenticationOptions)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+PASS https-rejects-wrong-hostname
+PASS graphql-http-query-and-no-ide
+PASS jwt-valid-rs256-and-required-authentication
+PASS jwt-rejects-wrong-issuer-audience-expiry-signature
+PASS http-request-abort-reaches-handler-and-cleans-up
+PASS owned-host-graceful-shutdown
+PASS npgsql-real-provider-transaction-query-cancellation
+PASS rabbitmq-real-provider-confirm-manual-ack
+Qualification: 14 passed, 0 failed, 0 not run

@@ -1,0 +1,115 @@
+PASS net11-runtime-and-architecture
+PASS platform-config-provider-precedence
+PASS npgsql-assembly-and-datasource-disposal
+PASS rabbitmq-client-assembly-and-configuration
+PASS https-and-http-only-graphql-startup
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed because the platform does not support ephemeral keys.
+       ---> System.ComponentModel.Win32Exception (0x8009030E): No credentials are available in the security package
+         at System.Net.SSPIWrapper.AcquireCredentialsHandle(ISSPIInterface secModule, String package, CredentialUse intent, SCH_CREDENTIALS* scc)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(CredentialUse credUsage, SCH_CREDENTIALS* secureCredential)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandleSchCredentials(SslAuthenticationOptions authOptions)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireServerCredentials(Byte[]& thumbPrint)
+         at System.Net.Security.SslStream.TryNextMessageViaTlsSession(ReadOnlySpan`1 incomingBuffer, ProtocolToken& token, Int32& consumed)
+         at System.Net.Security.SslStream.NextMessage(ReadOnlySpan`1 incomingBuffer, Int32& consumed)
+         at System.Net.Security.SslStream.ProcessTlsFrame(Int32 frameSize)
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+FAIL https-fixture-custom-ca-chain-and-hostname: System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed because the platform does not support ephemeral keys.
+       ---> System.ComponentModel.Win32Exception (0x8009030E): No credentials are available in the security package
+         at System.Net.SSPIWrapper.AcquireCredentialsHandle(ISSPIInterface secModule, String package, CredentialUse intent, SCH_CREDENTIALS* scc)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(CredentialUse credUsage, SCH_CREDENTIALS* secureCredential)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandleSchCredentials(SslAuthenticationOptions authOptions)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireServerCredentials(Byte[]& thumbPrint)
+         at System.Net.Security.SslStream.TryNextMessageViaTlsSession(ReadOnlySpan`1 incomingBuffer, ProtocolToken& token, Int32& consumed)
+         at System.Net.Security.SslStream.NextMessage(ReadOnlySpan`1 incomingBuffer, Int32& consumed)
+         at System.Net.Security.SslStream.ProcessTlsFrame(Int32 frameSize)
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+FAIL https-rejects-wrong-hostname: System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed because the platform does not support ephemeral keys.
+       ---> System.ComponentModel.Win32Exception (0x8009030E): No credentials are available in the security package
+         at System.Net.SSPIWrapper.AcquireCredentialsHandle(ISSPIInterface secModule, String package, CredentialUse intent, SCH_CREDENTIALS* scc)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(CredentialUse credUsage, SCH_CREDENTIALS* secureCredential)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandleSchCredentials(SslAuthenticationOptions authOptions)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireServerCredentials(Byte[]& thumbPrint)
+         at System.Net.Security.SslStream.TryNextMessageViaTlsSession(ReadOnlySpan`1 incomingBuffer, ProtocolToken& token, Int32& consumed)
+         at System.Net.Security.SslStream.NextMessage(ReadOnlySpan`1 incomingBuffer, Int32& consumed)
+         at System.Net.Security.SslStream.ProcessTlsFrame(Int32 frameSize)
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+FAIL graphql-http-query-and-no-ide: System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed because the platform does not support ephemeral keys.
+       ---> System.ComponentModel.Win32Exception (0x8009030E): No credentials are available in the security package
+         at System.Net.SSPIWrapper.AcquireCredentialsHandle(ISSPIInterface secModule, String package, CredentialUse intent, SCH_CREDENTIALS* scc)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(CredentialUse credUsage, SCH_CREDENTIALS* secureCredential)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandleSchCredentials(SslAuthenticationOptions authOptions)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireServerCredentials(Byte[]& thumbPrint)
+         at System.Net.Security.SslStream.TryNextMessageViaTlsSession(ReadOnlySpan`1 incomingBuffer, ProtocolToken& token, Int32& consumed)
+         at System.Net.Security.SslStream.NextMessage(ReadOnlySpan`1 incomingBuffer, Int32& consumed)
+         at System.Net.Security.SslStream.ProcessTlsFrame(Int32 frameSize)
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+FAIL jwt-valid-rs256-and-required-authentication: System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed because the platform does not support ephemeral keys.
+       ---> System.ComponentModel.Win32Exception (0x8009030E): No credentials are available in the security package
+         at System.Net.SSPIWrapper.AcquireCredentialsHandle(ISSPIInterface secModule, String package, CredentialUse intent, SCH_CREDENTIALS* scc)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(CredentialUse credUsage, SCH_CREDENTIALS* secureCredential)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandleSchCredentials(SslAuthenticationOptions authOptions)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireServerCredentials(Byte[]& thumbPrint)
+         at System.Net.Security.SslStream.TryNextMessageViaTlsSession(ReadOnlySpan`1 incomingBuffer, ProtocolToken& token, Int32& consumed)
+         at System.Net.Security.SslStream.NextMessage(ReadOnlySpan`1 incomingBuffer, Int32& consumed)
+         at System.Net.Security.SslStream.ProcessTlsFrame(Int32 frameSize)
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+FAIL jwt-rejects-wrong-issuer-audience-expiry-signature: System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware[1]
+      Failed to authenticate HTTPS connection.
+      System.Security.Authentication.AuthenticationException: Authentication failed because the platform does not support ephemeral keys.
+       ---> System.ComponentModel.Win32Exception (0x8009030E): No credentials are available in the security package
+         at System.Net.SSPIWrapper.AcquireCredentialsHandle(ISSPIInterface secModule, String package, CredentialUse intent, SCH_CREDENTIALS* scc)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(CredentialUse credUsage, SCH_CREDENTIALS* secureCredential)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandleSchCredentials(SslAuthenticationOptions authOptions)
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStreamPal.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireCredentialsHandle(SslAuthenticationOptions sslAuthenticationOptions, Boolean newCredentialsRequested)
+         at System.Net.Security.SslStream.AcquireServerCredentials(Byte[]& thumbPrint)
+         at System.Net.Security.SslStream.TryNextMessageViaTlsSession(ReadOnlySpan`1 incomingBuffer, ProtocolToken& token, Int32& consumed)
+         at System.Net.Security.SslStream.NextMessage(ReadOnlySpan`1 incomingBuffer, Int32& consumed)
+         at System.Net.Security.SslStream.ProcessTlsFrame(Int32 frameSize)
+         at System.Net.Security.SslStream.ForceAuthenticationAsync[TIOAdapter](Boolean receiveFirst, Byte[] reAuthenticationData, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Https.Internal.HttpsConnectionMiddleware.OnConnectionAsync(ConnectionContext context)
+FAIL http-request-abort-reaches-handler-and-cleans-up: System.TimeoutException | TimeoutException: The operation has timed out.
+PASS owned-host-graceful-shutdown
+Qualification: 6 passed, 6 failed, 2 not run

@@ -1,0 +1,83 @@
+{
+  "observedAtUtc": "2026-10-27T11:21:56.9446988+00:00",
+  "framework": ".NET 11.0.0-rc.3.26522.148",
+  "runtime": "11.0.0",
+  "os": "Microsoft Windows 10.0.26300",
+  "architecture": "X64",
+  "scope": "Platform and third-party qualification smoke only; not Engine composition/tenancy/E2E/benchmark/production proof. HTTPS uses an ephemeral custom test CA; JWT uses fixture keys.",
+  "passed": 6,
+  "failed": 6,
+  "notRun": 2,
+  "results": [
+    {
+      "Name": "net11-runtime-and-architecture",
+      "Status": "Passed",
+      "Detail": null
+    },
+    {
+      "Name": "platform-config-provider-precedence",
+      "Status": "Passed",
+      "Detail": null
+    },
+    {
+      "Name": "npgsql-assembly-and-datasource-disposal",
+      "Status": "Passed",
+      "Detail": null
+    },
+    {
+      "Name": "rabbitmq-client-assembly-and-configuration",
+      "Status": "Passed",
+      "Detail": null
+    },
+    {
+      "Name": "https-and-http-only-graphql-startup",
+      "Status": "Passed",
+      "Detail": null
+    },
+    {
+      "Name": "https-fixture-custom-ca-chain-and-hostname",
+      "Status": "Failed",
+      "Detail": "System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream."
+    },
+    {
+      "Name": "https-rejects-wrong-hostname",
+      "Status": "Failed",
+      "Detail": "System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream."
+    },
+    {
+      "Name": "graphql-http-query-and-no-ide",
+      "Status": "Failed",
+      "Detail": "System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream."
+    },
+    {
+      "Name": "jwt-valid-rs256-and-required-authentication",
+      "Status": "Failed",
+      "Detail": "System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream."
+    },
+    {
+      "Name": "jwt-rejects-wrong-issuer-audience-expiry-signature",
+      "Status": "Failed",
+      "Detail": "System.Net.Http.HttpRequestException | HttpRequestException: The SSL connection could not be established, see inner exception. | IOException: Received an unexpected EOF or 0 bytes from the transport stream."
+    },
+    {
+      "Name": "http-request-abort-reaches-handler-and-cleans-up",
+      "Status": "Failed",
+      "Detail": "System.TimeoutException | TimeoutException: The operation has timed out."
+    },
+    {
+      "Name": "owned-host-graceful-shutdown",
+      "Status": "Passed",
+      "Detail": null
+    },
+    {
+      "Name": "npgsql-real-provider-transaction-query-cancellation",
+      "Status": "Not run",
+      "Detail": "Owned fixture connection not supplied"
+    },
+    {
+      "Name": "rabbitmq-real-provider-confirm-manual-ack",
+      "Status": "Not run",
+      "Detail": "Owned fixture connection not supplied"
+    }
+  ]
+}

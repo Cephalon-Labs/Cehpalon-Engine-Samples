@@ -1,0 +1,72 @@
+# Optional configurable JWT/JWS validation
+
+Signed compact JWT carries claims; JWS protects the signature; JWK/JWKS describes keys; Algorithm selects a cryptographic algorithm. These are distinct settings. This helper configures the established ASP.NET Core JwtBearer implementation, not a new parser/crypto implementation.
+
+```json
+{
+  "Authentication": {
+    "Api": {
+      "Scheme": "ApiBearer",
+      "Issuer": "https://identity.example/realm",
+      "Audience": "orders-api",
+      "Algorithm": "PS256",
+      "TokenType": "at+jwt",
+      "KeySource": "AuthorityMetadata",
+      "Authority": "https://identity.example/realm"
+    }
+  }
+}
+```
+
+```csharp
+var profile = JwtAuthenticationProfile.FromConfiguration(
+    builder.Configuration.GetSection("Authentication:Api"));
+// Inside the selected security module factory only:
+builder.Services.AddAuthentication(profile.Scheme).AddCehpalonJwtBearer(profile);
+```
+
+`JwtProfileSettings` also supports typed binding and `new JwtAuthenticationProfile(settings)`. Profiles freeze their values. Unknown/nested configuration fields, unsigned/unknown algorithms, mismatched sources and invalid metadata URLs reject before key callbacks. Use one exact algorithm per scheme. Supported algorithm identifiers: RS256/384/512, PS256/384/512, ES256/384/512 and HS256/384/512. The representative RSA/PSS/P-256/HMAC integrations have actual signature tests; selecting another identifier does not itself establish external provider interoperability.
+
+Key sources are explicit:
+
+- `PublicJwks`: `AddCehpalonJwtBearer(profile, publicJwks: () => trustedPublicJwksJson)`. Configure the host's file/key-service location separately. Strict bounded public JWKS requires 1–16 unique bounded kids, matching kty/alg, use=sig and verify-only key_ops if present. Only n/e RSA or crv/x/y EC public fields are accepted; private/octet/unknown/remote-reference fields reject. RSA has canonical modulus/exponent checks and at least 2048 actual bits; EC curve/coordinate size must match. One profile may contain multiple verification keys for controlled local rollover; metadata lifecycle requires separate proof.
+- `ProvidedKeys`: `AddCehpalonJwtBearer(profile, providedKeys: () => trustedKeyService.GetVerificationKeys())`. Return bounded identified RSA/EC or SymmetricSecurityKey objects. Inputs are snapshotted; public RSA/EC material only is retained. HMAC requires sufficient key bytes (256/384/512 bits), a secret-store callback and the matching family. Byte count cannot prove entropy/secrecy; the host must not reuse public bytes as a secret or reuse a key across algorithms/profiles.
+- `AuthorityMetadata`: exact configured issuer/audience/type/algorithm and HTTPS Authority/optional MetadataAddress. The established configuration manager handles retrieval/cache/refresh; metadata cannot add accepted token issuers. Network location is trusted host configuration, never unverified token jku/x5u/issuer. Metadata configuration tests do not prove real IdP rotation/revocation/outage behavior. Provider-specific metadata extensions and X.509 need their own supported adapter.
+
+Local lookup requires the exact kid; it does not try arbitrary keys or URLs from a token. IncludeErrorDetails and SaveToken are false, clock skew is zero, and audience trailing-slash equivalence is disabled. Do not place signing keys, symmetric secrets or bearer tokens in appsettings, evidence or audit logs. Do not activate this module for a disabled security profile.
+
+Use `AspNetCoreJwtIdentitySource` with the same explicit scheme to enter tenant dispatch. Cookie/custom established handlers can use `AspNetCoreIdentitySource` with `IAuthenticatedTicketIdentityMapper`; `TicketPropertyIdentityMapper` maps a fixed issuer, unique configured subject claim and ticket IssuedUtc/ExpiresUtc. It does not turn an arbitrary User flag into authority or implement account/login/session lifecycle. Other algorithms, protocols or key-provider semantics remain replaceable through established host handlers and IIdentitySource.
+
+## Optional nested signed JWE
+
+Set `TokenProtection` to `EncryptedSigned` and configure outer key management/content encryption separately from the inner signing `Algorithm`. The existing default is `Signed`. Encrypted profiles require JWE and reject plaintext fallback; signed profiles reject encrypted input. Every decrypted token must still be a valid signed JWT with the configured issuer/audience/type/lifetime before portable identity/tenant checks.
+
+```json
+{
+  "Scheme": "EncryptedApi",
+  "Issuer": "https://identity.example/realm",
+  "Audience": "orders-api",
+  "Algorithm": "RS256",
+  "TokenType": "at+jwt",
+  "KeySource": "PublicJwks",
+  "TokenProtection": "EncryptedSigned",
+  "KeyManagementAlgorithm": "RSA-OAEP",
+  "ContentEncryptionAlgorithm": "A256CBC-HS512"
+}
+```
+
+```csharp
+builder.Services.AddAuthentication(profile.Scheme).AddCehpalonJwtBearer(profile,
+    publicJwks: () => trustedSigningPublicJwks,
+    decryptionKeys: () => trustedSecretProvider.GetDecryptionKeys());
+```
+
+The delivered pinned IdentityModel8.19.2 profiles are **RSA-OAEP + A256CBC-HS512** and **dir + A256CBC-HS512**. RSA-OAEP here is the library's explicit RSA-OAEP identifier (OAEP with SHA-1), not RSA-OAEP-256. dir requires exactly64 secret bytes; its encrypted-key segment must be empty. RSA uses an identified exportable private RsaSecurityKey with at least2048 actual bits and a nonempty wrapped-key segment. At most16 distinct decryption keys are snapshotted. This bounded adapter does not claim nonexportable/HSM key support or zeroization of all managed/private copies; the host owns the trusted source and production key lifecycle.
+
+The package's stock creation API does not support RSA-OAEP-256 or A256GCM encryption, although its GCM decryption path exists. Unsupported configuration rejects before provider access; it is never silently rewritten. No RSA1_5, custom cipher/provider, compression or unapproved nested token is enabled. Additional pairs require separate backend/platform evidence.
+
+Outer typ must match TokenType, cty must be JWT, and alg/enc/kid are explicit. Only those five outer fields are supported. Unknown/duplicate fields, remote key references, zip/crit, missing or wrong key IDs and malformed direct/wrapped-key segments reject. Inner signed-header policy is explicit and bounded; there is exactly one encrypted layer followed by a signed unencrypted JWT. Wire token limit is64KiB and protected JWE/inner header limit4KiB. The established parser and cryptography perform all decoding/authenticated decryption/signature validation; a bounded JSON uniqueness/shape guard only enforces this profile's header representation.
+
+Signing and decryption keys must have distinct IDs **and actual material**; unsigned RSA modulus/exponent comparison normalizes representation rather than comparing padded encodings. Symmetric bytes are compared directly. Local reuse rejects at registration; metadata-sourced signing reuse rejects during signature validation. Cross-profile/application separation and key entropy still belong to the host. Decryption secrets never come from public JWKS or token-provided URLs and are never included in audit records.
+
+Algorithm validation distinguishes outer content-encryption/derived symmetric CEK from inner signing keys. A global union of allowed algorithm names would lose those roles; do not replace the supplied handler/validators with permissive delegates. Failures remain generic with no token/plaintext/key interpolation. Successful JWE authentication still enters the same fresh tenant membership/resource/RBAC/ABAC, switching/read-set and audit boundaries. Encryption does not grant tenant access or replace TLS.
