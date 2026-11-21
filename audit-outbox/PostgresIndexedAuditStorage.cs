@@ -197,8 +197,8 @@ public sealed class PostgresIndexedAuditStorage : ITenantChangeAuditIdempotentSi
             SELECT a.attnum::integer,a.attname::text,tn.nspname||'.'||t.typname,a.attnotnull,
                 COALESCE(cn.nspname||'.'||co.collname,''),a.atttypmod,a.attndims,a.attisdropped,
                 a.atthasdef,a.attidentity::text,a.attgenerated::text,a.attinhcount::integer,a.attislocal,t.typtype::text,a.atthasmissing
-            FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid=a.atttypid
-            JOIN pg_catalog.pg_namespace tn ON tn.oid=t.typnamespace
+            FROM pg_catalog.pg_attribute a LEFT JOIN pg_catalog.pg_type t ON t.oid=a.atttypid
+            LEFT JOIN pg_catalog.pg_namespace tn ON tn.oid=t.typnamespace
             LEFT JOIN pg_catalog.pg_collation co ON co.oid=a.attcollation LEFT JOIN pg_catalog.pg_namespace cn ON cn.oid=co.collnamespace
             WHERE a.attrelid=$1 AND a.attnum>0 ORDER BY a.attnum
             """, c, tx))
