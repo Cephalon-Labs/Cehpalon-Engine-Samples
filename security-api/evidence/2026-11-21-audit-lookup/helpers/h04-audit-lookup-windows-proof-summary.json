@@ -1,0 +1,85 @@
+{
+  "scope": "Narrative development handoff from established facts only; root final clean committed proof is separate. No SDK/probes/hash audit during root final6.",
+  "samples_revision": "617e89e9e4713313e683cd50f08ae77d49b891fe",
+  "samples_baseline": "a1ee6e82551b191094ba39246752dea8a192877e",
+  "engine_revision": "505d7f0e08057a0a24debe092e9956fd534790d4",
+  "sdk": "11.0.100",
+  "runtime": "11.0.0",
+  "development": {
+    "dev01": {
+      "status": "failed retained",
+      "main_passed": 151,
+      "main_failed": 2,
+      "prior_main_passed": 129,
+      "lookup_passed": 22,
+      "lookup_failed": 2,
+      "restart_executed": false,
+      "raw": ".local/audit-lookup-windows-dev01",
+      "source": ".local/audit-lookup-windows-dev01-source"
+    },
+    "dev02": {
+      "status": "passed",
+      "main_passed": 153,
+      "base_outbox_passed": 34,
+      "status_passed": 23,
+      "relay_budget_passed": 24,
+      "bounded_drain_passed": 24,
+      "total_drain_passed": 24,
+      "lookup_passed": 24,
+      "restart_passed": 3,
+      "prior_total": 132,
+      "total_passed": 156,
+      "failed": 0,
+      "source_unchanged": true,
+      "build_warnings": 0,
+      "build_errors": 0,
+      "raw": ".local/audit-lookup-windows-dev02",
+      "source": ".local/audit-lookup-windows-dev02-source"
+    },
+    "precommit_revision_dirty_metadata_preserved": true
+  },
+  "source_proof_before_root_launch": {
+    "freezer_inputs": 100,
+    "verifier_inputs": 99,
+    "all100_executing_frozen_current_committed_bytes_equal": true,
+    "all6_changed_files_LF_index_current_commit_equal": true,
+    "eol_exceptions": [],
+    "precommit_proof": ".local/audit-lookup-precommit-index-proof.json",
+    "postcommit_proof": ".local/audit-lookup-postcommit-byte-proof.json"
+  },
+  "registries": {
+    "service_sha256": "711a4eb303706667a08027013c7ecf1610157047240f4d0632fc5cb3517e2c65",
+    "security_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+    "service_gateways": 4,
+    "service_change": "Intentional additive typed lazy LookupGateway/trail.lookup; priorrelay/status/drain registration behavior unchanged.",
+    "security_unchanged": true
+  },
+  "api_and_provider": "Additive PostgresLookupSource validates owned schema and binds authorized tenant plus receipt parameters for existing audit_sink SELECT. New typed LookupGateway uses explicit sample trail.lookup grant and fresh audit-trail/tenant/read scope; the portable reader uses the matching live history scope. No endpoint, old provider SQL/schema/interface or storage behavior changes.",
+  "lookup_observations": {
+    "count": 15,
+    "disabled_vs_denied": "Disabled source factory0; selected enabled factory1 but denied query0/connection0 separately.",
+    "actual_rows": "Committed pending null becomes exact published record; same GUID in A/B isolated by SQL key; stored SQL key matches request while deliberately mismatched encoded tenant/receipt faults before reader results.",
+    "projection": "MetadataOnly/ChangedFields/BeforeAfterSnapshots, stripping unknown/unchanged fields where selected, both-value redaction, no reconstruction of missing/redacted capture; current immutable policy activated explicitly.",
+    "guards": "Record/null after-I/O caller guard and expired-scope latch restore, access.denied results at protected dispatcher; reader return counter0 proves result withheld before outer dispatch.",
+    "held_source": "External watchdog outside error capture, force-unblock/cancel/join pending and independently owned wrapper tasks.",
+    "actual_backend": "Exact tagged PostgreSQL Lock observed before caller cancellation; command quiesces before blocker release, source reused, rows unchanged.",
+    "concurrency": "Eight independently scheduled Task.Run readers split A4/B4 under fresh contexts; unchanged rows."
+  },
+  "fixture_correction": ".local/audit-lookup-dev01-correction.json",
+  "preparation_review": ".local/audit-lookup-preparation-review.json",
+  "declaration03_timeline": "AFTER dev02 launch provenance clarification, not pre-SDK. LookupChecks assertions/evidence and verifier observation12to15 were both already reviewed and included in actual100-input freeze before SDK. Source stayed unchanged after launch; no stop/restart or behavioral acceptance change.",
+  "retention": "Original132 cases including129main+3restart, old PostgresStore/Integration/PayloadCodec and protected budget/drain/status/test/security651 sources and locks retained. No historical evidence/benchmark/trace modification, schema migration, provider upgrade, automatic retry/global lookup/retention deletion or performance/production qualification.",
+  "fixture": {
+    "container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7",
+    "volume": "cehpalon-audit-outbox-pg18-20261121-data",
+    "windows_proxy": "127.0.0.1:57904",
+    "activation_attempts": 1,
+    "readiness_probes": 2,
+    "native_positive": ".local/pg-proxy-native-listener-before.json",
+    "state": "held until root confirms allfinal6 complete",
+    "private_env_exported": false,
+    "cleanup_receipt": ".local/audit-lookup-fixture-cleanup.json",
+    "cleanup_method": "Exact owned identities, dynamic OS port and native GetActiveTcpListeners; no timed-connect10035 inference"
+  },
+  "limits": "#3 Blocked/#20 and original benchmark criteria remain unchanged. Runtime M0; no production/full supported-host/provider/native Windows database claim. Root sole remote writer; child no remote writes."
+}

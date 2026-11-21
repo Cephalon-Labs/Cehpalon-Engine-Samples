@@ -1,0 +1,15 @@
+{
+  "attempt": "audit-lookup-windows-dev01",
+  "status": "failed retained",
+  "main_passed": 151,
+  "main_failed": 2,
+  "prior_main_passed": 129,
+  "lookup_passed": 22,
+  "lookup_failed": 2,
+  "restart_executed": false,
+  "diagnosis": "Fixture expected semantic TenantAccessDeniedException to escape protected host dispatch, whose existing contract maps it to OperationResult rejection access.denied.",
+  "contract_source": "TenantOperationDispatcher.cs DispatchCoreAsync catch(TenantAccessDeniedException) -> Denied() code access.denied.",
+  "correction": "Only wrong-scope and expired-latch fixture assertions plus structured evidence: explicit returned access.denied, exact handler/reader/query counts. Direct reader disposed-scope exception assertion retained. No host/runtime/provider contract change.",
+  "next_attempt": "Fresh frozen complete156 after independent corrected-source review; no unchanged rerun.",
+  "runtime_provider_schema_package_gate_changes": false
+}

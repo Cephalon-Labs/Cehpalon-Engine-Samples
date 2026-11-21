@@ -1,0 +1,407 @@
+{
+  "schema_version": 1,
+  "status": "passed_all_declared_review_scopes",
+  "reviewed_at_utc": "2026-11-21T08:54:49.641357+00:00",
+  "reviewer": "Independent delegated read-only source and retained-evidence reviewer",
+  "scope": "ADR0048 exact tenant-scoped audit receipt lookup: accepted design, bounded source/fixture review, retained focused/development attempts and six final functional lanes only.",
+  "review_method": {
+    "source_edits": false,
+    "sdk_build_runtime_invocations": false,
+    "provider_container_live_port_probes": false,
+    "network_or_remote_tracking": false,
+    "performed": "Bounded source/manifest/raw JSON/build-log reads, SHA-256 checks, local Git object reads and exact comparisons. This JSON is the sole reviewer write for this wave."
+  },
+  "revisions": {
+    "engine_baseline": "7499db9759bc9e8017760fb4be34d35dd564393f",
+    "engine_source": "505d7f0e08057a0a24debe092e9956fd534790d4",
+    "docs_baseline": "a438375737a46d96e91e7ad120afcfdc6ebc8335",
+    "consumer_baseline": "a1ee6e82551b191094ba39246752dea8a192877e",
+    "consumer_source": "617e89e9e4713313e683cd50f08ae77d49b891fe"
+  },
+  "declaration_provenance": {
+    "result": "PASS_with_explicit_timing_boundary",
+    "snapshots": [
+      {
+        "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\audit-lookup-declaration01\\manifest.json",
+        "sha256": "a95a62bcfa4c00803a4bd9d8df35ca163d1907f82d66d8dc42530bfab0ba7f2c"
+      },
+      {
+        "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\audit-lookup-declaration02\\manifest.json",
+        "sha256": "0d82f016e96b6120471a535beb7312d37e14852c1d74f4b2bbde4b2b237a8822"
+      },
+      {
+        "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\audit-lookup-declaration03\\manifest.json",
+        "sha256": "6ebe5ef2ff25b8a98668e89b548215deca09abde67a08995dc2f6bc1a0102058"
+      }
+    ],
+    "all_retained_snapshot_hashes_match": true,
+    "current_three_protocol_files_match_snapshot03": true,
+    "timing": [
+      "Declaration01 is frozen before initial SDK execution.",
+      "Declaration02 is frozen before corrected dev02 execution but its prose incorrectly said LookupChecks-only.",
+      "Declaration03 is explicitly frozen-after-dev02-launch. It corrects provenance wording to acknowledge the verifier observation-count change already independently reviewed and frozen before dev02.",
+      "Do not claim all three declarations predate SDK execution; actual pre-SDK development snapshots retain both executing input changes."
+    ]
+  },
+  "source_review": {
+    "result": "PASS",
+    "engine_changed_paths": [
+      "Tests/AuditTrail.ContractTests/LookupChecks.cs",
+      "Tests/AuditTrail.ContractTests/Program.cs",
+      "src/Cehpalon.Engine.Tenancy/Audit.cs"
+    ],
+    "consumer_changed_paths": [
+      "audit-outbox/LookupChecks.cs",
+      "audit-outbox/LookupIntegration.cs",
+      "audit-outbox/PostgresLookupSource.cs",
+      "audit-outbox/Program.cs",
+      "audit-outbox/README.md",
+      "tools/verify_audit_outbox.py"
+    ],
+    "all_nine_changed_files_exact_committed_LF_blobs": true,
+    "properties": [
+      "Additive optional ITenantChangeAuditLookupSource and TenantChangeAuditLookupReader leave existing history/outbox/relay APIs intact.",
+      "Non-null context and nonempty receipt validation precede work. Original caller token and live audit-trail/tenant/read authority are checked before I/O, after record or null, and at final completion.",
+      "Returned tenant and receipt exactly match the requested identity before current-policy projection into a fresh immutable record.",
+      "Captured immutable read policy cannot reload automatically or restore previously redacted/omitted values. Disabled activation skips source factory; direct Disabled construction rejects.",
+      "No catch, new timer, cancellation normalization or retry changes original caller token/provider failure reference behavior; uncooperative work remains awaited.",
+      "Separate PostgreSQL adapter validates owned schema and parameterizes tenant/receipt against existing final sink; original PostgresStore/Integration/schema/claim/status/pagination SQL are unchanged.",
+      "Generated lazy lookup gateway uses fresh selected sample operation policy; portable lookup requires matching live history scope rather than a fixed operation ID.",
+      "Denied-query-zero and Disabled-factory-zero are distinct observations. Same receipt GUID in different tenants does not create cross-tenant authority."
+    ],
+    "negative_fixture_correction": "Protected dispatch intentionally maps semantic TenantAccessDeniedException to OperationResult failure access.denied. Direct reader calls still throw; tests now assert the appropriate boundary without changing product behavior."
+  },
+  "pre_sdk_adversarial_review": {
+    "result": "PASS",
+    "controls": [
+      "Context/receipt/operation/action/resource admission and zero unauthorized queries.",
+      "Wrong encoded tenant/receipt from both faulty actual stored rows and explicit wrappers is withheld before reader result.",
+      "Nine capture/current-policy component combinations, current redaction on both values, unknown-rule stripping, immutable capture provenance and no invented snapshots.",
+      "Record and null delayed sources, original token/error identity, late caller, expired/disposed scopes, final guards and invalidity latch after fixture clock restore.",
+      "External watchdogs outside product-failure capture, unconditional owned source unblock/cancel/join.",
+      "Actual tagged PostgreSQL backend Lock wait observed before caller cancellation; command completion/quiescence before blocker release and source reuse with unchanged stored rows.",
+      "Eight independently scheduled tenant-scoped reads; no physical latency or snapshot claim."
+    ]
+  },
+  "focused_component": {
+    "result": "PASS",
+    "attempt": "al-focused01",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\al-engine\\.local\\al-focused01\\manifest.json",
+      "sha256": "1fc2dd071a601c356cf8083011765ba09029b29193ad49fd0ff6e87482472056"
+    },
+    "current_and_frozen_inputs": 203,
+    "all_hashes_match": true,
+    "trail_passed": 103,
+    "trail_failed": 0,
+    "old_48_names_order_results_exact": true,
+    "new_lookup_checks": 55,
+    "outbox_passed": 212,
+    "status_passed": 56,
+    "outbox_status_whole_raw_json_exact_prior": true,
+    "old_trail_program_exact_after_single_hook_removal": true,
+    "all_three_builds_zero_warnings_errors": true,
+    "attempt_boundary": "First retained focused SDK attempt; no product changes after source freeze."
+  },
+  "consumer_development": {
+    "failed01": {
+      "result": "FAILED_RETAINED",
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-consumer\\.local\\audit-lookup-windows-dev01\\manifest.json",
+        "sha256": "ed168e4d0d9a8089870188bc0933d337b41a28e5fab85a9e7eb0d62b41fcc1d7"
+      },
+      "source_manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-consumer\\.local\\audit-lookup-windows-dev01-source\\manifest.json",
+        "sha256": "6442a087c486a11af0ecbf9be2e042a27672fd5af609c3e5e006ef404b45688f"
+      },
+      "all_100_frozen_hashes_match": true,
+      "main_passed": 151,
+      "main_failed": 2,
+      "new_lookup_passed": 22,
+      "new_lookup_failed": 2,
+      "old_129_main_prefix_exact": true,
+      "restart_executed": false,
+      "diagnosis": "Two fixture assertions wrongly expected protected host dispatch to throw semantic denial; raw error is Expected lookup failure. Existing dispatch returns access.denied."
+    },
+    "correction": {
+      "reviewed_before_dev02": true,
+      "exact_two_input_changes": [
+        "consumer/audit-outbox/LookupChecks.cs",
+        "consumer/tools/verify_audit_outbox.py"
+      ],
+      "detail": "Wrong-scope and expiry-latch controls assert returned access.denied plus exact handler/query/ReaderResults counts; three added structured scope observations increase expected count12 to15. Record/null latch still directly observes DemandAccess denial before clock restore. Direct disposed-reader exception control remains.",
+      "unchanged": "All24 behavioral cases/full156 acceptance, runtime, host, SQL/schema/provider/packages/grants/gates. No subset rerun or threshold change.",
+      "declaration03_after_launch": true
+    },
+    "corrected02": {
+      "result": "PASS",
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-consumer\\.local\\audit-lookup-windows-dev02\\manifest.json",
+        "sha256": "d728f9aadbf38d7663cd2990ed6449c361337ab7b9b270b0d626931e11a5030d"
+      },
+      "source_manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-consumer\\.local\\audit-lookup-windows-dev02-source\\manifest.json",
+        "sha256": "52d954d3cdf8ca45e068a2ca8e1b7c03575f470adf1ce7448cc3dc4e662cd674"
+      },
+      "current_and_frozen_inputs": 100,
+      "verifier_inputs": 99,
+      "verifier_exact_freezer_subset": true,
+      "all_current_and_frozen_hashes_match": true,
+      "main_passed": 153,
+      "main_failed": 0,
+      "restart_passed": 3,
+      "total_passed": 156,
+      "prior_132_preserved": true,
+      "old_129_main_prefix_exact": true,
+      "lookup_passed": 24,
+      "lookup_observations": 15,
+      "build_zero_warnings_errors": true
+    }
+  },
+  "root_serial_driver": {
+    "result": "PASS",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\al-integration\\.local\\al-final-driver01\\manifest.json",
+      "sha256": "2f2946ed9e31a48df481dd7165f70fabc1fb1d4573bbed338bfad68ed7682ee2"
+    },
+    "runner_sha256": "3e0d3bb8cbe19e2825fbc2126ed901559460b78bffcbd7c709a26af4873780ee",
+    "runner_hash_verified": true,
+    "all_17_phases_exit_zero": true,
+    "first_root_driver_all_six_lanes_passed": true,
+    "note": "Real Git WSL borrowed source uses explicit LF alternates outside Engine parent; borrowed objects are not an independent archival store."
+  },
+  "final_lanes": [
+    {
+      "kind": "components",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 1378,
+      "failed": 0,
+      "declared_input_count": 145,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-integration\\.local\\al-windows-final01\\manifest.json",
+        "sha256": "b23304e8bfdac38959fa6bedea2931cfe3c38db2477fbe823c37ab8b7436fd59"
+      },
+      "sdk": "11.0.100",
+      "current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "suites": {
+        "Core.ContractTests": 32,
+        "Composition.ContractTests": 80,
+        "CodeGeneration.ContractTests": 46,
+        "Identity.ContractTests": 34,
+        "Access.ContractTests": 55,
+        "AuthProfile.ContractTests": 55,
+        "Jwe.ContractTests": 55,
+        "KeyRing.ContractTests": 53,
+        "Session.ContractTests": 66,
+        "Observation.ContractTests": 61,
+        "AuditTrail.ContractTests": 103,
+        "AuditPreparation.ContractTests": 51,
+        "AuditExecution.ContractTests": 48,
+        "AuditOutbox.ContractTests": 212,
+        "OutboxStatus.ContractTests": 56,
+        "TenantReadSet.ContractTests": 37,
+        "Tenancy.ContractTests": 79,
+        "Http.ContractTests": 52,
+        "GraphQL.ContractTests": 47,
+        "Tooling.ContractTests": 156
+      },
+      "all_output_sha256_match": true,
+      "raw_result_counts_checks_pass": true,
+      "compiler_fixture_passed": true,
+      "compiler_generated_registry_hash_matches": true,
+      "unique_component_input_blobs_match_exact_commit": true,
+      "old_48_trail_names_order_results_exact": true,
+      "source_provenance": "Final manifest/current source hashes plus exact committed Git blobs; separate focused pre-SDK snapshot retained. No final per-lane frozen directory is claimed."
+    },
+    {
+      "kind": "components",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 1375,
+      "failed": 0,
+      "declared_input_count": 145,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-integration\\.local\\al-wsl-source01\\.local\\al-wsl-final01\\manifest.json",
+        "sha256": "447fddbe386a6e0448302918180faf8849e0cdab6de6668ab048d5000003e9cf"
+      },
+      "sdk": "11.0.100",
+      "current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "suites": {
+        "Core.ContractTests": 32,
+        "Composition.ContractTests": 80,
+        "CodeGeneration.ContractTests": 46,
+        "Identity.ContractTests": 34,
+        "Access.ContractTests": 55,
+        "AuthProfile.ContractTests": 55,
+        "Jwe.ContractTests": 55,
+        "KeyRing.ContractTests": 53,
+        "Session.ContractTests": 66,
+        "Observation.ContractTests": 61,
+        "AuditTrail.ContractTests": 103,
+        "AuditPreparation.ContractTests": 51,
+        "AuditExecution.ContractTests": 48,
+        "AuditOutbox.ContractTests": 212,
+        "OutboxStatus.ContractTests": 56,
+        "TenantReadSet.ContractTests": 37,
+        "Tenancy.ContractTests": 79,
+        "Http.ContractTests": 52,
+        "GraphQL.ContractTests": 47,
+        "Tooling.ContractTests": 153
+      },
+      "all_output_sha256_match": true,
+      "raw_result_counts_checks_pass": true,
+      "compiler_fixture_passed": true,
+      "compiler_generated_registry_hash_matches": true,
+      "unique_component_input_blobs_match_exact_commit": true,
+      "old_48_trail_names_order_results_exact": true,
+      "source_provenance": "Final manifest/current source hashes plus exact committed Git blobs; separate focused pre-SDK snapshot retained. No final per-lane frozen directory is claimed."
+    },
+    {
+      "kind": "security",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 651,
+      "failed": 0,
+      "declared_input_count": 85,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-consumer\\.local\\al-security-windows-final01\\manifest.json",
+        "sha256": "2f6faabf77c26e684182278a43f4c2da5f74223439f75f9f1b0fdd13f858e74c"
+      },
+      "sdk": "11.0.100",
+      "current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "raw_651_checks_pass": true,
+      "tests_sha256_matches_manifest": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "source_provenance": "Final input maps match current clean exact sources on both hosts; no final security frozen-source directory is claimed."
+    },
+    {
+      "kind": "postgres",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 156,
+      "failed": 0,
+      "declared_input_count": 99,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-consumer\\.local\\al-postgres-windows-final01\\manifest.json",
+        "sha256": "5b45c9679f88d1e67fc34bb13185a264f44580215795c6bb15299990a8acc285"
+      },
+      "sdk": "11.0.100",
+      "current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "main_passed": 153,
+      "restart_passed": 3,
+      "partition": {
+        "original_outbox": 34,
+        "status": 23,
+        "per_batch_budget": 24,
+        "bounded_drain": 24,
+        "total_drain_budget": 24,
+        "lookup": 24,
+        "restart": 3
+      },
+      "old_129_main_names_order_results_exact": true,
+      "all_15_lookup_observations_present": true,
+      "all_99_frozen_source_hashes_match": true,
+      "unique_consumer_input_blobs_match_exact_commit": true,
+      "service_registry_sha256": "711a4eb303706667a08027013c7ecf1610157047240f4d0632fc5cb3517e2c65",
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "provider_topology": "Windows.NET Npgsql via owned Windows loopback/binary stdio proxy to WSL container; not native Windows Postgres",
+      "settings": {
+        "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      }
+    },
+    {
+      "kind": "security",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 651,
+      "failed": 0,
+      "declared_input_count": 85,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-wsl-consumer\\.local\\al-security-wsl-final01\\manifest.json",
+        "sha256": "82ddca6d93236e4da951443790cc259ca3ec2a860d49e4c273c1e4d44cc4fea4"
+      },
+      "sdk": "11.0.100",
+      "current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "raw_651_checks_pass": true,
+      "tests_sha256_matches_manifest": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "source_provenance": "Final input maps match current clean exact sources on both hosts; no final security frozen-source directory is claimed."
+    },
+    {
+      "kind": "postgres",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 156,
+      "failed": 0,
+      "declared_input_count": 99,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\al-wsl-consumer\\.local\\al-postgres-wsl-final01\\manifest.json",
+        "sha256": "64ce1d03f285638fc464840e221be746956cf64fbefc7e734a02aeb6e590681e"
+      },
+      "sdk": "11.0.100",
+      "current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "main_passed": 153,
+      "restart_passed": 3,
+      "partition": {
+        "original_outbox": 34,
+        "status": 23,
+        "per_batch_budget": 24,
+        "bounded_drain": 24,
+        "total_drain_budget": 24,
+        "lookup": 24,
+        "restart": 3
+      },
+      "old_129_main_names_order_results_exact": true,
+      "all_15_lookup_observations_present": true,
+      "all_99_frozen_source_hashes_match": true,
+      "unique_consumer_input_blobs_match_exact_commit": true,
+      "service_registry_sha256": "711a4eb303706667a08027013c7ecf1610157047240f4d0632fc5cb3517e2c65",
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "provider_topology": "WSL.NET Npgsql directly to owned WSL loopback PostgreSQL container",
+      "settings": {
+        "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      }
+    }
+  ],
+  "registries": {
+    "service": "711a4eb303706667a08027013c7ecf1610157047240f4d0632fc5cb3517e2c65",
+    "service_change_intentional": "Fourth typed LookupGateway operation added; earlier service registry6d35 is retained history, not current expected hash.",
+    "security": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+    "security_unchanged": true,
+    "both_host_maps_equal": true
+  },
+  "claim_limits": [
+    "Null is this provider absence observation, including pending/not-yet-published or retained-away records; it does not establish that a change never committed, delivery health, empty backlog or global nonexistence.",
+    "A receipt ID/returned DTO is not authority. Exact lookup preserves per-tenant keys; no global uniqueness, all-tenant lookup or stronger snapshot/pagination guarantee follows.",
+    "Stored-provider identity mismatch fixtures and wrapper faults are separate from legitimate provider behavior. Raw provider exceptions are trusted-host diagnostics, not a public transport contract.",
+    "Cancellation is cooperative and owned work is awaited; no hard deadline, physical timeout latency, performance gain, benchmark or GC/scheduler causality evidence.",
+    "Windows .NET/Npgsql accesses owned WSL PostgreSQL18.7 over loopback/binary stdio proxy, not native Windows PostgreSQL. WSL access is direct. No full supported-host/all-provider, real IdP, power-loss or production/release qualification.",
+    "Inventory145component/85security/99provider versus supplemental100 consumer freeze/203 focused inputs represent distinct declared source sets.",
+    "Runtime remains M0; review does not alter #3 Blocked, #20 complete-row metadata, unknown actual hours or original benchmark criteria."
+  ],
+  "explicit_exclusions": [
+    "Issue/Project tracking synchronization, protected rows/task bytes and metadata: root verifies separately.",
+    "Owned fixture cleanup and live host state: root/cleanup agent verifies separately.",
+    "Public exports/archive/redaction/index checks, final Docs commits, remote pushes and branch cleanup.",
+    "Hosted CI metadata/results/artifacts: no reviewer network requests or artifact downloads."
+  ]
+}

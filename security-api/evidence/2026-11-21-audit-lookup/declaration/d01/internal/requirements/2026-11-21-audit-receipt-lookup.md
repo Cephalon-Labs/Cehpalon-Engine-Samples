@@ -1,0 +1,3 @@
+# Optional exact audit history lookup
+
+Accepted #18 continuation for user-configurable audit history/trails, with #7/#8 isolation regressions. Projects can independently select exact lookup by a known nonempty receipt ID within a newly authorized tenant scope. Return current-policy-projected record or provider absence; validate tenant and receipt before projection. Preserve legacy APIs/storage and disabled factory zero. No cross-tenant/global lookup or new authority. [ADR0048](../adr/ADR-0048-exact-audit-receipt-lookup.md), [protocol](../validation/audit-receipt-lookup.md). #3 Blocked/#20/original benchmarks and runtime M0 remain unchanged.
