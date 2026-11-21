@@ -1,0 +1,122 @@
+{
+  "scope": "Development bounded manual drain through generated protected consumer; no original benchmark/performance/production/native Windows PostgreSQL claim. Root final clean committed builds are separate.",
+  "samples_revision": "87a21e6b97ce419d7a508aff618b66d29a59adcd",
+  "samples_baseline": "20a354cc846e2666f4771943a618ed0d69e5728a",
+  "engine_revision": "d3630bd3448df1d59561d233dde9bfb094213076",
+  "sdk": "11.0.100",
+  "dev02": {
+    "status": "passed",
+    "consumer_revision": "20a354cc846e2666f4771943a618ed0d69e5728a",
+    "consumer_source_dirty": true,
+    "engine_dirty": false,
+    "prior_outbox_passed": 34,
+    "status_passed": 23,
+    "relay_budget_passed": 24,
+    "drain_passed": 24,
+    "passed": 105,
+    "restart_passed": 3,
+    "prior_total_passed": 60,
+    "prior_provider_total_passed": 84,
+    "total_passed": 108,
+    "source_unchanged": true,
+    "service_registry_sha256": "6d35eb73f43799c83ffad87ad35b6bf49845249c66162bb84b8c4f9dadca1895",
+    "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489"
+  },
+  "main105_checks_all_true": true,
+  "drain_observations": [
+    {
+      "case_name": "underfill",
+      "positive_underfilled_batches": 2,
+      "independently_scheduled_writer_joined": true,
+      "acknowledged": 2
+    },
+    {
+      "case_name": "active_claim",
+      "no_progress_with_pending": 3,
+      "claim_released_before_fresh_manual_replay": true
+    },
+    {
+      "case_name": "post_count_caller",
+      "control": "relay final lease clock callback after final caller/scope guards",
+      "completed_batches": 1,
+      "completed_acknowledged": 1,
+      "interrupted_acknowledged": 0
+    },
+    {
+      "case_name": "post_count_scope",
+      "control": "relay final lease clock callback after final checked-scope guard",
+      "completed_batches": 1,
+      "completed_acknowledged": 1,
+      "interrupted_acknowledged": 0
+    },
+    {
+      "case_name": "foreign_claim",
+      "prior_error_tenant": "B",
+      "prior_error_acknowledged": 1,
+      "current_completed_acknowledged": 1,
+      "current_interrupted_acknowledged": 0,
+      "exact_foreign_failure_reference_retained": true
+    },
+    {
+      "case_name": "foreign_sink",
+      "prior_error_tenant": "B",
+      "prior_error_acknowledged": 1,
+      "current_completed_acknowledged": 0,
+      "current_interrupted_acknowledged": 0,
+      "current_owned_relay_failure_wraps_exact_foreign_error": true
+    }
+  ],
+  "source_provenance": {
+    "pre_sdk_frozen_inputs": 96,
+    "verifier_frozen_inputs": 95,
+    "all96_executing_frozen_current_committed_bytes_equal": true,
+    "all5_changed_source_doc_verifier_files_lf_exact_index_current_commit": true,
+    "eol_exceptions": [],
+    "development_revision_and_dirty_state_retained_truthfully": true
+  },
+  "retention": {
+    "historical_git_blobs_compared": 40105,
+    "all_identical": true,
+    "changed": [],
+    "prior81_program_checks_and_source_prefix_retained": true,
+    "prior_provider84_including_restart3_preserved": true,
+    "PostgresStore_Integration_PayloadCodec_StatusChecks_RelayBudgetChecks_security651_schema_packages_locks_unchanged": true
+  },
+  "attempts": [
+    {
+      "name": "dev01",
+      "status": "passed108; retained complete pre-correction source/raw",
+      "manifest": ".local/bounded-drain-windows-dev01/manifest.json",
+      "source": ".local/bounded-drain-windows-dev01-source"
+    },
+    {
+      "name": "fixture correction",
+      "details": ".local/bounded-drain-dev01-correction.json",
+      "reason": "Second-claim token wait gained independent TCS unblock, outside-capture watchdog and finally cancel/join for future token regressions. Consumer operation-grant boundary clarified; no product/schema/packages/gate changes."
+    },
+    {
+      "name": "dev02",
+      "status": "passed108; reviewed corrected fixture",
+      "manifest": ".local/bounded-drain-windows-dev02/manifest.json",
+      "source": ".local/bounded-drain-windows-dev02-source"
+    }
+  ],
+  "fixture": {
+    "container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7",
+    "retained_volume": "cehpalon-audit-outbox-pg18-20261121-data",
+    "windows_proxy": "127.0.0.1:55053",
+    "state": "idle awaiting root final Windows/WSL runs, then exact-ownership cleanup",
+    "private_env_exported": false,
+    "cleanup_source": ".local/cleanup-owned-ga-pg.py",
+    "cleanup_after_root_confirmation": ".local/bounded-drain-fixture-cleanup.json"
+  },
+  "sha256": {
+    ".local/bounded-drain-windows-dev01/manifest.json": "b79021e88618ec9fe71fb5cc35a44cd1d91d11a79e262c32e9a105646470ad90",
+    ".local/bounded-drain-windows-dev02/manifest.json": "29e0ad38db77336d92de6e140e9be6997eb37aa3aea29dee3f4c9b71969091e7",
+    ".local/bounded-drain-windows-dev02/tests.json": "eb99a9990a70c7acfb6598a20f211f4b543f6df4670490adb19f1c3284fbea6f",
+    ".local/bounded-drain-windows-dev02-source/manifest.json": "878acdd13cace4c2379c7662e64c39ab7d8ccdf810983ff2ccace72197f6616f",
+    ".local/bounded-drain-dev01-correction.json": "fe4d00776e542d45f09025ead6a92edb37ee9132374cbfa2f39b06bfc859ef41",
+    ".local/bounded-drain-precommit-index-proof.json": "6cfc3e9f3f9420294b90bf930d6ebb9e28a432f624260dbef0822e3ce6a39ab4",
+    ".local/bounded-drain-postcommit-byte-proof.json": "2c7cbcb96ecca38c93a2e8f9cb139c78832b8a94ce37c3ee29a058ff3d5fc997"
+  }
+}
