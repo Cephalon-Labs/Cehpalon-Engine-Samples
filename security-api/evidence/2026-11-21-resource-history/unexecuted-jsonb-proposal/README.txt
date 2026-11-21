@@ -1,0 +1,1 @@
+UNEXECUTED pre-SDK proposal rejected: casting existing bounded TEXT payloads to PostgreSQL json/jsonb narrows valid escaped NUL values. Original adapter bytes retained here. No SDK/freeze/provider probe used this proposal. Await parent predeclared managed-filter refinement.

@@ -1,0 +1,3 @@
+# Optional exact resource audit history
+
+Accepted continuation #18 with #7/#8 regressions: projects may select bounded history for one exact resource kind/id under existing tenant history permission. A typed tenant/filter-bound continuation uses canonical receipt-key order and stays untrusted selection metadata. Validate all returned identities/order/progress before current configured policy projection, including empty-page guards. Preserve legacy APIs, storage and disabled-factory-zero. [ADR0049](../adr/ADR-0049-exact-resource-history-query.md), [protocol](../validation/resource-history-query.md). #3 Blocked/#20/original benchmarks and M0 remain unchanged.

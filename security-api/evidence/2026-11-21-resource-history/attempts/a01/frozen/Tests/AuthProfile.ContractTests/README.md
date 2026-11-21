@@ -1,0 +1,3 @@
+# Authentication profile contracts
+
+Locked Release tests of the actual JwtBearer handler for representative RSA/PSS/ECDSA/HMAC signatures, exact issuer/audience/algorithm, strict public JWKS and provided key snapshots, key family/size/usage/identity bounds, appsettings binding, disabled factories, HTTPS metadata configuration and generic authenticated-ticket mapping. Includes regressions for diagnostic JWK ToString misuse, inflated padded RSA KeySize, and metadata issuer expansion. No metadata network/real IdP lifecycle or production qualification claim. Samples adds actual HTTPS HTTP/GraphQL and ephemeral encrypted cookie proof.

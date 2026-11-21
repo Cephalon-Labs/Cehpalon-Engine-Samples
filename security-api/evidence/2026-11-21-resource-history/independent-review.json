@@ -1,0 +1,476 @@
+{
+  "schema_version": 1,
+  "status": "passed_all_declared_review_scopes",
+  "reviewed_at_utc": "2026-11-21T09:50:44.139800+00:00",
+  "reviewer": "Independent delegated read-only source and retained-evidence reviewer",
+  "scope": "ADR0049 optional exact resource audit history query: accepted design, bounded source/adversarial fixtures, retained preparations, focused/development proof and six exact-source final functional lanes only.",
+  "review_method": {
+    "source_edits": false,
+    "sdk_build_runtime_invocations": false,
+    "provider_container_live_port_probes": false,
+    "remote_or_tracking_operations": false,
+    "network_note": "Primary PostgreSQL18 documentation and source were read during the pre-SDK NUL compatibility investigation; no provider/network experiment or remote write was performed. Final source/raw verification uses retained local evidence only.",
+    "performed": "Bounded source/JSON/build-log reads, SHA-256 checks and local Git object comparisons. This JSON is the sole reviewer write for this wave."
+  },
+  "revisions": {
+    "engine_baseline": "505d7f0e08057a0a24debe092e9956fd534790d4",
+    "engine_source": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+    "docs_baseline": "ceac9b4b973a2509ec78402be5447c65c1232da3",
+    "consumer_baseline": "9a0967d6e3a914e893d17314772487e1ed711fc1",
+    "consumer_source": "6bfc43d407d94dac1d3c2dec7a2920f7e376d6e6"
+  },
+  "declaration_and_preparation": {
+    "result": "PASS",
+    "snapshots": [
+      {
+        "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\resource-history-windows-dev01-source\\frozen-declarations\\01\\manifest.json",
+        "sha256": "02f968ebdf4710554ad09e9f8b609c3a21a3b6abe65469320f3bce3c4a2330d0"
+      },
+      {
+        "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\resource-history-windows-dev01-source\\frozen-declarations\\02\\manifest.json",
+        "sha256": "13647d5be836b254bf377b54e7b96c9b353f8c64d01dbcb1b5f91ff02dbf58a9"
+      },
+      {
+        "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\resource-history-windows-dev01-source\\frozen-declarations\\03\\manifest.json",
+        "sha256": "34553f3395bc30ffa1e7dd93285a7af7c83904bf9cc869b9d7df1b6aa887649a"
+      }
+    ],
+    "all_three_retained_snapshot_hashes_match": true,
+    "all_three_frozen_before_first_SDK": true,
+    "times_utc": [
+      "2026-11-21T09:10:57.096250+00:00",
+      "2026-11-21T09:12:29.154799+00:00",
+      "2026-11-21T09:17:13.315399+00:00"
+    ],
+    "first_focused_start_utc": "2026-11-21T09:22:53.417991+00:00",
+    "refinements": [
+      "02 fixes input cursor mismatch ArgumentException versus direct semantic denial and protected access.denied result expectations.",
+      "03 replaces the unexecuted SQL JSONB resource filter with managed exact filtering of established TEXT codec to preserve escaped-NUL compatibility."
+    ],
+    "unexecuted_JSONB_source": {
+      "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\source-proposal01\\PostgresResourceHistorySource.cs.txt",
+      "sha256": "072f9769128895a4c34239ec4366f459dd032521a5af048cf4b0b98aae10acd1"
+    },
+    "unexecuted_JSONB_note": {
+      "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\source-proposal01\\README.txt",
+      "sha256": "aab1e3834d657fd7f66be85804218e568a5770b1570ebcb587e442feb6879206"
+    },
+    "proposal_not_runtime_attempt": true,
+    "note": "All three declarations precede first SDK in this wave; this is distinct from the preceding audit-lookup wave where declaration03 followed launch."
+  },
+  "NUL_compatibility_rationale": {
+    "existing_contract": "TenantChangeValue.Text accepts bounded well-formed UTF16 including controls; unchanged PayloadCodec escapes NUL into stored PostgreSQL TEXT.",
+    "primary_references": [
+      "https://www.postgresql.org/docs/18/datatype-json.html",
+      "https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/utils/adt/jsonfuncs.c",
+      "https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/common/jsonapi.c"
+    ],
+    "conclusion": "jsonb rejects escaped codepoint zero; json getter processing with unescaping is not a safe general replacement. Source review justified managed filtering before any SDK attempt; actual existing AppendOnce/lookup and new query controls prove scoped compatibility on both final hosts."
+  },
+  "source_review": {
+    "result": "PASS",
+    "engine_changed_paths": [
+      "Tests/AuditTrail.ContractTests/Program.cs",
+      "Tests/AuditTrail.ContractTests/ResourceHistoryChecks.cs",
+      "src/Cehpalon.Engine.Tenancy/Audit.cs"
+    ],
+    "consumer_changed_paths": [
+      "audit-outbox/PostgresResourceHistorySource.cs",
+      "audit-outbox/Program.cs",
+      "audit-outbox/README.md",
+      "audit-outbox/ResourceHistoryChecks.cs",
+      "audit-outbox/ResourceHistoryIntegration.cs",
+      "tools/verify_audit_outbox.py"
+    ],
+    "all_nine_current_changed_files_exact_committed_LF_blobs": true,
+    "properties": [
+      "Additive immutable Cursor/Query/Page and optional ResourceHistory source/reader preserve all old history/lookup/outbox signatures. Runtime remains in Audit.cs.",
+      "Input context/query, limits and cursor identity/tenant/filter binding are validated before source work. Caller and live audit-trail/tenant/read scope are checked before I/O, after any page including empty, and before return.",
+      "Input cursor mismatch is ArgumentException after scope; semantic denial is direct TenantAccessDeniedException or protected access.denied result; returned-page integrity is InvalidOperationException.",
+      "Whole page tenant/kind/id and unique strictly increasing canonical lowercase Guid-N ordinal keys after input are checked before policy projection.",
+      "Next requires nonempty page, exact tenant/filter and AfterReceiptId equal to last returned receipt. Valid underfilled continuations and changed page sizes remain legal.",
+      "Captured immutable current read policy projects fresh bounded records and cannot restore omitted/redacted data; Disabled skips factory while enabled denied reads perform no query.",
+      "Original caller/query references and provider exception objects are preserved; no new timer/retry/parallel/background work or cryptographic authority is added.",
+      "Managed PostgreSQL adapter selects existing TEXT by physical exact tenant(C collation), afterUUID and native UUID order; decodes/validates physical tenant/receipt before exact Ordinal resource filtering.",
+      "At most limit+1 matching record references plus current decoded bounded candidate are retained; this is not a bound on total scanned rows, decoding work, elapsed time, driver/network buffers, connection occupancy or disposal/drain.",
+      "Malformed scanned payload or physical identity fails closed even when unrelated to selected resource. No schema/index/old Store/SQL/package change.",
+      "Fifth generated lazy Core gateway uses fresh selected service history grant; existing mutation fixture still uses Composition. No separately activated query Composition module/endpoint is claimed."
+    ],
+    "protected_sources": "Old PostgresStore/Integration/PayloadCodec/Lookup source+gateway+checks, prior outbox/status/budget/drain tests and lockfiles remain exact baseline bytes. Trail Program becomes exact baseline after removing one new hook."
+  },
+  "adversarial_review": {
+    "result": "PASS",
+    "controls": [
+      "DTO invalid/null/bounds and immutable page snapshot; infinite enumeration stops at201 and iterator disposes.",
+      "Input cursor/scope separation; null/oversized/foreign/mismatched/duplicate/backwards/nonadvancing pages and seven invalid Next shapes rejected before projection.",
+      "Empty/short/full200 and valid underfilled continuation, changing page sizes, constructed nonexistent bookmarks.",
+      "Canonical high-bit/field-boundary UUIDs with intentionally reverse recorded timestamps; actual14-key PostgreSQL order compared at page sizes1,2,3,7,200.",
+      "Exact case/Unicode-normalization/literal resource selection, same receipt/resource keys across tenant partitions.",
+      "Matching NUL field and earlier unrelated NUL row seeded via unchanged AppendOnce; new resource query, prior exact lookup and codec roundtrip preserve a-NUL-b.",
+      "Current/captured read-mode combinations, unknown fields, both-side redaction, immutable policy/no invented snapshots.",
+      "Insert before/after bookmark and deletion of bookmark/later row demonstrate value continuation without snapshot guarantees.",
+      "Physical/payload tenant/receipt poison, lookahead poison and malformed unrelated scanned TEXT fail closed.",
+      "Record/empty late caller, expiry latch after clock restoration, disposed authority and wrong operation scopes/grants.",
+      "Held wrappers have watchdogs outside product-failure capture and finally unblock/cancel/join owned tasks; eight actually scheduled workers retain tenant isolation.",
+      "Tagged actual PostgreSQL Lock wait is observed before caller cancel; command completion/quiescence before blocker release and manual source reuse retain stored rows."
+    ]
+  },
+  "focused_component": {
+    "result": "PASS",
+    "attempt": "rh-focused01",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\rh-engine\\.local\\rh-focused01\\manifest.json",
+      "sha256": "9b4bdc6f1b3a162d54b203af4653e0fc13b03168e257353819f20501c58e6b72"
+    },
+    "current_and_frozen_inputs": 204,
+    "all_hashes_match": true,
+    "trail_passed": 200,
+    "trail_failed": 0,
+    "original_103_names_order_results_exact": true,
+    "new_resource_checks": 97,
+    "outbox_passed": 212,
+    "status_passed": 56,
+    "whole_outbox_status_raw_exact_prior": true,
+    "old_lookup_checks_source_exact": true,
+    "old_trail_program_exact_after_new_hook_removal": true,
+    "all_three_builds_zero_warnings_errors": true,
+    "single_first_attempt": true
+  },
+  "consumer_development": {
+    "result": "PASS",
+    "attempt": "resource-history-windows-dev01",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\resource-history-windows-dev01\\manifest.json",
+      "sha256": "71f3e918732d127dacfbbc8f3ec68fcaf4b6160c49dc5a5fa6f4569c99839804"
+    },
+    "source_manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\resource-history-windows-dev01-source\\manifest.json",
+      "sha256": "6b55ecf04afddd2fb741d48b4d8d123f086a5227913b6bdc0b683b77daeb3ead"
+    },
+    "current_and_frozen_inputs": 103,
+    "verifier_inputs": 102,
+    "verifier_exact_freezer_subset": true,
+    "all_hashes_match": true,
+    "main_passed": 185,
+    "main_failed": 0,
+    "original_153_main_names_order_results_exact": true,
+    "prior_156_total_preserved": true,
+    "new_resource_checks": 32,
+    "restart_passed": 3,
+    "total_passed": 188,
+    "structured_resource_observations": 22,
+    "build_zero_warnings_errors": true,
+    "single_first_attempt": true,
+    "preparation_boundary": "Rejected JSONB source was not executed; managed source was frozen before this first SDK attempt. No alternate run or later source change."
+  },
+  "root_serial_driver": {
+    "result": "PASS",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\rh-integration\\.local\\rh-finrh-driver01\\manifest.json",
+      "sha256": "51ae726c3a2a18ccd8565adfa6e432c663c01306a2f36334d97ccb685a5cbced"
+    },
+    "runner_sha256": "c4deaa36a2e75009b885242b1eb00f0965f417e55b94bbdd4c5af95ecd24a632",
+    "frozen_runner_hash_verified": true,
+    "all_17_phases_exit_zero": true,
+    "first_single_driver_all_six_passed": true,
+    "actual_directory": "D:\\Cephalon\\.worktrees\\rh-integration\\.local\\rh-finrh-driver01",
+    "directory_note": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\resource-history-driver-directory-note.json",
+      "sha256": "722a128c1b15b03a767b45f065fd276aaca4b87eb611697922a0aa403f2cab44"
+    },
+    "directory_spelling_boundary": "Executing output is rh-finrh-driver01 due a preparer replacement also touching final-. Executing runner/source/frozen output stayed unchanged; monitoring/export uses actual directory. No SDK repeat or protocol/result change.",
+    "borrowed_source_note": "WSL real Git source uses explicit LF alternates outside Engine parent; borrowed object storage is not an independent archive."
+  },
+  "final_lanes": [
+    {
+      "kind": "components",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 1475,
+      "failed": 0,
+      "declared_input_count": 146,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\rh-integration\\.local\\rh-windows-final01\\manifest.json",
+        "sha256": "092ec7a6c3357317504bf8afb657862f1db1b3fe69f5b10f01860b4c8839ad2f"
+      },
+      "sdk": "11.0.100",
+      "all_current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "suites": {
+        "Core.ContractTests": 32,
+        "Composition.ContractTests": 80,
+        "CodeGeneration.ContractTests": 46,
+        "Identity.ContractTests": 34,
+        "Access.ContractTests": 55,
+        "AuthProfile.ContractTests": 55,
+        "Jwe.ContractTests": 55,
+        "KeyRing.ContractTests": 53,
+        "Session.ContractTests": 66,
+        "Observation.ContractTests": 61,
+        "AuditTrail.ContractTests": 200,
+        "AuditPreparation.ContractTests": 51,
+        "AuditExecution.ContractTests": 48,
+        "AuditOutbox.ContractTests": 212,
+        "OutboxStatus.ContractTests": 56,
+        "TenantReadSet.ContractTests": 37,
+        "Tenancy.ContractTests": 79,
+        "Http.ContractTests": 52,
+        "GraphQL.ContractTests": 47,
+        "Tooling.ContractTests": 156
+      },
+      "all_declared_output_sha256_match": true,
+      "raw_check_statuses_and_counts_pass": true,
+      "old_103_trail_names_order_results_exact": true,
+      "compiler_fixture_passed": true,
+      "compiler_generated_registry_hash_matches": true,
+      "unique_input_blobs_match_exact_commit": true,
+      "source_provenance": "Final manifest/current exact committed source plus separate focused pre-SDK snapshot; no final per-lane frozen source directory is claimed."
+    },
+    {
+      "kind": "components",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 1472,
+      "failed": 0,
+      "declared_input_count": 146,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\rh-integration\\.local\\rh-wsl-source01\\.local\\rh-wsl-final01\\manifest.json",
+        "sha256": "f5a5d68a40719becf4bf333ffedab48fe4309f0099bb9c994d52d51253573c68"
+      },
+      "sdk": "11.0.100",
+      "all_current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "suites": {
+        "Core.ContractTests": 32,
+        "Composition.ContractTests": 80,
+        "CodeGeneration.ContractTests": 46,
+        "Identity.ContractTests": 34,
+        "Access.ContractTests": 55,
+        "AuthProfile.ContractTests": 55,
+        "Jwe.ContractTests": 55,
+        "KeyRing.ContractTests": 53,
+        "Session.ContractTests": 66,
+        "Observation.ContractTests": 61,
+        "AuditTrail.ContractTests": 200,
+        "AuditPreparation.ContractTests": 51,
+        "AuditExecution.ContractTests": 48,
+        "AuditOutbox.ContractTests": 212,
+        "OutboxStatus.ContractTests": 56,
+        "TenantReadSet.ContractTests": 37,
+        "Tenancy.ContractTests": 79,
+        "Http.ContractTests": 52,
+        "GraphQL.ContractTests": 47,
+        "Tooling.ContractTests": 153
+      },
+      "all_declared_output_sha256_match": true,
+      "raw_check_statuses_and_counts_pass": true,
+      "old_103_trail_names_order_results_exact": true,
+      "compiler_fixture_passed": true,
+      "compiler_generated_registry_hash_matches": true,
+      "unique_input_blobs_match_exact_commit": true,
+      "source_provenance": "Final manifest/current exact committed source plus separate focused pre-SDK snapshot; no final per-lane frozen source directory is claimed."
+    },
+    {
+      "kind": "security",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 651,
+      "failed": 0,
+      "declared_input_count": 85,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\rh-security-windows-final01\\manifest.json",
+        "sha256": "b8bf5e7c34fc19649b2a2643ef815a7f2416feab1632fe6bb58f54dd7e590eed"
+      },
+      "sdk": "11.0.100",
+      "all_current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "raw_651_checks_pass": true,
+      "raw_tests_hash_matches_manifest": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "source_provenance": "Final input maps match current clean host source; no final security frozen-source directory is claimed."
+    },
+    {
+      "kind": "postgres",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 188,
+      "failed": 0,
+      "declared_input_count": 102,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\rh-consumer\\.local\\rh-postgres-windows-final01\\manifest.json",
+        "sha256": "7ea915304ed3e709d393f4dcac4c2bf8b16b3f1f51bc011f22fb6ffb3f41b498"
+      },
+      "sdk": "11.0.100",
+      "all_current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "main_passed": 185,
+      "restart_passed": 3,
+      "partition": {
+        "original_outbox": 34,
+        "status": 23,
+        "per_batch_budget": 24,
+        "bounded_drain": 24,
+        "total_drain_budget": 24,
+        "receipt_lookup": 24,
+        "resource_history": 32,
+        "restart": 3
+      },
+      "old_153_main_names_order_results_exact": true,
+      "all_102_frozen_source_hashes_match": true,
+      "consumer_input_blobs_match_exact_commit": true,
+      "structured_resource_observations": 22,
+      "legacy_text_NUL_control": {
+        "phase": "legacy_TEXT_wire",
+        "old_AppendOnce_and_lookup_preserved": true,
+        "matching_field_NUL_roundtrip": true,
+        "earlier_unrelated_NUL_row_safely_filtered": true
+      },
+      "actual_UUID_order_control": {
+        "phase": "uuid_order",
+        "adversarial_keys": 14,
+        "page_sizes": [
+          1,
+          2,
+          3,
+          7,
+          200
+        ],
+        "canonical_guid_n_matches_native_uuid": true,
+        "recorded_time_intentionally_reverse": true
+      },
+      "actual_SQL_cancel_control": {
+        "phase": "actual_sql_cancel",
+        "backend_pid": 1392,
+        "lock_observed_before_cancel": true,
+        "command_done_before_unlock": true,
+        "quiescent": true,
+        "reuse": true,
+        "rows_unchanged": true
+      },
+      "service_registry_sha256": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "provider_topology": "Windows.NET Npgsql via owned Windows loopback/binary stdio proxy to WSL container; not native Windows Postgres",
+      "settings": {
+        "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      }
+    },
+    {
+      "kind": "security",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 651,
+      "failed": 0,
+      "declared_input_count": 85,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\rh-wsl-consumer\\.local\\rh-security-wsl-final01\\manifest.json",
+        "sha256": "ab8e7b9c70b58c9a2c5765553d56c508a575db56fe0585b141828efa860520bf"
+      },
+      "sdk": "11.0.100",
+      "all_current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "raw_651_checks_pass": true,
+      "raw_tests_hash_matches_manifest": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "source_provenance": "Final input maps match current clean host source; no final security frozen-source directory is claimed."
+    },
+    {
+      "kind": "postgres",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 188,
+      "failed": 0,
+      "declared_input_count": 102,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\rh-wsl-consumer\\.local\\rh-postgres-wsl-final01\\manifest.json",
+        "sha256": "930d7c0dd8bc3d4fdf2a5f9840322ea8a28ce746fe2ed33711a2501eb2b2ca45"
+      },
+      "sdk": "11.0.100",
+      "all_current_input_hashes_match": true,
+      "cross_host_input_maps_exact": true,
+      "build_zero_warnings_errors": true,
+      "main_passed": 185,
+      "restart_passed": 3,
+      "partition": {
+        "original_outbox": 34,
+        "status": 23,
+        "per_batch_budget": 24,
+        "bounded_drain": 24,
+        "total_drain_budget": 24,
+        "receipt_lookup": 24,
+        "resource_history": 32,
+        "restart": 3
+      },
+      "old_153_main_names_order_results_exact": true,
+      "all_102_frozen_source_hashes_match": true,
+      "consumer_input_blobs_match_exact_commit": true,
+      "structured_resource_observations": 22,
+      "legacy_text_NUL_control": {
+        "phase": "legacy_TEXT_wire",
+        "old_AppendOnce_and_lookup_preserved": true,
+        "matching_field_NUL_roundtrip": true,
+        "earlier_unrelated_NUL_row_safely_filtered": true
+      },
+      "actual_UUID_order_control": {
+        "phase": "uuid_order",
+        "adversarial_keys": 14,
+        "page_sizes": [
+          1,
+          2,
+          3,
+          7,
+          200
+        ],
+        "canonical_guid_n_matches_native_uuid": true,
+        "recorded_time_intentionally_reverse": true
+      },
+      "actual_SQL_cancel_control": {
+        "phase": "actual_sql_cancel",
+        "backend_pid": 1380,
+        "lock_observed_before_cancel": true,
+        "command_done_before_unlock": true,
+        "quiescent": true,
+        "reuse": true,
+        "rows_unchanged": true
+      },
+      "service_registry_sha256": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "provider_topology": "WSL.NET Npgsql directly to owned WSL loopback PostgreSQL container",
+      "settings": {
+        "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      }
+    }
+  ],
+  "registries": {
+    "service": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+    "intentional_service_change": "Fifth ResourceHistoryGateway addition; historical711a4 is not current expected hash.",
+    "security": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+    "security_unchanged": true,
+    "both_host_source_maps_exact": true
+  },
+  "claim_limits": [
+    "Receipt-key Guid-N order is explicitly not recorded-time, event-time or commit chronology. PostgreSQL native UUID agreement is scoped to actual18.7 fixture and this declared canonical order; other providers must prove compatibility.",
+    "Typed cursor is public untrusted selection metadata, not authenticity, tenant authority or snapshot. Caller-constructed allowed positions need no bookmark row.",
+    "Before-bookmark inserts may be missed, later keys may appear, and retention/deletion may remove any rows. No complete timeline, stable snapshot, permanent completeness, global-empty/delivery-health or business-change uniqueness guarantee.",
+    "Page count bounds matching results; scan length, decode CPU, elapsed time, connection occupancy, disposal/drain and all driver/network memory remain unmeasured or unbounded by page size. Cancellation is cooperative and work is awaited.",
+    "Windows .NET/Npgsql uses owned loopback/binary stdio proxy to WSL PostgreSQL18.7; WSL access is direct. No native Windows DB or full supported-host/all-provider, real IdP, power-loss, production or release qualification.",
+    "No original benchmark, performance/speedup, physical timeout latency, GC/scheduler cause, cryptographic provenance or higher maturity claim. Runtime remains M0 and this review does not change #3 Blocked/#20 complete row, metadata/nullhours or original benchmark criteria.",
+    "146component/85security/102provider maps, supplemental103 consumer freeze and204 focused inputs are distinct inventories."
+  ],
+  "explicit_exclusions": [
+    "GitHub issue/Project synchronization, protected rows/task bytes/all metadata: root verifies separately.",
+    "Owned fixture cleanup, container/helper/listener live host state: root/cleanup agent verifies separately.",
+    "Public exports/archive/redaction/index validation, final Docs commit, remote pushes and branch cleanup.",
+    "Hosted CI metadata/results/artifact claims; no reviewer artifact download."
+  ]
+}
