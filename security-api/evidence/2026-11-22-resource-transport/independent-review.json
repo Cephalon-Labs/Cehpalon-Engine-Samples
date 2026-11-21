@@ -1,0 +1,1194 @@
+{
+  "schema_version": 1,
+  "status": "passed_all_declared_review_scopes",
+  "reviewed_at_utc": "2026-11-21T19:31:30.228989+00:00",
+  "scope": "ADR0053 Samples-only opt-in indexed resource-history HTTPS HTTP/GraphQL extension of existing receipt host. Engine5184517 unchanged.",
+  "reviewer_actions": "Read-only source/design review, bounded byte comparisons and verifier AST parsing. No SDK/build/runtime/database/container/host/network probes.",
+  "source_review": {
+    "status": "passed",
+    "host": "arh-host/audit-outbox/AuditReceiptTransportHost.cs integrated into arh-consumer",
+    "new_tests": "arh-consumer/audit-outbox/ResourceTransportChecks.cs",
+    "case_groups": 36,
+    "shared_groups": 4,
+    "per_transport_groups": 16,
+    "expected_observations": 36,
+    "old_provider_files_exact_d1cdc": 16,
+    "old_ReceiptTransportChecks_unchanged": true,
+    "security_directory_unchanged": true,
+    "Program_prior_case_prefix_exact": true,
+    "README_raw_prefix_exact_ASCII_append": true,
+    "verifier_AST_valid": true,
+    "new_tests_LF": true,
+    "guard_review": [
+      "Original four positional options constructor/Deconstruct and existing Activate signature retained; additive init selectors default true/false.",
+      "Both reads off or both transports off skips all callbacks and unused bad budgets. Resource-only/combined share one source/OpenExisting/admission/drain.",
+      "Primitive wire query/cursor uses exact bound tenant/kind/id/nonemptyGuid/limit validation before Core/provider; existing generated ResourceHistoryGateway reused.",
+      "Fresh selected JWT identity and distinct resource operation RBAC/ABAC grant; DTO/cursor selection never provides authority.",
+      "Guid-N receipt-key pagination, default50/limits1..200/limit changes/missing bookmark and mutable history semantics preserved.",
+      "Shared record mapper receives checked policy-projected page only; distinct resource token-only hooks/counters preserve receipt probes.",
+      "Single actual SQL query witness uses unique source application, resource tag, owned table, exactly one active Lock backend before signal; no stale LastBackendPid assumption.",
+      "Mixed receipt/resource held operations and stop-failure cleanup share atomic admission close; all scheduled aggregates/held client/disposal tasks force-unblock/cancel/join unconditionally.",
+      "Checked nonnullable Source getter, nonnullable Reply.Root, existing API calls and cap+1 TimeSpan expression; actual compiler proof remains pending."
+    ]
+  },
+  "development_review": {
+    "status": "passed",
+    "attempt": "FIRST and only dev01",
+    "path": "D:\\Cephalon\\.worktrees\\arh-consumer\\.local\\resource-transport-windows-dev01",
+    "manifest_sha256": "cc4efc1d63797bc84fd9ea92d97b24248408df06cf7879d1f5e86914568db44d",
+    "tests_sha256": "4cf8615f1c39fcf4942aa32749daa09f7c4ef341a26c5f9d067d3180f398a597",
+    "engine_revision": "5184517a92a087abe4e0091d256142b6c35a2b39",
+    "precommit_consumer_revision": "7267a443d8832d1cb71576f17c74c46fab220ecc",
+    "declared_consumer_source_dirty": true,
+    "all_current_and_frozen_inputs_exact": 110,
+    "verifier_inputs_exact_frozen_subset": 109,
+    "freezer_only_extra_input": "engine/src/Cehpalon.Engine.CodeGeneration/NuGet.Config",
+    "declaration_files_hashes_exact": 4,
+    "old_main_prefix_names_order_results_exact": 269,
+    "old_provider_total_preserved": 272,
+    "new_main_checks": 36,
+    "new_structured_observations": 36,
+    "main_passed": 305,
+    "main_failed": 0,
+    "restart_passed": 3,
+    "restart_failed": 0,
+    "total_passed": 308,
+    "total_failed": 0,
+    "Release_warnings": 0,
+    "Release_errors": 0,
+    "source_unchanged": true,
+    "failed_preparation_compile_or_runtime_attempts_this_wave": [],
+    "four_owned_file_source_commit_ACK": "Granted after independent raw/current/frozen review; final committed-source proof pending."
+  },
+  "final_review": {
+    "status": "passed",
+    "engine_revision": "5184517a92a087abe4e0091d256142b6c35a2b39",
+    "consumer_revision": "234999b209a8cf021a458072dd2a790fa091a00a",
+    "lanes": [
+      {
+        "kind": "security",
+        "host": "Windows",
+        "path": "D:\\Cephalon\\.worktrees\\arh-consumer\\.local\\arh-security-windows-final01",
+        "manifest_sha256": "693d0a0374191770518ddc7588a90b7cb82222ae201ea2a7ba6ebe1bfccae106",
+        "tests_sha256": "b417c4e188194f7b1d83219858fb96696602a966d76955fc0956dec0ff57de2a",
+        "source_count": 85,
+        "all_current_hashes_exact": true,
+        "cross_host_map_equal": true,
+        "all_unique_inputs_match_committed_blobs": true,
+        "all_checks_passed": true,
+        "Release_warnings": 0,
+        "Release_errors": 0,
+        "passed": 651,
+        "failed": 0,
+        "old651_names_order_results_exact": true,
+        "generated_security_hash_exact": true,
+        "final_per_lane_frozen_source_inventory": false
+      },
+      {
+        "kind": "postgres",
+        "host": "Windows",
+        "path": "D:\\Cephalon\\.worktrees\\arh-consumer\\.local\\arh-postgres-windows-final01",
+        "manifest_sha256": "4ab904bac47654dc47f816c44a9cdf488a785f721a66303b6bf416fc94b18efb",
+        "tests_sha256": "7593ea825cce1e4bd276774193a9b33bf33c88d5539b0ff1962faf4d8f16ea2c",
+        "source_count": 109,
+        "all_current_hashes_exact": true,
+        "cross_host_map_equal": true,
+        "all_unique_inputs_match_committed_blobs": true,
+        "all_checks_passed": true,
+        "Release_warnings": 0,
+        "Release_errors": 0,
+        "passed": 308,
+        "failed": 0,
+        "main_passed": 305,
+        "restart_passed": 3,
+        "old269_main_prefix_exact": true,
+        "old272_total_preserved": true,
+        "new_checks": 36,
+        "new_observations": 36,
+        "all109_final_frozen_sources_exact": true,
+        "observations": [
+          {
+            "phase": "resource_options_compatibility",
+            "four_ctor_and_deconstruct_positions_preserved": true,
+            "default_receipt_only": true,
+            "old_lookup_counters_unchanged": true,
+            "resource_work": 0
+          },
+          {
+            "phase": "resource_disabled",
+            "both_reads_off_or_both_transports_off": true,
+            "owned_factories_services_endpoints": 0,
+            "unused_invalid_budget_ignored": true
+          },
+          {
+            "phase": "resource_selection",
+            "invalid_plan_callbacks": 0,
+            "resource_only_lookup_work": 0,
+            "single_transport_service_isolation": true,
+            "combined_one_source_one_OpenExisting": true,
+            "no_startup_DDL": true
+          },
+          {
+            "phase": "resource_mixed_ownership",
+            "HTTP_lookup_and_GraphQL_resource": true,
+            "both_admitted_tasks_joined": true,
+            "normal_and_stop_failure": true,
+            "one_source_disposal_after_drain": true,
+            "no_concurrent_LastBackendPid_identity_claim": true
+          },
+          {
+            "phase": "resource_wire_exact_filters",
+            "transport": "HTTP",
+            "case_unicode_quote_literal_exact": true,
+            "max_ASCII_kind128_CJK_id512": true,
+            "null_original_and_configured_linked_server_tokens": true,
+            "lookup_queries": 0
+          },
+          {
+            "phase": "resource_wire_uuid_order",
+            "transport": "HTTP",
+            "adversarial_keys": 10,
+            "canonical_GuidN_matches_actual_PG_UUID": true,
+            "reversed_recorded_time": true,
+            "no_chronology_claim": true
+          },
+          {
+            "phase": "resource_wire_page_limits",
+            "transport": "HTTP",
+            "actual_default50": true,
+            "changing_limits": [
+              1,
+              3,
+              2,
+              200
+            ],
+            "max_page200": true,
+            "terminal_underfill_and_empty": true,
+            "no_nonterminal_underfilled_source_claim": true,
+            "bounded_extra_fixture_rows": 201
+          },
+          {
+            "phase": "resource_wire_mutable_bookmark",
+            "transport": "HTTP",
+            "before_bookmark_insert_not_revisited": true,
+            "after_bookmark_insert_visible": true,
+            "deleted_or_absent_bookmark_allowed": true,
+            "unsigned_position_not_authority_or_snapshot": true
+          },
+          {
+            "phase": "resource_wire_publication",
+            "transport": "HTTP",
+            "pending_empty_success": true,
+            "separate_manual_fresh_relay_sink": true,
+            "selected_indexed_history_only": true,
+            "no_empty_commit_or_legacy_backfill_claim": true
+          },
+          {
+            "phase": "resource_wire_projection",
+            "transport": "HTTP",
+            "current_changed_or_metadata_policy": true,
+            "captured_snapshot_provenance": true,
+            "field_NUL_roundtrip": true,
+            "unknown_unchanged_sensitive_values_not_released": true
+          },
+          {
+            "phase": "resource_wire_shape_validation",
+            "transport": "HTTP",
+            "bounded_tenant_kind_id_limit": true,
+            "control_chars_and_unknown_authority_fields_rejected": true,
+            "resource_queries": 0,
+            "startup_catalog_not_request_query": true
+          },
+          {
+            "phase": "resource_wire_cursor_validation",
+            "transport": "HTTP",
+            "Ordinal_tenant_kind_id_bound": true,
+            "empty_and_malformed_GUID_rejected": true,
+            "matched_untrusted_B_metadata_still_denied": true,
+            "resource_queries": 0,
+            "no_signed_cursor_claim": true
+          },
+          {
+            "phase": "resource_wire_authentication_grants",
+            "transport": "HTTP",
+            "actual_TLS_JWT": true,
+            "foreign_crypto_rejected": true,
+            "framework_RBAC_ABAC_fresh_facts": true,
+            "receipt_history_entity_grants_not_resource_grant": true,
+            "denied_resource_queries": 0
+          },
+          {
+            "phase": "resource_wire_tenant_partition",
+            "transport": "HTTP",
+            "same_receipt_resource_kind_id_A_B": true,
+            "separate_fresh_grants_required": true,
+            "denial_before_source": true,
+            "DTOs_not_membership": true
+          },
+          {
+            "phase": "resource_wire_fresh_revocation",
+            "transport": "HTTP",
+            "same_JWT_same_request": true,
+            "membership_resource_policy_revoke_before_queries": true,
+            "explicit_regrant": true,
+            "no_midflight_external_requery_claim": true
+          },
+          {
+            "phase": "resource_wire_workers_siblings",
+            "transport": "HTTP",
+            "workers": 8,
+            "all_workers_owned_joined": true,
+            "fresh_A_B_resource_fields": false,
+            "mixed_lookup_grant_not_resource_grant": false,
+            "separate_resource_lookup_counters": true
+          },
+          {
+            "phase": "resource_wire_actual_SQL_cancel",
+            "transport": "HTTP",
+            "private_and_caller_modes": true,
+            "exact_resource_tag_Lock_before_signal": true,
+            "single_controlled_query_backend_identity": true,
+            "server_and_backend_joined": true,
+            "manual_reuse": true,
+            "no_remote_token_identity_or_delay_cause_claim": true
+          },
+          {
+            "phase": "resource_wire_held_completion",
+            "transport": "HTTP",
+            "empty_and_populated_pages": true,
+            "token_only_post_SQL_hook": true,
+            "uncooperative_work_not_abandoned": true,
+            "no_successful_empty_or_page_after_veto": true,
+            "not_actual_SQL_wait_evidence": true
+          },
+          {
+            "phase": "resource_wire_integrity_redaction",
+            "transport": "HTTP",
+            "lookahead_physical_A_payload_B_rejected": true,
+            "metadata_only_not_bypass": true,
+            "selective_query_not_unrelated_corruption_attestation": true,
+            "touched_metadata_rejected": true,
+            "secret_post_SQL_fault_redacted": true
+          },
+          {
+            "phase": "resource_wire_positive_server_ownership",
+            "transport": "HTTP",
+            "client_completed_while_resource_server_held": true,
+            "server_token_cancelled": true,
+            "full_dispatch_drain_before_source_disposal": true,
+            "backend_quiescent": true,
+            "single_source_disposal": true
+          },
+          {
+            "phase": "resource_wire_exact_filters",
+            "transport": "GraphQL",
+            "case_unicode_quote_literal_exact": true,
+            "max_ASCII_kind128_CJK_id512": true,
+            "null_original_and_configured_linked_server_tokens": true,
+            "lookup_queries": 0
+          },
+          {
+            "phase": "resource_wire_uuid_order",
+            "transport": "GraphQL",
+            "adversarial_keys": 10,
+            "canonical_GuidN_matches_actual_PG_UUID": true,
+            "reversed_recorded_time": true,
+            "no_chronology_claim": true
+          },
+          {
+            "phase": "resource_wire_page_limits",
+            "transport": "GraphQL",
+            "actual_default50": true,
+            "changing_limits": [
+              1,
+              3,
+              2,
+              200
+            ],
+            "max_page200": true,
+            "terminal_underfill_and_empty": true,
+            "no_nonterminal_underfilled_source_claim": true,
+            "bounded_extra_fixture_rows": 201
+          },
+          {
+            "phase": "resource_wire_mutable_bookmark",
+            "transport": "GraphQL",
+            "before_bookmark_insert_not_revisited": true,
+            "after_bookmark_insert_visible": true,
+            "deleted_or_absent_bookmark_allowed": true,
+            "unsigned_position_not_authority_or_snapshot": true
+          },
+          {
+            "phase": "resource_wire_publication",
+            "transport": "GraphQL",
+            "pending_empty_success": true,
+            "separate_manual_fresh_relay_sink": true,
+            "selected_indexed_history_only": true,
+            "no_empty_commit_or_legacy_backfill_claim": true
+          },
+          {
+            "phase": "resource_wire_projection",
+            "transport": "GraphQL",
+            "current_changed_or_metadata_policy": true,
+            "captured_snapshot_provenance": true,
+            "field_NUL_roundtrip": true,
+            "unknown_unchanged_sensitive_values_not_released": true
+          },
+          {
+            "phase": "resource_wire_shape_validation",
+            "transport": "GraphQL",
+            "bounded_tenant_kind_id_limit": true,
+            "control_chars_and_unknown_authority_fields_rejected": true,
+            "resource_queries": 0,
+            "startup_catalog_not_request_query": true
+          },
+          {
+            "phase": "resource_wire_cursor_validation",
+            "transport": "GraphQL",
+            "Ordinal_tenant_kind_id_bound": true,
+            "empty_and_malformed_GUID_rejected": true,
+            "matched_untrusted_B_metadata_still_denied": true,
+            "resource_queries": 0,
+            "no_signed_cursor_claim": true
+          },
+          {
+            "phase": "resource_wire_authentication_grants",
+            "transport": "GraphQL",
+            "actual_TLS_JWT": true,
+            "foreign_crypto_rejected": true,
+            "framework_RBAC_ABAC_fresh_facts": true,
+            "receipt_history_entity_grants_not_resource_grant": true,
+            "denied_resource_queries": 0
+          },
+          {
+            "phase": "resource_wire_tenant_partition",
+            "transport": "GraphQL",
+            "same_receipt_resource_kind_id_A_B": true,
+            "separate_fresh_grants_required": true,
+            "denial_before_source": true,
+            "DTOs_not_membership": true
+          },
+          {
+            "phase": "resource_wire_fresh_revocation",
+            "transport": "GraphQL",
+            "same_JWT_same_request": true,
+            "membership_resource_policy_revoke_before_queries": true,
+            "explicit_regrant": true,
+            "no_midflight_external_requery_claim": true
+          },
+          {
+            "phase": "resource_wire_workers_siblings",
+            "transport": "GraphQL",
+            "workers": 8,
+            "all_workers_owned_joined": true,
+            "fresh_A_B_resource_fields": true,
+            "mixed_lookup_grant_not_resource_grant": true,
+            "separate_resource_lookup_counters": true
+          },
+          {
+            "phase": "resource_wire_actual_SQL_cancel",
+            "transport": "GraphQL",
+            "private_and_caller_modes": true,
+            "exact_resource_tag_Lock_before_signal": true,
+            "single_controlled_query_backend_identity": true,
+            "server_and_backend_joined": true,
+            "manual_reuse": true,
+            "no_remote_token_identity_or_delay_cause_claim": true
+          },
+          {
+            "phase": "resource_wire_held_completion",
+            "transport": "GraphQL",
+            "empty_and_populated_pages": true,
+            "token_only_post_SQL_hook": true,
+            "uncooperative_work_not_abandoned": true,
+            "no_successful_empty_or_page_after_veto": true,
+            "not_actual_SQL_wait_evidence": true
+          },
+          {
+            "phase": "resource_wire_integrity_redaction",
+            "transport": "GraphQL",
+            "lookahead_physical_A_payload_B_rejected": true,
+            "metadata_only_not_bypass": true,
+            "selective_query_not_unrelated_corruption_attestation": true,
+            "touched_metadata_rejected": true,
+            "secret_post_SQL_fault_redacted": true
+          },
+          {
+            "phase": "resource_wire_positive_server_ownership",
+            "transport": "GraphQL",
+            "client_completed_while_resource_server_held": true,
+            "server_token_cancelled": true,
+            "full_dispatch_drain_before_source_disposal": true,
+            "backend_quiescent": true,
+            "single_source_disposal": true
+          }
+        ],
+        "service_registry_sha256": "e3a87d11187d0b7e958a7f90c86dfca56bca8bb880e8be1f06499d312b21ece4",
+        "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+        "old_five_registry_reconstruction_exact": true,
+        "provider_topology": "Windows.NET Npgsql via owned Windows loopback/binary stdio proxy to WSL container; not native Windows Postgres",
+        "settings": {
+          "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "existing4096_plan_fixture": "Preserved old269 main prefix/source, separate additional201-row pagination fixture; no new performance claim"
+      },
+      {
+        "kind": "security",
+        "host": "WSL",
+        "path": "D:\\Cephalon\\.worktrees\\arh-wsl-consumer\\.local\\arh-security-wsl-final01",
+        "manifest_sha256": "2fe231deb96b2572a6ba7fd0ed677484c303f2df3e80486d2f373f822803ddf1",
+        "tests_sha256": "b417c4e188194f7b1d83219858fb96696602a966d76955fc0956dec0ff57de2a",
+        "source_count": 85,
+        "all_current_hashes_exact": true,
+        "cross_host_map_equal": true,
+        "all_unique_inputs_match_committed_blobs": true,
+        "all_checks_passed": true,
+        "Release_warnings": 0,
+        "Release_errors": 0,
+        "passed": 651,
+        "failed": 0,
+        "old651_names_order_results_exact": true,
+        "generated_security_hash_exact": true,
+        "final_per_lane_frozen_source_inventory": false
+      },
+      {
+        "kind": "postgres",
+        "host": "WSL",
+        "path": "D:\\Cephalon\\.worktrees\\arh-wsl-consumer\\.local\\arh-postgres-wsl-final01",
+        "manifest_sha256": "b5bc3b08398d39c2b0448a1dd8547459e07ae099bc82cbd5fd30e81bd5c598a4",
+        "tests_sha256": "c409021a0fa79d5052df8579d4bbcda497fa2064c6b0be3ab4b8d7aa0cd8caaa",
+        "source_count": 109,
+        "all_current_hashes_exact": true,
+        "cross_host_map_equal": true,
+        "all_unique_inputs_match_committed_blobs": true,
+        "all_checks_passed": true,
+        "Release_warnings": 0,
+        "Release_errors": 0,
+        "passed": 308,
+        "failed": 0,
+        "main_passed": 305,
+        "restart_passed": 3,
+        "old269_main_prefix_exact": true,
+        "old272_total_preserved": true,
+        "new_checks": 36,
+        "new_observations": 36,
+        "all109_final_frozen_sources_exact": true,
+        "observations": [
+          {
+            "phase": "resource_options_compatibility",
+            "four_ctor_and_deconstruct_positions_preserved": true,
+            "default_receipt_only": true,
+            "old_lookup_counters_unchanged": true,
+            "resource_work": 0
+          },
+          {
+            "phase": "resource_disabled",
+            "both_reads_off_or_both_transports_off": true,
+            "owned_factories_services_endpoints": 0,
+            "unused_invalid_budget_ignored": true
+          },
+          {
+            "phase": "resource_selection",
+            "invalid_plan_callbacks": 0,
+            "resource_only_lookup_work": 0,
+            "single_transport_service_isolation": true,
+            "combined_one_source_one_OpenExisting": true,
+            "no_startup_DDL": true
+          },
+          {
+            "phase": "resource_mixed_ownership",
+            "HTTP_lookup_and_GraphQL_resource": true,
+            "both_admitted_tasks_joined": true,
+            "normal_and_stop_failure": true,
+            "one_source_disposal_after_drain": true,
+            "no_concurrent_LastBackendPid_identity_claim": true
+          },
+          {
+            "phase": "resource_wire_exact_filters",
+            "transport": "HTTP",
+            "case_unicode_quote_literal_exact": true,
+            "max_ASCII_kind128_CJK_id512": true,
+            "null_original_and_configured_linked_server_tokens": true,
+            "lookup_queries": 0
+          },
+          {
+            "phase": "resource_wire_uuid_order",
+            "transport": "HTTP",
+            "adversarial_keys": 10,
+            "canonical_GuidN_matches_actual_PG_UUID": true,
+            "reversed_recorded_time": true,
+            "no_chronology_claim": true
+          },
+          {
+            "phase": "resource_wire_page_limits",
+            "transport": "HTTP",
+            "actual_default50": true,
+            "changing_limits": [
+              1,
+              3,
+              2,
+              200
+            ],
+            "max_page200": true,
+            "terminal_underfill_and_empty": true,
+            "no_nonterminal_underfilled_source_claim": true,
+            "bounded_extra_fixture_rows": 201
+          },
+          {
+            "phase": "resource_wire_mutable_bookmark",
+            "transport": "HTTP",
+            "before_bookmark_insert_not_revisited": true,
+            "after_bookmark_insert_visible": true,
+            "deleted_or_absent_bookmark_allowed": true,
+            "unsigned_position_not_authority_or_snapshot": true
+          },
+          {
+            "phase": "resource_wire_publication",
+            "transport": "HTTP",
+            "pending_empty_success": true,
+            "separate_manual_fresh_relay_sink": true,
+            "selected_indexed_history_only": true,
+            "no_empty_commit_or_legacy_backfill_claim": true
+          },
+          {
+            "phase": "resource_wire_projection",
+            "transport": "HTTP",
+            "current_changed_or_metadata_policy": true,
+            "captured_snapshot_provenance": true,
+            "field_NUL_roundtrip": true,
+            "unknown_unchanged_sensitive_values_not_released": true
+          },
+          {
+            "phase": "resource_wire_shape_validation",
+            "transport": "HTTP",
+            "bounded_tenant_kind_id_limit": true,
+            "control_chars_and_unknown_authority_fields_rejected": true,
+            "resource_queries": 0,
+            "startup_catalog_not_request_query": true
+          },
+          {
+            "phase": "resource_wire_cursor_validation",
+            "transport": "HTTP",
+            "Ordinal_tenant_kind_id_bound": true,
+            "empty_and_malformed_GUID_rejected": true,
+            "matched_untrusted_B_metadata_still_denied": true,
+            "resource_queries": 0,
+            "no_signed_cursor_claim": true
+          },
+          {
+            "phase": "resource_wire_authentication_grants",
+            "transport": "HTTP",
+            "actual_TLS_JWT": true,
+            "foreign_crypto_rejected": true,
+            "framework_RBAC_ABAC_fresh_facts": true,
+            "receipt_history_entity_grants_not_resource_grant": true,
+            "denied_resource_queries": 0
+          },
+          {
+            "phase": "resource_wire_tenant_partition",
+            "transport": "HTTP",
+            "same_receipt_resource_kind_id_A_B": true,
+            "separate_fresh_grants_required": true,
+            "denial_before_source": true,
+            "DTOs_not_membership": true
+          },
+          {
+            "phase": "resource_wire_fresh_revocation",
+            "transport": "HTTP",
+            "same_JWT_same_request": true,
+            "membership_resource_policy_revoke_before_queries": true,
+            "explicit_regrant": true,
+            "no_midflight_external_requery_claim": true
+          },
+          {
+            "phase": "resource_wire_workers_siblings",
+            "transport": "HTTP",
+            "workers": 8,
+            "all_workers_owned_joined": true,
+            "fresh_A_B_resource_fields": false,
+            "mixed_lookup_grant_not_resource_grant": false,
+            "separate_resource_lookup_counters": true
+          },
+          {
+            "phase": "resource_wire_actual_SQL_cancel",
+            "transport": "HTTP",
+            "private_and_caller_modes": true,
+            "exact_resource_tag_Lock_before_signal": true,
+            "single_controlled_query_backend_identity": true,
+            "server_and_backend_joined": true,
+            "manual_reuse": true,
+            "no_remote_token_identity_or_delay_cause_claim": true
+          },
+          {
+            "phase": "resource_wire_held_completion",
+            "transport": "HTTP",
+            "empty_and_populated_pages": true,
+            "token_only_post_SQL_hook": true,
+            "uncooperative_work_not_abandoned": true,
+            "no_successful_empty_or_page_after_veto": true,
+            "not_actual_SQL_wait_evidence": true
+          },
+          {
+            "phase": "resource_wire_integrity_redaction",
+            "transport": "HTTP",
+            "lookahead_physical_A_payload_B_rejected": true,
+            "metadata_only_not_bypass": true,
+            "selective_query_not_unrelated_corruption_attestation": true,
+            "touched_metadata_rejected": true,
+            "secret_post_SQL_fault_redacted": true
+          },
+          {
+            "phase": "resource_wire_positive_server_ownership",
+            "transport": "HTTP",
+            "client_completed_while_resource_server_held": true,
+            "server_token_cancelled": true,
+            "full_dispatch_drain_before_source_disposal": true,
+            "backend_quiescent": true,
+            "single_source_disposal": true
+          },
+          {
+            "phase": "resource_wire_exact_filters",
+            "transport": "GraphQL",
+            "case_unicode_quote_literal_exact": true,
+            "max_ASCII_kind128_CJK_id512": true,
+            "null_original_and_configured_linked_server_tokens": true,
+            "lookup_queries": 0
+          },
+          {
+            "phase": "resource_wire_uuid_order",
+            "transport": "GraphQL",
+            "adversarial_keys": 10,
+            "canonical_GuidN_matches_actual_PG_UUID": true,
+            "reversed_recorded_time": true,
+            "no_chronology_claim": true
+          },
+          {
+            "phase": "resource_wire_page_limits",
+            "transport": "GraphQL",
+            "actual_default50": true,
+            "changing_limits": [
+              1,
+              3,
+              2,
+              200
+            ],
+            "max_page200": true,
+            "terminal_underfill_and_empty": true,
+            "no_nonterminal_underfilled_source_claim": true,
+            "bounded_extra_fixture_rows": 201
+          },
+          {
+            "phase": "resource_wire_mutable_bookmark",
+            "transport": "GraphQL",
+            "before_bookmark_insert_not_revisited": true,
+            "after_bookmark_insert_visible": true,
+            "deleted_or_absent_bookmark_allowed": true,
+            "unsigned_position_not_authority_or_snapshot": true
+          },
+          {
+            "phase": "resource_wire_publication",
+            "transport": "GraphQL",
+            "pending_empty_success": true,
+            "separate_manual_fresh_relay_sink": true,
+            "selected_indexed_history_only": true,
+            "no_empty_commit_or_legacy_backfill_claim": true
+          },
+          {
+            "phase": "resource_wire_projection",
+            "transport": "GraphQL",
+            "current_changed_or_metadata_policy": true,
+            "captured_snapshot_provenance": true,
+            "field_NUL_roundtrip": true,
+            "unknown_unchanged_sensitive_values_not_released": true
+          },
+          {
+            "phase": "resource_wire_shape_validation",
+            "transport": "GraphQL",
+            "bounded_tenant_kind_id_limit": true,
+            "control_chars_and_unknown_authority_fields_rejected": true,
+            "resource_queries": 0,
+            "startup_catalog_not_request_query": true
+          },
+          {
+            "phase": "resource_wire_cursor_validation",
+            "transport": "GraphQL",
+            "Ordinal_tenant_kind_id_bound": true,
+            "empty_and_malformed_GUID_rejected": true,
+            "matched_untrusted_B_metadata_still_denied": true,
+            "resource_queries": 0,
+            "no_signed_cursor_claim": true
+          },
+          {
+            "phase": "resource_wire_authentication_grants",
+            "transport": "GraphQL",
+            "actual_TLS_JWT": true,
+            "foreign_crypto_rejected": true,
+            "framework_RBAC_ABAC_fresh_facts": true,
+            "receipt_history_entity_grants_not_resource_grant": true,
+            "denied_resource_queries": 0
+          },
+          {
+            "phase": "resource_wire_tenant_partition",
+            "transport": "GraphQL",
+            "same_receipt_resource_kind_id_A_B": true,
+            "separate_fresh_grants_required": true,
+            "denial_before_source": true,
+            "DTOs_not_membership": true
+          },
+          {
+            "phase": "resource_wire_fresh_revocation",
+            "transport": "GraphQL",
+            "same_JWT_same_request": true,
+            "membership_resource_policy_revoke_before_queries": true,
+            "explicit_regrant": true,
+            "no_midflight_external_requery_claim": true
+          },
+          {
+            "phase": "resource_wire_workers_siblings",
+            "transport": "GraphQL",
+            "workers": 8,
+            "all_workers_owned_joined": true,
+            "fresh_A_B_resource_fields": true,
+            "mixed_lookup_grant_not_resource_grant": true,
+            "separate_resource_lookup_counters": true
+          },
+          {
+            "phase": "resource_wire_actual_SQL_cancel",
+            "transport": "GraphQL",
+            "private_and_caller_modes": true,
+            "exact_resource_tag_Lock_before_signal": true,
+            "single_controlled_query_backend_identity": true,
+            "server_and_backend_joined": true,
+            "manual_reuse": true,
+            "no_remote_token_identity_or_delay_cause_claim": true
+          },
+          {
+            "phase": "resource_wire_held_completion",
+            "transport": "GraphQL",
+            "empty_and_populated_pages": true,
+            "token_only_post_SQL_hook": true,
+            "uncooperative_work_not_abandoned": true,
+            "no_successful_empty_or_page_after_veto": true,
+            "not_actual_SQL_wait_evidence": true
+          },
+          {
+            "phase": "resource_wire_integrity_redaction",
+            "transport": "GraphQL",
+            "lookahead_physical_A_payload_B_rejected": true,
+            "metadata_only_not_bypass": true,
+            "selective_query_not_unrelated_corruption_attestation": true,
+            "touched_metadata_rejected": true,
+            "secret_post_SQL_fault_redacted": true
+          },
+          {
+            "phase": "resource_wire_positive_server_ownership",
+            "transport": "GraphQL",
+            "client_completed_while_resource_server_held": true,
+            "server_token_cancelled": true,
+            "full_dispatch_drain_before_source_disposal": true,
+            "backend_quiescent": true,
+            "single_source_disposal": true
+          }
+        ],
+        "service_registry_sha256": "e3a87d11187d0b7e958a7f90c86dfca56bca8bb880e8be1f06499d312b21ece4",
+        "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+        "old_five_registry_reconstruction_exact": true,
+        "provider_topology": "WSL.NET Npgsql directly to owned WSL loopback PostgreSQL container",
+        "settings": {
+          "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "existing4096_plan_fixture": "Preserved old269 main prefix/source, separate additional201-row pagination fixture; no new performance claim"
+      }
+    ],
+    "cross_host_maps_equal": true,
+    "all_current_source_and_finalPG_frozen_bytes_exact": true,
+    "development_current_frozen_source_inputs": 110,
+    "development_declaration_files_hashes_exact": 4,
+    "all_unique_final_and_development_inputs_match_committed_blobs": 111,
+    "all_five_changed_files_match_committed_bytes": true,
+    "prior_security651_names_order_results_exact": true,
+    "prior_provider269_main_plus3restart_preserved": true,
+    "first_only_development_attempt": "308/0, no failed preparation/compile/runtime attempt this wave",
+    "root_final_driver": {
+      "manifest_path": "D:\\Cephalon\\.worktrees\\arh-engine\\.local\\arh-final-driver01\\manifest.json",
+      "manifest_sha256": "5ae2f76e46eefe71678235204a7b3b22b643f3d392083a891970e58c7ce1dea9",
+      "runner_sha256": "7ed3361b09d6c4ea69494bdabdb833c81700c84d4ac2e9bf22e94d293cb31ea2",
+      "frozen_runner_bytes_exact": true,
+      "phase_count": 15,
+      "all_exit_zero": true,
+      "first_single_final_driver": true,
+      "WSL_borrowed_source_provenance": {
+        "consumer_revision": "234999b209a8cf021a458072dd2a790fa091a00a",
+        "source": "D:\\Cephalon\\.worktrees\\arh-wsl-consumer",
+        "alternates": "/mnt/d/Cephalon/Cehpalon-Engine-Samples/.git/objects",
+        "policy": "Read-only borrowed primary objects, not independent archive; retain primary store/worktrees/raw",
+        "outside_engine_parent_policy": true
+      }
+    },
+    "Engine_component_CI_classification": "Unchanged5184517 components1523Windows/1520WSL and four hosted jobs are REUSED previous baseline ONLY. No new Engine source/API/commit, component matrix or resource-host hosted-CI proof.",
+    "limitations": [
+      "Exact source signatures and compiled four-position constructor/Deconstruct exercised; no separate old precompiled consumer binary run.",
+      "Unsigned cursor bound metadata, Guid-N receipt order, no chronological/snapshot/authenticity promise. Actual indexed limit+1 behavior, not emitted underfilled nonterminal claim.",
+      "Query validates touched selected/lookahead metadata/payload, not unrelated filtered corruption.",
+      "Cooperative per-reader budget excludes page mapping/serialization/wire flush; entry bound is not response-byte or latency bound.",
+      "All admitted bridge/dispatch/provider work is owned and joined; remote client completion alone is not server/backend completion.",
+      "Windows client through owned proxy to WSL PostgreSQL; not native Windows database, real IdP/session, all-provider/performance/production qualification.",
+      "Existing4096/default planner/Pooling=false/schema/SQL/locks/packages/original benchmarks unchanged. No new timed benchmark or qualification."
+    ],
+    "excluded_root_scopes": "Tracking/protected row metadata, cleanup live probes, CI metadata, publication/export/redaction/push/branch removal remain root-owned and outside this independent source/raw review."
+  },
+  "limits": [
+    "Unsigned bound cursors are selection bookmarks, not authorization, authenticity, chronology or snapshot promises.",
+    "Concrete indexed source uses limit+1 lookahead; Core-permitted underfilled nonterminal behavior is not claimed as emitted by this source.",
+    "Selected physical/decoded integrity checks do not attest unrelated filtered-out corrupt rows.",
+    "Cooperative per-reader budget excludes DTO mapping/serialization/network flush; entry limit is not response-byte/latency bound.",
+    "Actual local JWT/TLS and Windows-through-WSL PostgreSQL proof do not qualify real IdP/session/native Windows database/all-provider/performance/production.",
+    "Existing4096/default-planner/Pooling=false/schema/SQL/locks/packages/original benchmark criteria preserved."
+  ],
+  "exclusions": [
+    "Root-owned tracking, protected rows/metadata, cleanup live probes, publication/export/push/branch cleanup and CI metadata are outside independent source/raw review.",
+    "#3 entire Blocked row and #20 entire row/original benchmarks remain root-protected; no maturity/gate/hour promotion inferred."
+  ],
+  "observations": {
+    "retained_structured_results": [
+      {
+        "phase": "resource_options_compatibility",
+        "four_ctor_and_deconstruct_positions_preserved": true,
+        "default_receipt_only": true,
+        "old_lookup_counters_unchanged": true,
+        "resource_work": 0
+      },
+      {
+        "phase": "resource_disabled",
+        "both_reads_off_or_both_transports_off": true,
+        "owned_factories_services_endpoints": 0,
+        "unused_invalid_budget_ignored": true
+      },
+      {
+        "phase": "resource_selection",
+        "invalid_plan_callbacks": 0,
+        "resource_only_lookup_work": 0,
+        "single_transport_service_isolation": true,
+        "combined_one_source_one_OpenExisting": true,
+        "no_startup_DDL": true
+      },
+      {
+        "phase": "resource_mixed_ownership",
+        "HTTP_lookup_and_GraphQL_resource": true,
+        "both_admitted_tasks_joined": true,
+        "normal_and_stop_failure": true,
+        "one_source_disposal_after_drain": true,
+        "no_concurrent_LastBackendPid_identity_claim": true
+      },
+      {
+        "phase": "resource_wire_exact_filters",
+        "transport": "HTTP",
+        "case_unicode_quote_literal_exact": true,
+        "max_ASCII_kind128_CJK_id512": true,
+        "null_original_and_configured_linked_server_tokens": true,
+        "lookup_queries": 0
+      },
+      {
+        "phase": "resource_wire_uuid_order",
+        "transport": "HTTP",
+        "adversarial_keys": 10,
+        "canonical_GuidN_matches_actual_PG_UUID": true,
+        "reversed_recorded_time": true,
+        "no_chronology_claim": true
+      },
+      {
+        "phase": "resource_wire_page_limits",
+        "transport": "HTTP",
+        "actual_default50": true,
+        "changing_limits": [
+          1,
+          3,
+          2,
+          200
+        ],
+        "max_page200": true,
+        "terminal_underfill_and_empty": true,
+        "no_nonterminal_underfilled_source_claim": true,
+        "bounded_extra_fixture_rows": 201
+      },
+      {
+        "phase": "resource_wire_mutable_bookmark",
+        "transport": "HTTP",
+        "before_bookmark_insert_not_revisited": true,
+        "after_bookmark_insert_visible": true,
+        "deleted_or_absent_bookmark_allowed": true,
+        "unsigned_position_not_authority_or_snapshot": true
+      },
+      {
+        "phase": "resource_wire_publication",
+        "transport": "HTTP",
+        "pending_empty_success": true,
+        "separate_manual_fresh_relay_sink": true,
+        "selected_indexed_history_only": true,
+        "no_empty_commit_or_legacy_backfill_claim": true
+      },
+      {
+        "phase": "resource_wire_projection",
+        "transport": "HTTP",
+        "current_changed_or_metadata_policy": true,
+        "captured_snapshot_provenance": true,
+        "field_NUL_roundtrip": true,
+        "unknown_unchanged_sensitive_values_not_released": true
+      },
+      {
+        "phase": "resource_wire_shape_validation",
+        "transport": "HTTP",
+        "bounded_tenant_kind_id_limit": true,
+        "control_chars_and_unknown_authority_fields_rejected": true,
+        "resource_queries": 0,
+        "startup_catalog_not_request_query": true
+      },
+      {
+        "phase": "resource_wire_cursor_validation",
+        "transport": "HTTP",
+        "Ordinal_tenant_kind_id_bound": true,
+        "empty_and_malformed_GUID_rejected": true,
+        "matched_untrusted_B_metadata_still_denied": true,
+        "resource_queries": 0,
+        "no_signed_cursor_claim": true
+      },
+      {
+        "phase": "resource_wire_authentication_grants",
+        "transport": "HTTP",
+        "actual_TLS_JWT": true,
+        "foreign_crypto_rejected": true,
+        "framework_RBAC_ABAC_fresh_facts": true,
+        "receipt_history_entity_grants_not_resource_grant": true,
+        "denied_resource_queries": 0
+      },
+      {
+        "phase": "resource_wire_tenant_partition",
+        "transport": "HTTP",
+        "same_receipt_resource_kind_id_A_B": true,
+        "separate_fresh_grants_required": true,
+        "denial_before_source": true,
+        "DTOs_not_membership": true
+      },
+      {
+        "phase": "resource_wire_fresh_revocation",
+        "transport": "HTTP",
+        "same_JWT_same_request": true,
+        "membership_resource_policy_revoke_before_queries": true,
+        "explicit_regrant": true,
+        "no_midflight_external_requery_claim": true
+      },
+      {
+        "phase": "resource_wire_workers_siblings",
+        "transport": "HTTP",
+        "workers": 8,
+        "all_workers_owned_joined": true,
+        "fresh_A_B_resource_fields": false,
+        "mixed_lookup_grant_not_resource_grant": false,
+        "separate_resource_lookup_counters": true
+      },
+      {
+        "phase": "resource_wire_actual_SQL_cancel",
+        "transport": "HTTP",
+        "private_and_caller_modes": true,
+        "exact_resource_tag_Lock_before_signal": true,
+        "single_controlled_query_backend_identity": true,
+        "server_and_backend_joined": true,
+        "manual_reuse": true,
+        "no_remote_token_identity_or_delay_cause_claim": true
+      },
+      {
+        "phase": "resource_wire_held_completion",
+        "transport": "HTTP",
+        "empty_and_populated_pages": true,
+        "token_only_post_SQL_hook": true,
+        "uncooperative_work_not_abandoned": true,
+        "no_successful_empty_or_page_after_veto": true,
+        "not_actual_SQL_wait_evidence": true
+      },
+      {
+        "phase": "resource_wire_integrity_redaction",
+        "transport": "HTTP",
+        "lookahead_physical_A_payload_B_rejected": true,
+        "metadata_only_not_bypass": true,
+        "selective_query_not_unrelated_corruption_attestation": true,
+        "touched_metadata_rejected": true,
+        "secret_post_SQL_fault_redacted": true
+      },
+      {
+        "phase": "resource_wire_positive_server_ownership",
+        "transport": "HTTP",
+        "client_completed_while_resource_server_held": true,
+        "server_token_cancelled": true,
+        "full_dispatch_drain_before_source_disposal": true,
+        "backend_quiescent": true,
+        "single_source_disposal": true
+      },
+      {
+        "phase": "resource_wire_exact_filters",
+        "transport": "GraphQL",
+        "case_unicode_quote_literal_exact": true,
+        "max_ASCII_kind128_CJK_id512": true,
+        "null_original_and_configured_linked_server_tokens": true,
+        "lookup_queries": 0
+      },
+      {
+        "phase": "resource_wire_uuid_order",
+        "transport": "GraphQL",
+        "adversarial_keys": 10,
+        "canonical_GuidN_matches_actual_PG_UUID": true,
+        "reversed_recorded_time": true,
+        "no_chronology_claim": true
+      },
+      {
+        "phase": "resource_wire_page_limits",
+        "transport": "GraphQL",
+        "actual_default50": true,
+        "changing_limits": [
+          1,
+          3,
+          2,
+          200
+        ],
+        "max_page200": true,
+        "terminal_underfill_and_empty": true,
+        "no_nonterminal_underfilled_source_claim": true,
+        "bounded_extra_fixture_rows": 201
+      },
+      {
+        "phase": "resource_wire_mutable_bookmark",
+        "transport": "GraphQL",
+        "before_bookmark_insert_not_revisited": true,
+        "after_bookmark_insert_visible": true,
+        "deleted_or_absent_bookmark_allowed": true,
+        "unsigned_position_not_authority_or_snapshot": true
+      },
+      {
+        "phase": "resource_wire_publication",
+        "transport": "GraphQL",
+        "pending_empty_success": true,
+        "separate_manual_fresh_relay_sink": true,
+        "selected_indexed_history_only": true,
+        "no_empty_commit_or_legacy_backfill_claim": true
+      },
+      {
+        "phase": "resource_wire_projection",
+        "transport": "GraphQL",
+        "current_changed_or_metadata_policy": true,
+        "captured_snapshot_provenance": true,
+        "field_NUL_roundtrip": true,
+        "unknown_unchanged_sensitive_values_not_released": true
+      },
+      {
+        "phase": "resource_wire_shape_validation",
+        "transport": "GraphQL",
+        "bounded_tenant_kind_id_limit": true,
+        "control_chars_and_unknown_authority_fields_rejected": true,
+        "resource_queries": 0,
+        "startup_catalog_not_request_query": true
+      },
+      {
+        "phase": "resource_wire_cursor_validation",
+        "transport": "GraphQL",
+        "Ordinal_tenant_kind_id_bound": true,
+        "empty_and_malformed_GUID_rejected": true,
+        "matched_untrusted_B_metadata_still_denied": true,
+        "resource_queries": 0,
+        "no_signed_cursor_claim": true
+      },
+      {
+        "phase": "resource_wire_authentication_grants",
+        "transport": "GraphQL",
+        "actual_TLS_JWT": true,
+        "foreign_crypto_rejected": true,
+        "framework_RBAC_ABAC_fresh_facts": true,
+        "receipt_history_entity_grants_not_resource_grant": true,
+        "denied_resource_queries": 0
+      },
+      {
+        "phase": "resource_wire_tenant_partition",
+        "transport": "GraphQL",
+        "same_receipt_resource_kind_id_A_B": true,
+        "separate_fresh_grants_required": true,
+        "denial_before_source": true,
+        "DTOs_not_membership": true
+      },
+      {
+        "phase": "resource_wire_fresh_revocation",
+        "transport": "GraphQL",
+        "same_JWT_same_request": true,
+        "membership_resource_policy_revoke_before_queries": true,
+        "explicit_regrant": true,
+        "no_midflight_external_requery_claim": true
+      },
+      {
+        "phase": "resource_wire_workers_siblings",
+        "transport": "GraphQL",
+        "workers": 8,
+        "all_workers_owned_joined": true,
+        "fresh_A_B_resource_fields": true,
+        "mixed_lookup_grant_not_resource_grant": true,
+        "separate_resource_lookup_counters": true
+      },
+      {
+        "phase": "resource_wire_actual_SQL_cancel",
+        "transport": "GraphQL",
+        "private_and_caller_modes": true,
+        "exact_resource_tag_Lock_before_signal": true,
+        "single_controlled_query_backend_identity": true,
+        "server_and_backend_joined": true,
+        "manual_reuse": true,
+        "no_remote_token_identity_or_delay_cause_claim": true
+      },
+      {
+        "phase": "resource_wire_held_completion",
+        "transport": "GraphQL",
+        "empty_and_populated_pages": true,
+        "token_only_post_SQL_hook": true,
+        "uncooperative_work_not_abandoned": true,
+        "no_successful_empty_or_page_after_veto": true,
+        "not_actual_SQL_wait_evidence": true
+      },
+      {
+        "phase": "resource_wire_integrity_redaction",
+        "transport": "GraphQL",
+        "lookahead_physical_A_payload_B_rejected": true,
+        "metadata_only_not_bypass": true,
+        "selective_query_not_unrelated_corruption_attestation": true,
+        "touched_metadata_rejected": true,
+        "secret_post_SQL_fault_redacted": true
+      },
+      {
+        "phase": "resource_wire_positive_server_ownership",
+        "transport": "GraphQL",
+        "client_completed_while_resource_server_held": true,
+        "server_token_cancelled": true,
+        "full_dispatch_drain_before_source_disposal": true,
+        "backend_quiescent": true,
+        "single_source_disposal": true
+      }
+    ],
+    "boundary": "Retained assertions backed by independently reviewed test and host source; no live probes by reviewer.",
+    "ABI_boundary": "Original source signatures retained and four-position constructor/Deconstruct consumer test compiled/executed. No separate historical precompiled consumer binary run.",
+    "actual_source_query_witness": "One controlled source query per actual SQL cancellation mode, exact source application/schema/resource-tag/unique active Lock backend selected before token signal; LastBackendPid not used as concurrent identity.",
+    "pagination": "Actual default50, max200, limit changes1/3/2/200, 201-row fixture,10 adversarial Guid-N keys, reversed timestamps, bound/null cursor, deleted/missing bookmark and before/after bookmark inserts.",
+    "authority": "Actual TLS/JWT and project RBAC/ABAC facts, distinct resource grant, sameJWT fresh membership/resource/policy revocation and regrant, A/B same identities,8 scheduled workers/mixed GraphQL siblings.",
+    "policy_integrity": "Current projection/NUL text/captured provenance, selected metadata and lookahead payload poison, generic secret fault redaction; filtered-out unrelated corruption not attested.",
+    "ownership": "Mixed receiptHTTP/resourceGraphQL held operations and normal/stop-failure paths drain before one source disposal; private/caller actual SQL cancel separately joined; client-completed/server-held case fully joined.",
+    "Windows_provider_topology": "Windows.NET Npgsql via owned Windows loopback/binary stdio proxy to WSL container; not native Windows Postgres",
+    "existing4096_fixture": "Preserved through unchanged old269 prefix/source, no new performance benchmark."
+  },
+  "registries": {
+    "service_sha256": "e3a87d11187d0b7e958a7f90c86dfca56bca8bb880e8be1f06499d312b21ece4",
+    "security_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+    "old_five_service_reconstructed_sha256": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+    "actual_generated_bytes_independently_hashed": true,
+    "only_exact_trail_history_line_removed_for_old_five": true,
+    "new_Operation_or_gateway": false
+  }
+}
