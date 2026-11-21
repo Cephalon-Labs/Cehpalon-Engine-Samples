@@ -23,7 +23,10 @@ public sealed record AuditReceiptTransportOptions(bool HttpEnabled = true, bool 
 {
     public bool ReceiptLookupEnabled { get; init; } = true;
     public bool ResourceHistoryEnabled { get; init; }
+    public AuditReadConcurrencyLimits? ConcurrencyLimits { get; init; }
 }
+/// <summary>Optional host-local shared dispatch limits; no queue, rate or wire-response bound.</summary>
+public sealed record AuditReadConcurrencyLimits(int MaximumConcurrentReads, int MaximumConcurrentReadsPerTenant);
 /// <summary>Captured project configuration. Injected authority collaborators remain caller-owned.</summary>
 public sealed record AuditReceiptTransportSecurity(string AuthenticationScheme, IdentityTrustPolicy TrustPolicy,
     ITenantMembershipSource Memberships, IResourceScopeSource Resources, ITenantAccessPolicy AccessPolicy,
@@ -46,6 +49,7 @@ public sealed record AuditReceiptView(string ReceiptId, string RecordedAtUtc, st
 public sealed class AuditReceiptTransportProbe
 {
     public int HostFactories, SecurityFactories, SourceFactories, SourceOpenAttempts, SourceDisposals;
+    public int BudgetFactories;
     public int GraphQLServices, AuthenticationServices, HttpEndpoints, GraphQLEndpoints;
     public int GatewayFactories, HandlerFactories, SourceLookupCalls, ReaderResults;
     public int ResourceGatewayFactories, ResourceHandlerFactories, SourceResourceHistoryCalls, ResourceReaderResults;
@@ -73,6 +77,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
     public static readonly OperationBinding<AuditReceiptLookupRequest, AuditReceiptLookupResponse> Binding = new("trail.lookup", Validate);
     public static readonly OperationBinding<AuditResourceHistoryRequest, AuditResourceHistoryResponse> ResourceHistoryBinding = new("trail.resource-history", ValidateResourceHistory);
     readonly Admission admission;
+    readonly TenantOperationConcurrencyBudget? concurrencyBudget;
     ActivationLease? lease;
     public ActivationPlan Plan { get; }
     public AuditReceiptTransportProbe Probe { get; }
@@ -80,8 +85,10 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
     public PostgresIndexedAuditStorage? Source { get; private set; }
     public Uri Address => App is null ? throw new InvalidOperationException("The receipt transport host is inactive.") : new(App.Urls.Single());
     public bool IsAdmissionClosed => admission.IsClosed;
-    AuditReceiptTransportHost(ActivationPlan plan, AuditReceiptTransportProbe probe)
-    { Plan = plan; Probe = probe; admission = new(probe); }
+    /// <summary>Aggregate protected-dispatch occupancy only; authentication and response mapping/wire are excluded.</summary>
+    public TenantOperationConcurrencySnapshot? ConcurrencySnapshot => concurrencyBudget?.GetSnapshot();
+    AuditReceiptTransportHost(ActivationPlan plan, AuditReceiptTransportProbe probe, TenantOperationConcurrencyBudget? concurrencyBudget)
+    { Plan = plan; Probe = probe; admission = new(probe); this.concurrencyBudget = concurrencyBudget; }
 
     /// <summary>
     /// ConfigureHost is trusted to establish TLS, JWT cryptographic trust and the default authentication scheme.
@@ -102,7 +109,11 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         var compiled = CompositionCompiler.Compile(config, [new(SecurityModule, ModuleRole.Support), new(SourceModule, ModuleRole.Support, [SecurityModule]),
             new(HostModule, ModuleRole.Support, [SecurityModule, SourceModule]), new(HttpModule, ModuleRole.EntryPoint, [HostModule]), new(GraphModule, ModuleRole.EntryPoint, [HostModule])]);
         if (!compiled.IsSuccess) throw new ArgumentException("Invalid receipt transport composition.", nameof(options));
-        var owner = new AuditReceiptTransportHost(compiled.Plan!, probe ?? new());
+        // A single immutable host-local budget is validated before any caller callback. Inert/null profiles skip it.
+        var budget = selected && options.ConcurrencyLimits is { } limits
+            ? new TenantOperationConcurrencyBudget(limits.MaximumConcurrentReads, limits.MaximumConcurrentReadsPerTenant) : null;
+        var owner = new AuditReceiptTransportHost(compiled.Plan!, probe ?? new(), budget);
+        if (budget is not null) Interlocked.Increment(ref owner.Probe.BudgetFactories);
         if (selected)
         {
             if (options.ReadTimeout is { } bound && (bound <= TimeSpan.Zero || bound > TimeSpan.FromMinutes(1))) throw new ArgumentOutOfRangeException(nameof(options.ReadTimeout));
@@ -174,7 +185,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                 }
                 catch (Exception failure)
                 {
-                    owner.admission.Close();
+                    owner.CloseAdmissions();
                     try { await owner.StopAndDrainAsync(app).ConfigureAwait(false); }
                     catch (Exception cleanup) { throw new AggregateException("Receipt host activation and cleanup failed.", failure, cleanup); }
                     ExceptionDispatchInfo.Capture(failure).Throw(); throw;
@@ -229,17 +240,25 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        admission.Close(); // Synchronous close before any await or caller can race new admission.
+        CloseAdmissions(); // Both admissions close synchronously before asynchronous shutdown.
         return lease?.DisposeAsync() ?? ValueTask.CompletedTask;
+    }
+    void CloseAdmissions()
+    {
+        admission.Close();
+        // DrainAsync closes the budget synchronously. Its uncancelled join is awaited after stopping the app.
+        _ = concurrencyBudget?.DrainAsync(CancellationToken.None);
     }
     async Task StopAndDrainAsync(WebApplication? app)
     {
-        admission.Close(); var failures = new List<Exception>();
+        CloseAdmissions(); var failures = new List<Exception>();
         if (app is not null)
             try { if (Probe.StopApplicationAsync is { } stop) await stop(app).ConfigureAwait(false); else await app.StopAsync(CancellationToken.None).ConfigureAwait(false); }
             catch (Exception error) { failures.Add(error); }
         // Kestrel cancellation or a failed stop never transfers ownership of a dispatch.
-        await admission.DrainAsync().ConfigureAwait(false); Probe.Events.Enqueue("host.drained");
+        await admission.DrainAsync().ConfigureAwait(false);
+        if (concurrencyBudget is not null) await concurrencyBudget.DrainAsync(CancellationToken.None).ConfigureAwait(false);
+        Probe.Events.Enqueue("host.drained");
         if (app is not null) try { await app.DisposeAsync().ConfigureAwait(false); } catch (Exception error) { failures.Add(error); }
         Probe.Events.Enqueue("host.disposed");
         if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
@@ -292,7 +311,10 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
             var identity = new AspNetCoreJwtIdentitySource(new RequestAccessor(http), security.AuthenticationScheme);
             var services = new TenantSecurityServices(identity, security.TrustPolicy, security.Memberships, security.Resources,
                 security.MaximumLeaseLifetime ?? TimeSpan.FromSeconds(30), security.AccessPolicy);
-            var tenant = new TenantOperationDispatcher(registry.Build(), services); var core = new OperationRegistryBuilder();
+            var tenant = owner.concurrencyBudget is { } budget
+                ? TenantOperationDispatcher.WithTenantConcurrencyBudget(registry.Build(), services, budget)
+                : new TenantOperationDispatcher(registry.Build(), services);
+            var core = new OperationRegistryBuilder();
             Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core, new GatewayFactory(tenant, owner.Probe, reader is not null, resourceReader is not null));
             var dispatcher = new OperationDispatcher(core.Build());
             if (lookup)
