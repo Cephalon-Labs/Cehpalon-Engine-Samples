@@ -45,7 +45,7 @@ public sealed class AuditReceiptTransportProbe
     public TaskCompletionSource DrainCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public ConcurrentQueue<string> Events { get; } = new();
     public Action<CancellationToken>? SourceReadStarted;
-    public Func<TenantChangeAuditRecord?, CancellationToken, Task>? AfterProviderRead;
+    public Func<CancellationToken, Task>? AfterProviderRead;
     public Func<WebApplication, Task>? StopApplicationAsync;
 }
 
@@ -217,7 +217,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         {
             Interlocked.Increment(ref probe.SourceLookupCalls); probe.LastWorkToken = token; probe.SourceReadStarted?.Invoke(token);
             var record = await source.FindAsync(tenant, id, token).ConfigureAwait(false);
-            if (probe.AfterProviderRead is { } after) await after(record, token).ConfigureAwait(false);
+            if (probe.AfterProviderRead is { } after) await after(token).ConfigureAwait(false);
             return record;
         }
     }
