@@ -33,7 +33,7 @@ public sealed class AuditReadContractArtifacts
 public static class AuditReadContractExport
 {
     static readonly UTF8Encoding Utf8 = new(false, true);
-    static readonly JsonSerializerOptions Json = new() { IncludeFields = true, WriteIndented = true };
+    static readonly JsonSerializerOptions Json = new() { IncludeFields = true, WriteIndented = true, NewLine = "\n" };
 
     public static async Task<AuditReadContractArtifacts> BuildArtifactsAsync(AuditReceiptTransportOptions options,
         AuditReadContractExportCounters? counters = null)
