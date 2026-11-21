@@ -1,0 +1,13 @@
+diff --git a/audit-outbox/AuditReadContractExport.cs b/audit-outbox/AuditReadContractExport.cs
+index 4215619..e55e9ca 100644
+--- a/audit-outbox/AuditReadContractExport.cs
++++ b/audit-outbox/AuditReadContractExport.cs
+@@ -33,7 +33,7 @@ public sealed class AuditReadContractArtifacts
+ public static class AuditReadContractExport
+ {
+     static readonly UTF8Encoding Utf8 = new(false, true);
+-    static readonly JsonSerializerOptions Json = new() { IncludeFields = true, WriteIndented = true };
++    static readonly JsonSerializerOptions Json = new() { IncludeFields = true, WriteIndented = true, NewLine = "\n" };
+ 
+     public static async Task<AuditReadContractArtifacts> BuildArtifactsAsync(AuditReceiptTransportOptions options,
+         AuditReadContractExportCounters? counters = null)

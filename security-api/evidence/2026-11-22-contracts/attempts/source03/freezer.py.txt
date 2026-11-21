@@ -1,0 +1,24 @@
+from pathlib import Path
+import hashlib,json,subprocess
+D=Path.cwd();B=Path('D:/Cephalon');S=B/'.worktrees/ahx-consumer';E=B/'.worktrees/arh-engine';out=S/'.local/audit-contract-export-source03';out.mkdir(parents=True,exist_ok=False)
+def git(root,*args):return subprocess.check_output(['git','-C',str(root),*args]).decode().strip()
+assert not git(E,'status','--porcelain') and git(E,'rev-parse','HEAD')=='5184517a92a087abe4e0091d256142b6c35a2b39';assert not git(S,'status','--porcelain')
+inputs={}
+def keep(prefix,root,file):
+    key=prefix+'/'+file.relative_to(root).as_posix();data=file.read_bytes();target=out/key;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);inputs[key]=hashlib.sha256(data).hexdigest()
+for prefix,root,folders in [('consumer',S,['audit-outbox','security-api']),('engine',E,['src'])]:
+    for folder in folders:
+        for f in sorted((root/folder).rglob('*')):
+            if f.is_file() and not {'evidence','bin','obj','.local','.git'}.intersection(f.relative_to(root).parts) and f.suffix.lower() in {'.cs','.csproj','.json','.txt','.config','.props'}:keep(prefix,root,f)
+for prefix,root,names in [('consumer',S,['global.json','NuGet.Config','tools/verify_audit_contracts.py','tools/verify_audit_outbox.py','tools/verify_optional_security.py']),('engine',E,['global.json','NuGet.Config','Directory.Packages.props','src/Cehpalon.Engine.CodeGeneration/NuGet.Config'])]:
+    for name in names:
+        f=root/name
+        if f.is_file() and prefix+'/'+name not in inputs:keep(prefix,root,f)
+declarations={}
+for version in ('01','02','03'):
+    decl=D/('.local/audit-contract-export-declaration'+version)
+    for f in sorted(decl.rglob('*')):
+        if f.is_file():
+            rel=f.relative_to(decl);key=version+'/'+rel.as_posix();data=f.read_bytes();target=out/'declaration'/key;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);declarations[key]=hashlib.sha256(data).hexdigest()
+m={'status':'frozen_before_sdk','source_sha256':inputs,'declaration_sha256':declarations,'consumer_head':git(S,'rev-parse','HEAD'),'engine_head':git(E,'rev-parse','HEAD'),'source_count':len(inputs),'declaration_count':len(declarations),'new_targeted_checks_per_host':16,'old332_651_baseline_reused_not_rerun':True}
+(out/'manifest.json').write_bytes((json.dumps(m,indent=2)+'\n').encode());(out/'freezer.py.txt').write_bytes(Path(__file__).read_bytes());print(json.dumps({'status':m['status'],'source_inputs':len(inputs),'declarations':len(declarations),'source':m['consumer_head']}))

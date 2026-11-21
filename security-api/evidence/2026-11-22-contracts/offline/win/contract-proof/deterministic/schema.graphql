@@ -1,0 +1,99 @@
+schema {
+  query: Query
+}
+
+type Query {
+  trailReceipt(input: AuditReceiptLookupRequestInput!): AuditReceiptLookupResponse
+    @cost(weight: "10")
+  trailResourceHistory(input: AuditResourceHistoryRequestInput!): AuditResourceHistoryResponse
+    @cost(weight: "10")
+}
+
+type AuditReceiptFieldView {
+  name: String!
+  before: AuditReceiptValueView!
+  after: AuditReceiptValueView!
+  wasChanged: Boolean!
+}
+
+type AuditReceiptLookupResponse {
+  tenant: String!
+  record: AuditReceiptView
+}
+
+type AuditReceiptValueView {
+  kind: String!
+  text: String
+  number: String
+  boolean: Boolean
+}
+
+type AuditReceiptView {
+  receiptId: String!
+  recordedAtUtc: String!
+  reportedAtUtc: String
+  principalIssuer: String!
+  principalSubject: String!
+  authenticationScheme: String!
+  tenant: String!
+  operationId: String!
+  action: String!
+  resourceKind: String!
+  resourceId: String!
+  authorizationResourceVersion: String!
+  beforeEntityVersion: String
+  afterEntityVersion: String
+  kind: String!
+  mode: String!
+  capturedMode: String!
+  fields: [AuditReceiptFieldView!]!
+}
+
+type AuditResourceHistoryCursor {
+  tenant: String!
+  resourceKind: String!
+  resourceId: String!
+  afterReceiptId: UUID!
+}
+
+type AuditResourceHistoryResponse {
+  tenant: String!
+  entries: [AuditReceiptView!]!
+  nextCursor: AuditResourceHistoryCursor
+}
+
+input AuditReceiptLookupRequestInput {
+  tenant: String!
+  receiptId: UUID!
+}
+
+input AuditResourceHistoryCursorInput {
+  tenant: String!
+  resourceKind: String!
+  resourceId: String!
+  afterReceiptId: UUID!
+}
+
+input AuditResourceHistoryRequestInput {
+  tenant: String!
+  resourceKind: String!
+  resourceId: String!
+  limit: Int! = 50
+  continuation: AuditResourceHistoryCursorInput
+}
+
+"The `UUID` scalar type represents a Universally Unique Identifier (UUID) as defined by RFC 9562."
+scalar UUID
+  @specifiedBy(url: "https://scalars.graphql.org/chillicream/uuid.html")
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost(
+  "The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc."
+  weight: String!
+) on
+  | SCALAR
+  | OBJECT
+  | FIELD_DEFINITION
+  | ARGUMENT_DEFINITION
+  | ENUM
+  | INPUT_FIELD_DEFINITION

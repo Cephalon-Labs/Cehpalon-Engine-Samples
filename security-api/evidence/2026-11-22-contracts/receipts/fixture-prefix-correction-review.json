@@ -1,0 +1,50 @@
+{
+  "status": "passed_source_correction_review_only",
+  "reviewed_at_utc": "2026-11-21T21:26:49.318490+00:00",
+  "reviewer": "independent audit_contract_review agent",
+  "before_revision": "d013d61ae2cc22f2d79fefc29fd64482b4888f13",
+  "correction_revision": "fd7bb17ffcdcfb9f75753f509f0b3e1da883adbf",
+  "changed_files": [
+    "audit-outbox/AuditContractChecks.cs"
+  ],
+  "exact_single_fixture_literal_change": true,
+  "before_sha256": "8788cc340c41bbdd15989c43b34f142e6426b0f2108cc20d5b504fd08f5cca01",
+  "after_sha256": "f55501b159242d69cf5e4279232f94fa1c7e154f5d31b1165ba7c8f49b0de16f",
+  "provider_guard_byte_identical": true,
+  "provider_source_sha256": "e3954b0f292830ff5e868ae682017b980fbeaa8c565ae27e8b9c1a773d45d63a",
+  "required_schema_pattern": "^ao_[a-f0-9]{32}$",
+  "test_assertions_and_acceptance_criteria_changed": false,
+  "retained_attempt02": {
+    "offline_passes": [
+      {
+        "host": "windows",
+        "path": "D:\\Cephalon\\.worktrees\\ahx-consumer\\.local\\ahx-offline-windows02",
+        "manifest_sha256": "4e1cc64297b3947d2bf4c6cd90bbc0faf4451ce7c12ebf7a65427a0a1d3172e0",
+        "passed": 8,
+        "failed": 0
+      },
+      {
+        "host": "wsl",
+        "path": "D:\\Cephalon\\.worktrees\\ahx-wsl-consumer\\.local\\ahx-offline-wsl02",
+        "manifest_sha256": "f51b51b65b1014f85fc538736bcd8672797ad096d21cb183a36304ffbb1166ee",
+        "passed": 8,
+        "failed": 0
+      }
+    ],
+    "windows_wire": {
+      "path": "D:\\Cephalon\\.worktrees\\ahx-consumer\\.local\\ahx-wire-windows02",
+      "passed": 0,
+      "failed": 8,
+      "all_errors": "System.ArgumentException: Owned schema identifier required.",
+      "observations": 0,
+      "schemas": 0,
+      "manifest_sha256": "efae7848c977fa79977d88459ed4dce643b883f19976f6de97568265d68ab895",
+      "tests_sha256": "e472d820534535727e913bad1cc5bbda8730d4b04cc5bdd88f61932081f2862e"
+    },
+    "wsl_wire_executed": false
+  },
+  "interpretation": "Existing PostgresStore constructor validates schema before Initialize; ac_ fixture literal is rejected by unchanged ao_ guard. This is a fixture naming defect, not observed tenant/authorization/provider behavior. Corrected complete matrix must run from its own committed/frozen binaries; earlier offline02 passes cannot substitute for candidate03 source.",
+  "raw_normalized_or_overwritten": false,
+  "sdk_or_fixture_or_remote_execution_by_reviewer": false,
+  "limitations": "Source delta and retained failure inspection only; corrected runtime/cross-tenant pass remains pending."
+}

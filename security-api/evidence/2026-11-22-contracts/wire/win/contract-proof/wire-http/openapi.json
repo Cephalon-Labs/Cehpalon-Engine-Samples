@@ -1,0 +1,1504 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Experimental indexed audit reads",
+    "version": "1",
+    "description": "Selected audit-read POST routes only. Structural schemas do not fully model semantic validation, parser restrictions, read policy or fresh tenant authority."
+  },
+  "paths": {
+    "/audit/receipts/lookup": {
+      "post": {
+        "operationId": "trail.lookup",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "tenant": {
+                        "type": "string"
+                      },
+                      "receiptId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": [
+                      "tenant",
+                      "receiptId"
+                    ],
+                    "additionalProperties": false,
+                    "$id": "urn:cehpalon:audit-read:request:trail.lookup"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Projected successful audit read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "tenant": {
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "receiptId": {
+                          "type": "string"
+                        },
+                        "recordedAtUtc": {
+                          "type": "string"
+                        },
+                        "reportedAtUtc": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "principalIssuer": {
+                          "type": "string"
+                        },
+                        "principalSubject": {
+                          "type": "string"
+                        },
+                        "authenticationScheme": {
+                          "type": "string"
+                        },
+                        "tenant": {
+                          "type": "string"
+                        },
+                        "operationId": {
+                          "type": "string"
+                        },
+                        "action": {
+                          "type": "string"
+                        },
+                        "resourceKind": {
+                          "type": "string"
+                        },
+                        "resourceId": {
+                          "type": "string"
+                        },
+                        "authorizationResourceVersion": {
+                          "type": "string"
+                        },
+                        "beforeEntityVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "afterEntityVersion": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "mode": {
+                          "type": "string"
+                        },
+                        "capturedMode": {
+                          "type": "string"
+                        },
+                        "fields": {
+                          "type": "array",
+                          "items": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "text": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "number": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "boolean": {
+                                    "type": [
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "text",
+                                  "number",
+                                  "boolean"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "text": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "number": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "boolean": {
+                                    "type": [
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "text",
+                                  "number",
+                                  "boolean"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "wasChanged": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "before",
+                              "after",
+                              "wasChanged"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "receiptId",
+                        "recordedAtUtc",
+                        "reportedAtUtc",
+                        "principalIssuer",
+                        "principalSubject",
+                        "authenticationScheme",
+                        "tenant",
+                        "operationId",
+                        "action",
+                        "resourceKind",
+                        "resourceId",
+                        "authorizationResourceVersion",
+                        "beforeEntityVersion",
+                        "afterEntityVersion",
+                        "kind",
+                        "mode",
+                        "capturedMode",
+                        "fields"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "tenant",
+                    "record"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "urn:cehpalon:audit-read:response:trail.lookup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:400"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:403"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:404"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:409"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:413"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:415"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:422"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:500"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.lookup:503"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication challenge; framework may emit no response body"
+          },
+          "405": {
+            "description": "Method rejected; framework may emit no response body"
+          }
+        },
+        "x-cehpalon-maximum-body-bytes": 16384,
+        "x-cehpalon-shape-only": true
+      }
+    },
+    "/audit/resources/history": {
+      "post": {
+        "operationId": "trail.resource-history",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "tenant": {
+                        "type": "string"
+                      },
+                      "resourceKind": {
+                        "type": "string"
+                      },
+                      "resourceId": {
+                        "type": "string"
+                      },
+                      "limit": {
+                        "type": "integer",
+                        "default": 50
+                      },
+                      "continuation": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "tenant": {
+                            "type": "string"
+                          },
+                          "resourceKind": {
+                            "type": "string"
+                          },
+                          "resourceId": {
+                            "type": "string"
+                          },
+                          "afterReceiptId": {
+                            "type": "string",
+                            "format": "uuid"
+                          }
+                        },
+                        "required": [
+                          "tenant",
+                          "resourceKind",
+                          "resourceId",
+                          "afterReceiptId"
+                        ],
+                        "additionalProperties": false,
+                        "default": null
+                      }
+                    },
+                    "required": [
+                      "tenant",
+                      "resourceKind",
+                      "resourceId"
+                    ],
+                    "additionalProperties": false,
+                    "$id": "urn:cehpalon:audit-read:request:trail.resource-history"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Projected successful audit read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "tenant": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "receiptId": {
+                            "type": "string"
+                          },
+                          "recordedAtUtc": {
+                            "type": "string"
+                          },
+                          "reportedAtUtc": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "principalIssuer": {
+                            "type": "string"
+                          },
+                          "principalSubject": {
+                            "type": "string"
+                          },
+                          "authenticationScheme": {
+                            "type": "string"
+                          },
+                          "tenant": {
+                            "type": "string"
+                          },
+                          "operationId": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "resourceKind": {
+                            "type": "string"
+                          },
+                          "resourceId": {
+                            "type": "string"
+                          },
+                          "authorizationResourceVersion": {
+                            "type": "string"
+                          },
+                          "beforeEntityVersion": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "afterEntityVersion": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string"
+                          },
+                          "capturedMode": {
+                            "type": "string"
+                          },
+                          "fields": {
+                            "type": "array",
+                            "items": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "before": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "text": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "number": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "boolean": {
+                                      "type": [
+                                        "boolean",
+                                        "null"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "text",
+                                    "number",
+                                    "boolean"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "after": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "text": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "number": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "boolean": {
+                                      "type": [
+                                        "boolean",
+                                        "null"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "text",
+                                    "number",
+                                    "boolean"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "wasChanged": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "before",
+                                "after",
+                                "wasChanged"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "receiptId",
+                          "recordedAtUtc",
+                          "reportedAtUtc",
+                          "principalIssuer",
+                          "principalSubject",
+                          "authenticationScheme",
+                          "tenant",
+                          "operationId",
+                          "action",
+                          "resourceKind",
+                          "resourceId",
+                          "authorizationResourceVersion",
+                          "beforeEntityVersion",
+                          "afterEntityVersion",
+                          "kind",
+                          "mode",
+                          "capturedMode",
+                          "fields"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "tenant": {
+                          "type": "string"
+                        },
+                        "resourceKind": {
+                          "type": "string"
+                        },
+                        "resourceId": {
+                          "type": "string"
+                        },
+                        "afterReceiptId": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      },
+                      "required": [
+                        "tenant",
+                        "resourceKind",
+                        "resourceId",
+                        "afterReceiptId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "tenant",
+                    "entries",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "urn:cehpalon:audit-read:response:trail.resource-history"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:400"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:403"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:404"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:409"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:413"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:415"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:422"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:500"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Adapter protocol, validation, authority, capacity or handler error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "integer"
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "title",
+                        "status",
+                        "code"
+                      ],
+                      "$id": "urn:cehpalon:audit-read:error:trail.resource-history:503"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication challenge; framework may emit no response body"
+          },
+          "405": {
+            "description": "Method rejected; framework may emit no response body"
+          }
+        },
+        "x-cehpalon-maximum-body-bytes": 16384,
+        "x-cehpalon-shape-only": true
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Application-established JWT bearer trust and fresh tenant authorization are required; algorithm/issuer/audience/grants remain application configuration."
+      }
+    }
+  }
+}

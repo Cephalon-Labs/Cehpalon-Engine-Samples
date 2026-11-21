@@ -1,0 +1,13 @@
+diff --git a/audit-outbox/AuditContractChecks.cs b/audit-outbox/AuditContractChecks.cs
+index 3ec6eae..8805211 100644
+--- a/audit-outbox/AuditContractChecks.cs
++++ b/audit-outbox/AuditContractChecks.cs
+@@ -254,7 +254,7 @@ public static partial class ResourceTransportChecks
+         using var tls = new TlsFixture(); using var jwt = new JwtFixture();
+         async Task<Fixture> Create()
+         {
+-            var store = new PostgresStore(connection, "ac_" + Guid.NewGuid().ToString("N")); await store.Initialize(); schemas.Add(store.Schema);
++            var store = new PostgresStore(connection, "ao_" + Guid.NewGuid().ToString("N")); await store.Initialize(); schemas.Add(store.Schema);
+             await using (var provision = await IndexedProfileComposition.ActivateAsync(IndexedProfileComposition.Configuration(true), store.Schema, IndexedProfileOpenMode.CreateNew, _ => ValueTask.FromResult(connection), new()))
+             { var writer = provision.Storage ?? throw new InvalidOperationException("Missing contract fixture writer."); await writer.AppendOnceAsync(Record(Key(1)), default); await writer.AppendOnceAsync(Record(Key(1), "B"), default); }
+             return new(store, connection, connectionFile, tls, jwt);

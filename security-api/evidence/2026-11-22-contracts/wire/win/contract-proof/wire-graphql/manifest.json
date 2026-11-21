@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "profile": "audit-read",
+  "activationOrder": [
+    "receipt.security",
+    "receipt.source",
+    "receipt.host",
+    "receipt.graphql",
+    "receipt.http"
+  ],
+  "generatedOperationIds": [
+    "outbox.drain",
+    "outbox.relay",
+    "outbox.status",
+    "trail.history",
+    "trail.lookup",
+    "trail.resource-history"
+  ],
+  "selectedOperationIds": [
+    "trail.lookup",
+    "trail.resource-history"
+  ],
+  "httpOperationIds": [
+    "trail.lookup",
+    "trail.resource-history"
+  ],
+  "graphqlOperationIds": [
+    "trail.lookup",
+    "trail.resource-history"
+  ],
+  "transports": [
+    {
+      "operationId": "trail.lookup",
+      "httpPath": "/audit/receipts/lookup",
+      "graphqlField": "trailReceipt"
+    },
+    {
+      "operationId": "trail.resource-history",
+      "httpPath": "/audit/resources/history",
+      "graphqlField": "trailResourceHistory"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "openapi.json",
+      "bytes": 51335,
+      "sha256": "e5899faa8380ea70cdd26e624f58154c2e37f18258c7105a003f9a713e4d605e"
+    },
+    {
+      "name": "schema.graphql",
+      "bytes": 2385,
+      "sha256": "232dfbd66112ec9e34e722248af68c9ac14a4665bcc7968f25e52438cdff67c3"
+    }
+  ],
+  "counters": {
+    "HttpSchemaOperations": 2,
+    "GraphQLRegistrations": 1,
+    "GraphQLServices": 28,
+    "GraphQLSchemaBuilds": 1,
+    "GraphQLProvidersCreated": 1,
+    "GraphQLProvidersDisposed": 1,
+    "HandlerFactoryCalls": 0,
+    "DispatchCalls": 0
+  },
+  "limits": [
+    "Structural wire contracts only; CLR ranges, custom semantic/cursor validation, duplicate-name/Unicode/body/depth checks and fresh tenant authority remain separate.",
+    "The HTTP document covers selected audit-read business POST routes only, not the GraphQL HTTP envelope or deployment security configuration.",
+    "Generic bearer metadata does not choose an algorithm, issuer, audience or operation grant. Artifacts confer no tenant authority.",
+    "Selected GraphQL export explicitly constructs/disposes an offline provider. No host, source, budget, TLS/key/credential read or dispatcher/authority call occurs.",
+    "Network introspection/schema endpoints remain disabled. Publication assumes trusted plain parents and does not provide a hostile filesystem race sandbox.",
+    "Unsigned bookmarks, cooperative read/capacity lifetimes and all experimental M0/provider/production limitations remain unchanged."
+  ]
+}

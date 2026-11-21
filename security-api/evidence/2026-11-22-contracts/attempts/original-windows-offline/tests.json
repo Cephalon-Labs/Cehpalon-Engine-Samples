@@ -1,0 +1,97 @@
+{
+  "phase": "offline",
+  "passed": 7,
+  "failed": 1,
+  "checks": [
+    {
+      "name": "offline contract selection matrix and pure selected configuration",
+      "passed": true
+    },
+    {
+      "name": "offline HTTP schemas preserve actual serializer required nullable Guid and string shapes",
+      "passed": true
+    },
+    {
+      "name": "offline SDL selection and selected provider cleanup including schema failure",
+      "passed": true
+    },
+    {
+      "name": "offline detached files and metadata mutation leave later exports unchanged",
+      "passed": true
+    },
+    {
+      "name": "offline deterministic UTF8 LF payload bytes and manifest hashes",
+      "passed": false,
+      "error_type": "System.InvalidOperationException",
+      "error": "Resource transport conformance assertion failed."
+    },
+    {
+      "name": "offline new directory publication never overwrites prior file or directory",
+      "passed": true
+    },
+    {
+      "name": "offline actual CLI requires no connection TLS or authentication configuration",
+      "passed": true
+    },
+    {
+      "name": "offline typed selected IDs are subset of six generated registrations without factories",
+      "passed": true
+    }
+  ],
+  "observations": [
+    {
+      "phase": "contract_offline_selection",
+      "variants": 16,
+      "selected_validation_is_pure": true,
+      "all_off_manifest_only": true
+    },
+    {
+      "phase": "contract_offline_http_shapes",
+      "serializer_metadata_exact": true,
+      "request_object_only": true,
+      "nullable_success_root": true,
+      "Guid_request_not_string_output_format": true,
+      "string_date_and_decimal_views": true,
+      "custom_validators_not_schema_authority": true
+    },
+    {
+      "phase": "contract_offline_graphql",
+      "actual_vendor_SDL": true,
+      "selected_provider_created_and_disposed": true,
+      "disabled_registration_zero": true,
+      "failure_provider_joined": true,
+      "forbidden_dispatch": 0
+    },
+    {
+      "phase": "contract_offline_detached",
+      "changed_caller_owned_bytes": true,
+      "later_catalog_serializer_and_artifacts_unchanged": true
+    },
+    {
+      "phase": "contract_offline_publication",
+      "existing_file_and_directory_retained": true,
+      "missing_parent_rejected": true,
+      "create_new_promotion": true,
+      "hostile_filesystem_race_not_claimed": true
+    },
+    {
+      "phase": "contract_offline_cli",
+      "separate_dotnet_process": true,
+      "no_connection_TLS_or_auth_args": true,
+      "malformed_and_overwrite_errors_bounded": true,
+      "prior_output_unchanged": true
+    },
+    {
+      "phase": "contract_offline_generated_subset",
+      "actual_generated_ids": 6,
+      "selected_wire_ids": 2,
+      "handler_factory_and_dispatch_calls": 0,
+      "wire_and_internal_gateway_types_not_equated": true,
+      "no_runtime_activation_from_export_API": true
+    }
+  ],
+  "schemas": [],
+  "scope": "Eight targeted audit-contract checks per phase; existing332-provider/651-security suites are reused baseline, not rerun or added to these totals.",
+  "shape_checker": "Bounded type/required/properties/items/allOf/anyOf/local-ref fixture checks; not a general JSON Schema validator. GraphQL subset shapes and exact actual SDL are separate.",
+  "topology": "No database/connection-file/TLS configuration supplied to actual export CLI"
+}
