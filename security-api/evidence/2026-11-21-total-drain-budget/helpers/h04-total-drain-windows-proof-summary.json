@@ -1,0 +1,71 @@
+{
+  "scope": "Narrative development handoff only; prepared during root final run without SDK, probes or hash audit. Root final clean committed-source proof is separate.",
+  "samples_revision": "894801d140a758a0765942338a4af44efdad4648",
+  "samples_baseline": "90751e377b2949d1925807f4cae47179fa577892",
+  "engine_revision": "7499db9759bc9e8017760fb4be34d35dd564393f",
+  "sdk": "11.0.100",
+  "runtime": "11.0.0",
+  "development": {
+    "attempt": "total-drain-windows-dev01",
+    "attempt_count": 1,
+    "status": "passed",
+    "main_passed": 129,
+    "base_outbox_passed": 34,
+    "status_passed": 23,
+    "relay_budget_passed": 24,
+    "bounded_drain_passed": 24,
+    "total_drain_passed": 24,
+    "restart_passed": 3,
+    "prior_bounded_drain_total_passed": 108,
+    "total_passed": 132,
+    "failed": 0,
+    "release_build_warnings": 0,
+    "release_build_errors": 0,
+    "source_unchanged": true,
+    "raw": ".local/total-drain-windows-dev01",
+    "source": ".local/total-drain-windows-dev01-source",
+    "precommit_revision_and_dirty_state_retained_truthfully": true
+  },
+  "source_proof_before_root_launch": {
+    "freezer_inputs": 97,
+    "verifier_inputs": 96,
+    "all97_executing_frozen_current_committed_bytes_equal": true,
+    "all5_changed_files_LF_index_current_commit_equal": true,
+    "eol_exceptions": [],
+    "precommit_proof": ".local/total-drain-precommit-index-proof.json",
+    "postcommit_proof": ".local/total-drain-postcommit-byte-proof.json"
+  },
+  "registries": {
+    "service_sha256": "6d35eb73f43799c83ffad87ad35b6bf49845249c66162bb84b8c4f9dadca1895",
+    "security_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+    "unchanged": true,
+    "gateways": 3
+  },
+  "api_patch": "Explicit DrainRequest.UseTotalBudget selects nullable TotalTimeout. Legacy Run retains original DrainAsync; new RunWithTotalBudget(null) uses new DrainWithBudgetAsync null policy. Same typed DrainGateway and exact existing sample authority/grant.",
+  "observations": {
+    "count": 13,
+    "actual_backend_cases": [
+      "Claim table Lock",
+      "sink table Lock",
+      "acknowledgement row Lock"
+    ],
+    "controls": "Exact owned application tag/schema/query/backend Lock before expiry, task joins, quiescence and manual fresh-authority reuse/dedup. Other waits/faults are labeled wrappers with external watchdogs and unconditional cancel/unblock/join.",
+    "selection": "Unrelated cancellation before later total during release; per-batch and total primary each before later caller during release; both signals before selection choose original caller; release-only failure remains exact cleanup error.",
+    "cleanup_progress": "Known true acknowledgements during late cleanup remain interrupted child counts, not completed returned batches."
+  },
+  "preparation_review": ".local/total-drain-preparation-review.json",
+  "retention": "Prior108 bodies/order/results and original provider SQL/schema/codec/authority/locks/security651 sources retained. No historical evidence, benchmark or trace changes. No provider/schema/package changes or original benchmark rerun.",
+  "fixture": {
+    "container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7",
+    "volume": "cehpalon-audit-outbox-pg18-20261121-data",
+    "windows_proxy": "127.0.0.1:56341",
+    "activation_attempts": 1,
+    "readiness_probes": 2,
+    "positive_native_listener_proof": ".local/pg-proxy-native-listener-before.json",
+    "state": "held for root final six; cleanup only on explicit root signal",
+    "private_env_exported": false,
+    "cleanup_receipt": ".local/total-drain-fixture-cleanup.json",
+    "cleanup_method": "Exact identity guards, dynamic own proxy port and native GetActiveTcpListeners; no timed-connect10035 inference"
+  },
+  "limits": "No original performance, production, provider or native Windows database qualification. Preserve #3 Blocked/#20 and all benchmark criteria. Root sole remote writer; child made no remote writes."
+}

@@ -1,0 +1,3 @@
+# Optional total cooperative outbox drain budget
+
+Accepted continuation of #18 with #7/#8 regressions under existing user authorization. Add a project-selectable null-or-positive total budget across a bounded manual drain, keeping the existing API and per-batch budgets. Preserve live checked tenant scope, original caller cancellation, fenced independent release, exact primary/release errors and invocation-owned progress. No background work, hard deadline, automatic retry, new authority or provider/schema change. Runtime remains M0; #3 stays Blocked, #20 and original benchmark unchanged. [Decision](../adr/ADR-0047-total-outbox-drain-budget.md).

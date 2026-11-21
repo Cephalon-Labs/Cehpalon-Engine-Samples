@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "status": "passed_all_declared_review_scopes",
+  "reviewed_at_utc": "2026-11-21T07:45:59.314910+00:00",
+  "reviewer": "Independent read-only delegated reviewer",
+  "scope": "ADR0047 optional cooperative total outbox drain budget: declared source/design, pre-SDK controls, retained focused/development evidence and six root final functional lanes only.",
+  "review_method": {
+    "source_edits": false,
+    "sdk_or_build_or_runtime_commands": false,
+    "provider_or_container_or_live_port_probes": false,
+    "network_or_remote_tracking_operations": false,
+    "operations": "Bounded retained source/JSON/build-log reads, SHA-256 verification, local Git object reads and comparisons; this JSON is the sole authorized reviewer write."
+  },
+  "revisions": {
+    "engine_baseline": "d3630bd3448df1d59561d233dde9bfb094213076",
+    "engine_source": "7499db9759bc9e8017760fb4be34d35dd564393f",
+    "consumer_baseline": "90751e377b2949d1925807f4cae47179fa577892",
+    "consumer_source": "894801d140a758a0765942338a4af44efdad4648"
+  },
+  "declaration": {
+    "result": "PASS",
+    "retained_manifest": {
+      "path": "D:\\Cephalon\\Cehpalon-Engine-Docs\\.local\\total-drain-budget-declaration02\\manifest.json",
+      "sha256": "0cbd30084576ca9665bb81746c0fbab615a9b88d3a6b1e70c11f8a607c95026e"
+    },
+    "all_three_current_protocol_hashes_match": true,
+    "note": "Pre-SDK clarification explicitly distinguishes interrupted child cleanup acknowledgement observations from a successfully returned batch."
+  },
+  "source_review": {
+    "result": "PASS",
+    "engine_changed_paths": [
+      "Tests/AuditOutbox.ContractTests/Program.cs",
+      "Tests/AuditOutbox.ContractTests/TotalDrainBudgetChecks.cs",
+      "src/Cehpalon.Engine.Tenancy/Audit.cs"
+    ],
+    "consumer_changed_paths": [
+      "audit-outbox/DrainIntegration.cs",
+      "audit-outbox/Program.cs",
+      "audit-outbox/README.md",
+      "audit-outbox/TotalDrainBudgetChecks.cs",
+      "tools/verify_audit_outbox.py"
+    ],
+    "all_eight_changed_current_files_exact_committed_LF_blobs": true,
+    "properties": [
+      "Original RelayAsync and DrainAsync public CLR signatures retained; distinct DrainWithBudgetAsync requires an explicit nullable timeout.",
+      "Null policy preserves original work tokens, exception references and no added total CTS/context. Consumer legacy Run uses old DrainAsync while RunWithTotalBudget(null) selects the new API.",
+      "Configured total spans all batches, awaited child release and final guards; finite existing batch/record caps and independent per-batch budget remain.",
+      "Private original-caller/total context selects observed OCE primary before release, caller then total then per-batch; no retrospective normalization from later cleanup signals.",
+      "Unrelated primary, raw foreign relay exceptions and cleanup-only errors retain identity and classification. Public exception contract is unchanged.",
+      "Interrupted counts and uncertainty import only the exact current private invocation-owned terminal exception; no foreign exception type-only metadata borrowing.",
+      "Successful child counts are recorded before outer post-await guards; completed versus interrupted counts remain distinct.",
+      "Release retains its independent original five-second policy and remains awaited; no retry, abandonment, renewal, background service, SQL/schema/provider or grant expansion."
+    ],
+    "legacy_protected_sources": "Old component RelayBudgetChecks/BoundedDrainChecks/OutboxStatus Program and consumer DrainChecks/RelayBudgetChecks/StatusChecks/Integration/PostgresStore/PayloadCodec/lockfiles remain exact baseline bytes. Component Program becomes exact baseline after removing only the new runner hook."
+  },
+  "pre_sdk_adversarial_review": {
+    "result": "PASS",
+    "properties": [
+      "Watchdogs are outside product-failure capture; owned held tasks have unconditional force-unblock/cancel/join paths.",
+      "Early unrelated OCE controls assert unrequested work signals before throwing; later total uses actual token cancellation barriers, not sleep-based causal assertions.",
+      "Component early-unrelated uses two-second total; consumer prepares a real known lease before its explicitly labeled immediate Claim wrapper and four-second total.",
+      "Caller/per-batch selected controls use controlled release entry/gates; later private-total visibility is not inferred after another linked signal already canceled the public work token.",
+      "Actual consumer Claim/sink/Ack controls observe exact tagged backend/schema/query Lock while work is pending and uncanceled, then require cancellation, join, quiescence and fresh authority/replay.",
+      "Held uncooperative sink, late successful acknowledgement, expiry during cleanup, both-signal caller precedence, foreign tenant partial exceptions and independent release-only errors are covered."
+    ]
+  },
+  "focused_component": {
+    "result": "PASS",
+    "attempt": "td-focused01",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\td-engine\\.local\\td-focused01\\manifest.json",
+      "sha256": "38ac38689a62f7bb08f47b64265a3345faa526f9693290bdda85dde49d72096c"
+    },
+    "declared_inputs": 202,
+    "all_current_and_frozen_hashes_match": true,
+    "outbox_passed": 212,
+    "outbox_failed": 0,
+    "original_164_names_order_results_exact": true,
+    "new_cases": 48,
+    "status_passed": 56,
+    "status_failed": 0,
+    "all_268_raw_checks_true": true,
+    "both_release_builds_zero_warnings_errors": true,
+    "attempt_note": "One frozen focused SDK attempt; preparatory syntax correction and visibility notes are pre-SDK provenance, not a hidden runtime failure/rerun."
+  },
+  "consumer_development": {
+    "result": "PASS",
+    "attempt": "total-drain-windows-dev01",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\td-consumer\\.local\\total-drain-windows-dev01\\manifest.json",
+      "sha256": "6fb8a09f0c2d84f669f4fed3fe59bcbd9115317a6a1deab552557c9e9dc7b014"
+    },
+    "pre_sdk_freezer_manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\td-consumer\\.local\\total-drain-windows-dev01-source\\manifest.json",
+      "sha256": "775befa74a281c0d57c13049f43d606ca9ef4606f10802aec3f994ac487f33b3"
+    },
+    "frozen_inputs": 97,
+    "verifier_inputs": 96,
+    "verifier_is_exact_freezer_subset": true,
+    "all_current_and_frozen_hashes_match": true,
+    "main_passed": 129,
+    "restart_passed": 3,
+    "total_passed": 132,
+    "failed": 0,
+    "old_105_main_names_order_results_exact": true,
+    "prior_108_total_preserved": true,
+    "new_cases": 24,
+    "structured_total_budget_observations": 13,
+    "service_and_security_registries_unchanged": true,
+    "release_build_zero_warnings_errors": true,
+    "attempt_note": "First single retained consumer development attempt passed; no alternate SDK attempt."
+  },
+  "root_serial_driver": {
+    "result": "PASS",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\td-integration\\.local\\td-final-driver01\\manifest.json",
+      "sha256": "ad066a8c5df5e01422d0a01820201a5fe5ef4176ce2d1e8173e1374e52dbcb4c"
+    },
+    "frozen_runner_sha256": "cb09ee7d6fb83b264288f482d882ae64234ad75b527aadf8e2e3f4c1b05d3cc6",
+    "runner_hash_verified": true,
+    "all_17_recorded_phases_exit_zero": true,
+    "first_single_driver_no_root_rerun": true,
+    "note": "WSL consumer has explicit LF alternates, outside Engine parent, clean exact committed source; borrowed Git objects are retained provenance rather than an independent archive."
+  },
+  "final_lanes": [
+    {
+      "kind": "components",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 1323,
+      "failed": 0,
+      "declared_input_count": 144,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\td-integration\\.local\\td-windows-final01\\manifest.json",
+        "sha256": "f61b97d60d0cdd78a70e20243097cb584c032f35f656969e528ba6b3fdc4e592"
+      },
+      "current_source_hashes_match": true,
+      "cross_host_input_maps_equal": true,
+      "release_build_zero_warnings_errors": true,
+      "sdk": "11.0.100",
+      "suites": {
+        "Core.ContractTests": 32,
+        "Composition.ContractTests": 80,
+        "CodeGeneration.ContractTests": 46,
+        "Identity.ContractTests": 34,
+        "Access.ContractTests": 55,
+        "AuthProfile.ContractTests": 55,
+        "Jwe.ContractTests": 55,
+        "KeyRing.ContractTests": 53,
+        "Session.ContractTests": 66,
+        "Observation.ContractTests": 61,
+        "AuditTrail.ContractTests": 48,
+        "AuditPreparation.ContractTests": 51,
+        "AuditExecution.ContractTests": 48,
+        "AuditOutbox.ContractTests": 212,
+        "OutboxStatus.ContractTests": 56,
+        "TenantReadSet.ContractTests": 37,
+        "Tenancy.ContractTests": 79,
+        "Http.ContractTests": 52,
+        "GraphQL.ContractTests": 47,
+        "Tooling.ContractTests": 156
+      },
+      "raw_output_hashes_match_manifest": true,
+      "raw_counts_and_check_statuses_pass": true,
+      "compiler_fixture_passed": true,
+      "compiler_generated_registry_hash_matches": true,
+      "committed_source_blobs_match": true,
+      "frozen_source_note": "Final manifest hashes match current exact committed source; separate focused pre-SDK snapshot is retained. No claim of a final per-lane frozen source directory."
+    },
+    {
+      "kind": "components",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 1320,
+      "failed": 0,
+      "declared_input_count": 144,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\td-integration\\.local\\td-wsl-source01\\.local\\td-wsl-final01\\manifest.json",
+        "sha256": "f9f52cb71a1816c78e62912c7f994074f4f9aa6e02d10d4089cf6c7807579e1e"
+      },
+      "current_source_hashes_match": true,
+      "cross_host_input_maps_equal": true,
+      "release_build_zero_warnings_errors": true,
+      "sdk": "11.0.100",
+      "suites": {
+        "Core.ContractTests": 32,
+        "Composition.ContractTests": 80,
+        "CodeGeneration.ContractTests": 46,
+        "Identity.ContractTests": 34,
+        "Access.ContractTests": 55,
+        "AuthProfile.ContractTests": 55,
+        "Jwe.ContractTests": 55,
+        "KeyRing.ContractTests": 53,
+        "Session.ContractTests": 66,
+        "Observation.ContractTests": 61,
+        "AuditTrail.ContractTests": 48,
+        "AuditPreparation.ContractTests": 51,
+        "AuditExecution.ContractTests": 48,
+        "AuditOutbox.ContractTests": 212,
+        "OutboxStatus.ContractTests": 56,
+        "TenantReadSet.ContractTests": 37,
+        "Tenancy.ContractTests": 79,
+        "Http.ContractTests": 52,
+        "GraphQL.ContractTests": 47,
+        "Tooling.ContractTests": 153
+      },
+      "raw_output_hashes_match_manifest": true,
+      "raw_counts_and_check_statuses_pass": true,
+      "compiler_fixture_passed": true,
+      "compiler_generated_registry_hash_matches": true,
+      "committed_source_blobs_match": true,
+      "frozen_source_note": "Final manifest hashes match current exact committed source; separate focused pre-SDK snapshot is retained. No claim of a final per-lane frozen source directory."
+    },
+    {
+      "kind": "security",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 651,
+      "failed": 0,
+      "declared_input_count": 85,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\td-consumer\\.local\\td-security-windows-final01\\manifest.json",
+        "sha256": "a2fc5ca36490d76095e4b1a0498b9aded8898c55f82e9848f4331d6a8b990820"
+      },
+      "current_source_hashes_match": true,
+      "cross_host_input_maps_equal": true,
+      "release_build_zero_warnings_errors": true,
+      "sdk": "11.0.100",
+      "raw_checks": 651,
+      "raw_tests_hash_matches_manifest": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "frozen_source_note": "Manifest input hashes match both current host sources; no final security frozen-source directory is claimed."
+    },
+    {
+      "kind": "postgres",
+      "host": "windows",
+      "result": "PASS",
+      "passed": 132,
+      "failed": 0,
+      "declared_input_count": 96,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\td-consumer\\.local\\td-postgres-windows-final01\\manifest.json",
+        "sha256": "41c0aaa5723b5b917d9ec9a5f42158beaf8bd3b6831caa9e8287478d6ec998a9"
+      },
+      "current_source_hashes_match": true,
+      "cross_host_input_maps_equal": true,
+      "release_build_zero_warnings_errors": true,
+      "sdk": "11.0.100",
+      "raw_main_passed": 129,
+      "restart_passed": 3,
+      "partition": {
+        "prior_outbox": 34,
+        "status": 23,
+        "per_batch_relay_budget": 24,
+        "bounded_drain": 24,
+        "total_drain_budget": 24,
+        "restart": 3
+      },
+      "prior_105_main_names_order_results_exact": true,
+      "all_13_total_budget_observations_present": true,
+      "frozen_source_files_match_all_96_hashes": true,
+      "consumer_committed_source_blobs_match": true,
+      "service_registry_sha256": "6d35eb73f43799c83ffad87ad35b6bf49845249c66162bb84b8c4f9dadca1895",
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "settings": {
+        "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "provider_topology": "Windows.NET Npgsql via owned Windows loopback/binary stdio proxy to WSL container; not native Windows Postgres"
+    },
+    {
+      "kind": "security",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 651,
+      "failed": 0,
+      "declared_input_count": 85,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\td-wsl-consumer\\.local\\td-security-wsl-final01\\manifest.json",
+        "sha256": "2cab5f5c9e1e9c0a6325fa73d99d87c92ded6823ac8d4c86110487e0ed83f93a"
+      },
+      "current_source_hashes_match": true,
+      "cross_host_input_maps_equal": true,
+      "release_build_zero_warnings_errors": true,
+      "sdk": "11.0.100",
+      "raw_checks": 651,
+      "raw_tests_hash_matches_manifest": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "frozen_source_note": "Manifest input hashes match both current host sources; no final security frozen-source directory is claimed."
+    },
+    {
+      "kind": "postgres",
+      "host": "wsl",
+      "result": "PASS",
+      "passed": 132,
+      "failed": 0,
+      "declared_input_count": 96,
+      "manifest": {
+        "path": "D:\\Cephalon\\.worktrees\\td-wsl-consumer\\.local\\td-postgres-wsl-final01\\manifest.json",
+        "sha256": "46a044ecfed654bb2c07cb5261b816f72deaa461d2ef62e6e49b0c0c960d12b1"
+      },
+      "current_source_hashes_match": true,
+      "cross_host_input_maps_equal": true,
+      "release_build_zero_warnings_errors": true,
+      "sdk": "11.0.100",
+      "raw_main_passed": 129,
+      "restart_passed": 3,
+      "partition": {
+        "prior_outbox": 34,
+        "status": 23,
+        "per_batch_relay_budget": 24,
+        "bounded_drain": 24,
+        "total_drain_budget": 24,
+        "restart": 3
+      },
+      "prior_105_main_names_order_results_exact": true,
+      "all_13_total_budget_observations_present": true,
+      "frozen_source_files_match_all_96_hashes": true,
+      "consumer_committed_source_blobs_match": true,
+      "service_registry_sha256": "6d35eb73f43799c83ffad87ad35b6bf49845249c66162bb84b8c4f9dadca1895",
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "settings": {
+        "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "provider_topology": "WSL.NET Npgsql directly to owned WSL loopback PostgreSQL container"
+    }
+  ],
+  "claim_limits": [
+    "All evidence is functional and scoped to the retained sources/fixtures. No benchmark, speedup, GC/scheduler causality, physical timeout latency or hard-deadline guarantee is established.",
+    "Cancellation requests cooperation; uncooperative I/O and cleanup are awaited. Observed acknowledgements are not unique-delivery, rollback or backend exactly-once guarantees.",
+    "Windows consumer uses .NET/Npgsql through owned loopback/binary stdio proxy to WSL PostgreSQL18.7; it does not establish native Windows PostgreSQL or supported Windows qualification. WSL consumer accesses its owned server directly.",
+    "No real IdP, all-provider, power-loss durability, production, release, higher maturity or original benchmark acceptance is inferred. GA SDK/runtime and old dependency/benchmark policies remain the baseline.",
+    "Component source-map144, security-map85, provider-map96 and supplemental consumer freezer97 are distinct declared inventories, not interchangeable counts."
+  ],
+  "explicitly_excluded_from_this_review": [
+    "GitHub issue/Project tracking synchronization and protected-row/task byte checks; root checks separately.",
+    "Owned fixture cleanup and host live-state checks; root/cleanup agent checks separately.",
+    "Publication archives/export/redaction, pushes/remote branch cleanup and final Docs commit.",
+    "Hosted CI metadata/artifact results; CI was not part of this reviewer scope and no artifact was downloaded."
+  ],
+  "qualification_state": "This review does not alter #3 Blocked, #20 complete-row state, M0 gates, null hours or benchmark criteria; tracking preservation is explicitly outside this source/runtime review."
+}
