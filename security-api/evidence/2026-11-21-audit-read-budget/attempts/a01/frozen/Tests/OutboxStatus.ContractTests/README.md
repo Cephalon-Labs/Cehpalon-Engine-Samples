@@ -1,0 +1,7 @@
+# Optional checked outbox status contracts
+
+Experimental aggregate-only observation under an active checked `audit-outbox/tenant/inspect` scope. A DTO or relay/history/writer permission is not status authority. Disabled activation skips the source factory and invalid optional arguments; no listener, cache or background work is installed. Provider timestamps are reported facts, not a client-freshness or database-atomicity certification.
+
+Caller cancellation is reported as `OperationCanceledException` carrying the original caller token. An observed private budget expiration is a generic `TimeoutException`; both signaled means caller priority. A provider OCE with neither signal, or an ordinary source fault even if cancellation/deadline coincides, remains the original source error. This is checkpoint classification, not causal attribution. Source cancellation is cooperative: an uncooperative held source remains awaited; its late response cannot escape scope/caller/budget validation. Counts and timestamps are immutable and expose no audit payload, receipt IDs or principal metadata.
+
+Run the pinned SDK with locked restore, Release/warnings-as-errors and a new `--output=<file>`. Freeze executing source and retain every failed/development attempt. These portable fixture contracts do not prove real storage snapshot consistency, a hard I/O deadline, global freshness, supported host, benchmark or production qualification.

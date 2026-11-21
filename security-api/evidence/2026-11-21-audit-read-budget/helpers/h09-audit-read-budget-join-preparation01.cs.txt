@@ -1,0 +1,225 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
+using Cehpalon.Engine.Core;
+using Cehpalon.Engine.Identity;
+using Cehpalon.Engine.Tenancy;
+using Npgsql;
+
+namespace AuditOutbox;
+
+public sealed record ReadBudgetHistoryRequest(string Tenant,int Limit=1,string? Cursor=null);
+public sealed record ReadBudgetHistoryResult(string Tenant,TenantChangeAuditPage Page);
+// Local typed declaration for the existing history operation; no HTTP endpoint or new grant semantics.
+[Operation("trail.history")]
+public sealed class ReadBudgetHistoryGateway(TenantOperationDispatcher tenant):IOperationHandler<ReadBudgetHistoryRequest,ReadBudgetHistoryResult>
+{
+    public ValueTask<OperationResult<ReadBudgetHistoryResult>> HandleAsync(ReadBudgetHistoryRequest request,OperationContext context,CancellationToken token)=>tenant.DispatchAsync<ReadBudgetHistoryRequest,ReadBudgetHistoryResult>("trail.history",request,context,token);
+}
+public sealed class ReadBudgetHistoryHost
+{
+    public LookupAuthority Authority{get;}public TenantOperationContext? RetainedContext;public int ReaderResults,HandlerFactories,GatewayFactories;
+    private readonly TenantChangeAuditHistoryReader reader;private readonly OperationDispatcher dispatcher;
+    public ReadBudgetHistoryHost(TenantChangeAuditHistoryReader reader,TimeProvider? clock=null)
+    {
+        this.reader=reader;clock??=TimeProvider.System;Authority=new(clock){GrantedOperation="trail.history"};var registry=new TenantOperationRegistryBuilder().Register<ReadBudgetHistoryRequest,ReadBudgetHistoryResult>("trail.history","read","audit-trail",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref HandlerFactories);return new Handler(this);}).Build();var services=new TenantSecurityServices(Authority,new(["owned-lookup-authority"],["fixture-service"]),Authority,Authority,TimeSpan.FromSeconds(30),Authority,clock);var tenant=new TenantOperationDispatcher(registry,services);var core=new OperationRegistryBuilder();Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core,new Factory(this,tenant));dispatcher=new(core.Build());
+    }
+    public ValueTask<OperationResult<ReadBudgetHistoryResult>> Run(string tenant="A",CancellationToken token=default)=>dispatcher.DispatchAsync<ReadBudgetHistoryRequest,ReadBudgetHistoryResult>("trail.history",new(tenant),new("owned-read-budget-history"),token);
+    private sealed class Handler(ReadBudgetHistoryHost owner):ITenantOperationHandler<ReadBudgetHistoryRequest,ReadBudgetHistoryResult>
+    {
+        public async ValueTask<OperationResult<ReadBudgetHistoryResult>> HandleAsync(ReadBudgetHistoryRequest request,TenantOperationContext context,CancellationToken token)
+        {owner.RetainedContext=context;var page=await owner.reader.ReadAsync(context,request.Limit,request.Cursor,token);Interlocked.Increment(ref owner.ReaderResults);return OperationResult<ReadBudgetHistoryResult>.Success(new(context.Tenant.Value,page));}
+    }
+    private sealed class Factory(ReadBudgetHistoryHost owner,TenantOperationDispatcher tenant):IOperationHandlerFactory
+    {
+        public THandler Create<THandler>() where THandler:class{if(typeof(THandler)!=typeof(ReadBudgetHistoryGateway))throw new InvalidOperationException("Only selected read-budget history gateway may be created.");Interlocked.Increment(ref owner.GatewayFactories);return(THandler)(object)new ReadBudgetHistoryGateway(tenant);}
+    }
+}
+public static class ReadBudgetChecks
+{
+    private static readonly TimeSpan Budget=TimeSpan.FromSeconds(6),Watchdog=TimeSpan.FromSeconds(30);
+    private static void Require(bool value){if(!value)throw new InvalidOperationException("Audit read budget consumer assertion failed.");}
+    private static TaskCompletionSource Signal()=>new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static async Task<Exception> Failure(Func<Task> action){try{await action();}catch(Exception e){return e;}throw new InvalidOperationException("Expected audit read budget failure.");}
+    private static async Task Join(Task task){try{await task.WaitAsync(Watchdog);}catch(Exception){if(!task.IsCompleted)throw;}}
+    private static Guid Key(int n)=>Guid.Parse("00000000-0000-0000-0000-"+n.ToString("x12"));
+    private static TenantChangeAuditPolicy Policy()=>new(TenantChangeAuditMode.ChangedFields,[new("entity.update","update","entity",[new("title"),new("secret",true)])]);
+    private static TenantChangeAuditRecord Record(int key,string tenant)=>new(new(Key(key),new PrincipalId("owned-read-budget-record","writer"),"fixture-service",new(tenant),"entity.update","update","entity","shared","fixture-v1",TenantChangeKind.Update,"0","1"),DateTimeOffset.UnixEpoch.AddDays(20000),TenantChangeAuditMode.ChangedFields,[new("title",TenantChangeValue.Text("before"),TenantChangeValue.Text(tenant+key)),new("secret",TenantChangeValue.Text("private-before"),TenantChangeValue.Text("private-after"))]);
+    private static TenantChangeAuditResourceQuery Query()=>new("entity","shared",1);
+    private sealed record View(bool Success,string? Code,string Tenant,IReadOnlyList<TenantChangeAuditRecord> Entries,string? Cursor);
+    private sealed class Bound(Func<string,CancellationToken,Task<View>> run,Action<bool,bool> permissions,Func<TenantOperationContext?> context,Func<int> results)
+    {public Task<View> Run(string tenant="A",CancellationToken token=default)=>run(tenant,token);public void Allow(bool allow,bool tenantB=false)=>permissions(allow,tenantB);public TenantOperationContext? Context=>context();public int Results=>results();}
+    private sealed class Clock:TimeProvider
+    {private readonly DateTimeOffset origin=DateTimeOffset.UtcNow;private long ticks;public override long TimestampFrequency=>TimeSpan.TicksPerSecond;public override DateTimeOffset GetUtcNow()=>origin.AddTicks(ticks);public override long GetTimestamp()=>ticks;public void Advance(TimeSpan value)=>ticks+=value.Ticks;}
+    private sealed class Ports(ITenantChangeAuditHistorySource? history,ITenantChangeAuditLookupSource? lookup,ITenantChangeAuditResourceHistorySource? resource):ITenantChangeAuditHistorySource,ITenantChangeAuditLookupSource,ITenantChangeAuditResourceHistorySource
+    {
+        public readonly ConcurrentQueue<CancellationToken> Tokens=new();public Func<CancellationToken,Task>? After;public int Calls;
+        private void Enter(CancellationToken token){Tokens.Enqueue(token);Interlocked.Increment(ref Calls);}
+        public async ValueTask<TenantChangeAuditPage> ReadAsync(TenantId tenant,int limit,string? cursor,CancellationToken token){Enter(token);var page=await history!.ReadAsync(tenant,limit,cursor,token);if(After is not null)await After(token);return page;}
+        public async ValueTask<TenantChangeAuditRecord?> FindAsync(TenantId tenant,Guid receiptId,CancellationToken token){Enter(token);var record=await lookup!.FindAsync(tenant,receiptId,token);if(After is not null)await After(token);return record;}
+        public async ValueTask<TenantChangeAuditResourcePage> ReadAsync(TenantId tenant,TenantChangeAuditResourceQuery query,CancellationToken token){Enter(token);var page=await resource!.ReadAsync(tenant,query,token);if(After is not null)await After(token);return page;}
+    }
+    private sealed class Profile(int kind,PostgresStore store,Ports ports,string app,string table,string sqlTag,Func<int> queries,IndexedProfileActivation? activation):IAsyncDisposable
+    {
+        public int Kind=>kind;public string Name=>new[]{"legacy-history","legacy-lookup","legacy-resource","indexed-lookup","indexed-resource"}[kind];public PostgresStore Store=>store;public Ports Source=>ports;public string Application=>app;public string Table=>table;public string SqlTag=>sqlTag;public int Queries=>queries();
+        public Bound Bind(TimeSpan? timeout,bool original=false,TimeProvider? clock=null)
+        {
+            if(kind==0)
+            {
+                var reader=original?TenantChangeAuditHistoryReader.Activate(Policy(),()=>ports)!:TenantChangeAuditHistoryReader.ActivateWithBudget(Policy(),timeout,()=>ports)!;var host=new ReadBudgetHistoryHost(reader,clock);
+                return new(async(tenant,token)=>{var r=await host.Run(tenant,token);return r.IsSuccess?new(true,null,r.Value.Tenant,r.Value.Page.Entries,r.Value.Page.NextCursor):new(false,r.Error.Code,tenant,[],null);},(allow,b)=>{host.Authority.AllowLookup=allow;host.Authority.AllowB=b;},()=>host.RetainedContext,()=>host.ReaderResults);
+            }
+            if(kind is 1 or 3)
+            {
+                var reader=original?TenantChangeAuditLookupReader.Activate(Policy(),()=>ports)!:TenantChangeAuditLookupReader.ActivateWithBudget(Policy(),timeout,()=>ports)!;var host=new LookupHost(reader,clock:clock);
+                return new(async(tenant,token)=>{var r=await host.Run(Key(1),tenant,token);return r.IsSuccess?new(true,null,r.Value.Tenant,r.Value.Record is null?[]:[r.Value.Record],null):new(false,r.Error.Code,tenant,[],null);},(allow,b)=>{host.Authority.AllowLookup=allow;host.Authority.AllowB=b;},()=>host.RetainedContext,()=>host.ReaderResults);
+            }
+            else
+            {
+                var reader=original?TenantChangeAuditResourceHistoryReader.Activate(Policy(),()=>ports)!:TenantChangeAuditResourceHistoryReader.ActivateWithBudget(Policy(),timeout,()=>ports)!;var host=new ResourceHistoryHost(reader,clock:clock);
+                return new(async(tenant,token)=>{var r=await host.Run(Query(),tenant,token);return r.IsSuccess?new(true,null,r.Value.Tenant,r.Value.Page.Entries,r.Value.Page.NextCursor?.AfterReceiptId.ToString("N")):new(false,r.Error.Code,tenant,[],null);},(allow,b)=>{host.Authority.AllowHistory=allow;host.Authority.AllowB=b;},()=>host.RetainedContext,()=>host.ReaderResults);
+            }
+        }
+        public ValueTask DisposeAsync()=>activation is null?ValueTask.CompletedTask:activation.DisposeAsync();
+    }
+    public static async Task Run(Func<string,Func<Task>,Task> check,Func<Task<PostgresStore>> createStore,string connection,Action<object> observe)
+    {
+        async Task<Profile> Create(int kind,bool seed=true)
+        {
+            var store=await createStore();IndexedProfileActivation? selected=null;ITenantChangeAuditHistorySource? history=null;ITenantChangeAuditLookupSource? lookup=null;ITenantChangeAuditResourceHistorySource? resource=null;string app,tag,table=store.Schema+".audit_sink";Func<int> queries;
+            try
+            {
+                if(kind==0){app="owned-read-budget-history-"+Guid.NewGuid().ToString("N");var actual=new PostgresStore(new NpgsqlConnectionStringBuilder(connection){ApplicationName=app}.ConnectionString,store.Schema);history=actual;queries=()=>actual.HistoryReads;tag="SELECT payload FROM "+table+" WHERE tenant=$1 ORDER BY receipt LIMIT $2 OFFSET $3";}
+                else if(kind==1){var actual=new PostgresLookupSource(connection,store.Schema);lookup=actual;app=actual.ApplicationName;queries=()=>actual.QueryAttempts;tag="owned-audit-receipt-lookup";}
+                else if(kind==2){var actual=new PostgresResourceHistorySource(connection,store.Schema);resource=actual;app=actual.ApplicationName;queries=()=>actual.QueryAttempts;tag="owned-resource-history-query";}
+                else{selected=await IndexedProfileComposition.ActivateAsync(IndexedProfileComposition.Configuration(true),store.Schema,IndexedProfileOpenMode.CreateNew,_=>ValueTask.FromResult(connection),new());var actual=selected.Storage!;lookup=actual;resource=actual;app=actual.ApplicationName;queries=()=>actual.LookupQueries+actual.ResourceQueries;table=actual.TableName;tag=kind==3?PostgresIndexedAuditStorage.LookupTag:PostgresIndexedAuditStorage.ResourceTag;}
+                if(seed)foreach(var record in new[]{Record(1,"A"),Record(2,"A"),Record(1,"B")}){if(selected is null)await store.AppendOnceAsync(record,default);else await selected.Storage!.AppendOnceAsync(record,default);}
+                return new(kind,store,new(history,lookup,resource),app,table,tag,queries,selected);
+            }
+            catch{if(selected is not null)await selected.DisposeAsync();throw;}
+        }
+        for(var k=0;k<5;k++)
+        {
+            var kind=k;await check("configured read budget cancels actual SQL Lock "+kind,async()=>
+            {
+                await using var p=await Create(kind);var probe=new SqlProbe(connection,p);await using var blocker=await probe.Hold();using var caller=new CancellationTokenSource();var bound=p.Bind(Budget);var pending=bound.Run(token:caller.Token);int pid=0;
+                try{pid=await probe.Observe(pending,caller.Token);Require(p.Source.Tokens.TryPeek(out var work)&&work!=caller.Token&&!work.IsCancellationRequested);var error=await Failure(()=>pending).WaitAsync(Watchdog);Require(error is TimeoutException{InnerException:OperationCanceledException}&&!caller.IsCancellationRequested&&bound.Results==0);}
+                finally{caller.Cancel();await blocker.DisposeAsync();await Join(pending);}
+                await probe.Quiescent(pid);Require((await p.Bind(null).Run()).Success);observe(new{phase="actual_SQL_private_budget",profile=p.Name,pid,application=p.Application,sql_tag=p.SqlTag,table=p.Table,Lock_before_cancel=true,no_reader_result=true,task_backend_quiescent=true,manual_reuse=true,physical_delay_cause_claim=false});
+            });
+        }
+        for(var k=0;k<5;k++)
+        {
+            var kind=k;await check("caller cancellation maps original token during actual SQL Lock "+kind,async()=>
+            {
+                await using var p=await Create(kind);var probe=new SqlProbe(connection,p);await using var blocker=await probe.Hold();using var caller=new CancellationTokenSource();var bound=p.Bind(Budget);var pending=bound.Run(token:caller.Token);int pid=0;
+                try{pid=await probe.Observe(pending,caller.Token);Require(p.Source.Tokens.TryPeek(out var work)&&work!=caller.Token&&!work.IsCancellationRequested);caller.Cancel();var error=await Failure(()=>pending).WaitAsync(Watchdog);Require(error is OperationCanceledException canceled&&canceled.CancellationToken==caller.Token&&canceled.InnerException is OperationCanceledException&&bound.Results==0);}
+                finally{caller.Cancel();await blocker.DisposeAsync();await Join(pending);}
+                await probe.Quiescent(pid);Require((await p.Bind(null).Run()).Success);observe(new{phase="actual_SQL_original_caller",profile=p.Name,pid,Lock_before_cancel=true,original_caller_token=true,task_backend_quiescent=true,manual_reuse=true});
+            });
+        }
+        for(var k=0;k<5;k++)
+        {
+            var kind=k;await check("original and null budget reader retain actual provider token payload and fault "+kind,async()=>
+            {
+                await using var p=await Create(kind);using var caller=new CancellationTokenSource();var original=p.Bind(null,original:true);var optional=p.Bind(null);var a=await original.Run(token:caller.Token);var b=await optional.Run(token:caller.Token);Require(a.Success&&b.Success&&a.Entries.Count==1&&a.Cursor==b.Cursor&&PayloadCodec.Encode(a.Entries.Single())==PayloadCodec.Encode(b.Entries.Single())&&p.Source.Tokens.All(t=>t==caller.Token));var fault=new IOException("Controlled exact null-budget provider wrapper fault.");p.Source.After=_=>throw fault;Require(ReferenceEquals(await Failure(()=>original.Run(token:caller.Token)),fault)&&ReferenceEquals(await Failure(()=>optional.Run(token:caller.Token)),fault)&&p.Source.Tokens.All(t=>t==caller.Token));observe(new{phase="original_null_compatibility",profile=p.Name,original_factory_and_distinct_new_null_factory=true,provider_token_exact=true,payload_cursor_equal=true,provider_error_reference_equal=true});
+            });
+        }
+        await check("disabled and invalid read budgets invoke no source or indexed activation factories",()=>
+        {
+            var factories=0;var disabled=new TenantChangeAuditPolicy(TenantChangeAuditMode.Disabled);foreach(var timeout in new TimeSpan?[]{null,TimeSpan.Zero,TimeSpan.FromTicks(-1),TimeSpan.FromMinutes(1).AddTicks(1)})
+            {
+                Require(TenantChangeAuditHistoryReader.ActivateWithBudget(disabled,timeout,()=>{factories++;throw new InvalidOperationException();}) is null&&TenantChangeAuditLookupReader.ActivateWithBudget(disabled,timeout,()=>{factories++;throw new InvalidOperationException();}) is null&&TenantChangeAuditResourceHistoryReader.ActivateWithBudget(disabled,timeout,()=>{factories++;throw new InvalidOperationException();}) is null);
+            }
+            foreach(var timeout in new[]{TimeSpan.Zero,TimeSpan.FromTicks(-1),TimeSpan.FromMinutes(1).AddTicks(1)})
+            {
+                Require(SyncFailure(()=>TenantChangeAuditHistoryReader.ActivateWithBudget(Policy(),timeout,()=>{factories++;throw new InvalidOperationException();})) is ArgumentOutOfRangeException&&SyncFailure(()=>TenantChangeAuditLookupReader.ActivateWithBudget(Policy(),timeout,()=>{factories++;throw new InvalidOperationException();})) is ArgumentOutOfRangeException&&SyncFailure(()=>TenantChangeAuditResourceHistoryReader.ActivateWithBudget(Policy(),timeout,()=>{factories++;throw new InvalidOperationException();})) is ArgumentOutOfRangeException);
+            }
+            Require(factories==0);observe(new{phase="disabled_invalid",source_factories=0,indexed_activation_factories=0,credential_reads=0,reader_activated=false,private_timer_not_instrumented_here=true});return Task.CompletedTask;
+        });
+        await check("pre-cancelled configured reads perform zero provider read queries",async()=>
+        {
+            for(var kind=0;kind<5;kind++){await using var p=await Create(kind);using var caller=new CancellationTokenSource();caller.Cancel();Require(await Failure(()=>p.Bind(Budget).Run(token:caller.Token)) is OperationCanceledException canceled&&canceled.CancellationToken==caller.Token&&p.Source.Calls==0&&p.Queries==0);}observe(new{phase="pre_cancelled",profiles=5,provider_read_calls=0,fixture_initialization_separate=true});
+        });
+        await check("foreign OCE before either signal remains the exact provider wrapper exception",async()=>
+        {
+            for(var kind=0;kind<5;kind++)
+            {
+                await using var p=await Create(kind);using var caller=new CancellationTokenSource();using var foreign=new CancellationTokenSource();foreign.Cancel();var error=new OperationCanceledException("Controlled unrelated canceled token.",foreign.Token);p.Source.After=work=>{Require(!work.IsCancellationRequested&&!caller.IsCancellationRequested);throw error;};var bound=p.Bind(TimeSpan.FromSeconds(45));Require(ReferenceEquals(await Failure(()=>bound.Run(token:caller.Token)),error)&&p.Queries==1&&bound.Results==0);
+            }
+            observe(new{phase="foreign_OCE",profiles=5,actual_IO_precedes_wrapper_fault=true,caller_and_work_unsignaled_at_throw=true,exact_error_reference=true});
+        });
+        await check("non-OCE provider wrapper failure remains exact after private budget signals",async()=>
+        {
+            for(var kind=0;kind<5;kind++)
+            {
+                await using var p=await Create(kind);using var caller=new CancellationTokenSource();var release=Signal();var entered=Signal();var error=new IOException("Controlled late provider wrapper failure.");p.Source.After=async work=>{Require(!work.IsCancellationRequested&&!caller.IsCancellationRequested);using var registration=work.Register(()=>release.TrySetResult());entered.TrySetResult();await release.Task;throw error;};var bound=p.Bind(Budget);var pending=bound.Run(token:caller.Token);
+                try{await entered.Task.WaitAsync(Watchdog);Require(ReferenceEquals(await Failure(()=>pending).WaitAsync(Watchdog),error)&&!caller.IsCancellationRequested&&bound.Results==0&&p.Queries==1);}
+                finally{caller.Cancel();release.TrySetResult();await Join(pending);}
+            }
+            observe(new{phase="late_non_OCE",profiles=5,actual_IO_precedes_held_wrapper=true,private_signal_barrier=true,exact_error_reference=true});
+        });
+        await check("private-first then caller-at-primary-selection uses original caller cancellation",async()=>
+        {
+            for(var kind=0;kind<5;kind++)
+            {
+                await using var p=await Create(kind);using var caller=new CancellationTokenSource();var release=Signal();var entered=Signal();var privateFirst=false;OperationCanceledException? selected=null;p.Source.After=async work=>{using var registration=work.Register(()=>release.TrySetResult());entered.TrySetResult();await release.Task;Require(!caller.IsCancellationRequested&&work.IsCancellationRequested);privateFirst=true;caller.Cancel();selected=new("Controlled source OCE at both-signal selection.",work);throw selected;};var bound=p.Bind(Budget);var pending=bound.Run(token:caller.Token);
+                try{await entered.Task.WaitAsync(Watchdog);var error=await Failure(()=>pending).WaitAsync(Watchdog);Require(privateFirst&&error is OperationCanceledException canceled&&canceled.CancellationToken==caller.Token&&ReferenceEquals(canceled.InnerException,selected)&&bound.Results==0);}
+                finally{caller.Cancel();release.TrySetResult();await Join(pending);}
+            }
+            observe(new{phase="both_signals",profiles=5,private_observed_before_caller=true,caller_before_throw=true,original_caller_selected=true,no_sleep_ordering=true});
+        });
+        await check("uncooperative post-SQL null empty and record results remain owned and vetoed",async()=>
+        {
+            for(var kind=0;kind<5;kind++)foreach(var present in new[]{true,false})
+            {
+                await using var p=await Create(kind,present);using var caller=new CancellationTokenSource();var entered=Signal();var expired=Signal();var release=Signal();p.Source.After=async work=>{using var registration=work.Register(()=>expired.TrySetResult());entered.TrySetResult();await release.Task;};var bound=p.Bind(Budget);var pending=bound.Run(token:caller.Token);
+                try{await entered.Task.WaitAsync(Watchdog);await expired.Task.WaitAsync(Watchdog);Require(!caller.IsCancellationRequested&&!pending.IsCompleted);release.TrySetResult();Require(await Failure(()=>pending).WaitAsync(Watchdog) is TimeoutException&&bound.Results==0&&p.Queries==1);}
+                finally{caller.Cancel();release.TrySetResult();await Join(pending);}
+            }
+            observe(new{phase="uncooperative_post_SQL",profiles=5,record_and_null_empty=true,provider_task_owned_until_release=true,late_success_veto=true,actual_SQL_timeout_claim=false});
+        });
+        await check("post-SQL checked scope expiry latches denial even after scope clock restoration",async()=>
+        {
+            for(var kind=0;kind<5;kind++)foreach(var present in new[]{true,false})
+            {
+                await using var p=await Create(kind,present);var clock=new Clock();Bound? bound=null;var latched=false;p.Source.After=work=>{Require(!work.IsCancellationRequested);clock.Advance(TimeSpan.FromMinutes(1));try{bound!.Context!.DemandAccess(new("A"),"audit-trail","tenant","read");}catch(TenantAccessDeniedException){latched=true;}clock.Advance(TimeSpan.FromMinutes(-1));return Task.CompletedTask;};bound=p.Bind(TimeSpan.FromSeconds(45),clock:clock);var rejected=await bound.Run();Require(latched&&!rejected.Success&&rejected.Code=="access.denied"&&bound.Results==0&&p.Queries==1);
+            }
+            observe(new{phase="checked_scope_expiry",profiles=5,record_null_empty=true,clock_restored_after_latch=true,rejection="access.denied",no_result=true,external_authority_requery_claim=false});
+        });
+        await check("fresh dispatch revocation tenant collisions and current projection stay enforced",async()=>
+        {
+            for(var kind=0;kind<5;kind++)
+            {
+                await using var p=await Create(kind);var bound=p.Bind(Budget);bound.Allow(false,true);var denied=await bound.Run();Require(!denied.Success&&denied.Code=="access.denied"&&p.Queries==0&&p.Source.Calls==0);bound.Allow(true,true);var a=await bound.Run();var b=await bound.Run("B");Require(a.Success&&b.Success&&a.Entries.Single().Receipt.ReceiptId==b.Entries.Single().Receipt.ReceiptId&&a.Entries.Single().Receipt.Tenant.Value=="A"&&b.Entries.Single().Receipt.Tenant.Value=="B"&&a.Entries.Single().Fields.Single(f=>f.Name=="secret").After.Kind==TenantChangeValueKind.Redacted&&p.Queries==2);Require(!(await bound.Run("C")).Success&&p.Queries==2);bound.Allow(false,true);Require(!(await bound.Run()).Success&&p.Queries==2);
+            }
+            observe(new{phase="fresh_authority_and_tenants",profiles=5,denied_before_read=true,explicit_regrant=true,same_receipt_A_B=true,current_redaction=true,no_new_grant_semantics=true});
+        });
+        await check("eight scheduled shared-reader calls isolate private budgets and tenant results",async()=>
+        {
+            await using var p=await Create(3);using var caller=new CancellationTokenSource();var force=Signal();var entered=Signal();var counter=0;p.Source.After=async work=>{if(Interlocked.Increment(ref counter)!=1)return;using var registration=work.Register(()=>force.TrySetResult());entered.TrySetResult();await force.Task;work.ThrowIfCancellationRequested();};var bound=p.Bind(Budget);bound.Allow(true,true);var start=Signal();var tasks=Enumerable.Range(0,8).Select(i=>Task.Run(async()=>{await start.Task;try{return(View:(View?)await bound.Run(i%2==0?"A":"B",caller.Token),Error:(Exception?)null);}catch(Exception error){return(View:(View?)null,Error:(Exception?)error);}})).ToArray();start.TrySetResult();var pending=Task.WhenAll(tasks);
+            try{await entered.Task.WaitAsync(Watchdog);var results=await pending.WaitAsync(Watchdog);Require(results.Count(r=>r.Item2 is TimeoutException)==1&&results.Count(r=>r.Item1?.Success==true)==7&&results.Where(r=>r.Item1 is not null).All(r=>r.Item1!.Entries.Single().Receipt.Tenant.Value==r.Item1.Tenant)&&p.Source.Tokens.Distinct().Count()==8&&!caller.IsCancellationRequested);}
+            finally{caller.Cancel();force.TrySetResult();await Join(pending);}
+            observe(new{phase="shared_reader_workers",workers=8,successful_calls=7,private_timeout_calls=1,distinct_work_tokens=8,actual_SQL_precedes_held_wrapper=true,no_provider_abandonment=true});
+        });
+    }
+    private static Exception SyncFailure(Action action){try{action();}catch(Exception error){return error;}throw new InvalidOperationException("Expected synchronous read-budget selection failure.");}
+    private sealed class SqlProbe(string connection,Profile profile)
+    {
+        private async Task<NpgsqlConnection> Open(){var c=new NpgsqlConnection(connection);try{await c.OpenAsync();return c;}catch{await c.DisposeAsync();throw;}}
+        public async Task<Blocker> Hold(){var c=await Open();var tx=await c.BeginTransactionAsync();try{await using var cmd=new NpgsqlCommand("LOCK TABLE "+profile.Table+" IN ACCESS EXCLUSIVE MODE",c,tx);await cmd.ExecuteNonQueryAsync();return new(c,tx);}catch{await tx.DisposeAsync();await c.DisposeAsync();throw;}}
+        public async Task<int> Observe(Task pending,CancellationToken caller)
+        {
+            await using var c=await Open();for(var i=0;i<200;i++)
+            {
+                await using var cmd=new NpgsqlCommand("SELECT pid FROM pg_stat_activity WHERE application_name=$1 AND state='active' AND wait_event_type='Lock' AND query LIKE $2 AND query LIKE $3",c);cmd.Parameters.AddWithValue(profile.Application);cmd.Parameters.AddWithValue("%"+profile.Table+"%");cmd.Parameters.AddWithValue("%"+profile.SqlTag+"%");await using(var rows=await cmd.ExecuteReaderAsync()){if(await rows.ReadAsync()){var pid=rows.GetInt32(0);Require(!await rows.ReadAsync()&&!pending.IsCompleted&&!caller.IsCancellationRequested&&profile.Source.Tokens.TryPeek(out var work)&&!work.IsCancellationRequested);return pid;}}Require(!pending.IsCompleted&&!caller.IsCancellationRequested);await Task.Delay(20);
+            }
+            throw new InvalidOperationException("Owned actual SQL Lock was not observed before read cancellation.");
+        }
+        public async Task Quiescent(int pid)
+        {
+            Require(pid>0);await using var c=await Open();for(var i=0;i<100;i++){await using var cmd=new NpgsqlCommand("SELECT NOT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND application_name=$2 AND (state='active' OR wait_event_type='Lock'))",c);cmd.Parameters.AddWithValue(pid);cmd.Parameters.AddWithValue(profile.Application);if((bool)(await cmd.ExecuteScalarAsync())!)return;await Task.Delay(20);}throw new InvalidOperationException("Owned actual SQL backend failed to quiesce.");
+        }
+    }
+    private sealed class Blocker(NpgsqlConnection connection,NpgsqlTransaction transaction):IAsyncDisposable
+    {private bool disposed;public async ValueTask DisposeAsync(){if(disposed)return;disposed=true;try{await transaction.RollbackAsync();}finally{await transaction.DisposeAsync();await connection.DisposeAsync();}}}
+}

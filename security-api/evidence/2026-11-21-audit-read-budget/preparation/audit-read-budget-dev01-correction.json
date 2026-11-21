@@ -1,0 +1,19 @@
+{
+  "status": "source-corrected-before-dev02-sdk",
+  "utc": "2026-11-21T11:28:54.868786+00:00",
+  "failed_attempt": "audit-read-budget-windows-dev01",
+  "failure_phase": "Release build",
+  "failure_code": "CS1061",
+  "runtime_provider_tests_executed": 0,
+  "restart_tests_executed": 0,
+  "original_frozen_inputs": 107,
+  "original_declaration_files": 4,
+  "reason": "Nonexistent TimeSpan.AddTicks API used in two over-maximum timeout fixture expressions.",
+  "source_delta_only": "ReadBudgetChecks.cs: replace two TimeSpan.FromMinutes(1).AddTicks(1) expressions with TimeSpan.FromTicks(TimeSpan.TicksPerMinute+1). Intended input remains one minute plus one tick.",
+  "source_before_sha256": "d2fae3779b7be27a71c769914dffb244e5ac76a939a8d767f4208caabe4191ec",
+  "source_after_sha256": "3159083ef1c75030c0fac88a1aafb4809f41460101381e0001e3e1e8b9d5b492",
+  "freezer_bookkeeping": "retain original frozen helper; current helper includes declarations01/02 (8 files)",
+  "gates_workload_SQL_provider_runtime_timer_settings_unchanged": true,
+  "next_attempt": "fresh full244 dev02 after independent source ACK and freeze",
+  "private_config_exported": false
+}

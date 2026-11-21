@@ -1,0 +1,16 @@
+--- frozen-dev01/ReadBudgetChecks.cs
++++ current-dev02/ReadBudgetChecks.cs
+@@ -126,11 +126,11 @@
+         }
+         await check("disabled and invalid read budgets invoke no source or indexed activation factories",()=>
+         {
+-            var factories=0;var disabled=new TenantChangeAuditPolicy(TenantChangeAuditMode.Disabled);foreach(var timeout in new TimeSpan?[]{null,TimeSpan.Zero,TimeSpan.FromTicks(-1),TimeSpan.FromMinutes(1).AddTicks(1)})
++            var factories=0;var disabled=new TenantChangeAuditPolicy(TenantChangeAuditMode.Disabled);foreach(var timeout in new TimeSpan?[]{null,TimeSpan.Zero,TimeSpan.FromTicks(-1),TimeSpan.FromTicks(TimeSpan.TicksPerMinute+1)})
+             {
+                 Require(TenantChangeAuditHistoryReader.ActivateWithBudget(disabled,timeout,()=>{factories++;throw new InvalidOperationException();}) is null&&TenantChangeAuditLookupReader.ActivateWithBudget(disabled,timeout,()=>{factories++;throw new InvalidOperationException();}) is null&&TenantChangeAuditResourceHistoryReader.ActivateWithBudget(disabled,timeout,()=>{factories++;throw new InvalidOperationException();}) is null);
+             }
+-            foreach(var timeout in new[]{TimeSpan.Zero,TimeSpan.FromTicks(-1),TimeSpan.FromMinutes(1).AddTicks(1)})
++            foreach(var timeout in new[]{TimeSpan.Zero,TimeSpan.FromTicks(-1),TimeSpan.FromTicks(TimeSpan.TicksPerMinute+1)})
+             {
+                 Require(SyncFailure(()=>TenantChangeAuditHistoryReader.ActivateWithBudget(Policy(),timeout,()=>{factories++;throw new InvalidOperationException();})) is ArgumentOutOfRangeException&&SyncFailure(()=>TenantChangeAuditLookupReader.ActivateWithBudget(Policy(),timeout,()=>{factories++;throw new InvalidOperationException();})) is ArgumentOutOfRangeException&&SyncFailure(()=>TenantChangeAuditResourceHistoryReader.ActivateWithBudget(Policy(),timeout,()=>{factories++;throw new InvalidOperationException();})) is ArgumentOutOfRangeException);
+             }
