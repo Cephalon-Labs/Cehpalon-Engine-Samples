@@ -1,11 +1,11 @@
 # Experimental protected Small API consumer
 
-This external project consumes the exact clean Engine revision in `engine-lock.json`. Three generated Core gateways reuse the same tenant-aware catalog handler over typed HTTP POST and optional HotChocolate16.7.1 GraphQL. Pinned JwtBearer11 RC3 validates process-local RSA fixture tokens before fresh tenant identity/membership/resource/policy checks. No real IdP, database, broker, cache or AI service is required.
+This external project consumes the exact clean Engine revision in `engine-lock.json`. Three generated Core gateways reuse the same tenant-aware catalog handler over typed HTTP POST and optional HotChocolate16.7.1 GraphQL. Pinned stable JwtBearer11.0.0 validates process-local RSA fixture tokens before fresh tenant identity/membership/resource/policy checks. No real IdP, database, broker, cache or AI service is required.
 
 Run from the Samples root with the pinned SDK:
 
 ```powershell
-python tools/verify_small_api.py --dotnet D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe --output .local/small-api/new-attempt
+python tools/verify_small_api.py --dotnet D:/Cephalon/.tools/dotnet11-ga/win-x64/dotnet.exe --output .local/small-api/new-attempt
 ```
 
 The Engine checkout must be clean at the locked full SHA. The verifier restores locked dependencies, builds Release, runs actual loopback HTTPS requests with a custom fixture CA, preserves source/package/output hashes, and verifies generated registrations compile without Roslyn in the runtime graph. Output directories must be new. Keys/tokens stay in process; no trust root is installed. Failed attempts are retained.

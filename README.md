@@ -2,6 +2,8 @@
 
 MIT-licensed consumer and end-to-end proof repository. Baseline: 2026-10-27.
 
+The current root SDK is stable .NET11.0.100. The active protected Small API, optional security and PostgreSQL audit-outbox consumers use the current GA package graph. Historical consumer locks, benchmark results and nested trace SDK pins retain their original revisions: replay them from those exact Samples/Engine sources with the retained matching RC SDK. Running an old collector under the current GA root does not establish matching runtime offsets or renewed benchmark qualification.
+
 All three lanes were selected by the user:
 
 - [Small API](small-api/README.md): minimal API-only activation and shared-operation transport proof

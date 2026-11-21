@@ -3,7 +3,7 @@
 Experimental local consumer of Core, Composition, CodeGeneration, the JWT identity bridge, Authorization and Tenancy. It starts only owned ephemeral localhost HTTPS endpoints and exits after its test matrix. Actual JwtBearer validates ephemeral RS256 fixture tokens with fixed issuer/audience/type/lifetime. No fixture key/token is persisted. The copied TLS/JWT fixture classes retain the preceding `small-api` fixture behavior; they do not implement a real IdP.
 
 ```powershell
-python tools/verify_optional_security.py --dotnet D:/Cephalon/.tools/dotnet11/win-x64/dotnet.exe --engine-root D:/Cephalon/Cehpalon-Engine --output .local/optional-security-example01
+python tools/verify_optional_security.py --dotnet D:/Cephalon/.tools/dotnet11-ga/win-x64/dotnet.exe --engine-root D:/Cephalon/Cehpalon-Engine --output .local/optional-security-example01
 ```
 
 Use a fresh output directory. Default verification restores locked dependencies, builds Release with warnings as errors, runs all checks, retains source hashes/output and verifies actual emitted typed registrations with no Roslyn/codegen runtime dependency. `--initialize-lock` is only for deliberate first lock creation; delivery verification uses locked mode.
