@@ -1,0 +1,18 @@
+{
+  "scope": "Source-only pre-SDK review; no execution, restore, fixture or remote action",
+  "corrections": [
+    "Require five validated/enforced single-column PostgreSQL18 NOT NULL constraints plus exact primary key, in addition to pg_attribute.attnotnull",
+    "Primary-key connoinherit is true; ordinary declared NOT NULL connoinherit is false",
+    "Cast both inheritance-count catalog columns to integer for unambiguous typed getters",
+    "Dispose opened connection if backend-PID diagnostic acquisition fails"
+  ],
+  "sdk_executed": false,
+  "failed_sdk_attempts": 0,
+  "draft_versions_not_executed": true,
+  "references": [
+    "https://www.postgresql.org/docs/18/catalog-pg-constraint.html",
+    "https://www.postgresql.org/docs/18/catalog-pg-attribute.html",
+    "https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/catalog/index.c",
+    "https://www.npgsql.org/doc/basic-usage.html"
+  ]
+}

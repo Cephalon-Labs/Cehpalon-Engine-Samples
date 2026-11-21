@@ -1,0 +1,3 @@
+# Optional indexed audit storage
+
+Accepted provider continuation #18 with #7/#8 regressions. Consuming projects may explicitly select atomic metadata+TEXT indexed history through actual Composition, retaining scalar/NUL compatibility and existing Engine sink/lookup/query ports. Legacy storage remains independent; initialization/open version checks are explicit, no migration/backfill/dualwrite. Database exact entity filtering/keyset is supported without claiming optimizer speedup, tamper evidence or snapshot chronology. [ADR0050](../adr/ADR-0050-optional-indexed-audit-storage.md), [protocol](../validation/indexed-audit-storage.md). Engine unchanged; M0/#3/#20/all metadata/benchmark criteria remain.

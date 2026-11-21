@@ -1,0 +1,863 @@
+{
+  "schema_version": 1,
+  "status": "passed_all_declared_review_scopes",
+  "reviewed_at_utc": "2026-11-21T11:04:52.057030+00:00",
+  "reviewer": "Independent delegated source and retained-evidence reviewer",
+  "scope": "ADR0050 provider-only optional indexed audit storage: source/design, retained pre-SDK refinement, first development proof and four exact-committed-source final consumer functional lanes. Unchanged Engine component/CI evidence remains reused baseline only.",
+  "review_method": {
+    "source_edits": false,
+    "sdk_build_runtime_invocations": false,
+    "provider_container_live_host_probes": false,
+    "remote_tracking_writes": false,
+    "note": "Bounded source/raw/catalog-plan JSON/build-log reads, local SHA-256/Git comparisons. Official PostgreSQL18 catalogs/DDL/source were read during pre-SDK inventory review; no reviewer provider experiment. This ignored review JSON is the sole authorized write."
+  },
+  "revisions": {
+    "engine_unchanged": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+    "docs_baseline": "defd1dfa340797e39d0080f3d391046762e49703",
+    "consumer_baseline": "531ad6f7d1e0b58fa33e61ee865d898a0038cd37",
+    "executing_development_base": "6ef15f48738f0713609864b26c4d004530d6b7ca",
+    "consumer_source": "58641dac065a3204f662d7bbd57c2dc59159bdc1",
+    "Engine_new_commit_or_journal": false
+  },
+  "source_review": {
+    "result": "PASS",
+    "changed_paths": [
+      "audit-outbox/IndexedProfileComposition.cs",
+      "audit-outbox/IndexedStorageChecks.cs",
+      "audit-outbox/PostgresIndexedAuditStorage.cs",
+      "audit-outbox/Program.cs",
+      "audit-outbox/README.md",
+      "tools/verify_audit_outbox.py"
+    ],
+    "all_six_changed_current_files_exact_committed_LF_blobs": true,
+    "properties": [
+      "Existing Engine sink/lookup/resource-history ports reused without Engine API/source/template/package/lock changes.",
+      "Real optional Composition Support module compiles immutable plan before module/credential/constructor/SQL work; disabled and invalid/pre-cancelled paths perform no module-owned I/O.",
+      "Explicit transactional CreateNew has no IF NOT EXISTS/adoption/migration; OpenExisting uses read-only repeatable-read inventory and AccessShare lock, never repairs.",
+      "Exact version/ordinary permanent nonpartitioned table, five type/nullability/C-collation columns with no default/generated/domain/missing metadata, exact PK and four-key valid/ready Btree resource index with no payload include/predicate/expression/wrong opclasses or sort flags.",
+      "All six constraints required: exact PK plus five distinct single-column local validated/enforced NOT NULL constraints; ordinary PK noinherit=true, declared NN noinherit=false, inheritance count casts explicit.",
+      "Unexpected RLS/policy/trigger/rule/inheritance and extra/dropped attributes reject. LEFT JOIN type/namespace retains dropped positive attributes so they cannot vanish from inventory.",
+      "One conditional UPSERT derives metadata and established TEXT payload from same immutable record. Exact C-equal replay may create MVCC versions but one visible row; conflicting metadata/payload never overwrites or repairs.",
+      "Selected lookup/resource SQL is parameterized by exact tenant/resource/receipt; all selected physical metadata and lookahead agree with decoded record before existing Engine policy projection.",
+      "Lifecycle state latches rejection before waiting for active caller-owned operations; owned NpgsqlDataSource disposal is idempotent and no process-global pools/settings are changed.",
+      "Existing generated gateways/fresh grants and old outbox fencing retained; no new operation/registry/grant/endpoint. Legacy and indexed history remain distinct, without backfill/dualwrite/retention/cutover."
+    ],
+    "protected_legacy_sources": "Old188 provider cases/SQL/store/lookup/resource-history/locks and security651 unchanged; exact old185 main names/order/results compared in development raw."
+  },
+  "pre_sdk_refinements": {
+    "result": "PASS",
+    "notes": [
+      "Original PG18 NOT NULL catalog omission fixed before SDK: attnotnull alone is insufficient for NOT VALID constraints; validate/enforce each NN constraint explicitly.",
+      "Constraint source rationale corrected before SDK: ordinary PK connoinherit=true versus default NN=false; coninhcount/attinhcount cast to integer for getters.",
+      "Closed catalog dropped-attribute issue fixed before SDK by LEFT JOIN pg_type/namespace; original e05 source retained separately.",
+      "Consumer negatives use independent schemas; actual ADD extra rejects, fixture DROP leaves trailing dropped attribute and OpenExisting still rejects. Destructive generated/drop fixtures retained without pretending restoration.",
+      "Create/Open/lifetime tests now awaitusing selected leases even on earlier fixture/assertion failure; fixture failed Open disposes connection.",
+      "All corrections happened before first development SDK; no executed failure/rerun is inferred from source preparations."
+    ],
+    "primary_references": [
+      "https://www.postgresql.org/docs/18/catalog-pg-constraint.html",
+      "https://www.postgresql.org/docs/18/sql-altertable.html",
+      "https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/catalog/index.c"
+    ],
+    "declaration_manifests": [
+      {
+        "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\indexed-storage-windows-dev01-source\\frozen-declarations\\01\\manifest.json",
+        "sha256": "d19d6d889c26fff0b513f50740fed4a046b790a002ea82c75602cf2e834f0f66"
+      },
+      {
+        "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\indexed-storage-windows-dev01-source\\frozen-declarations\\02\\manifest.json",
+        "sha256": "cc65d60c9e171a52f268cbb339c78a8f0d718adfa99d8662c43cb5538e0e3b57"
+      }
+    ],
+    "frozen_declaration_files": 8,
+    "all_eight_frozen_hashes_match": true,
+    "both_snapshots_before_first_sdk": true
+  },
+  "development": {
+    "result": "PASS",
+    "attempt": "indexed-storage-windows-dev01",
+    "first_only_attempt": true,
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\indexed-storage-windows-dev01\\manifest.json",
+      "sha256": "275570a2e7a3dc85be56d34c7984f48a432046ea1725646f07ded1ecb9f3095d"
+    },
+    "raw_tests": {
+      "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\indexed-storage-windows-dev01\\tests.json",
+      "sha256": "19fe1726b5f0ca9c4cd1c0c06c2e7c98382a4d88eb2fe2ff19c1cb190cf5c5f1"
+    },
+    "frozen_source_manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\indexed-storage-windows-dev01-source\\manifest.json",
+      "sha256": "99a0be63c35fd0026d7248739aaa0c6d181c78271ab9ab9e58d35c21751df2fb"
+    },
+    "current_and_frozen_inputs": 106,
+    "verifier_inputs": 105,
+    "verifier_exact_freezer_subset": true,
+    "all_current_and_frozen_hashes_match": true,
+    "main_passed": 217,
+    "main_failed": 0,
+    "old185_main_names_order_results_exact": true,
+    "new_indexed_checks": 32,
+    "restart_passed": 3,
+    "total_passed": 220,
+    "partition": {
+      "original_outbox": 34,
+      "status": 23,
+      "per_batch_budget": 24,
+      "bounded_drain": 24,
+      "total_drain_budget": 24,
+      "receipt_lookup": 24,
+      "resource_history": 32,
+      "indexed_storage": 32,
+      "restart": 3
+    },
+    "old188_total_preserved": true,
+    "all_raw_checks_true": true,
+    "structured_indexed_observations": 16,
+    "storage_blob_sha256": "7e8eb401ee23a8507c728e569c2dacc9991a5f8f613562c2bf87cd08246385f5",
+    "build_zero_warnings_errors": true,
+    "observed_controls": [
+      "actual_composition",
+      "partial_factory_failure",
+      "open_existing",
+      "closed_catalog_negatives",
+      "dispose_inflight",
+      "exact_replay",
+      "concurrent_same_append",
+      "concurrent_conflict",
+      "max_keys",
+      "metadata_poison",
+      "old_outbox_new_sink",
+      "history_divergence",
+      "indexed_existing_gateways",
+      "actual_indexed_sql_cancellation",
+      "indexed_scheduled_query_gateways",
+      "default_planner_4096"
+    ],
+    "actual_composition": {
+      "events": [
+        "plan.validated",
+        "factory",
+        "credential",
+        "constructor",
+        "create",
+        "ready"
+      ],
+      "module": "audit.indexed.v1",
+      "inventory_version": "cehpalon.audit.indexed.v1",
+      "columns": [
+        {
+          "Name": "tenant",
+          "Type": "pg_catalog.text",
+          "NotNull": true,
+          "Collation": "pg_catalog.C"
+        },
+        {
+          "Name": "receipt",
+          "Type": "pg_catalog.uuid",
+          "NotNull": true,
+          "Collation": ""
+        },
+        {
+          "Name": "resource_kind",
+          "Type": "pg_catalog.text",
+          "NotNull": true,
+          "Collation": "pg_catalog.C"
+        },
+        {
+          "Name": "resource_id",
+          "Type": "pg_catalog.text",
+          "NotNull": true,
+          "Collation": "pg_catalog.C"
+        },
+        {
+          "Name": "payload",
+          "Type": "pg_catalog.text",
+          "NotNull": true,
+          "Collation": "pg_catalog.C"
+        }
+      ],
+      "indexes": [
+        {
+          "Name": "audit_sink_indexed_v1_pkey",
+          "Primary": true,
+          "Unique": true,
+          "Method": "btree",
+          "Keys": [
+            "tenant",
+            "receipt"
+          ],
+          "Collations": [
+            "pg_catalog.C",
+            ""
+          ],
+          "OperatorClasses": [
+            "pg_catalog.text_ops",
+            "pg_catalog.uuid_ops"
+          ]
+        },
+        {
+          "Name": "audit_sink_indexed_v1_resource_idx",
+          "Primary": false,
+          "Unique": false,
+          "Method": "btree",
+          "Keys": [
+            "tenant",
+            "resource_kind",
+            "resource_id",
+            "receipt"
+          ],
+          "Collations": [
+            "pg_catalog.C",
+            "pg_catalog.C",
+            "pg_catalog.C",
+            ""
+          ],
+          "OperatorClasses": [
+            "pg_catalog.text_ops",
+            "pg_catalog.text_ops",
+            "pg_catalog.text_ops",
+            "pg_catalog.uuid_ops"
+          ]
+        }
+      ]
+    },
+    "actual_controls": {
+      "closed_catalog_negatives": {
+        "phase": "closed_catalog_negatives",
+        "independent_schemas": true,
+        "version_columns_collations_defaults_domain_generated": true,
+        "not_valid_payload_not_null_rejected": true,
+        "RLS_rules_triggers_inheritance_rejected": true,
+        "dropped_attribute_after_fixture_drop_rejected": true,
+        "only_reversible_fixtures_restored": true,
+        "automatic_repair": false
+      },
+      "dispose_inflight": {
+        "phase": "dispose_inflight",
+        "new_work_rejected": true,
+        "active_caller_task_joined": true,
+        "owned_data_source_disposals": 1,
+        "no_global_pool_clear": true
+      },
+      "concurrent_same_append": {
+        "phase": "concurrent_same_append",
+        "scheduled_workers": 8,
+        "all_succeeded": true,
+        "visible_rows": 1
+      },
+      "concurrent_conflict": {
+        "phase": "concurrent_conflict",
+        "scheduled_workers": 2,
+        "winners": 1,
+        "conflicts": 1,
+        "no_overwrite": true
+      },
+      "max_keys": {
+        "phase": "max_keys",
+        "tenant_UTF16": 128,
+        "kind_ASCII": 128,
+        "resource_CJK_UTF16": 512,
+        "NUL_payload_roundtrip": true
+      },
+      "metadata_poison": {
+        "phase": "metadata_poison",
+        "selective_query_can_hide_corrupted_metadata": true,
+        "touched_lookup_query_fail_closed": true,
+        "no_continuous_integrity_claim": true
+      },
+      "old_outbox_new_sink": {
+        "phase": "old_outbox_new_sink",
+        "old_sink_rows": 0,
+        "new_sink_rows": 1,
+        "provider_acknowledged": true,
+        "actual_Composition_selected": true
+      },
+      "history_divergence": {
+        "phase": "history_divergence",
+        "old_history": 1,
+        "new_history": 1,
+        "already_acknowledged_not_imported": true,
+        "delivered_flag_not_destination_attestation": true
+      },
+      "indexed_existing_gateways": {
+        "phase": "indexed_existing_gateways",
+        "projected_redaction": true,
+        "metadata_only": true,
+        "denied_query_zero": true,
+        "fresh_grants": true
+      },
+      "indexed_scheduled_query_gateways": {
+        "phase": "indexed_scheduled_query_gateways",
+        "workers": 8,
+        "tenant_isolation": true,
+        "existing_generated_gateway": true
+      }
+    },
+    "actual_SQL_cancellation": {
+      "exact_owned_tag_and_table_lock_observed_before_cancel": true,
+      "owned_task_joined_and_backend_quiescent": true,
+      "manual_reuse": true,
+      "not_wrapper_pause": true
+    }
+  },
+  "diagnostic_plan_observation": {
+    "result": "PASS",
+    "timed_benchmark": false,
+    "corpus": {
+      "rows": 4096,
+      "tenants": 2,
+      "rows_per_tenant": 2048,
+      "resources_per_tenant": 128,
+      "rows_per_resource": 16,
+      "tenant": "A",
+      "kind": "document",
+      "resource": "item-064",
+      "limit": 8
+    },
+    "expected_first_keys": [
+      1025,
+      1026,
+      1027,
+      1028,
+      1029,
+      1030,
+      1031,
+      1032
+    ],
+    "expected_second_keys": [
+      1033,
+      1034,
+      1035,
+      1036,
+      1037,
+      1038,
+      1039,
+      1040
+    ],
+    "actual_keys_match": true,
+    "first_candidates_and_decoded": [
+      9,
+      9
+    ],
+    "second_candidates_and_decoded": [
+      8,
+      8
+    ],
+    "planner_settings": {
+      "enable_bitmapscan": "on",
+      "enable_indexonlyscan": "on",
+      "enable_indexscan": "on",
+      "enable_seqscan": "on",
+      "plan_cache_mode": "auto",
+      "random_page_cost": "4",
+      "seq_page_cost": "1"
+    },
+    "runtime_select_exact": "/* owned-indexed-audit-resource-v1 */\nSELECT tenant,receipt,resource_kind,resource_id,payload FROM ao_2bec74f6d0274a23938df575f5828d25.audit_sink_indexed_v1\nWHERE tenant COLLATE \"C\"=($1::text COLLATE \"C\")\n  AND resource_kind COLLATE \"C\"=($2::text COLLATE \"C\") AND resource_id COLLATE \"C\"=($3::text COLLATE \"C\")\n  AND ($4::uuid IS NULL OR receipt>$4::uuid) ORDER BY receipt LIMIT $5",
+    "first_plan_nodes": [
+      "Limit",
+      "Index Scan"
+    ],
+    "second_plan_nodes": [
+      "Limit",
+      "Index Scan"
+    ],
+    "actual_index": "audit_sink_indexed_v1_resource_idx",
+    "plan_root_rows": [
+      9,
+      8
+    ],
+    "no_planner_coercion": true,
+    "explain_options": "ANALYZE,BUFFERS,FORMAT JSON,TIMING OFF",
+    "source_raw": {
+      "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\indexed-storage-windows-dev01\\tests.json",
+      "sha256": "19fe1726b5f0ca9c4cd1c0c06c2e7c98382a4d88eb2fe2ff19c1cb190cf5c5f1"
+    },
+    "limits": "Seeding/ANALYZE outside observations; default planner allowed SeqScan. These actual index plans and returned/decoded rows do not establish speedup, full candidate scan count, physical I/O/memory, write amplification, durability or original benchmark qualification."
+  },
+  "registries": {
+    "service": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+    "security": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+    "unchanged": true,
+    "generated_service_hash_verified": true
+  },
+  "engine_baseline_evidence": {
+    "reused_not_rerun_for_profile": true,
+    "source": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+    "component_counts": [
+      1475,
+      1472
+    ],
+    "hosted_CI": "Existing exact-revision four-job baseline only; no new indexed-profile hosted execution claimed."
+  },
+  "final_consumer_lanes": {
+    "status": "PASS",
+    "expected_scope": [
+      "security-windows",
+      "postgres-windows",
+      "security-wsl",
+      "postgres-wsl"
+    ],
+    "reviewed_lanes": [
+      {
+        "kind": "security",
+        "host": "windows",
+        "result": "PASS",
+        "engine_revision": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+        "consumer_revision": "58641dac065a3204f662d7bbd57c2dc59159bdc1",
+        "manifest": {
+          "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\is-security-windows-final01\\manifest.json",
+          "sha256": "ea275f78a92149eeaa60be4dc81eeadf2329c4405ad0f5dbb4e2fa841a051330"
+        },
+        "raw_tests": {
+          "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\is-security-windows-final01\\tests.json",
+          "sha256": "b417c4e188194f7b1d83219858fb96696602a966d76955fc0956dec0ff57de2a"
+        },
+        "sdk": "11.0.100",
+        "passed": 651,
+        "failed": 0,
+        "declared_input_count": 85,
+        "all_current_hashes_match": true,
+        "cross_host_input_maps_exact": true,
+        "all_unique_inputs_match_exact_committed_blobs": true,
+        "build_zero_warnings_errors": true,
+        "raw_check_statuses_counts_pass": true,
+        "old_651_names_order_results_exact": true,
+        "tests_sha256_matches_manifest": true,
+        "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+        "source_provenance": "Manifest/current exact committed sources verified; no final security frozen-source directory is claimed."
+      },
+      {
+        "kind": "postgres",
+        "host": "windows",
+        "result": "PASS",
+        "engine_revision": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+        "consumer_revision": "58641dac065a3204f662d7bbd57c2dc59159bdc1",
+        "manifest": {
+          "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\is-postgres-windows-final01\\manifest.json",
+          "sha256": "a358cb5ce3a6fe7644c4f0432bd107318f2ed5743fafe6feef08bd8c8144ea54"
+        },
+        "raw_tests": {
+          "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\is-postgres-windows-final01\\tests.json",
+          "sha256": "a903f0f1aa5e30811050b959a2dcc908fd6bdf16c44693a0e8ae8f442da10d20"
+        },
+        "sdk": "11.0.100",
+        "passed": 220,
+        "failed": 0,
+        "declared_input_count": 105,
+        "all_current_hashes_match": true,
+        "cross_host_input_maps_exact": true,
+        "all_unique_inputs_match_exact_committed_blobs": true,
+        "build_zero_warnings_errors": true,
+        "raw_check_statuses_counts_pass": true,
+        "main_passed": 217,
+        "restart_passed": 3,
+        "old185_main_names_order_results_exact": true,
+        "old188_total_preserved": true,
+        "new32_indexed_checks": true,
+        "all_105_frozen_source_hashes_match": true,
+        "indexed_observations": 16,
+        "service_registry_sha256": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+        "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+        "settings": {
+          "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "provider_topology": "Windows.NET Npgsql via owned Windows loopback/binary stdio proxy to WSL container; not native Windows Postgres",
+        "actual_controls": {
+          "closed_catalog_negatives": {
+            "phase": "closed_catalog_negatives",
+            "independent_schemas": true,
+            "version_columns_collations_defaults_domain_generated": true,
+            "not_valid_payload_not_null_rejected": true,
+            "RLS_rules_triggers_inheritance_rejected": true,
+            "dropped_attribute_after_fixture_drop_rejected": true,
+            "only_reversible_fixtures_restored": true,
+            "automatic_repair": false
+          },
+          "dispose_inflight": {
+            "phase": "dispose_inflight",
+            "new_work_rejected": true,
+            "active_caller_task_joined": true,
+            "owned_data_source_disposals": 1,
+            "no_global_pool_clear": true
+          },
+          "concurrent_same_append": {
+            "phase": "concurrent_same_append",
+            "scheduled_workers": 8,
+            "all_succeeded": true,
+            "visible_rows": 1
+          },
+          "concurrent_conflict": {
+            "phase": "concurrent_conflict",
+            "scheduled_workers": 2,
+            "winners": 1,
+            "conflicts": 1,
+            "no_overwrite": true
+          },
+          "max_keys": {
+            "phase": "max_keys",
+            "tenant_UTF16": 128,
+            "kind_ASCII": 128,
+            "resource_CJK_UTF16": 512,
+            "NUL_payload_roundtrip": true
+          },
+          "metadata_poison": {
+            "phase": "metadata_poison",
+            "selective_query_can_hide_corrupted_metadata": true,
+            "touched_lookup_query_fail_closed": true,
+            "no_continuous_integrity_claim": true
+          },
+          "old_outbox_new_sink": {
+            "phase": "old_outbox_new_sink",
+            "old_sink_rows": 0,
+            "new_sink_rows": 1,
+            "provider_acknowledged": true,
+            "actual_Composition_selected": true
+          },
+          "history_divergence": {
+            "phase": "history_divergence",
+            "old_history": 1,
+            "new_history": 1,
+            "already_acknowledged_not_imported": true,
+            "delivered_flag_not_destination_attestation": true
+          },
+          "indexed_existing_gateways": {
+            "phase": "indexed_existing_gateways",
+            "projected_redaction": true,
+            "metadata_only": true,
+            "denied_query_zero": true,
+            "fresh_grants": true
+          },
+          "indexed_scheduled_query_gateways": {
+            "phase": "indexed_scheduled_query_gateways",
+            "workers": 8,
+            "tenant_isolation": true,
+            "existing_generated_gateway": true
+          }
+        },
+        "actual_SQL_cancel": {
+          "exact_owned_tag_table_backend_lock_before_cancel": true,
+          "owned_task_joined_and_quiescent": true,
+          "manual_reuse": true,
+          "wrapper_pause": false
+        }
+      },
+      {
+        "kind": "security",
+        "host": "wsl",
+        "result": "PASS",
+        "engine_revision": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+        "consumer_revision": "58641dac065a3204f662d7bbd57c2dc59159bdc1",
+        "manifest": {
+          "path": "D:\\Cephalon\\.worktrees\\is-wsl-consumer\\.local\\is-security-wsl-final01\\manifest.json",
+          "sha256": "3610e51856d534b416f83ae6d2f12fe602da8c05a23c2ea02fb8529045fb50e4"
+        },
+        "raw_tests": {
+          "path": "D:\\Cephalon\\.worktrees\\is-wsl-consumer\\.local\\is-security-wsl-final01\\tests.json",
+          "sha256": "b417c4e188194f7b1d83219858fb96696602a966d76955fc0956dec0ff57de2a"
+        },
+        "sdk": "11.0.100",
+        "passed": 651,
+        "failed": 0,
+        "declared_input_count": 85,
+        "all_current_hashes_match": true,
+        "cross_host_input_maps_exact": true,
+        "all_unique_inputs_match_exact_committed_blobs": true,
+        "build_zero_warnings_errors": true,
+        "raw_check_statuses_counts_pass": true,
+        "old_651_names_order_results_exact": true,
+        "tests_sha256_matches_manifest": true,
+        "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+        "source_provenance": "Manifest/current exact committed sources verified; no final security frozen-source directory is claimed."
+      },
+      {
+        "kind": "postgres",
+        "host": "wsl",
+        "result": "PASS",
+        "engine_revision": "d0d49c7eb47ae8fedc23743dfe76b359b677d796",
+        "consumer_revision": "58641dac065a3204f662d7bbd57c2dc59159bdc1",
+        "manifest": {
+          "path": "D:\\Cephalon\\.worktrees\\is-wsl-consumer\\.local\\is-postgres-wsl-final01\\manifest.json",
+          "sha256": "4fb4b695d86e732dff607d12525130f0e77c6a741d1e0d28d3edd5288dacd7cc"
+        },
+        "raw_tests": {
+          "path": "D:\\Cephalon\\.worktrees\\is-wsl-consumer\\.local\\is-postgres-wsl-final01\\tests.json",
+          "sha256": "908992f0fc4fabdb7122e9a0484d1f8d989865d9b56b3aaa15913c44fce2e776"
+        },
+        "sdk": "11.0.100",
+        "passed": 220,
+        "failed": 0,
+        "declared_input_count": 105,
+        "all_current_hashes_match": true,
+        "cross_host_input_maps_exact": true,
+        "all_unique_inputs_match_exact_committed_blobs": true,
+        "build_zero_warnings_errors": true,
+        "raw_check_statuses_counts_pass": true,
+        "main_passed": 217,
+        "restart_passed": 3,
+        "old185_main_names_order_results_exact": true,
+        "old188_total_preserved": true,
+        "new32_indexed_checks": true,
+        "all_105_frozen_source_hashes_match": true,
+        "indexed_observations": 16,
+        "service_registry_sha256": "4695fde5d052898f8a51c8b2961bed8d0688cab3136cf0e309bb9cb137eebc95",
+        "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+        "settings": {
+          "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "provider_topology": "WSL.NET Npgsql directly to owned WSL loopback PostgreSQL container",
+        "actual_controls": {
+          "closed_catalog_negatives": {
+            "phase": "closed_catalog_negatives",
+            "independent_schemas": true,
+            "version_columns_collations_defaults_domain_generated": true,
+            "not_valid_payload_not_null_rejected": true,
+            "RLS_rules_triggers_inheritance_rejected": true,
+            "dropped_attribute_after_fixture_drop_rejected": true,
+            "only_reversible_fixtures_restored": true,
+            "automatic_repair": false
+          },
+          "dispose_inflight": {
+            "phase": "dispose_inflight",
+            "new_work_rejected": true,
+            "active_caller_task_joined": true,
+            "owned_data_source_disposals": 1,
+            "no_global_pool_clear": true
+          },
+          "concurrent_same_append": {
+            "phase": "concurrent_same_append",
+            "scheduled_workers": 8,
+            "all_succeeded": true,
+            "visible_rows": 1
+          },
+          "concurrent_conflict": {
+            "phase": "concurrent_conflict",
+            "scheduled_workers": 2,
+            "winners": 1,
+            "conflicts": 1,
+            "no_overwrite": true
+          },
+          "max_keys": {
+            "phase": "max_keys",
+            "tenant_UTF16": 128,
+            "kind_ASCII": 128,
+            "resource_CJK_UTF16": 512,
+            "NUL_payload_roundtrip": true
+          },
+          "metadata_poison": {
+            "phase": "metadata_poison",
+            "selective_query_can_hide_corrupted_metadata": true,
+            "touched_lookup_query_fail_closed": true,
+            "no_continuous_integrity_claim": true
+          },
+          "old_outbox_new_sink": {
+            "phase": "old_outbox_new_sink",
+            "old_sink_rows": 0,
+            "new_sink_rows": 1,
+            "provider_acknowledged": true,
+            "actual_Composition_selected": true
+          },
+          "history_divergence": {
+            "phase": "history_divergence",
+            "old_history": 1,
+            "new_history": 1,
+            "already_acknowledged_not_imported": true,
+            "delivered_flag_not_destination_attestation": true
+          },
+          "indexed_existing_gateways": {
+            "phase": "indexed_existing_gateways",
+            "projected_redaction": true,
+            "metadata_only": true,
+            "denied_query_zero": true,
+            "fresh_grants": true
+          },
+          "indexed_scheduled_query_gateways": {
+            "phase": "indexed_scheduled_query_gateways",
+            "workers": 8,
+            "tenant_isolation": true,
+            "existing_generated_gateway": true
+          }
+        },
+        "actual_SQL_cancel": {
+          "exact_owned_tag_table_backend_lock_before_cancel": true,
+          "owned_task_joined_and_quiescent": true,
+          "manual_reuse": true,
+          "wrapper_pause": false
+        }
+      }
+    ]
+  },
+  "claim_limits": [
+    "Point-in-time trusted-schema inventory is not immutable attestation against later privileged DDL or continuous integrity checking. Corrupted unrelated metadata can hide rows from exact selection; touched rows/lookup/replay detect mismatches.",
+    "One visible tenant/receipt row is not absence of MVCC updates, exactly-once delivery, no index-write cost or replacement for outbox lease fencing.",
+    "Old/new histories are distinct. Delivered flags do not attest destination history and acknowledged legacy records are not imported automatically.",
+    "Guid-N receipt-key order/typed cursors retain no chronology, snapshot, global completeness or authenticity guarantee.",
+    "Cancellation/cleanup is cooperative; module disposal waits owned admitted work rather than force-abandoning it. No hard completion deadline or total memory/I/O bound.",
+    "Windows uses owned loopback/stdio proxy to WSL PostgreSQL18.7, not native Windows DB; no full supported-host/all-provider, real IdP, power-loss, production/release or performance qualification.",
+    "Engine remains unchanged/M0 and this review does not alter #3 Blocked/#20 complete rows, null actual hours, gates or original benchmarks."
+  ],
+  "explicit_exclusions": [
+    "Root GitHub issue/Project synchronization and protected metadata/row/task byte checks.",
+    "Owned fixture/container/helper/listener cleanup and live host state.",
+    "Public export/archive/redaction/index integrity, remote pushes, branch cleanup and final Docs commits.",
+    "New hosted CI qualification; unchanged Engine baseline metadata is labeled reused only."
+  ],
+  "final_diagnostic_plan_observations": [
+    {
+      "host": "windows",
+      "source_raw": {
+        "path": "D:\\Cephalon\\.worktrees\\is-consumer\\.local\\is-postgres-windows-final01\\tests.json",
+        "sha256": "a903f0f1aa5e30811050b959a2dcc908fd6bdf16c44693a0e8ae8f442da10d20"
+      },
+      "corpus": {
+        "rows": 4096,
+        "tenants": 2,
+        "rows_per_tenant": 2048,
+        "resources_per_tenant": 128,
+        "rows_per_resource": 16,
+        "tenant": "A",
+        "kind": "document",
+        "resource": "item-064",
+        "limit": 8
+      },
+      "actual_first_keys_match_1025_1032": true,
+      "actual_second_keys_match_1033_1040": true,
+      "candidates_and_decoded_first": [
+        9,
+        9
+      ],
+      "candidates_and_decoded_second": [
+        8,
+        8
+      ],
+      "node_types": [
+        [
+          "Limit",
+          "Index Scan"
+        ],
+        [
+          "Limit",
+          "Index Scan"
+        ]
+      ],
+      "index_names": [
+        "audit_sink_indexed_v1_resource_idx",
+        "audit_sink_indexed_v1_resource_idx"
+      ],
+      "plan_root_actual_rows": [
+        9.0,
+        8.0
+      ],
+      "planner_settings": {
+        "enable_bitmapscan": "on",
+        "enable_indexonlyscan": "on",
+        "enable_indexscan": "on",
+        "enable_seqscan": "on",
+        "plan_cache_mode": "auto",
+        "random_page_cost": "4",
+        "seq_page_cost": "1"
+      },
+      "planner_coerced": false,
+      "timed_benchmark": false,
+      "limits": "Actual default-planner observations only; retain all raw plans. Index use does not establish speedup, stable optimizer choice, physical total I/O/memory, index write cost or production qualification."
+    },
+    {
+      "host": "wsl",
+      "source_raw": {
+        "path": "D:\\Cephalon\\.worktrees\\is-wsl-consumer\\.local\\is-postgres-wsl-final01\\tests.json",
+        "sha256": "908992f0fc4fabdb7122e9a0484d1f8d989865d9b56b3aaa15913c44fce2e776"
+      },
+      "corpus": {
+        "rows": 4096,
+        "tenants": 2,
+        "rows_per_tenant": 2048,
+        "resources_per_tenant": 128,
+        "rows_per_resource": 16,
+        "tenant": "A",
+        "kind": "document",
+        "resource": "item-064",
+        "limit": 8
+      },
+      "actual_first_keys_match_1025_1032": true,
+      "actual_second_keys_match_1033_1040": true,
+      "candidates_and_decoded_first": [
+        9,
+        9
+      ],
+      "candidates_and_decoded_second": [
+        8,
+        8
+      ],
+      "node_types": [
+        [
+          "Limit",
+          "Index Scan"
+        ],
+        [
+          "Limit",
+          "Index Scan"
+        ]
+      ],
+      "index_names": [
+        "audit_sink_indexed_v1_resource_idx",
+        "audit_sink_indexed_v1_resource_idx"
+      ],
+      "plan_root_actual_rows": [
+        9.0,
+        8.0
+      ],
+      "planner_settings": {
+        "enable_bitmapscan": "on",
+        "enable_indexonlyscan": "on",
+        "enable_indexscan": "on",
+        "enable_seqscan": "on",
+        "plan_cache_mode": "auto",
+        "random_page_cost": "4",
+        "seq_page_cost": "1"
+      },
+      "planner_coerced": false,
+      "timed_benchmark": false,
+      "limits": "Actual default-planner observations only; retain all raw plans. Index use does not establish speedup, stable optimizer choice, physical total I/O/memory, index write cost or production qualification."
+    }
+  ],
+  "root_final_driver": {
+    "result": "PASS",
+    "manifest": {
+      "path": "D:\\Cephalon\\.worktrees\\is-engine\\.local\\is-final-driver01\\manifest.json",
+      "sha256": "e717b616823d73194a111f3c285eeab680cb9ebb7102ecbbfdeabe8880fa883e"
+    },
+    "frozen_runner": {
+      "path": "D:\\Cephalon\\.worktrees\\is-engine\\.local\\is-final-driver01\\runner.py.txt",
+      "sha256": "a774a93c04cdf48fc5d241bdd4d47af6a65f879739804eba0a1a13fbdf58343b"
+    },
+    "all_15_phases_exit_zero": true,
+    "first_single_driver_all_four_lanes_passed": true,
+    "engine_component_matrix_not_repeated": true,
+    "note": "Real Git WSL source uses explicit LF alternates outside Engine parent and retains borrowed primary objects; not an independent archive."
+  },
+  "final_review_summary": {
+    "four_lanes": [
+      651,
+      220,
+      651,
+      220
+    ],
+    "source_inventories": [
+      85,
+      105,
+      85,
+      105
+    ],
+    "cross_host_maps_exact": true,
+    "registries_unchanged": true,
+    "Engine_unchanged_at_d0d": true,
+    "consumer_exact_source": "58641dac065a3204f662d7bbd57c2dc59159bdc1",
+    "no_new_Engine_commit_or_journal": true,
+    "development_current_frozen_inputs106_distinct_from_final105_provider_inventory": true
+  }
+}
