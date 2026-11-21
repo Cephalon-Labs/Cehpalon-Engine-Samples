@@ -19,13 +19,22 @@ using Microsoft.Extensions.Logging;
 namespace AuditOutbox;
 
 public sealed record AuditReceiptTransportOptions(bool HttpEnabled = true, bool GraphQLEnabled = true,
-    bool SecurityEnabled = true, TimeSpan? ReadTimeout = null);
+    bool SecurityEnabled = true, TimeSpan? ReadTimeout = null)
+{
+    public bool ReceiptLookupEnabled { get; init; } = true;
+    public bool ResourceHistoryEnabled { get; init; }
+}
 /// <summary>Captured project configuration. Injected authority collaborators remain caller-owned.</summary>
 public sealed record AuditReceiptTransportSecurity(string AuthenticationScheme, IdentityTrustPolicy TrustPolicy,
     ITenantMembershipSource Memberships, IResourceScopeSource Resources, ITenantAccessPolicy AccessPolicy,
     TenantChangeAuditPolicy ReadPolicy, TimeSpan? MaximumLeaseLifetime = null);
 public sealed record AuditReceiptLookupRequest(string Tenant, Guid ReceiptId);
 public sealed record AuditReceiptLookupResponse(string Tenant, AuditReceiptView? Record);
+/// <summary>Unsigned selection metadata; construction grants no tenant authority or snapshot guarantee.</summary>
+public sealed record AuditResourceHistoryCursor(string Tenant, string ResourceKind, string ResourceId, Guid AfterReceiptId);
+public sealed record AuditResourceHistoryRequest(string Tenant, string ResourceKind, string ResourceId,
+    int Limit = 50, AuditResourceHistoryCursor? Continuation = null);
+public sealed record AuditResourceHistoryResponse(string Tenant, AuditReceiptView[] Entries, AuditResourceHistoryCursor? NextCursor);
 public sealed record AuditReceiptValueView(string Kind, string? Text, string? Number, bool? Boolean);
 public sealed record AuditReceiptFieldView(string Name, AuditReceiptValueView Before, AuditReceiptValueView After, bool WasChanged);
 public sealed record AuditReceiptView(string ReceiptId, string RecordedAtUtc, string? ReportedAtUtc,
@@ -39,24 +48,30 @@ public sealed class AuditReceiptTransportProbe
     public int HostFactories, SecurityFactories, SourceFactories, SourceOpenAttempts, SourceDisposals;
     public int GraphQLServices, AuthenticationServices, HttpEndpoints, GraphQLEndpoints;
     public int GatewayFactories, HandlerFactories, SourceLookupCalls, ReaderResults;
+    public int ResourceGatewayFactories, ResourceHandlerFactories, SourceResourceHistoryCalls, ResourceReaderResults;
     public int ActiveDispatches, CompletedDispatches, RejectedDispatches;
     public CancellationToken LastDispatchToken, LastWorkToken;
+    public CancellationToken LastResourceDispatchToken, LastResourceWorkToken;
     public TaskCompletionSource AdmissionClosed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public TaskCompletionSource DrainCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public ConcurrentQueue<string> Events { get; } = new();
     public Action<CancellationToken>? SourceReadStarted;
     public Func<CancellationToken, Task>? AfterProviderRead;
+    public Action<CancellationToken>? ResourceSourceReadStarted;
+    public Func<CancellationToken, Task>? AfterResourceProviderRead;
     public Func<WebApplication, Task>? StopApplicationAsync;
 }
 
-/// <summary>Optional indexed receipt lookup only. The application supplies established JWT and TLS configuration.</summary>
+/// <summary>Optional indexed receipt lookup and resource history. The application supplies established JWT and TLS configuration.</summary>
 public sealed class AuditReceiptTransportHost : IAsyncDisposable
 {
     const string SecurityModule = "receipt.security", SourceModule = "receipt.source", HostModule = "receipt.host";
     const string HttpModule = "receipt.http", GraphModule = "receipt.graphql";
     public const string LookupPath = "/audit/receipts/lookup";
+    public const string ResourceHistoryPath = "/audit/resources/history";
     public const string GraphQLPath = "/graphql";
     public static readonly OperationBinding<AuditReceiptLookupRequest, AuditReceiptLookupResponse> Binding = new("trail.lookup", Validate);
+    public static readonly OperationBinding<AuditResourceHistoryRequest, AuditResourceHistoryResponse> ResourceHistoryBinding = new("trail.resource-history", ValidateResourceHistory);
     readonly Admission admission;
     ActivationLease? lease;
     public ActivationPlan Plan { get; }
@@ -79,11 +94,11 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         AuditReceiptTransportProbe? probe = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var selected = options.HttpEnabled || options.GraphQLEnabled;
+        var selected = (options.HttpEnabled || options.GraphQLEnabled) && (options.ReceiptLookupEnabled || options.ResourceHistoryEnabled);
         var config = JsonSerializer.Serialize(new { Cehpalon = new { SchemaVersion = 1, Architecture = "Modular", Topology = "SingleProcess", Pattern = "RequestReply",
             Modules = new Dictionary<string, object> {
                 [SecurityModule] = new { Enabled = selected && options.SecurityEnabled }, [SourceModule] = new { Enabled = selected },
-                [HostModule] = new { Enabled = selected }, [HttpModule] = new { Enabled = options.HttpEnabled }, [GraphModule] = new { Enabled = options.GraphQLEnabled } } } });
+                [HostModule] = new { Enabled = selected }, [HttpModule] = new { Enabled = selected && options.HttpEnabled }, [GraphModule] = new { Enabled = selected && options.GraphQLEnabled } } } });
         var compiled = CompositionCompiler.Compile(config, [new(SecurityModule, ModuleRole.Support), new(SourceModule, ModuleRole.Support, [SecurityModule]),
             new(HostModule, ModuleRole.Support, [SecurityModule, SourceModule]), new(HttpModule, ModuleRole.EntryPoint, [HostModule]), new(GraphModule, ModuleRole.EntryPoint, [HostModule])]);
         if (!compiled.IsSuccess) throw new ArgumentException("Invalid receipt transport composition.", nameof(options));
@@ -95,6 +110,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         }
         AuditReceiptTransportSecurity? security = null;
         TenantChangeAuditLookupReader? reader = null;
+        TenantChangeAuditResourceHistoryReader? resourceReader = null;
         owner.Probe.Events.Enqueue("plan.validated");
         owner.lease = await PlanActivator.ActivateAsync(owner.Plan, [
             new(SecurityModule, _ =>
@@ -113,7 +129,9 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                     token.ThrowIfCancellationRequested();
                     if (candidate.IsDisposed || candidate.IsReady || candidate.InitializationAttempts != 0) throw new ArgumentException("The receipt source must be newly owned and uninitialized.");
                     Interlocked.Increment(ref owner.Probe.SourceOpenAttempts); await candidate.OpenExistingAsync(token).ConfigureAwait(false);
-                    reader = TenantChangeAuditLookupReader.ActivateWithBudget(security!.ReadPolicy, options.ReadTimeout, () => new ObservedSource(candidate, owner.Probe))!;
+                    var observed = new ObservedSource(candidate, owner.Probe);
+                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithBudget(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
+                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithBudget(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
                     owner.Probe.Events.Enqueue("source.ready"); return new OwnedSource(candidate, owner.Probe);
                 }
                 catch (Exception failure)
@@ -131,15 +149,25 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                 {
                     var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], EnvironmentName = "Production" });
                     builder.Logging.ClearProviders(); configureHost!(builder); builder.Services.AddAuthorization();
-                    builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(owner, security!, reader!));
-                    if (options.GraphQLEnabled) builder.Services.AddCehpalonGraphQL(new GraphQLOperationCatalog.Builder().AddQuery("trailReceipt", Binding).Build());
+                    builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(owner, security!, reader, resourceReader));
+                    if (options.GraphQLEnabled)
+                    {
+                        var catalog = new GraphQLOperationCatalog.Builder();
+                        if (options.ReceiptLookupEnabled) catalog.AddQuery("trailReceipt", Binding);
+                        if (options.ResourceHistoryEnabled) catalog.AddQuery("trailResourceHistory", ResourceHistoryBinding);
+                        builder.Services.AddCehpalonGraphQL(catalog.Build());
+                    }
                     owner.Probe.GraphQLServices = builder.Services.Count(s => (s.ServiceType.FullName ?? "").StartsWith("HotChocolate.", StringComparison.Ordinal));
                     owner.Probe.AuthenticationServices = builder.Services.Count(s => (s.ServiceType.FullName ?? "").StartsWith("Microsoft.AspNetCore.Authentication.", StringComparison.Ordinal));
                     app = builder.Build(); owner.App = app;
                     var scheme = await app.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetSchemeAsync(security!.AuthenticationScheme).ConfigureAwait(false);
                     if (scheme is null || !typeof(JwtBearerHandler).IsAssignableFrom(scheme.HandlerType)) throw new ArgumentException("Configure the selected established JWT authentication handler.");
                     app.UseAuthentication(); app.UseAuthorization();
-                    if (options.HttpEnabled) { app.MapOperation(LookupPath, Binding); owner.Probe.HttpEndpoints = 1; }
+                    if (options.HttpEnabled)
+                    {
+                        if (options.ReceiptLookupEnabled) { app.MapOperation(LookupPath, Binding); owner.Probe.HttpEndpoints++; }
+                        if (options.ResourceHistoryEnabled) { app.MapOperation(ResourceHistoryPath, ResourceHistoryBinding); owner.Probe.HttpEndpoints++; }
+                    }
                     if (options.GraphQLEnabled) { app.MapCehpalonGraphQL(GraphQLPath); owner.Probe.GraphQLEndpoints = 1; }
                     await app.StartAsync(token).ConfigureAwait(false); owner.Probe.Events.Enqueue("host.started");
                     return new OwnedHost(owner);
@@ -172,6 +200,23 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         try { _ = new TenantId(request.Tenant); return request.ReceiptId == Guid.Empty ? TransportErrors.ValidationFailed() : null; }
         catch (ArgumentException) { return TransportErrors.ValidationFailed(); }
     }
+    static TenantChangeAuditResourceQuery ResourceQuery(AuditResourceHistoryRequest request)
+    {
+        var cursor = request.Continuation;
+        return new(request.ResourceKind, request.ResourceId, request.Limit, cursor is null ? null : new(new(cursor.Tenant), cursor.ResourceKind, cursor.ResourceId, cursor.AfterReceiptId));
+    }
+    static OperationError? ValidateResourceHistory(AuditResourceHistoryRequest request)
+    {
+        try
+        {
+            _ = new TenantId(request.Tenant); _ = ResourceQuery(request);
+            return request.Continuation is { } cursor && (!StringComparer.Ordinal.Equals(request.Tenant, cursor.Tenant) ||
+                !StringComparer.Ordinal.Equals(request.ResourceKind, cursor.ResourceKind) || !StringComparer.Ordinal.Equals(request.ResourceId, cursor.ResourceId)) ? TransportErrors.ValidationFailed() : null;
+        }
+        catch (ArgumentException) { return TransportErrors.ValidationFailed(); }
+    }
+    static AuditResourceHistoryCursor? Cursor(TenantChangeAuditResourceCursor? cursor)
+        => cursor is null ? null : new(cursor.Tenant.Value, cursor.ResourceKind, cursor.ResourceId, cursor.AfterReceiptId);
     static AuditReceiptView View(TenantChangeAuditRecord record)
     {
         var receipt = record.Receipt;
@@ -211,7 +256,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
             await source.DisposeAsync().ConfigureAwait(false); probe.Events.Enqueue("source.disposed");
         }
     }
-    sealed class ObservedSource(PostgresIndexedAuditStorage source, AuditReceiptTransportProbe probe) : ITenantChangeAuditLookupSource
+    sealed class ObservedSource(PostgresIndexedAuditStorage source, AuditReceiptTransportProbe probe) : ITenantChangeAuditLookupSource, ITenantChangeAuditResourceHistorySource
     {
         public async ValueTask<TenantChangeAuditRecord?> FindAsync(TenantId tenant, Guid id, CancellationToken token)
         {
@@ -220,36 +265,60 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
             if (probe.AfterProviderRead is { } after) await after(token).ConfigureAwait(false);
             return record;
         }
+        public async ValueTask<TenantChangeAuditResourcePage> ReadAsync(TenantId tenant, TenantChangeAuditResourceQuery query, CancellationToken token)
+        {
+            Interlocked.Increment(ref probe.SourceResourceHistoryCalls); probe.LastResourceWorkToken = token; probe.ResourceSourceReadStarted?.Invoke(token);
+            var page = await source.ReadAsync(tenant, query, token).ConfigureAwait(false);
+            if (probe.AfterResourceProviderRead is { } after) await after(token).ConfigureAwait(false);
+            return page;
+        }
     }
-    sealed class Bridge(AuditReceiptTransportHost owner, AuditReceiptTransportSecurity security, TenantChangeAuditLookupReader reader) : ITransportOperationDispatcher
+    sealed class Bridge(AuditReceiptTransportHost owner, AuditReceiptTransportSecurity security,
+        TenantChangeAuditLookupReader? reader, TenantChangeAuditResourceHistoryReader? resourceReader) : ITransportOperationDispatcher
     {
         public async ValueTask<OperationResult<TResponse>> DispatchAsync<TRequest, TResponse>(HttpContext http, string id, TRequest request, OperationContext correlation, CancellationToken token)
         {
             using var admitted = owner.admission.Enter();
-            owner.Probe.LastDispatchToken = token;
-            if (id != "trail.lookup" || typeof(TRequest) != typeof(AuditReceiptLookupRequest) || typeof(TResponse) != typeof(AuditReceiptLookupResponse))
+            var lookup = reader is not null && id == "trail.lookup" && typeof(TRequest) == typeof(AuditReceiptLookupRequest) && typeof(TResponse) == typeof(AuditReceiptLookupResponse);
+            var resource = resourceReader is not null && id == "trail.resource-history" && typeof(TRequest) == typeof(AuditResourceHistoryRequest) && typeof(TResponse) == typeof(AuditResourceHistoryResponse);
+            if (!lookup && !resource)
                 throw new InvalidOperationException("The receipt wire contract does not match its selected operation.");
-            var wire = (AuditReceiptLookupRequest)(object)request!;
-            var registry = new TenantOperationRegistryBuilder().Register<LookupRequest, LookupResult>("trail.lookup", "read", "audit-trail", r => r with { }, r => new(new(r.Tenant), "tenant"),
-                () => { Interlocked.Increment(ref owner.Probe.HandlerFactories); return new LookupHandler(reader, owner.Probe); }).Build();
+            if (lookup) owner.Probe.LastDispatchToken = token; else owner.Probe.LastResourceDispatchToken = token;
+            var registry = new TenantOperationRegistryBuilder();
+            if (reader is not null) registry.Register<LookupRequest, LookupResult>("trail.lookup", "read", "audit-trail", r => r with { }, r => new(new(r.Tenant), "tenant"),
+                () => { Interlocked.Increment(ref owner.Probe.HandlerFactories); return new LookupHandler(reader, owner.Probe); });
+            if (resourceReader is not null) registry.Register<ResourceHistoryRequest, ResourceHistoryResult>("trail.resource-history", "read", "audit-trail", r => r with { }, r => new(new(r.Tenant), "tenant"),
+                () => { Interlocked.Increment(ref owner.Probe.ResourceHandlerFactories); return new ResourceHandler(resourceReader, owner.Probe); });
             var identity = new AspNetCoreJwtIdentitySource(new RequestAccessor(http), security.AuthenticationScheme);
             var services = new TenantSecurityServices(identity, security.TrustPolicy, security.Memberships, security.Resources,
                 security.MaximumLeaseLifetime ?? TimeSpan.FromSeconds(30), security.AccessPolicy);
-            var tenant = new TenantOperationDispatcher(registry, services); var core = new OperationRegistryBuilder();
-            Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core, new GatewayFactory(tenant, owner.Probe));
-            var result = await new OperationDispatcher(core.Build()).DispatchAsync<LookupRequest, LookupResult>("trail.lookup", new(wire.Tenant, wire.ReceiptId), correlation, token).ConfigureAwait(false);
-            if (!result.IsSuccess) return OperationResult<TResponse>.Failure(result.Error);
-            var response = new AuditReceiptLookupResponse(result.Value.Tenant, result.Value.Record is null ? null : View(result.Value.Record));
-            return OperationResult<TResponse>.Success((TResponse)(object)response);
+            var tenant = new TenantOperationDispatcher(registry.Build(), services); var core = new OperationRegistryBuilder();
+            Cehpalon.Engine.Generated.OperationRegistrations.RegisterAll(core, new GatewayFactory(tenant, owner.Probe, reader is not null, resourceReader is not null));
+            var dispatcher = new OperationDispatcher(core.Build());
+            if (lookup)
+            {
+                var wire = (AuditReceiptLookupRequest)(object)request!;
+                var result = await dispatcher.DispatchAsync<LookupRequest, LookupResult>("trail.lookup", new(wire.Tenant, wire.ReceiptId), correlation, token).ConfigureAwait(false);
+                if (!result.IsSuccess) return OperationResult<TResponse>.Failure(result.Error);
+                return OperationResult<TResponse>.Success((TResponse)(object)new AuditReceiptLookupResponse(result.Value.Tenant, result.Value.Record is null ? null : View(result.Value.Record)));
+            }
+            else
+            {
+                var wire = (AuditResourceHistoryRequest)(object)request!;
+                var result = await dispatcher.DispatchAsync<ResourceHistoryRequest, ResourceHistoryResult>("trail.resource-history", new(wire.Tenant, ResourceQuery(wire)), correlation, token).ConfigureAwait(false);
+                if (!result.IsSuccess) return OperationResult<TResponse>.Failure(result.Error);
+                return OperationResult<TResponse>.Success((TResponse)(object)new AuditResourceHistoryResponse(result.Value.Tenant, result.Value.Page.Entries.Select(View).ToArray(), Cursor(result.Value.Page.NextCursor)));
+            }
         }
     }
     sealed class RequestAccessor(HttpContext context) : IHttpContextAccessor { public HttpContext? HttpContext { get; set; } = context; }
-    sealed class GatewayFactory(TenantOperationDispatcher dispatcher, AuditReceiptTransportProbe probe) : IOperationHandlerFactory
+    sealed class GatewayFactory(TenantOperationDispatcher dispatcher, AuditReceiptTransportProbe probe, bool lookup, bool resource) : IOperationHandlerFactory
     {
         public THandler Create<THandler>() where THandler : class
         {
-            if (typeof(THandler) != typeof(LookupGateway)) throw new InvalidOperationException("Only the receipt lookup gateway is selected.");
-            Interlocked.Increment(ref probe.GatewayFactories); return (THandler)(object)new LookupGateway(dispatcher);
+            if (lookup && typeof(THandler) == typeof(LookupGateway)) { Interlocked.Increment(ref probe.GatewayFactories); return (THandler)(object)new LookupGateway(dispatcher); }
+            if (resource && typeof(THandler) == typeof(ResourceHistoryGateway)) { Interlocked.Increment(ref probe.ResourceGatewayFactories); return (THandler)(object)new ResourceHistoryGateway(dispatcher); }
+            throw new InvalidOperationException("The audit read gateway is not selected.");
         }
     }
     sealed class LookupHandler(TenantChangeAuditLookupReader reader, AuditReceiptTransportProbe probe) : ITenantOperationHandler<LookupRequest, LookupResult>
@@ -258,6 +327,14 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         {
             var record = await reader.FindAsync(context, request.ReceiptId, token).ConfigureAwait(false);
             Interlocked.Increment(ref probe.ReaderResults); return OperationResult<LookupResult>.Success(new(context.Tenant.Value, record));
+        }
+    }
+    sealed class ResourceHandler(TenantChangeAuditResourceHistoryReader reader, AuditReceiptTransportProbe probe) : ITenantOperationHandler<ResourceHistoryRequest, ResourceHistoryResult>
+    {
+        public async ValueTask<OperationResult<ResourceHistoryResult>> HandleAsync(ResourceHistoryRequest request, TenantOperationContext context, CancellationToken token)
+        {
+            var page = await reader.ReadAsync(context, request.Query, token).ConfigureAwait(false);
+            Interlocked.Increment(ref probe.ResourceReaderResults); return OperationResult<ResourceHistoryResult>.Success(new(context.Tenant.Value, page));
         }
     }
     sealed class Admission(AuditReceiptTransportProbe probe)
