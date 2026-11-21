@@ -35,7 +35,7 @@ def main():
   run([a.dotnet,'build',project,'--no-restore','-c','Release',*common,'-p:UseSharedCompilation=false','-warnaserror'],'build.txt')
   dll=artifacts/'bin/PostgresAuditOutbox.Consumer/release/PostgresAuditOutbox.Consumer.dll'
   run([a.dotnet,dll,'--connection-file='+str(connection),'--schema=ao_'+uuid.uuid4().hex,'--output='+str(out/'tests.json')],'run.txt')
-  tests=json.loads((out/'tests.json').read_bytes());assert tests['failed']==0 and tests['passed']>=30;report['passed']=tests['passed'];report['status_passed']=tests['status_passed'];report['prior_outbox_passed']=tests['prior_outbox_passed'];assert tests['status_failed']==0 and tests['prior_outbox_failed']==0 and tests['prior_outbox_passed']==34 and tests['status_passed']>=20;report['schemas'].extend(tests['schemas']);report['settings']=tests['settings']
+  tests=json.loads((out/'tests.json').read_bytes());assert tests['failed']==0 and tests['passed']>=30;report['passed']=tests['passed'];report['status_passed']=tests['status_passed'];report['prior_outbox_passed']=tests['prior_outbox_passed'];assert tests['status_failed']==0 and tests['prior_outbox_failed']==0 and tests['prior_outbox_passed']==34 and tests['status_passed']>=20;report['relay_budget_passed']=tests['relay_budget_passed'];assert tests['relay_budget_failed']==0 and tests['relay_budget_passed']==24 and tests['status_passed']==23;report['relay_budget_observations']=tests['relay_budget_observations'];assert len(report['relay_budget_observations'])==2;report['schemas'].extend(tests['schemas']);report['settings']=tests['settings']
   # Two independently launched processes with the same private owned schema around an actual server restart.
   restart_schema='ao_'+uuid.uuid4().hex;report['restart_schema']=restart_schema;save()
   run([a.dotnet,dll,'--connection-file='+str(connection),'--schema='+restart_schema,'--phase=restart-write','--output='+str(out/'restart-write.json')],'restart-write.txt')
@@ -53,15 +53,15 @@ def main():
   (out/'owned-server-readiness.json').write_text(json.dumps(ready,indent=2)+'\n',encoding='utf-8');assert ready[-1]['exit_code']==0,'Owned restarted server not ready'
   run([a.dotnet,dll,'--connection-file='+str(connection),'--schema='+restart_schema,'--phase=restart-read','--output='+str(out/'restart-read.json')],'restart-read.txt')
   restart=[json.loads((out/name).read_bytes()) for name in ['restart-write.json','restart-read.json']];assert all(x['failed']==0 for x in restart)
-  report['restart_passed']=sum(x['passed'] for x in restart);report['schemas'].append(restart_schema)
+  report['restart_passed']=sum(x['passed'] for x in restart);report['schemas'].append(restart_schema);report['prior_total_passed']=report['prior_outbox_passed']+report['status_passed']+report['restart_passed'];assert report['prior_total_passed']==60
   generated=list((artifacts/'obj/PostgresAuditOutbox.Consumer').rglob('OperationRegistrations.g.cs'));assert len(generated)==1
   (out/'generated-relay.g.cs.txt').write_bytes(generated[0].read_bytes());report['relay_registry_sha256']=hashlib.sha256(generated[0].read_bytes()).hexdigest()
   existing=list((artifacts/'obj/SecurityApi.Consumer').rglob('OperationRegistrations.g.cs'));assert len(existing)==1;report['security_registry_sha256']=hashlib.sha256(existing[0].read_bytes()).hexdigest();assert report['security_registry_sha256']=='0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489'
   deps=json.loads(dll.with_suffix('.deps.json').read_bytes());assert not any('CodeAnalysis' in k or 'CodeGeneration' in k for k in deps['libraries']);report['runtime_libraries']=sorted(deps['libraries'])
   for key,digest in report['source_sha256'].items():
    prefix,relative=key.split('/',1);file=(engine if prefix=='engine' else ROOT)/relative;assert hashlib.sha256(file.read_bytes()).hexdigest()==digest,key
-  report.update(status='passed',source_unchanged=True,total_passed=report['passed']+report['restart_passed'])
+  assert report['passed']==81 and report['restart_passed']==3;report.update(status='passed',source_unchanged=True,total_passed=report['passed']+report['restart_passed'])
  except Exception as error:report.update(status='failed',error=str(error));save();raise
- save();print(json.dumps({k:report[k] for k in ['status','passed','status_passed','restart_passed','total_passed']}))
+ save();print(json.dumps({k:report[k] for k in ['status','passed','status_passed','relay_budget_passed','prior_total_passed','restart_passed','total_passed']}))
 
 if __name__=='__main__':main()
