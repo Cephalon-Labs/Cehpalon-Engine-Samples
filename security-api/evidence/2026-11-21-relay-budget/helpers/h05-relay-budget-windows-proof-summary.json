@@ -1,0 +1,110 @@
+{
+  "scope": "Bounded optional relay-budget development consumer; no original benchmark/performance/production or native Windows PostgreSQL claim. Root final clean LF-source matrix is separate.",
+  "samples_revision": "e95d1c281662701daacd7dea11257db4f450cd25",
+  "samples_baseline": "22c390bf438300025c7db09c3dce34f457676227",
+  "engine_revision": "3eb2b0eb957304bae24a1ef749160b8dd159772f",
+  "sdk": "11.0.100",
+  "consumer_dev02": {
+    "status": "passed",
+    "engine_dirty": false,
+    "consumer_revision": "22c390bf438300025c7db09c3dce34f457676227",
+    "consumer_source_dirty": true,
+    "passed": 81,
+    "status_passed": 23,
+    "prior_outbox_passed": 34,
+    "relay_budget_passed": 24,
+    "prior_total_passed": 60,
+    "restart_passed": 3,
+    "total_passed": 84,
+    "source_unchanged": true,
+    "relay_registry_sha256": "3651818cbccf40def05650121327f43b2c94b0b23d23aa0589a812a1e0622dd9",
+    "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489"
+  },
+  "actual_sql_observations": [
+    {
+      "phase": "claim",
+      "kind": "actual PostgreSQL provider SQL",
+      "lock_wait_observed_before_expiry": true,
+      "backend_pid": 854,
+      "task_joined": true,
+      "backend_quiescent": true,
+      "reused_with_fresh_authority": true
+    },
+    {
+      "phase": "acknowledge",
+      "kind": "actual PostgreSQL provider SQL",
+      "lock_wait_observed_before_expiry": true,
+      "backend_pid": 869,
+      "task_joined": true,
+      "backend_quiescent": true,
+      "independent_release": true,
+      "fresh_replay_deduplicated": true
+    }
+  ],
+  "main_checks_all_true": true,
+  "source_provenance": {
+    "pre_sdk_frozen_count": 94,
+    "verifier_frozen_count": 93,
+    "all94_executing_inputs_reviewed_before_commit": true,
+    "exact_frozen_to_commit_matches": 93,
+    "new_file_two_terminator_difference": [
+      {
+        "source": "consumer/audit-outbox/RelayBudgetChecks.cs",
+        "executed_sha256": "4275621c4698221804c405ca51b845d4a0b2b21398d1604237c56f034954b812",
+        "committed_sha256": "954595facfdec6f7814129af72efa15fb0b0cde6bf8ec15ece967328e0e73a5d",
+        "executed_crlf": 2,
+        "committed_crlf": 0,
+        "equal_after_lf_normalization": true
+      }
+    ],
+    "all94_current_inputs_equal_committed_blobs": true,
+    "raw_source_rewritten": false,
+    "final_committed_source_runtime_proof": "Root final exact LF-source Windows/WSL matrix pending in this child summary"
+  },
+  "retention": {
+    "baseline_to_commit_historical_blobs_compared": 38490,
+    "unchanged": true,
+    "changed": [],
+    "prior34_program_prefix_unchanged": true,
+    "status23_and_security651_sources_unchanged": true,
+    "provider_schema_package_locks_unchanged": true
+  },
+  "attempts": [
+    {
+      "name": "dev01",
+      "manifest": ".local/relay-budget-windows-dev01/manifest.json",
+      "frozen_source": ".local/relay-budget-windows-dev01-source",
+      "status": "failed main80/81; restart not run",
+      "correction": ".local/relay-budget-dev01-correction.json"
+    },
+    {
+      "name": "freeze guard",
+      "status": "FileExistsError WinError183 before SDK; old dev01 output not overwritten",
+      "details": ".local/relay-budget-freeze-rejection.json",
+      "original_runner": ".local/freeze-relay-budget-source-dev01.py.txt"
+    },
+    {
+      "name": "dev02",
+      "manifest": ".local/relay-budget-windows-dev02/manifest.json",
+      "frozen_source": ".local/relay-budget-windows-dev02-source",
+      "status": "passed84/84"
+    }
+  ],
+  "fixture": {
+    "container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7",
+    "retained_volume": "cehpalon-audit-outbox-pg18-20261121-data",
+    "windows_proxy": "127.0.0.1:54042",
+    "private_env_exported": false,
+    "state": "idle for root final tests; do not clean up until root confirms",
+    "cleanup_source": ".local/cleanup-owned-ga-pg.py",
+    "cleanup_after_root_confirmation": ".local/relay-budget-fixture-cleanup.json"
+  },
+  "sha256": {
+    ".local/relay-budget-windows-dev02/manifest.json": "9b7169583fa3c9c11fb657edccd4f286d2dc76a8c774a6168f2d019db5bdd444",
+    ".local/relay-budget-windows-dev02/tests.json": "f78fdcbeaf8fc9045eb1a4a8096bc9f71acda59ba383b419741a31fbd5f427f1",
+    ".local/relay-budget-windows-dev02-source/manifest.json": "0a5d0360483b5f0cc43eff9526e844c731a578882e5584a3e21b52b602d03737",
+    ".local/relay-budget-dev01-correction.json": "27d4aee9701d6d6eb7241bda5237fc4bedc6c6a1a40230c26ff703107c7b350c",
+    ".local/relay-budget-freeze-rejection.json": "34f93a905cf175bc17ddae02f9851d31b25f743306a541b6343a2f89287cc522",
+    ".local/relay-budget-source-eol-provenance.json": "ff9f7db03709564937e6775535913a85b55f7d47ac9f9e9a09617258291c876a"
+  }
+}

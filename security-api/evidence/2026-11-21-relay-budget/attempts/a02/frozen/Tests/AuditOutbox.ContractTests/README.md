@@ -1,0 +1,7 @@
+# Optional audit transaction and outbox contracts
+
+Portable local contracts for explicit provider-owned transaction execution and a separate fresh-authorized bounded relay. The trusted business Session and redacted staged record share one provider transaction; these in-memory controls do not prove real storage durability. `NotStarted`/`RolledBack` describe only the declared provider session. A callback's unrelated external effects are not rollback-covered. Commit invocation failures stay unknown even if disposal later performs rollback. Confirmed commit followed by authorization/cancellation/cleanup faults withholds the result while preserving `Committed`.
+
+The relay requires a fresh checked `audit-outbox/tenant/relay` scope. Immutable bounded tenant claims, authoritative provider fencing and an idempotent sink support at-least-once recovery. Identical payload replay uses `(tenant, receiptId)`; different payload must fail. A partial batch may already have acknowledged earlier rows. Private budgets are cooperative and cleanup is explicitly awaited; there is no hard stop for uncooperative providers, automatic retry, timer/background activation or backend exactly-once.
+
+Use the pinned SDK with locked restore, Release/warnings-as-errors and a fresh `--output=<file>`. Freeze executing source and retain every development/failed attempt. Real database consumer proof and complete Windows/WSL integration are owned separately by the parent/root.

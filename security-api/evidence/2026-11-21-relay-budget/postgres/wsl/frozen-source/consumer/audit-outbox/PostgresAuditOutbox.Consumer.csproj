@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors><IsPackable>false</IsPackable><Deterministic>true</Deterministic>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
+    <EngineRoot Condition="'$(EngineRoot)' == ''">../../Cehpalon-Engine</EngineRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);evidence/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Npgsql" Version="[10.0.3]" />
+    <ProjectReference Include="../security-api/SecurityApi.Consumer.csproj" Aliases="securityapi" />
+    <ProjectReference Include="$(EngineRoot)/src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

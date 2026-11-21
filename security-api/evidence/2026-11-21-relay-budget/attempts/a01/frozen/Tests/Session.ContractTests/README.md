@@ -1,0 +1,9 @@
+# Optional session-status contracts
+
+Run with the repository-pinned SDK, locked Release and warnings-as-errors. The focused executable checks66 portable/established-ticket/session/tenant cases, including held asynchronous cancellation/revocation, clock arithmetic, exact binding and session pinning. Identity mapping uses controlled successful host tickets; actual cryptographic HTTPS consumer proofs are run separately in Samples. No raw credentials or keys are created/persisted by this executable.
+
+The same-context fixture deliberately reuses one successful ticket while asserting fresh session-source calls. It does not independently prove the middleware handler cache or a real IdP/store. Tenant switching and aggregate children repeat the configured source; aggregate denial withholds all response rows while earlier reads may have occurred. Read-set session transitions include null so legacy/custom sources cannot silently switch session generation under one principal.
+
+The observation consumes lookup latency and returns a UTC validity cap. It does not propagate its monotonic origin into later membership/policy/audit awaits, make provider/admission atomic, clear HttpContext.User/cookies, or revoke already admitted business work. Session IDs must be unique per login and not reused/reactivated while old credentials remain valid. No token issuer/logout endpoint/distributed store, performance or production qualification is claimed. Cancellation observes the supplied token; hosts link request abort explicitly.
+
+maximumObservationLifetime is checked after awaited calls; it is not an I/O timeout and cannot stop an uncooperative provider. The host owns provider timeouts and cooperative cancellation. No background timeout/revocation worker is started.
