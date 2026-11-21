@@ -4,7 +4,7 @@ using Cehpalon.Engine.Tenancy;
 
 namespace AuditOutbox;
 
-public sealed record DrainRequest(string Tenant,int MaximumBatches=16,int MaximumRecords=2048,int MaximumPerBatch=128);
+public sealed record DrainRequest(string Tenant,int MaximumBatches=16,int MaximumRecords=2048,int MaximumPerBatch=128,TimeSpan? TotalTimeout=null,bool UseTotalBudget=false);
 
 // A separately granted service operation; ordinary relay/status grants do not activate this handler.
 public sealed class DrainAuthority(TimeProvider clock):IIdentitySource,ITenantMembershipSource,IResourceScopeSource,ITenantAccessPolicy
@@ -35,12 +35,20 @@ public sealed class DrainHost
     }
     public ValueTask<OperationResult<TenantChangeAuditOutboxDrainResult>> Run(string tenant="A",int batches=16,int records=2048,int perBatch=128,CancellationToken token=default)
         =>dispatcher.DispatchAsync<DrainRequest,TenantChangeAuditOutboxDrainResult>("outbox.drain",new(tenant,batches,records,perBatch),new("owned-drain"),token);
+    public ValueTask<OperationResult<TenantChangeAuditOutboxDrainResult>> RunWithTotalBudget(TimeSpan? totalTimeout,string tenant="A",int batches=16,int records=2048,int perBatch=128,CancellationToken token=default)
+        =>dispatcher.DispatchAsync<DrainRequest,TenantChangeAuditOutboxDrainResult>("outbox.drain",new(tenant,batches,records,perBatch,totalTimeout,true),new("owned-drain"),token);
     private sealed class Handler(DrainHost owner):ITenantOperationHandler<DrainRequest,TenantChangeAuditOutboxDrainResult>
     {
         public async ValueTask<OperationResult<TenantChangeAuditOutboxDrainResult>> HandleAsync(DrainRequest request,TenantOperationContext context,CancellationToken token)
         {
             owner.RetainedContext=context;
-            try{return OperationResult<TenantChangeAuditOutboxDrainResult>.Success(await owner.relay.DrainAsync(context,request.MaximumBatches,request.MaximumRecords,request.MaximumPerBatch,token));}
+            try
+            {
+                var result=request.UseTotalBudget
+                    ?await owner.relay.DrainWithBudgetAsync(context,request.TotalTimeout,request.MaximumBatches,request.MaximumRecords,request.MaximumPerBatch,token)
+                    :await owner.relay.DrainAsync(context,request.MaximumBatches,request.MaximumRecords,request.MaximumPerBatch,token);
+                return OperationResult<TenantChangeAuditOutboxDrainResult>.Success(result);
+            }
             catch(TenantChangeAuditOutboxDrainException error){owner.LastException=error;throw;}
         }
     }
