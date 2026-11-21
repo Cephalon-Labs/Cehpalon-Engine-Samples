@@ -1,0 +1,215 @@
+extern alias securityapi;
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using Cehpalon.Engine.Authorization;
+using Cehpalon.Engine.Identity;
+using Cehpalon.Engine.Identity.JwtBearer;
+using Cehpalon.Engine.Tenancy;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using securityapi::SecurityApi;
+
+namespace AuditOutbox;
+
+public static class ReceiptTransportChecks
+{
+    private static readonly TimeSpan Watchdog=TimeSpan.FromSeconds(30),Budget=TimeSpan.FromSeconds(6);
+    private const string Selection="tenant record { receiptId recordedAtUtc reportedAtUtc principalIssuer principalSubject authenticationScheme tenant operationId action resourceKind resourceId authorizationResourceVersion beforeEntityVersion afterEntityVersion kind mode capturedMode fields { name wasChanged before { kind text number boolean } after { kind text number boolean } } }";
+    private static void Require(bool value){if(!value)throw new InvalidOperationException("Receipt transport conformance assertion failed.");}
+    private static TaskCompletionSource Signal()=>new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static async Task<Exception> Failure(Func<Task> action){try{await action();}catch(Exception error){return error;}throw new InvalidOperationException("Expected controlled receipt transport failure.");}
+    private static async Task Join(Task task){try{await task;}catch(Exception){}}
+    private static async Task Wait(Func<bool> condition){for(var i=0;i<1000;i++){if(condition())return;await Task.Delay(20);}throw new InvalidOperationException("Owned receipt transport control signal was not observed.");}
+    private static Guid Key(int n)=>Guid.Parse("00000000-0000-0000-0000-"+n.ToString("x12"));
+    private static TenantChangeAuditPolicy Policy(TenantChangeAuditMode mode=TenantChangeAuditMode.ChangedFields)=>new(mode,[new("entity.update","update","entity",[new("title"),new("amount"),new("active"),new("same"),new("secret",true)])]);
+    private static TenantChangeAuditRecord Record(int id,string tenant="A")=>new(new(Key(id),new PrincipalId("owned-transport-record","record-writer"),"fixture-service",new(tenant),"entity.update","update","entity","shared","fixture-v1",TenantChangeKind.Update,"0","1"),DateTimeOffset.UnixEpoch.AddDays(20000),TenantChangeAuditMode.BeforeAfterSnapshots,[new("title",TenantChangeValue.Text("old-"+tenant),TenantChangeValue.Text("new-"+tenant)),new("amount",TenantChangeValue.Number(12.5m),TenantChangeValue.Number(19.75m)),new("active",TenantChangeValue.Boolean(false),TenantChangeValue.Boolean(true)),new("same",TenantChangeValue.Text("stable"),TenantChangeValue.Text("stable"),false),new("secret",TenantChangeValue.Text("SECRET-BEFORE-"+tenant),TenantChangeValue.Text("SECRET-AFTER-"+tenant)),new("unknown",TenantChangeValue.Text("HIDDEN-UNKNOWN"),TenantChangeValue.Text("HIDDEN-UNKNOWN"),false)]);
+    private sealed class Authority:ITenantMembershipSource,IResourceScopeSource,IAuthorizationFactsSource
+    {
+        public volatile bool MembershipRevoked,PolicyRevoked;public int MembershipCalls,ResourceCalls,PolicyCalls;public readonly ConcurrentQueue<string> Subjects=new();
+        public ValueTask<TenantMembershipSnapshot?> ResolveAsync(IdentitySnapshot identity,TenantId tenant,CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();Interlocked.Increment(ref MembershipCalls);Subjects.Enqueue(identity.Principal.Subject);var subject=identity.Principal.Subject;var allowed=!MembershipRevoked&&(subject=="reader-both"&&tenant.Value is "A" or "B"||subject=="reader-b"&&tenant.Value=="B"||subject is "reader-a" or "no-role" or "wrong-attribute" or "history-only"&&tenant.Value=="A");var now=DateTimeOffset.UtcNow;return ValueTask.FromResult<TenantMembershipSnapshot?>(allowed?new(identity.Principal,tenant,true,now.AddMinutes(-1),now.AddMinutes(1),"transport-membership"):null);
+        }
+        public ValueTask<ResourceScopeSnapshot?> ResolveAsync(TenantId tenant,string kind,string id,CancellationToken token)
+        {token.ThrowIfCancellationRequested();Interlocked.Increment(ref ResourceCalls);return ValueTask.FromResult<ResourceScopeSnapshot?>(new(tenant,kind,id,"transport-resource"));}
+        public ValueTask<AuthorizationFacts?> ResolveAsync(TenantAccessRequest request,CancellationToken token)
+        {token.ThrowIfCancellationRequested();Interlocked.Increment(ref PolicyCalls);var subject=request.Identity.Principal.Subject;string[] roles=PolicyRevoked||subject=="no-role"?[]:subject=="history-only"?["history-reader"]:["receipt-reader"];var now=DateTimeOffset.UtcNow;return ValueTask.FromResult<AuthorizationFacts?>(new(request.Identity.Principal,request.Tenant,request.Membership.Version,request.Resource.Kind,request.Resource.ResourceId,request.Resource.Version,now.AddMinutes(-1),now.AddMinutes(1),roles,new([new("department",subject=="wrong-attribute"?"sales":"audit")]),new([new("department","audit")])));}
+    }
+    private sealed record Reply(HttpStatusCode Status,string Body,JsonElement? Json)
+    {
+        public bool Success(bool graph)=>Status==HttpStatusCode.OK&&Json is{ } json&&(!graph||!json.TryGetProperty("errors",out _));
+        public JsonElement Value(bool graph)=>graph?Json!.Value.GetProperty("data").GetProperty("trailReceipt"):Json!.Value;
+        public bool Error(bool graph,string code)=>graph?Json is{ } json&&json.TryGetProperty("errors",out var errors)&&errors.EnumerateArray().Any(e=>e.GetProperty("extensions").GetProperty("code").GetString()==code):Json is{ } body&&body.TryGetProperty("code",out var value)&&value.GetString()==code;
+    }
+    private sealed class Fixture(PostgresStore store,string connection,string connectionFile,TlsFixture tls,JwtFixture jwt)
+    {
+        public PostgresStore Store=>store;public readonly Authority Authority=new();public readonly AuditReceiptTransportProbe Probe=new();public PostgresIndexedAuditStorage? Source;public int CredentialReads,SecurityCallbacks,ConfigureCallbacks,KeyReads;
+        public async ValueTask<PostgresIndexedAuditStorage> SourceFactory(CancellationToken token){Require(Probe.Events.Contains("plan.validated")&&Probe.Events.Contains("security.validated"));Interlocked.Increment(ref CredentialReads);var privateConnection=(await File.ReadAllTextAsync(connectionFile,token)).Trim();Source=new(privateConnection,store.Schema);return Source;}
+        public AuditReceiptTransportSecurity Security(TenantChangeAuditPolicy? policy=null){Require(Probe.Events.Contains("plan.validated"));Interlocked.Increment(ref SecurityCallbacks);return new("Bearer",new IdentityTrustPolicy([JwtFixture.Issuer],["Bearer"]),Authority,Authority,new RoleAttributeAccessPolicy([new("trail.lookup","read","audit-trail",["receipt-reader"],[AttributePredicate.Match(AttributeScope.Subject,"department",AttributeScope.Resource,"department")])],Authority),policy??Policy(),TimeSpan.FromSeconds(30));}
+        public void Configure(WebApplicationBuilder builder)
+        {
+            Interlocked.Increment(ref ConfigureCallbacks);builder.WebHost.ConfigureKestrel(k=>k.Listen(IPAddress.Loopback,0,l=>{l.Protocols=HttpProtocols.Http1;l.UseHttps(tls.Server);}));var settings=new JwtProfileSettings{Scheme="Bearer",Issuer=JwtFixture.Issuer,Audience=JwtFixture.Audience,Algorithm="RS256",KeySource=JwtKeySource.PublicJwks};builder.Configuration.AddJsonStream(new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(new{Authentication=settings})));var profile=JwtAuthenticationProfile.FromConfiguration(builder.Configuration.GetSection("Authentication"));builder.Services.AddAuthentication("Bearer").AddCehpalonJwtBearer(profile,publicJwks:()=>{Interlocked.Increment(ref KeyReads);return jwt.PublicJwks();});
+        }
+        public Task<AuditReceiptTransportHost> Start(AuditReceiptTransportOptions options,TenantChangeAuditPolicy? policy=null)=>AuditReceiptTransportHost.ActivateAsync(options,SourceFactory,()=>Security(policy),Configure,Probe).AsTask();
+        public HttpClient Client(AuditReceiptTransportHost host){var client=tls.Client(host.Address);client.Timeout=Watchdog;return client;}
+        public string Token(string subject="reader-a")=>jwt.Token(subject);
+        public SqlProbe Sql()=>new(connection,store.Schema,()=>Source!);
+        public async Task<Reply> Send(HttpClient client,bool graph,string tenant="A",Guid? id=null,string? token=null,string? raw=null,CancellationToken cancellationToken=default)
+        {
+            using var request=new HttpRequestMessage(HttpMethod.Post,graph?"/graphql":"/audit/receipts/lookup");if(token is not null)request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);request.Content=raw is not null?new StringContent(raw,Encoding.UTF8,"application/json"):graph?JsonContent.Create(new{query="query { trailReceipt(input: { tenant: "+JsonSerializer.Serialize(tenant)+", receiptId: "+JsonSerializer.Serialize((id??Key(1)).ToString("D"))+" }) { "+Selection+" } }"}):JsonContent.Create(new AuditReceiptLookupRequest(tenant,id??Key(1)));using var response=await client.SendAsync(request,cancellationToken);var body=await response.Content.ReadAsStringAsync(cancellationToken);JsonElement? json=null;try{json=JsonDocument.Parse(body).RootElement.Clone();}catch(JsonException){}return new(response.StatusCode,body,json);
+        }
+        public async Task<Reply> Siblings(HttpClient client,string token)
+        {
+            var key=JsonSerializer.Serialize(Key(1).ToString("D"));var body=JsonSerializer.Serialize(new{query="query { a:trailReceipt(input:{tenant:\"A\",receiptId:"+key+"}) {"+Selection+"} b:trailReceipt(input:{tenant:\"B\",receiptId:"+key+"}) {"+Selection+"} }"});return await Send(client,true,token:token,raw:body);
+        }
+    }
+    public static async Task Run(Func<string,Func<Task>,Task> check,Func<Task<PostgresStore>> createStore,Func<PostgresStore,Task> mutate,string connection,string connectionFile,Action<object> observe)
+    {
+        using var tls=new TlsFixture();using var jwt=new JwtFixture();using var wrongJwt=new JwtFixture();
+        async Task<Fixture> Create(bool seed=true)
+        {
+            var store=await createStore();await using(var setup=await IndexedProfileComposition.ActivateAsync(IndexedProfileComposition.Configuration(true),store.Schema,IndexedProfileOpenMode.CreateNew,_=>ValueTask.FromResult(connection),new())){if(seed)foreach(var record in new[]{Record(1),Record(1,"B")})await setup.Storage!.AppendOnceAsync(record,default);}return new(store,connection,connectionFile,tls,jwt);
+        }
+        await check("receipt host invalid selected dependencies reject before owned callbacks",async()=>
+        {
+            foreach(var options in new[]{new AuditReceiptTransportOptions(true,false,false),new(false,true,false),new(true,false,true,TimeSpan.Zero),new(true,false,true,TimeSpan.FromTicks(-1)),new(true,false,true,TimeSpan.FromTicks(TimeSpan.TicksPerMinute+1))})
+            {
+                var callbacks=0;var probe=new AuditReceiptTransportProbe();Require(await Failure(()=>AuditReceiptTransportHost.ActivateAsync(options,_=>{callbacks++;throw new InvalidOperationException();},()=>{callbacks++;throw new InvalidOperationException();},_=>{callbacks++;throw new InvalidOperationException();},probe).AsTask()) is ArgumentException&&callbacks==0&&probe.SourceFactories==0&&probe.SecurityFactories==0&&probe.HostFactories==0);
+            }
+            observe(new{phase="transport_invalid_plan",owned_callbacks=0,credential_key_reads=0,provider_construction=0,listeners=0});
+        });
+        await check("receipt transports both disabled skip poisoned callbacks and unused invalid budget",async()=>
+        {
+            var callbacks=0;var probe=new AuditReceiptTransportProbe();await using var host=await AuditReceiptTransportHost.ActivateAsync(new(false,false,false,TimeSpan.FromTicks(-1)),_=>{callbacks++;throw new InvalidOperationException();},()=>{callbacks++;throw new InvalidOperationException();},_=>{callbacks++;throw new InvalidOperationException();},probe);Require(host.Plan.ActivationOrder.Count==0&&host.App is null&&host.Source is null&&callbacks==0&&probe.HostFactories==0&&probe.SourceFactories==0&&probe.SecurityFactories==0&&probe.AuthenticationServices==0&&probe.GraphQLServices==0&&probe.HttpEndpoints==0&&probe.GraphQLEndpoints==0);observe(new{phase="transport_disabled",owned_factories_services_endpoints=0,invalid_unused_budget_skipped=true});
+        });
+        await check("HTTP-only and GraphQL-only receipt plans isolate actual services and endpoints",async()=>
+        {
+            foreach(var graph in new[]{false,true})
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);var disabled=await f.Send(client,!graph,token:f.Token());Require(disabled.Status==HttpStatusCode.NotFound&&f.Source!.LookupQueries==0&&f.Probe.HandlerFactories==0);Require((await f.Send(client,graph,token:f.Token())).Success(graph)&&f.CredentialReads==1&&f.SecurityCallbacks==1&&f.ConfigureCallbacks==1&&f.Probe.SourceOpenAttempts==1&&f.Source.InventoryChecks>0&&f.Probe.AuthenticationServices>0&&f.Probe.HttpEndpoints==(graph?0:1)&&f.Probe.GraphQLEndpoints==(graph?1:0)&&((f.Probe.GraphQLServices>0)==graph)&&f.Probe.Events.First()=="plan.validated");
+            }
+            observe(new{phase="transport_independence",HTTP_and_GraphQL_independent=true,GraphQL_disabled_services=0,unmapped_route_lookup_queries=0,actual_enabled_transport_success=true,startup_catalog_separate=true});
+        });
+        await check("receipt activation failures and stop failures preserve full join before owned source disposal",async()=>
+        {
+            var absent=new Fixture(await createStore(),connection,connectionFile,tls,jwt);Require(await Failure(()=>absent.Start(new(true,false))) is PostgresException{SqlState:"42P01"}&&absent.Source is{IsDisposed:true,DataSourceDisposals:1}&&absent.Probe.SourceDisposals==1&&absent.Probe.SourceOpenAttempts==1&&absent.Probe.HostFactories==0&&!await absent.Sql().Exists());
+            var invalid=await Create();Require(await Failure(()=>invalid.Start(new(true,false),new(TenantChangeAuditMode.Disabled))) is ArgumentException&&invalid.SecurityCallbacks==1&&invalid.CredentialReads==0&&invalid.Probe.SourceFactories==0);
+            foreach(var stopFails in new[]{false,true})
+            {
+                var f=await Create();var entered=Signal();var release=Signal();var stop=new IOException("Controlled receipt host stop failure.");f.Probe.AfterProviderRead=_=>{entered.TrySetResult();return release.Task;};if(stopFails)f.Probe.StopApplicationAsync=_=>throw stop;var host=await f.Start(new(true,false));using var client=f.Client(host);using var caller=new CancellationTokenSource();var pending=f.Send(client,false,token:f.Token(),cancellationToken:caller.Token);Task? disposal=null;
+                try{await entered.Task.WaitAsync(Watchdog);disposal=host.DisposeAsync().AsTask();await f.Probe.AdmissionClosed.Task.WaitAsync(Watchdog);Require(host.IsAdmissionClosed&&!disposal.IsCompleted&&f.Probe.ActiveDispatches==1&&f.Probe.SourceDisposals==0&&!f.Source!.IsDisposed);release.TrySetResult();if(stopFails)Require(Has(await Failure(()=>disposal).WaitAsync(Watchdog),stop));else await disposal.WaitAsync(Watchdog);Require(f.Probe.ActiveDispatches==0&&f.Probe.DrainCompleted.Task.IsCompleted&&f.Source!.IsDisposed&&f.Source.DataSourceDisposals==1&&f.Probe.SourceDisposals==1);var events=f.Probe.Events.ToArray();Require(Array.IndexOf(events,"host.drained")<Array.IndexOf(events,"source.dispose.started"));}
+                finally{caller.Cancel();release.TrySetResult();await Join(pending);if(disposal is not null)await Join(disposal);else await Join(host.DisposeAsync().AsTask());}
+            }
+            observe(new{phase="transport_lifecycle",OpenExisting_missing_no_create=true,invalid_selected_policy_before_source=true,normal_and_stop_failure_join=true,source_alive_while_dispatch_held=true,host_drained_before_source_disposal=true,owned_source_disposals=1});
+        });
+        foreach(var graph in new[]{false,true})
+        {
+            var label=graph?"GraphQL":"HTTP";
+            await check(label+" receipt returns only current-policy projected primitive fields and provenance",async()=>
+            {
+                foreach(var mode in new[]{TenantChangeAuditMode.ChangedFields,TenantChangeAuditMode.MetadataOnly})
+                {
+                    var f=await Create();await using var host=await f.Start(new(!graph,graph),Policy(mode));using var client=f.Client(host);var result=await f.Send(client,graph,token:f.Token());Require(result.Success(graph));var record=result.Value(graph).GetProperty("record");Require(Guid.Parse(record.GetProperty("receiptId").GetString()!)==Key(1)&&record.GetProperty("tenant").GetString()=="A"&&record.GetProperty("resourceKind").GetString()=="entity"&&record.GetProperty("resourceId").GetString()=="shared"&&record.GetProperty("principalSubject").GetString()=="record-writer"&&record.GetProperty("mode").GetString()==mode.ToString()&&record.GetProperty("capturedMode").GetString()=="BeforeAfterSnapshots"&&!result.Body.Contains("SECRET-",StringComparison.Ordinal)&&!result.Body.Contains("HIDDEN-UNKNOWN",StringComparison.Ordinal));var fields=record.GetProperty("fields").EnumerateArray().ToArray();if(mode==TenantChangeAuditMode.MetadataOnly)Require(fields.Length==0);else Require(fields.Length==4&&fields.Single(x=>x.GetProperty("name").GetString()=="secret").GetProperty("after").GetProperty("kind").GetString()=="Redacted"&&fields.Single(x=>x.GetProperty("name").GetString()=="amount").GetProperty("after").GetProperty("number").GetString()=="19.75"&&fields.Single(x=>x.GetProperty("name").GetString()=="active").GetProperty("after").GetProperty("boolean").GetBoolean());Require(f.Probe.ReaderResults==1&&f.Source!.LookupQueries==1&&f.Authority.Subjects.Single()=="reader-a");
+                }
+                observe(new{phase="wire_projection",transport=label,primitive_schema_executed=true,resource_kind_and_captured_mode=true,redaction_and_metadata_policy=true,record_principal_not_request_authority=true});
+            });
+            await check(label+" pending or missing receipt is genuine null until explicit outbox publication",async()=>
+            {
+                var f=await Create(false);await mutate(f.Store);var record=PayloadCodec.Decode((await f.Store.Payloads()).Single());await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);var before=await f.Send(client,graph,id:record.Receipt.ReceiptId,token:f.Token());Require(before.Success(graph)&&before.Value(graph).GetProperty("record").ValueKind==JsonValueKind.Null);var missing=await f.Send(client,graph,id:Key(999),token:f.Token());Require(missing.Success(graph)&&missing.Value(graph).GetProperty("record").ValueKind==JsonValueKind.Null);Require((await new RelayHost(TenantChangeAuditOutboxRelay.Activate(true,()=>f.Store,()=>f.Source)).Run()).IsSuccess);var after=await f.Send(client,graph,id:record.Receipt.ReceiptId,token:f.Token());Require(after.Success(graph)&&Guid.Parse(after.Value(graph).GetProperty("record").GetProperty("receiptId").GetString()!)==record.Receipt.ReceiptId&&f.Probe.ReaderResults==3&&f.Source!.LookupQueries==3&&(await f.Store.Counts())==(1,1,0));observe(new{phase="wire_absence_publication",transport=label,pending_null=true,missing_null=true,manual_fresh_relay_to_indexed=true,no_legacy_import_claim=true});
+            });
+            await check(label+" same receipt tenants and scheduled or sibling fields remain isolated",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);var denied=await f.Send(client,graph,"B",token:f.Token());Require(!denied.Success(graph)&&denied.Error(graph,"access.denied")&&f.Source!.LookupQueries==0);var start=Signal();var tasks=Enumerable.Range(0,8).Select(i=>Task.Run(async()=>{await start.Task;var tenant=i%2==0?"A":"B";var r=await f.Send(client,graph,tenant,token:f.Token("reader-both"));Require(r.Success(graph)&&r.Value(graph).GetProperty("record").GetProperty("tenant").GetString()==tenant);})).ToArray();start.TrySetResult();await Task.WhenAll(tasks).WaitAsync(Watchdog);Require(f.Source!.LookupQueries==8);
+                if(graph){var queries=f.Source.LookupQueries;var memberships=f.Authority.MembershipCalls;var mixed=await f.Siblings(client,f.Token());Require(mixed.Json is{ } root&&root.TryGetProperty("errors",out var errors)&&errors.GetArrayLength()>0&&f.Source.LookupQueries==queries+1&&f.Authority.MembershipCalls==memberships+2&&root.GetProperty("data").GetProperty("a").GetProperty("record").GetProperty("tenant").GetString()=="A"&&!mixed.Body.Contains("new-B",StringComparison.Ordinal));var both=await f.Siblings(client,f.Token("reader-both"));Require(both.Success(true)&&both.Json!.Value.GetProperty("data").GetProperty("a").GetProperty("record").GetProperty("tenant").GetString()=="A"&&both.Json.Value.GetProperty("data").GetProperty("b").GetProperty("record").GetProperty("tenant").GetString()=="B");}
+                observe(new{phase="wire_tenant_isolation",transport=label,same_receipt_A_B=true,scheduled_workers=8,denied_tenant_before_lookup=true,GraphQL_fresh_isolated_siblings=graph});
+            });
+            await check(label+" actual JWT authentication rejects anonymous and forged tickets before lookup",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);foreach(var token in new string?[]{null,wrongJwt.Token("reader-a"),jwt.Token("reader-a",issuer:"urn:wrong"),jwt.Token("reader-a",audience:"wrong"),jwt.Token("reader-a",expired:true),jwt.Token("reader-a",duplicateSubject:true),jwt.Token("reader-a",algorithm:"PS256")}){var result=await f.Send(client,graph,token:token);Require(!result.Success(graph)&&f.Source!.LookupQueries==0&&f.Probe.SourceLookupCalls==0&&f.Probe.HandlerFactories==0);}Require(f.Authority.MembershipCalls==0);observe(new{phase="wire_authentication",transport=label,actual_TLS_and_JWT_handler=true,anonymous_signature_issuer_audience_expiry_duplicate_alg_denied=true,lookup_queries=0,local_fixture_not_IdP=true});
+            });
+            await check(label+" same validated JWT observes fresh role attribute membership and policy revocation",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);foreach(var subject in new[]{"no-role","wrong-attribute","history-only"})Require((await f.Send(client,graph,token:f.Token(subject))).Error(graph,"access.denied")&&f.Source!.LookupQueries==0);var token=f.Token();Require((await f.Send(client,graph,token:token)).Success(graph));var reads=f.Source!.LookupQueries;f.Authority.MembershipRevoked=true;Require((await f.Send(client,graph,token:token)).Error(graph,"access.denied")&&f.Source.LookupQueries==reads);f.Authority.MembershipRevoked=false;f.Authority.PolicyRevoked=true;Require((await f.Send(client,graph,token:token)).Error(graph,"access.denied")&&f.Source.LookupQueries==reads);f.Authority.PolicyRevoked=false;Require((await f.Send(client,graph,token:token)).Success(graph)&&f.Source.LookupQueries==reads+1);observe(new{phase="wire_fresh_revocation",transport=label,same_signed_token_reused=true,role_attribute_history_grant_denied=true,membership_policy_revoke_before_query=true,explicit_regrant_success=true});
+            });
+            await check(label+" malformed receipt or forged authority fields cannot reach provider lookup",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);foreach(var raw in graph?new[]{JsonSerializer.Serialize(new{query="query { trailReceipt(input:{tenant:\"A\",receiptId:\"not-a-guid\"}) { tenant } }"}),JsonSerializer.Serialize(new{query="query { trailReceipt(input:{tenant:\"A\",receiptId:\""+Guid.Empty+"\"}) { tenant } }"}),JsonSerializer.Serialize(new{query="query { trailReceipt(input:{tenant:\"A\",receiptId:\""+Key(1)+"\",roles:[\"admin\"]}) { tenant } }"}),"[]"}:new[]{"{broken","[]",JsonSerializer.Serialize(new{tenant="A",receiptId=Guid.Empty}),JsonSerializer.Serialize(new{tenant="bad tenant",receiptId=Key(1)}),JsonSerializer.Serialize(new{tenant="A",receiptId="not-a-guid"}),JsonSerializer.Serialize(new{tenant="A",receiptId=Key(1),roles=new[]{"admin"},principal="reader-both",readTimeout=0})}){var reply=await f.Send(client,graph,token:f.Token(),raw:raw);Require(!reply.Success(graph)&&f.Source!.LookupQueries==0&&f.Probe.HandlerFactories==0&&f.Probe.SourceLookupCalls==0);}observe(new{phase="wire_validation",transport=label,malformed_empty_Guid_unknown_authority_fields=true,caller_metadata_never_authority=true,lookup_queries=0});
+            });
+            await check(label+" actual SQL Lock reaches private read budget then joins and reuses",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph,true,Budget));using var client=f.Client(host);using var caller=new CancellationTokenSource();var sql=f.Sql();await using var blocker=await sql.Hold();var pending=f.Send(client,graph,token:f.Token(),cancellationToken:caller.Token);var pid=0;
+                try{pid=await sql.Observe(f.Probe,pending,caller.Token).WaitAsync(Watchdog);var result=await pending.WaitAsync(Watchdog);Require(result.Error(graph,"internal.error")&&(graph||result.Status==HttpStatusCode.InternalServerError)&&f.Probe.LastWorkToken.IsCancellationRequested&&!f.Probe.LastDispatchToken.IsCancellationRequested&&f.Probe.ReaderResults==0&&!result.Body.Contains("SECRET",StringComparison.Ordinal));await Wait(()=>f.Probe.ActiveDispatches==0).WaitAsync(Watchdog);}
+                finally{caller.Cancel();await blocker.DisposeAsync();await Join(pending);}
+                await sql.Quiescent(pid);Require((await f.Send(client,graph,token:f.Token())).Success(graph)&&f.Source!.LookupQueries==2);observe(new{phase="wire_private_SQL",transport=label,pid,exact_SQL_Lock_before_signal=true,request_remained_connected=true,generic_internal_error=true,server_backend_joined=true,manual_reuse=true,no_physical_delay_cause_claim=true});
+            });
+            await check(label+" client abort cancels actual SQL and separately joins server and backend",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph));using var client=f.Client(host);using var caller=new CancellationTokenSource();var sql=f.Sql();await using var blocker=await sql.Hold();var pending=f.Send(client,graph,token:f.Token(),cancellationToken:caller.Token);var pid=0;
+                try{pid=await sql.Observe(f.Probe,pending,caller.Token).WaitAsync(Watchdog);caller.Cancel();Require(await Failure(()=>pending).WaitAsync(Watchdog) is OperationCanceledException);await Wait(()=>f.Probe.LastWorkToken.IsCancellationRequested&&f.Probe.ActiveDispatches==0&&f.Probe.CompletedDispatches==1).WaitAsync(Watchdog);Require(f.Probe.ReaderResults==0);}
+                finally{caller.Cancel();await blocker.DisposeAsync();await Join(pending);}
+                await sql.Quiescent(pid);Require((await f.Send(client,graph,token:f.Token())).Success(graph));observe(new{phase="wire_caller_SQL",transport=label,pid,exact_SQL_Lock_before_client_abort=true,server_token_cancellation_observed=true,server_dispatch_completed=true,backend_quiescent=true,manual_reuse=true,remote_client_token_identity_claim=false});
+            });
+            await check(label+" post-SQL uncooperative null and record stay owned until private completion veto",async()=>
+            {
+                foreach(var present in new[]{true,false})
+                {
+                    var f=await Create(present);var entered=Signal();var release=Signal();f.Probe.AfterProviderRead=_=>{entered.TrySetResult();return release.Task;};await using var host=await f.Start(new(!graph,graph,true,Budget));using var client=f.Client(host);using var caller=new CancellationTokenSource();var pending=f.Send(client,graph,token:f.Token(),cancellationToken:caller.Token);
+                    try{await entered.Task.WaitAsync(Watchdog);await Wait(()=>f.Probe.LastWorkToken.IsCancellationRequested).WaitAsync(Watchdog);Require(!pending.IsCompleted&&f.Probe.ActiveDispatches==1&&f.Probe.ReaderResults==0&&!f.Source!.IsDisposed);release.TrySetResult();var result=await pending.WaitAsync(Watchdog);Require(result.Error(graph,"internal.error")&&f.Probe.ReaderResults==0);await Wait(()=>f.Probe.ActiveDispatches==0).WaitAsync(Watchdog);}
+                    finally{caller.Cancel();release.TrySetResult();await Join(pending);}
+                }
+                observe(new{phase="wire_held_budget",transport=label,post_SQL_wrapper_not_actual_SQL_wait=true,known_null_and_record_seeds=true,fully_awaited_before_veto=true,no_successful_record_or_null_escapes=true});
+            });
+            await check(label+" client completes before held server work and host disposal must fully join",async()=>
+            {
+                var f=await Create();var entered=Signal();var release=Signal();f.Probe.AfterProviderRead=_=>{entered.TrySetResult();return release.Task;};var host=await f.Start(new(!graph,graph));using var client=f.Client(host);using var caller=new CancellationTokenSource();var pending=f.Send(client,graph,token:f.Token(),cancellationToken:caller.Token);Task? disposal=null;
+                try{await entered.Task.WaitAsync(Watchdog);caller.Cancel();Require(await Failure(()=>pending).WaitAsync(Watchdog) is OperationCanceledException);await Wait(()=>f.Probe.LastWorkToken.IsCancellationRequested).WaitAsync(Watchdog);Require(f.Probe.ActiveDispatches==1&&f.Probe.CompletedDispatches==0&&f.Probe.ReaderResults==0&&!f.Source!.IsDisposed);disposal=host.DisposeAsync().AsTask();await f.Probe.AdmissionClosed.Task.WaitAsync(Watchdog);Require(!disposal.IsCompleted&&!f.Probe.DrainCompleted.Task.IsCompleted&&f.Probe.SourceDisposals==0&&!f.Source.IsDisposed);release.TrySetResult();await disposal.WaitAsync(Watchdog);Require(f.Probe.ActiveDispatches==0&&f.Probe.CompletedDispatches==1&&f.Source.IsDisposed&&f.Source.DataSourceDisposals==1&&f.Probe.SourceDisposals==1);await f.Sql().Quiescent(f.Source.LastBackendPid);}
+                finally{caller.Cancel();release.TrySetResult();await Join(pending);if(disposal is not null)await Join(disposal);else await Join(host.DisposeAsync().AsTask());}
+                observe(new{phase="wire_positive_server_ownership",transport=label,client_completed_while_server_held=true,server_token_cancelled=true,source_remained_alive_until_full_join=true,server_dispatch_completed=true,backend_quiescent=true,source_disposals=1});
+            });
+            await check(label+" actual stored identity poison and secret provider hook failure are redacted",async()=>
+            {
+                var f=await Create();await using var host=await f.Start(new(!graph,graph),Policy(TenantChangeAuditMode.MetadataOnly));using var client=f.Client(host);await f.Sql().Payload(Record(1,"B"));var poison=await f.Send(client,graph,token:f.Token());Require(poison.Error(graph,"internal.error")&&f.Probe.ReaderResults==0&&!poison.Body.Contains(f.Store.Schema,StringComparison.Ordinal)&&!poison.Body.Contains("SECRET",StringComparison.Ordinal));await f.Sql().Payload(Record(1));Require((await f.Send(client,graph,token:f.Token())).Success(graph));f.Probe.AfterProviderRead=_=>throw new IOException("SECRET-PROVIDER-DETAIL "+f.Store.Schema);var fault=await f.Send(client,graph,token:f.Token());Require(fault.Error(graph,"internal.error")&&!fault.Body.Contains("SECRET-PROVIDER-DETAIL",StringComparison.Ordinal)&&!fault.Body.Contains(f.Store.Schema,StringComparison.Ordinal)&&f.Probe.ReaderResults==1);observe(new{phase="wire_provider_redaction",transport=label,actual_physical_A_payload_B_rejected_before_projection=true,metadata_only_not_bypass=true,restored_fixture_reuses=true,post_SQL_secret_hook_separately_labeled=true});
+            });
+            await check(label+" null and configured read budgets preserve wire values with observed server token semantics",async()=>
+            {
+                var f=await Create();string? expected=null;foreach(var timeout in new TimeSpan?[]{null,Budget})
+                {
+                    await using var host=await f.Start(new(!graph,graph,true,timeout));using var client=f.Client(host);var result=await f.Send(client,graph,token:f.Token());Require(result.Success(graph));var value=result.Value(graph).GetRawText();if(expected is null)expected=value;else Require(expected==value);Require((f.Probe.LastWorkToken==f.Probe.LastDispatchToken)==(timeout is null));
+                }
+                observe(new{phase="wire_budget_compatibility",transport=label,same_primitive_record=true,null_original_server_token=true,configured_reader_linked_token=true,GraphQL_resolver_link_upstream=graph,serialization_network_outside_read_budget=true});
+            });
+        }
+    }
+    private static bool Has(Exception error,Exception expected)
+    {var queue=new Queue<Exception>();var seen=new HashSet<Exception>(ReferenceEqualityComparer.Instance);queue.Enqueue(error);while(queue.Count>0&&seen.Count<32){var next=queue.Dequeue();if(ReferenceEquals(next,expected))return true;if(!seen.Add(next))continue;if(next is AggregateException aggregate)foreach(var child in aggregate.InnerExceptions)queue.Enqueue(child);else if(next.InnerException is{ } inner)queue.Enqueue(inner);}return false;}
+    private sealed class SqlProbe(string connection,string schema,Func<PostgresIndexedAuditStorage> source)
+    {
+        private string Table=>schema+"."+PostgresIndexedAuditStorage.StorageTable;
+        private async Task<NpgsqlConnection> Open(){var c=new NpgsqlConnection(connection);try{await c.OpenAsync();return c;}catch{await c.DisposeAsync();throw;}}
+        public async Task<bool> Exists(){await using var c=await Open();await using var cmd=new NpgsqlCommand("SELECT to_regclass($1) IS NOT NULL",c);cmd.Parameters.AddWithValue(Table);return(bool)(await cmd.ExecuteScalarAsync())!;}
+        public async Task Payload(TenantChangeAuditRecord record){await using var c=await Open();await using var cmd=new NpgsqlCommand("UPDATE "+Table+" SET payload=$1 WHERE tenant='A' AND receipt=$2",c);cmd.Parameters.AddWithValue(PayloadCodec.Encode(record));cmd.Parameters.AddWithValue(Key(1));Require(await cmd.ExecuteNonQueryAsync()==1);}
+        public async Task<Blocker> Hold(){var c=await Open();var tx=await c.BeginTransactionAsync();try{await using var cmd=new NpgsqlCommand("LOCK TABLE "+Table+" IN ACCESS EXCLUSIVE MODE",c,tx);await cmd.ExecuteNonQueryAsync();return new(c,tx);}catch{await tx.DisposeAsync();await c.DisposeAsync();throw;}}
+        public async Task<int> Observe(AuditReceiptTransportProbe probe,Task pending,CancellationToken caller)
+        {
+            await using var c=await Open();for(var i=0;i<200;i++)
+            {
+                var actual=source();await using var cmd=new NpgsqlCommand("SELECT pid FROM pg_stat_activity WHERE pid=$1 AND application_name=$2 AND state='active' AND wait_event_type='Lock' AND query LIKE $3 AND query LIKE $4",c);cmd.Parameters.AddWithValue(actual.LastBackendPid);cmd.Parameters.AddWithValue(actual.ApplicationName);cmd.Parameters.AddWithValue("%"+Table+"%");cmd.Parameters.AddWithValue("%"+PostgresIndexedAuditStorage.LookupTag+"%");await using(var rows=await cmd.ExecuteReaderAsync()){if(await rows.ReadAsync()){var pid=rows.GetInt32(0);Require(!await rows.ReadAsync()&&!pending.IsCompleted&&!caller.IsCancellationRequested&&!probe.LastWorkToken.IsCancellationRequested&&probe.SourceLookupCalls==1);return pid;}}Require(!pending.IsCompleted&&!caller.IsCancellationRequested);await Task.Delay(20);
+            }
+            throw new InvalidOperationException("Actual receipt SQL Lock was not observed before cancellation.");
+        }
+        public async Task Quiescent(int pid)
+        {
+            Require(pid>0);await using var c=await Open();for(var i=0;i<100;i++){await using var cmd=new NpgsqlCommand("SELECT NOT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND application_name=$2 AND (state='active' OR wait_event_type='Lock'))",c);cmd.Parameters.AddWithValue(pid);cmd.Parameters.AddWithValue(source().ApplicationName);if((bool)(await cmd.ExecuteScalarAsync())!)return;await Task.Delay(20);}throw new InvalidOperationException("Owned receipt backend did not quiesce.");
+        }
+    }
+    private sealed class Blocker(NpgsqlConnection connection,NpgsqlTransaction transaction):IAsyncDisposable
+    {private bool disposed;public async ValueTask DisposeAsync(){if(disposed)return;disposed=true;try{await transaction.RollbackAsync();}finally{await transaction.DisposeAsync();await connection.DisposeAsync();}}}
+}
