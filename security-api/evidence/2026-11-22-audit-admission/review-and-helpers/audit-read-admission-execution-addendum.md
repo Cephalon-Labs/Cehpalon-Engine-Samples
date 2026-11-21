@@ -1,0 +1,9 @@
+# Audit-read admission execution scheduling addendum
+
+Declared2026-11-22 while the first Windows provider development execution is still running and before its result is available. This changes functional execution scheduling only. [Original protocol](audit-read-admission.md) and all original benchmark criteria remain unchanged in their retained declaration01 bytes.
+
+The first development execution already uses clean committed consumer046daea and Engine5184517, with112 input bytes and declaration01 frozen before SDK. If that execution passes all332 cases and its complete source/frozen/current/explicit-commit checks match the final source, reuse that same execution as the Windows provider final lane. Do not repeat an unchanged passing test merely to rename it. The actual development manifest/raw/frozen source remain at `.local/audit-read-admission-windows-dev01`; no fabricated final execution or overwritten attempt.
+
+The four unique serial committed-source executions are therefore Windows provider (this original execution), Windows security651, WSL security651 and WSL provider332. The later root driver verifies/references the completed first execution using its manifest hash, status, raw cases and source hashes, rather than launching a second Windows provider run. The report and archive must explicitly identify the single shared development/final Windows provider execution. Other three lanes run only after that first execution passes.
+
+Any source correction or failed execution remains retained and requires a justified new declaration/attempt. No favorable rerun selection, provider/corpus/package/settings/timeout/concurrency/threshold changes, skipped cases or new benchmark qualification. All24new/308old/651security cases, both hosts, lifecycle/cross-tenant checks and independent source/raw review remain required. This addendum does not assert that the pending first execution has passed.

@@ -1,0 +1,11 @@
+{
+  "status": "review_checker_failed_before_receipt",
+  "at_utc": "2026-11-21T20:30:31.748099+00:00",
+  "command": "python -B .local/review-audit-read-admission-final.py --execute-after-sdk-complete",
+  "exit_code": 1,
+  "script_sha256": "338499b2a19b421702cf3ed2080868aacb4c8b6496d0a927ca07a42d7f590a97",
+  "script_snapshot": "audit-read-admission-independent-review-attempt01.py.txt",
+  "traceback": "line154 assert frozen[key]==digest and filehash(source_path(key,engine,consumer))==digest,key; KeyError: consumer/AuditExecutionChecks.cs",
+  "reason": "Security verifier source keys are rooted at security-api/ and Engine src/ while provider/freezer source keys are repository-relative. Reviewer checker did not normalize those declared prefixes.",
+  "correction": "Normalize security consumer flat file keys to consumer/security-api/ and engine/Cehpalon.* to engine/src/ before comparing; keep85 inputs and exact raw manifests. No source, SDK, fixture, runtime rerun or acceptance change."
+}

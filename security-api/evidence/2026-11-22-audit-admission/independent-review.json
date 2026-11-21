@@ -1,0 +1,1602 @@
+{
+  "schema_version": 1,
+  "status": "passed_all_declared_review_scopes",
+  "reviewed_at_utc": "2026-11-21T20:30:44.142175+00:00",
+  "scope": "ADR0054 Samples-only optional shared total/per-tenant audit-read admission; Engine518 unchanged.",
+  "reviewer_actions": "Independent source/design plus bounded offline source/raw/Git blob comparisons; no SDK/fixture/container/network/host mutations.",
+  "source_review": {
+    "host_receipt_sha256": "434e03cd1dd1f1e2fc77b170a18ec451cdd90138c3db6c2d5a991715543972ca",
+    "consumer_receipt_sha256": "94a5142c5a1565aa708a5f73ec52f91fd0dee5d25dc807b0922838ad4fa2e4d0",
+    "host_checks": [
+      {
+        "scope": "change_scope",
+        "result": "passed",
+        "evidence": "Only AuditReceiptTransportHost.cs changed; clean host worktree; no Engine/API/package/SQL/registry edit."
+      },
+      {
+        "scope": "positional_abi",
+        "result": "passed",
+        "evidence": "Exact old four-position record and ActivateAsync declarations retained; added config is nonpositional init-only, so generated four-position Deconstruct remains unchanged by declaration."
+      },
+      {
+        "scope": "null_and_inert",
+        "result": "passed",
+        "evidence": "Budget expression requires selected && limits not null; null/inert captures no budget, snapshot short-circuits, dispatch keeps old constructor path. Unused invalid limits are not read."
+      },
+      {
+        "scope": "single_captured_budget",
+        "result": "passed",
+        "evidence": "Exactly one new TenantOperationConcurrencyBudget expression, before callbacks, captured in readonly owner field and reused by every selected request-owned dispatcher. Immutable limits record values copied through budget constructor. Probe increments once only after successful creation."
+      },
+      {
+        "scope": "validation",
+        "result": "passed",
+        "evidence": "Existing Engine budget constructor enforces positive total/per-tenant and per-tenant <= total; graph compiled first; source/security/configure callbacks occur after construction. Invalid/null callbacks cause no hidden external work."
+      },
+      {
+        "scope": "fresh_authority_order",
+        "result": "passed",
+        "evidence": "Unchanged Engine dispatcher resolves identity/membership/resource/policy and valid authorization lease before budget.DispatchAsync(resource.Tenant); capacity rejection precedes owned handler factory. Host always uses same shared budget instead of per-request budget creation."
+      },
+      {
+        "scope": "lifecycle",
+        "result": "passed",
+        "evidence": "Dispose closes outer admission synchronously, starts uncancelled permanent budget drain without awaiting it; app Stop then outer and budget joins precede app disposal/source reverse-lease disposal. Stop faults are accumulated while both drains continue. Activation failure also closes/drains; repeated lease disposal shares existing completion."
+      },
+      {
+        "scope": "snapshot_and_diagnostics",
+        "result": "passed",
+        "evidence": "New public observation is existing nullable immutable aggregate snapshot; no tenant identity/payload/key diagnostics, meter, queue, background worker or extra listener added."
+      },
+      {
+        "scope": "scope_boundary",
+        "result": "passed",
+        "evidence": "Budget covers Engine protected handler completion and owned cleanup, excluding authentication, DTO mapping and wire flush. Existing outer Admission owns the full bridge. No runtime overlap, SQL cancellation, performance, production or all-provider claim derives from source review."
+      }
+    ],
+    "consumer_checks": [
+      {
+        "scope": "immutable_source_and_change_scope",
+        "result": "passed",
+        "evidence": "Six intended files only; worktree bytes equal immutable046daeaGit blobs; merge tree exactly493a4a3. Host bytes equal reviewed255f75f. No package/SQL/schema/Engine/Operation attribute change."
+      },
+      {
+        "scope": "prior_suite_preservation",
+        "result": "passed",
+        "evidence": "Original ResourceTransportChecks.cs differs only static->static partial declaration. Program prefix through prior36resource/old308provider cases is byte-identical. Verifier preserves old count/registry guards and adds admission24/24observations, prior308 and final332 guards."
+      },
+      {
+        "scope": "declared_matrix",
+        "result": "passed",
+        "evidence": "Four shared plus ten per actual HTTP/GraphQL branches,14 observation templates producing24 observations. Positional/inert/invalid/independenthost/fullStopfault controls and ten transport controls match protocol."
+      },
+      {
+        "scope": "actual_authority_and_tenant_isolation",
+        "result": "passed",
+        "evidence": "TLS+JWT fixture establishes tickets; wrongcrypto/forgedB/no-role/wrong-attribute/otheroperation grants and fresh membership/resource/policy revocation are exercised during saturation and after release. Same key/resource A/B receives isolated tenant pages; denied handler/source deltas asserted."
+      },
+      {
+        "scope": "shared_capacity_and_scheduling",
+        "result": "passed",
+        "evidence": "One dual-transport host combines receipt/resource and actual GraphQL aliases; fresh membership count+2 and no query/handler assertions. Eight Task.Run workers synchronize, two positive held operations/two tenants, six capacity completions observed before release, then one success per tenant."
+      },
+      {
+        "scope": "cooperative_ownership",
+        "result": "passed",
+        "evidence": "Post-SQL hooks deliberately ignore cancellation until release. Client abort and work-token timeout separately witness retained capacity/no early source disposal, rejection of replacement, server join/zero occupancy and subsequent valid work. Tests label SQL-complete boundary explicitly."
+      },
+      {
+        "scope": "fault_and_shutdown",
+        "result": "passed",
+        "evidence": "Injected provider and wrong-tenant payload errors must be redacted, release slots and allow repaired success. Mixed empty/populated Stopfault control closes both admissions, retains occupancy/source while held, joins each before single source disposal and preserves exact injected exception."
+      },
+      {
+        "scope": "unconditional_task_ownership",
+        "result": "passed",
+        "evidence": "Pending clients, scheduled aggregate and disposal are released/cancelled/joined in finally. Watchdog surrounds expected-failure collector rather than being swallowed as semantic failure; await-using host joins remaining server work before return."
+      },
+      {
+        "scope": "runtime_boundary",
+        "result": "passed",
+        "evidence": "README describes declared tests as source until executed; no SDK run/overlap/SQLstillactive/performance/prod proof inferred from this source review."
+      }
+    ],
+    "all112_unique_inputs_match_current_frozen_and_explicit_committed_blobs": true,
+    "source_inputs": {
+      "consumer/audit-outbox/AuditReadAdmissionChecks.cs": {
+        "sha256": "de7980544ef702afb9d09b426ff405a34c61a8b88afeb2e9500b504faa317cf1",
+        "git_blob": "e45f75b91649b24b85ec4ae414d3a462091e3199",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/AuditReceiptTransportHost.cs": {
+        "sha256": "b89fd87eca304509980e5547ab726e088db2fd6cc1e20910986c73022063bac9",
+        "git_blob": "27ed61694e044283bcfa4869ce1b88c16aac56f4",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/DrainChecks.cs": {
+        "sha256": "6fd44cc4cd0b9d10d53bd193dd247de2193ddfa815193d0a412b5fc64235c422",
+        "git_blob": "43c61d580aac43736d0e766163cb7d70b870a12a",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/DrainIntegration.cs": {
+        "sha256": "ee95fd0ebde2bcc0dda53b38fc3b8cea7bfd84195f1ab670ae4a7ba54f94c728",
+        "git_blob": "6c9f1a4ada42a611c8a3397c4157f2688ecb47f6",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/IndexedProfileComposition.cs": {
+        "sha256": "93b85ad2073b29d4ff9a7e37883caa6f5150b25271eedf9d080e8a30700c72c3",
+        "git_blob": "b67a335f1077a2fa7b29c4584b0f7675e0336e0d",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/IndexedStorageChecks.cs": {
+        "sha256": "18be442700f6d7325a0a6ab33b156c762ada12ac064bd074fc71b8bb2e76ceea",
+        "git_blob": "446be36f2b6f24038e2e928bf1bfa2ed58870e51",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/Integration.cs": {
+        "sha256": "a742fe5f6a4481e0808a67620dd4cca03bafd796910dd96a7e5dda49a4038eff",
+        "git_blob": "14360d54fb969f10c2feed0776f8e5efb1640940",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/LookupChecks.cs": {
+        "sha256": "85110f514d9130e1df5cee08a3b7f9906a9472d9e911c866c62930e826bb293a",
+        "git_blob": "fb367ffc151c4074d491c81b1118f101213f76cf",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/LookupIntegration.cs": {
+        "sha256": "5efdccf0e6c28f9c0cb12034d77b2654ed43da6d26c4f6e47847f6f711756b8e",
+        "git_blob": "c0165de09ebe190bf9599c2d89c9a38576eff3d6",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/packages.lock.json": {
+        "sha256": "ab512c3f5d857d3d8b925c7b1c9cc73757ead55067d6f174ed8995f94bc942eb",
+        "git_blob": "e4e34c4b2caee192b1bbc3d55b6e677610119e4b",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/PayloadCodec.cs": {
+        "sha256": "8068220079789a86358face4f370d84966521ed4fc8efdaff1705f96cdf26ad2",
+        "git_blob": "236f8ec64c65a724b6baa90062c6d48e660b7057",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/PostgresAuditOutbox.Consumer.csproj": {
+        "sha256": "5facc3365d89a7fdc1c086e152e42d459d770346fae994c25bd5489baf998593",
+        "git_blob": "98c4483c469f22ed1de8f162494f4dcb9d848c34",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/PostgresIndexedAuditStorage.cs": {
+        "sha256": "7e8eb401ee23a8507c728e569c2dacc9991a5f8f613562c2bf87cd08246385f5",
+        "git_blob": "db57526456a15aa73db56983ea75fb6f7f7a78ae",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/PostgresLookupSource.cs": {
+        "sha256": "b57d0a3059c89120975111cbb2269c281fe3321c067fbe865118e083a2762d50",
+        "git_blob": "27413815f21a7d3aa3e0341c49421b77dba69c44",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/PostgresResourceHistorySource.cs": {
+        "sha256": "2012586abe81597f86141f4c2457118b230b61056453fbdbb1c36d6cfcea022d",
+        "git_blob": "0a29b6a90ad21d6c175d4b64bae0c7d34bfba5ef",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/PostgresStore.cs": {
+        "sha256": "e3954b0f292830ff5e868ae682017b980fbeaa8c565ae27e8b9c1a773d45d63a",
+        "git_blob": "0748134256d8b53557ce49c48aeca91872c1474b",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/Program.cs": {
+        "sha256": "ba97c7344382ddb7b822882c92a3ba0c565138fe611ab836c9ce5fb7d08e7a98",
+        "git_blob": "84dc432110fe8f7ce0e6eadc9dc6a7e8d78d4d0e",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/ReadBudgetChecks.cs": {
+        "sha256": "3159083ef1c75030c0fac88a1aafb4809f41460101381e0001e3e1e8b9d5b492",
+        "git_blob": "ec3757bfae710ab4c257a46b348ace914a25f558",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/ReceiptTransportChecks.cs": {
+        "sha256": "3799a955eee4671cc5369dc305a11521b7e9c457c0e65bbe4e9c3f0141a99157",
+        "git_blob": "05fc68c5a358df7842944586fc2b8b2efddb8894",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/RelayBudgetChecks.cs": {
+        "sha256": "954595facfdec6f7814129af72efa15fb0b0cde6bf8ec15ece967328e0e73a5d",
+        "git_blob": "4d1b1c9e03ed16cb59bd1f2bffb98ff54a0c1f7e",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/ResourceHistoryChecks.cs": {
+        "sha256": "1a737d763e8b810a49213ef9118bcb5f6db57bebb4fd126c23603ee4dc20450d",
+        "git_blob": "98db6ff97e3e0bfb14aaf51a1e42dc3b4e5e73ab",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/ResourceHistoryIntegration.cs": {
+        "sha256": "8dd47b0fdcd6abdaefc65ff3ea4462daf51922d73000e0a1b25534d8d42d805e",
+        "git_blob": "cf3936d37d153eca4b2c5cb0aa553fe8eec521b7",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/ResourceTransportChecks.cs": {
+        "sha256": "687d8672b2c9ffead0aa77d8bbb826acca97e00bda7f5912c00fa37d24dbd8cf",
+        "git_blob": "23fc4cbfa32da1f8b196547bf90ce3a07e73d02e",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/StatusChecks.cs": {
+        "sha256": "54032fc725677fa0a28de69a5641564ceea61d190b3b81460b06e95726e67c96",
+        "git_blob": "3df1db0f50ee2a325d04b78369fcab34ee2b949b",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/audit-outbox/TotalDrainBudgetChecks.cs": {
+        "sha256": "3a398ba07faf2c817920bd8dee006ece5260c117d9d7e3b480e89393497224c3",
+        "git_blob": "37c86b812cf25813ada7a96ca68276f957d16f31",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/AuditExecutionChecks.cs": {
+        "sha256": "54214282467e0767aeedc800af6b6c880e84705c48c300cc7fc9db80d26ff33b",
+        "git_blob": "51085fa63f2300ac22f167c9bd1fd432c9b48fd5",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/AuditExecutionFixture.cs": {
+        "sha256": "6d2a51a338c27e17d2f62cb05921f37d5d9ece02c453113b407039e6322accbc",
+        "git_blob": "a57ddb4deeed6d5cf56a1b7460fc783daa0ce697",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/AuditPreparationChecks.cs": {
+        "sha256": "3b4f738a4917c5c1fe5a65d4f9e759c4de5a79343150eb34a1f891f6bef65e10",
+        "git_blob": "ba4a8f52c14cb3224f01d75f44203b0d62a3d800",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/AuditPreparationFixture.cs": {
+        "sha256": "f0f2462f7f59fbcc0fd2944e0ca6deae64d7ebd130457cf50e53ec0dfc5f486d",
+        "git_blob": "30b18a9fbfdc1c93c61fdb2bb7259e4291fc7bce",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/AuditTrailChecks.cs": {
+        "sha256": "a133b31d431752c4729d90519912101e1f08c08ed495397bf90e32fa777f39d3",
+        "git_blob": "22bea328a8ce1070c8a7cdeaa1f56020db119627",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/AuditTrailFixture.cs": {
+        "sha256": "34b3abd2d65a26e3cf60feaeb9b701faf7f0c225086d489f6c4a8a02f8db4be5",
+        "git_blob": "de7b6270d5ee2ee686a2d32b88f43e298620d6e0",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/Consumer.cs": {
+        "sha256": "818c67bb400a607631c80763af7a7306cd7ae9c6385b68058b34615abf9d5605",
+        "git_blob": "6410665a12653d9bbabdd59b97d225aba4347101",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/Fixtures.cs": {
+        "sha256": "8a76ef7c431ed628afa6015d035724d9a9f7b29c6f108fc6d088297cbeb30078",
+        "git_blob": "3584eab462fc1751628d72290b034c6ba6d26faf",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/JweChecks.cs": {
+        "sha256": "d3e80ecbfafeea63f3496254a3ffc0a74f91fccd689facb334c38cc68b90b9f9",
+        "git_blob": "e4cc6ba2e980f62b2058625bf365ba239a9fc933",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/JweFixture.cs": {
+        "sha256": "3da7b7e8c3cf7004a7b895296a4c1e85cac8e4147f1b57e5c9da179ee4f09389",
+        "git_blob": "8a2993cfa942102780a8892e885561f3666d8712",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/KeyRingChecks.cs": {
+        "sha256": "e825499c17723653182ffc7194d0c5b6c50cafa5aea7b77ea381e0958b831e75",
+        "git_blob": "c2977ca8e4958d55392a81c5d0e0ac1e8012c7e3",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/KeyRingFixture.cs": {
+        "sha256": "ef1b527cad76ad05b6bee215977ac9f041ca78c508dd6e2643409cd3623b94d3",
+        "git_blob": "7889e5b1526ab050f3852863bdda152615da0dae",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/ObservationChecks.cs": {
+        "sha256": "77589d544ff415d96f8587c0b01753fe05dfa0066dbd18f12a98af765ebbc385",
+        "git_blob": "9b81ea1be6524bf31c9bb3f44d923f7e32e9a422",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/ObservationFixture.cs": {
+        "sha256": "e5ea20dded1144e0867c26a7a2740b3738b22845758bb70ae59a0edb7ed742a9",
+        "git_blob": "40c485f221a4a01433cc858cf5a219d983cb834d",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/packages.lock.json": {
+        "sha256": "0e0bb65f1d3a2b783d1242c8b33f708fa3aa577cec939ce149977c729a077bfe",
+        "git_blob": "50a026673ffaa5793a7442cc747b67f8614da24d",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/ProfileFixture.cs": {
+        "sha256": "85f69f76bce35835a079d7d99e2f2d403e2e6c57ffc93345a32f54c18fc3c4de",
+        "git_blob": "f1e61803c32726904a9f4940cb5756e6ab42b7b9",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/Program.cs": {
+        "sha256": "240a26fb6e455c92ee122a7f9c73f5565beecbf9be68a2f9d02f71339c1a1a0d",
+        "git_blob": "6ddefff0f6b49cc15a64c854684423be767d6108",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/SecurityApi.Consumer.csproj": {
+        "sha256": "77640d239381e90767b6ebe41c78eae92a0a54dd41cf956caa8294caca4afe25",
+        "git_blob": "aa7e79605aec9ae24e2684e12c61fac52742c116",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/SessionChecks.cs": {
+        "sha256": "7dd1a1ad97becea56cb6d028abd92ef639e9dc29b27bef92e2ff2751e4c3ba06",
+        "git_blob": "313285001478c0592948973b39ea8e90f95999e7",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/SessionFixture.cs": {
+        "sha256": "3e185eaa9c0cee9b71a6e4302f2c186b243fa4af064cbcbb5c18e2bc459c58f4",
+        "git_blob": "75eb45fc7a4566dc8a1a2a4f518b4ff7898fde63",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/security-api/TenantReadSets.cs": {
+        "sha256": "509933d9264e555c549f53583214d8b7bf1682bdc898f7b2ab636cf32fbc2b1a",
+        "git_blob": "b1fc297107004cf83c70074db65c762ca7c49743",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "engine/src/Cehpalon.Engine.Authorization/AccessPolicy.cs": {
+        "sha256": "d019a2ba21893caf9b5bac5961c2a4e1fb5ed2226fdb536c8ec9a54ea05de440",
+        "git_blob": "e2640d47443ef0de4642e644a78d324b579f868c",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Authorization/Cehpalon.Engine.Authorization.csproj": {
+        "sha256": "5523f3ca4f27a021e77cde27c12574054f5918274530235e397b122a67c58f0a",
+        "git_blob": "163fc5b04d52db0d2cdc42845bee7fdf7c9c5302",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Authorization/packages.lock.json": {
+        "sha256": "96e95792a96f3046214d562b765fcab14747278f4950ba455b10ee983bdbb347",
+        "git_blob": "5ec3ff59a1adbee1795d57ac3efc16f2cac163c5",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.CodeGeneration/Cehpalon.Engine.CodeGeneration.csproj": {
+        "sha256": "0e1d6b857e0e6381f951c6fc480808603041752e868a3e05c76870b606e3a651",
+        "git_blob": "325ae7fea330beaf4bc3b8579130806237404a1f",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.CodeGeneration/OperationRegistryGenerator.cs": {
+        "sha256": "43239b3261a12851d8ff20826f044180d030af1da620fb3e94fbc18924c7de17",
+        "git_blob": "6c6a6053847e851587abc33936e4cb441e77b265",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.CodeGeneration/packages.lock.json": {
+        "sha256": "6187016baba6d3f5319a053ce245d1670c658957bc47718f51ae89fe27e163d8",
+        "git_blob": "24f20b5643932ee7a30ed75fafcdffa0b25e0b55",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Composition/Cehpalon.Engine.Composition.csproj": {
+        "sha256": "0c846782b7aab61ec6d05f399ee135f643484727d68c84791869e75e4d7a5f25",
+        "git_blob": "a149a2224d27749624eed9135474676fc00b271b",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Composition/CompositionCompiler.cs": {
+        "sha256": "e0fb34e20e9e15b64efb5068d6090a52834d9781cf4f83835c5954d5a4405ce2",
+        "git_blob": "a35e7b25af88aa6d7e5378f6092211443ae3a1cb",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Composition/Contracts.cs": {
+        "sha256": "6c38370e3c79e2bf4a374545912a254c74289be7a921d4c933759664c61fa010",
+        "git_blob": "c6586dcfe4a242ab9b5e901b2ce743681ad59fcd",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Composition/packages.lock.json": {
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "git_blob": "fb367fbb19a28a539cae37320f4c9ceee4642d8d",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Composition/PlanActivator.cs": {
+        "sha256": "77fce0d6a3e80addc0022251b010b72efdd4f3da33d9774b4db907779c8571b2",
+        "git_blob": "a1b4fa4d00fe68e37f2ad8994091a6a7beaef017",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Core/Cehpalon.Engine.Core.csproj": {
+        "sha256": "99c4640d85dbb93e3833d6e3c0ce9c515146aa61bcdbaabdb512332ddbbd74e5",
+        "git_blob": "cdeac1c5820eccd52ea5f8fdb49f8848811187dc",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Core/Contracts.cs": {
+        "sha256": "4cdf7ed8da8a9074c513139913aee4578c877d065302be6530b897d9f0d177bc",
+        "git_blob": "9f0cfe78d9460f3a4cbdf9d068ab25c8a69f97b2",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Core/OperationRegistry.cs": {
+        "sha256": "1913777dae7f0d065d4634665e724ceb436c1fa487bf01efb9d8bf9cd9e46012",
+        "git_blob": "d57d3539205ea4703ea09a64004504391e1105a2",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Core/OperationResult.cs": {
+        "sha256": "65b920c5a1befe0d21630146507a9d537e9450a4fc902ba7c8f24075408ab755",
+        "git_blob": "6ad864cf297d2ab115ee3f4b838e318e2c9572cc",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Core/packages.lock.json": {
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "git_blob": "fb367fbb19a28a539cae37320f4c9ceee4642d8d",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.AspNetCore/AspNetCoreIdentitySource.cs": {
+        "sha256": "f015ea088fa2f8efce527420265405a8cfa96b321b30506a4429e04b5fcd8d5c",
+        "git_blob": "4e324a364cd1a7c2c9efbddf9bd36a97099184f2",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.AspNetCore/AspNetCoreJwtIdentitySource.cs": {
+        "sha256": "0f0d08cbc191a46c704489563f60f30b9918b38ed4688a886de1cff45c022066",
+        "git_blob": "232f2093e4a555ca8c6b45310d0b28c7fc204078",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.AspNetCore/Cehpalon.Engine.Identity.AspNetCore.csproj": {
+        "sha256": "a72c4898d2d60f757a2a44c08e2107c790dad7ed293b407295c08122937e7770",
+        "git_blob": "e290473001a6e0a218663232b6ced5da73406ee8",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.AspNetCore/packages.lock.json": {
+        "sha256": "7c70271367cdea41b8c211d8185a1395b31f854fa9b25f4f0b98963383f8435e",
+        "git_blob": "398d728b2c2d1f37d89cdeaf6065cb341e10a1f9",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.Contracts/Cehpalon.Engine.Identity.Contracts.csproj": {
+        "sha256": "d8f58c0cc534918c61b9f248f8954618ab478f3a6382787115c0fb5844a3dd62",
+        "git_blob": "23f2d23ef53f79b02f9bda3f253bb80139384200",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.Contracts/IdentityContracts.cs": {
+        "sha256": "812083c752c5967ab8a4a170fb826c30fec7a7864aed39e55429b3c633df0cad",
+        "git_blob": "2118ca367dcaa53f8277cf7d73d61f7882400875",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.Contracts/packages.lock.json": {
+        "sha256": "b5d92ac7cd604d998f35dee72e747dd203d49c3031da32b96e1f58246cd2bd87",
+        "git_blob": "fb367fbb19a28a539cae37320f4c9ceee4642d8d",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/Cehpalon.Engine.Identity.JwtBearer.csproj": {
+        "sha256": "a402fffbe7fecf9be690aad218821e86249c5fe1e10cd3ece5f99a7c2053e666",
+        "git_blob": "61c46780e8826ff78f80a5d2d145d7cec71deb68",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/JweKeys.cs": {
+        "sha256": "6d9caec8e48cca27b521dc235ea31a625421c69ed46a35d1b71741cec8c5280c",
+        "git_blob": "5fc23499c662ecefb98f1f7a18b6cd5cf5572b31",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/JwtAuthenticationProfile.cs": {
+        "sha256": "39d51944a22f96ba56a2a6b9125c9fbbd152ffc9c9cbe56ab80d04061c7a936f",
+        "git_blob": "c82d0a1cdf7f0b7e1a982efe72d5b4b18d606581",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/JwtKeyRing.cs": {
+        "sha256": "c7e6de386a3018f6a7ab4c11129f6ce5e6c04c81d23bb8a5fc62454f01d95c60",
+        "git_blob": "a7948ecf719ecde21d5b9a5189851b6c5c80c80b",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/KeyRingTokenHandler.cs": {
+        "sha256": "0bbe6e8dd89a2313f5ea3ff05639cb8c6120e488005d4a4804de70b61bc0481a",
+        "git_blob": "53801c3feb6852666d46c8847922051f6b495909",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/packages.lock.json": {
+        "sha256": "35e449dddc9b33a95f372c565c1d873aa251aafb6406d15bd6d4b848e8b50690",
+        "git_blob": "53d96edf1c1c669ecb5c2d639d4bc005da4b3475",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/ProfileKeys.cs": {
+        "sha256": "531919b5b4c31dceec44d60977ac011c63ec20f827ae98d6d95d55c60608145f",
+        "git_blob": "c29133d6c6c4b3d16ef02a6cf6d01efc6bba1c80",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Identity.JwtBearer/ProfileTokenHandler.cs": {
+        "sha256": "da808fe7ff742d23659d643ca71e7e5cf681f263e4d58faef790030e4e927a3a",
+        "git_blob": "dd6a558ddb8fb0b54f8de2f66c441a84a4fe1c88",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/Audit.cs": {
+        "sha256": "d197e0071999ad494f8121bb699d2d70b4ede75e9bdc47958e1eed6cfbaab9b1",
+        "git_blob": "2fd68ca9fc53e6fe5585220b9a3c807340639266",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/Cehpalon.Engine.Tenancy.csproj": {
+        "sha256": "fc6e68d0ca576d1209625d770408208e476cd34b938e3b79e8774e67d5aedc3a",
+        "git_blob": "f05b5d6496db1ab8c9e72e3ca2bb5a35ab23af78",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/Contracts.cs": {
+        "sha256": "c6bb4a6c68ea5d7b7ee2ebe57082fb1b0d4be570a81655e117c1f288dd8ca69f",
+        "git_blob": "c425fee07e7929e52fd007f0e2d5689f5006354d",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/packages.lock.json": {
+        "sha256": "b40c18ae5e41b9aea8ee31707b4533cbed25e18d9b80d4c34c0c5b3c259d94b4",
+        "git_blob": "d33140b2e562f399d087b0cbcac58a1300344c03",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/TenantOperationDispatcher.cs": {
+        "sha256": "b9e8b7564eb6207f2201b223de516d32492c8a7a8341879d3fa9db28cd783e9e",
+        "git_blob": "74520948d99e195031fb89ea5722ee4a2fd38580",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/TenantReadSets.cs": {
+        "sha256": "9377b6f4a0b7a108e7034dfaccdb0e5400d5dc1d905c2b77ed8b197e6f75185c",
+        "git_blob": "5f766b261d3b5c5cda8f7c97f5961dd35fa50739",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tenancy/TenantSelection.cs": {
+        "sha256": "70f179d204387d33dd7ba15549ee52b1c501291f6838d9056dec6e62d1718f0f",
+        "git_blob": "50b751176fa96e0d126e51f77ee32c2df17f1401",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Cehpalon.Engine.Tooling.csproj": {
+        "sha256": "13f69019239130e19687496413422b3172d49cbaeff7cccedf1b8d21c864e6ba",
+        "git_blob": "3b1b0ecf1f6ebfd60f97e62e3a65c2fccf60f2c2",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/CliApplication.cs": {
+        "sha256": "799e72d1fa89e4e5ef7675c0d52360ec67fb25f0d65df3a84d412bf4793a2f09",
+        "git_blob": "de57a13a396bb7b66871d6d9298804129a04cd08",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/FileSystem.cs": {
+        "sha256": "d10d2ad39a2a30699b07922594e5a005330eb60a6385e34fd7e46b1119abe5ad",
+        "git_blob": "d546496faa7b91e6452e390e31aa45c729514661",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/packages.lock.json": {
+        "sha256": "d7b5ee33907d69d24acd9e4d6ad66eb225ea95977b85567732ca5519aad338b4",
+        "git_blob": "f5c907eccebd9b82b54d0739601de3c71fe66636",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Program.cs": {
+        "sha256": "959ddd47daa0cb91e700fe6c6476c65c460fb9c101c11ddfdaf340b62ed5b4a8",
+        "git_blob": "cd38481d1fa560f963cc0a9ca8867606af7a76a5",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/SmallApiTemplateFiles.cs": {
+        "sha256": "181c35b5d3fe781baca925e980d4ff016910ad3ddfa0276e64c704d2180de122",
+        "git_blob": "1800352094eba0e4f20f1393afdcb9a7d8d6d9fa",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/TemplateFiles.cs": {
+        "sha256": "6b5109c13e970c7b046835e298c5ad375d779583390ada60c6337cb5ddc7db8b",
+        "git_blob": "b3eac5662d1509735676af259d0aa506e7423403",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Templates/SmallApi/Catalog.cs.txt": {
+        "sha256": "eaf75d58db602d5c47999302c8302a6275ab9346bca3122d0d4363cb136daf47",
+        "git_blob": "a095e4b3eed94f05326f84ed8c2f7865c3eb26ba",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Templates/SmallApi/ContractExport.cs.txt": {
+        "sha256": "861e160395ba5baf1cab8bff8f1281306c2dcab79d5a6d533a5ed4e084957fe7",
+        "git_blob": "9306e0bcc049ee438a637dab06ef2536faf4fc21",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Templates/SmallApi/FixtureHost.cs.txt": {
+        "sha256": "74caeffa165756f9565e3c14beb3d58c88513fc1f9c4855dc5cd90285a0b2d21",
+        "git_blob": "9da6e5967488547e522bd79eff3386cab08ba016",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Templates/SmallApi/Program.cs.txt": {
+        "sha256": "ece19e280d41a4422510fcba8b68ab15fb18d88bb4a10f739c6d42d5c74b1281",
+        "git_blob": "2c345c243b4e9cbe3d644e4d64ba2de7c884e5e5",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Tooling/Templates/SmallApi/SelfTest.cs.txt": {
+        "sha256": "fff7fa5f3c572435c7dbfefa7aa3a4ebf08dee34fee7691bc7447579899880f5",
+        "git_blob": "b58a1cc7d855ac0f376006d190c1dd05692b5dcf",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.GraphQL/Cehpalon.Engine.Transports.GraphQL.csproj": {
+        "sha256": "1fbbec59d3dbac3f928c0f0db1b8d01658e8de34fb015582813966132b3327ed",
+        "git_blob": "6d62f9bee986b99bf6433489e5cd7244e11b43e9",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.GraphQL/GraphQLAdapter.cs": {
+        "sha256": "92090ed339e6a5bd273679ece148df92b5a1ebf07c3f6e6aa02ed7039b408942",
+        "git_blob": "823e41027f4dbaa07aece76d96c5d221866411ae",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.GraphQL/GraphQLOperationCatalog.cs": {
+        "sha256": "820f96381eeb5051fd8ec6bd3ecaafbc1f9f6c5ac8d7fcc9bf4ec39e3a5eb60c",
+        "git_blob": "5cb584c3c9b734752d0a8e4b6ce0180ce7c0e9f2",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.GraphQL/packages.lock.json": {
+        "sha256": "a2e7236dce28f3e6884ce4b2d9b4da002b6795ed4a573c12fbfee46827140765",
+        "git_blob": "524d3cb6025050f8936574cdb80dfdf20705f25c",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.Http/Cehpalon.Engine.Transports.Http.csproj": {
+        "sha256": "c8d9378648f446b6b53b92cf067b2760ba90b81a2212fae795e89d6ddf7172ec",
+        "git_blob": "e2e307528f618bd3c62bc2d4a742f2c032847990",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.Http/Contracts.cs": {
+        "sha256": "8989c2c26314b770f56d6ef26ed66d8d52317c442a11dcb1ee3b8f887935dd1b",
+        "git_blob": "4ef254a4f370c0586b343c10bc173429ec242fc0",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.Http/OperationHttpAdapter.cs": {
+        "sha256": "9e72a0fd1a7d510e50e6938506c23ad399c76af24e5059d6eaf481b67577820e",
+        "git_blob": "b631310e4be16a09d19a977fada2dd27b08edb60",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.Transports.Http/packages.lock.json": {
+        "sha256": "68d39576413d0fdf775ac43dfb0c9d914d64d81a2058140d40d3fb260256c8f7",
+        "git_blob": "c74f9e1c1f516aa93f89e13fd8fe0eeb07dad6b6",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "consumer/global.json": {
+        "sha256": "bfaf40d1a86baeea39cde6300a5aaa9c55917256d4fade475ac7ffa3bd58bb58",
+        "git_blob": "1ab7a3c415aabd88d676657c9d092a938f7b87d4",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/NuGet.Config": {
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "git_blob": "4d736c19ec5ff475609182bf1152633c566d1458",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/tools/verify_audit_outbox.py": {
+        "sha256": "899a09a226e0cabd25047d34bb211197465bd8369eea915012a584585f062f4c",
+        "git_blob": "69d3ff205471dff432d1877ead7d839bec09a61e",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "consumer/tools/verify_optional_security.py": {
+        "sha256": "70b82e8e63ce4147b5ccd626af54eb4fe55251e9c88ed091b22959aa4b725890",
+        "git_blob": "0a31be8944da0bcc8d899ba7859c75cc538b0d54",
+        "revision": "046daea25984e708f57387707d0f7d6abc986c91"
+      },
+      "engine/global.json": {
+        "sha256": "bfaf40d1a86baeea39cde6300a5aaa9c55917256d4fade475ac7ffa3bd58bb58",
+        "git_blob": "1ab7a3c415aabd88d676657c9d092a938f7b87d4",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/NuGet.Config": {
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "git_blob": "4d736c19ec5ff475609182bf1152633c566d1458",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/Directory.Packages.props": {
+        "sha256": "c04ec0b55ef1ed74c3defc8e4938951351ac546e2062f45c6336dff28d32a9c1",
+        "git_blob": "57349751f02469dda29d0b7cd3210e005e4889a4",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      },
+      "engine/src/Cehpalon.Engine.CodeGeneration/NuGet.Config": {
+        "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+        "git_blob": "4d736c19ec5ff475609182bf1152633c566d1458",
+        "revision": "5184517a92a087abe4e0091d256142b6c35a2b39"
+      }
+    },
+    "final_lane_union111_plus_freezer_only_CodeGeneration_NuGetConfig": true,
+    "declarations": [
+      {
+        "file": "internal/adr/ADR-0054-audit-read-concurrency-admission.md",
+        "sha256": "7b2e52357fc7e3c7ad686eb8c97508b0fb45cfbdc2df8158e611ce314efc10f2",
+        "freeze_and_declared_bytes_equal": true
+      },
+      {
+        "file": "internal/requirements/2026-11-22-audit-read-admission.md",
+        "sha256": "ba900bb2f425f39d3c3a9e1d8dc6719cc82c69d74313d2d5ae61e7d006d15eb7",
+        "freeze_and_declared_bytes_equal": true
+      },
+      {
+        "file": "internal/validation/audit-read-admission.md",
+        "sha256": "5de0d726edf1be2efb34f4000d8b08e21319723e0e21b386c4618a933bb39c31",
+        "freeze_and_declared_bytes_equal": true
+      },
+      {
+        "file": "manifest.json",
+        "sha256": "fc9af7bf20cd8bef061fdf0920ac007d3639c1c3ef1c62a6be85a8cf1db60943",
+        "freeze_and_declared_bytes_equal": true
+      }
+    ]
+  },
+  "development_review": {
+    "main_passed": 329,
+    "restart_passed": 3,
+    "total_passed": 332,
+    "failed": 0,
+    "old305_main_prefix_exact": true,
+    "old308_provider_total_preserved": true,
+    "new_checks": 24,
+    "new_observations": [
+      {
+        "phase": "audit_admission_compatibility",
+        "positional_abi_preserved": true,
+        "default_null": true,
+        "inert_callbacks_and_budget_factories": 0
+      },
+      {
+        "phase": "audit_admission_invalid_limits",
+        "invalid_profiles": 4,
+        "caller_factories": 0,
+        "source_and_credential_work": 0
+      },
+      {
+        "phase": "audit_admission_independent_hosts",
+        "selected_host_budget_factories": 2,
+        "positive_same_tenant_overlap_across_hosts": true,
+        "aggregate_counts_only": true
+      },
+      {
+        "phase": "audit_admission_mixed_shutdown",
+        "empty_resource_and_populated_receipt": true,
+        "stop_fault_preserved": true,
+        "both_admissions_closed_permanently": true,
+        "all_server_work_joined_before_single_source_disposal": true
+      },
+      {
+        "phase": "audit_admission_null_overlap",
+        "transport": "HTTP",
+        "scheduled_overlapping_reads": 2,
+        "budget_factories": 0,
+        "unchanged_unlimited_path": true
+      },
+      {
+        "phase": "audit_admission_tenant_isolation",
+        "transport": "HTTP",
+        "total": 2,
+        "per_tenant": 1,
+        "same_principal_switches_A_B": true,
+        "identical_receipt_resource_IDs_isolated": true,
+        "A_capacity_denial_has_no_handler_or_source": true,
+        "B_admitted_below_total": true
+      },
+      {
+        "phase": "audit_admission_total_capacity",
+        "transport": "HTTP",
+        "total": 2,
+        "per_tenant": 2,
+        "positive_A_B_overlap": true,
+        "rejected_handler_and_query_delta": 0
+      },
+      {
+        "phase": "audit_admission_authority_before_capacity",
+        "transport": "HTTP",
+        "invalid_signature_and_forged_tenant_denied": true,
+        "separate_operation_grant_required": true,
+        "revoked_membership_denied_during_saturation": true,
+        "denied_slot_query_handler_delta": 0
+      },
+      {
+        "phase": "audit_admission_fault_release",
+        "transport": "HTTP",
+        "provider_and_wrong_tenant_payload_errors_redacted": true,
+        "capacity_released_after_faults": true,
+        "repaired_authorized_replacement_succeeds": true
+      },
+      {
+        "phase": "audit_admission_client_abort_ownership",
+        "transport": "HTTP",
+        "client_completed_before_held_server": true,
+        "post_SQL_hold_not_active_SQL_claim": true,
+        "cancelled_work_retains_slot_until_join": true,
+        "replacement_after_join_succeeds": true
+      },
+      {
+        "phase": "audit_admission_private_budget_ownership",
+        "transport": "HTTP",
+        "cooperative_reader_timeout": true,
+        "work_token_cancelled_while_post_SQL_server_held": true,
+        "no_early_slot_release": true,
+        "replacement_after_join_succeeds": true
+      },
+      {
+        "phase": "audit_admission_shared_transports",
+        "transport": "HTTP",
+        "one_host_budget": true,
+        "cross_protocol_receipt_resource_capacity_shared": true,
+        "two_aliases_check_fresh_membership": true,
+        "rejected_handler_query_delta": 0
+      },
+      {
+        "phase": "audit_admission_scheduled_workers",
+        "transport": "HTTP",
+        "scheduled_workers": 8,
+        "held_before_release": 2,
+        "capacity_responses_before_release": 6,
+        "total_limit": 2,
+        "per_tenant_limit": 1,
+        "one_success_for_each_tenant": true,
+        "unconditional_aggregate_join": true
+      },
+      {
+        "phase": "audit_admission_fresh_revocation",
+        "transport": "HTTP",
+        "membership_resource_policy_checked_at_capacity_and_after_release": true,
+        "fresh_authorized_B_succeeds": true,
+        "A_identity_cannot_forge_B": true,
+        "denied_slot_query_handler_delta": 0
+      },
+      {
+        "phase": "audit_admission_null_overlap",
+        "transport": "GraphQL",
+        "scheduled_overlapping_reads": 2,
+        "budget_factories": 0,
+        "unchanged_unlimited_path": true
+      },
+      {
+        "phase": "audit_admission_tenant_isolation",
+        "transport": "GraphQL",
+        "total": 2,
+        "per_tenant": 1,
+        "same_principal_switches_A_B": true,
+        "identical_receipt_resource_IDs_isolated": true,
+        "A_capacity_denial_has_no_handler_or_source": true,
+        "B_admitted_below_total": true
+      },
+      {
+        "phase": "audit_admission_total_capacity",
+        "transport": "GraphQL",
+        "total": 2,
+        "per_tenant": 2,
+        "positive_A_B_overlap": true,
+        "rejected_handler_and_query_delta": 0
+      },
+      {
+        "phase": "audit_admission_authority_before_capacity",
+        "transport": "GraphQL",
+        "invalid_signature_and_forged_tenant_denied": true,
+        "separate_operation_grant_required": true,
+        "revoked_membership_denied_during_saturation": true,
+        "denied_slot_query_handler_delta": 0
+      },
+      {
+        "phase": "audit_admission_fault_release",
+        "transport": "GraphQL",
+        "provider_and_wrong_tenant_payload_errors_redacted": true,
+        "capacity_released_after_faults": true,
+        "repaired_authorized_replacement_succeeds": true
+      },
+      {
+        "phase": "audit_admission_client_abort_ownership",
+        "transport": "GraphQL",
+        "client_completed_before_held_server": true,
+        "post_SQL_hold_not_active_SQL_claim": true,
+        "cancelled_work_retains_slot_until_join": true,
+        "replacement_after_join_succeeds": true
+      },
+      {
+        "phase": "audit_admission_private_budget_ownership",
+        "transport": "GraphQL",
+        "cooperative_reader_timeout": true,
+        "work_token_cancelled_while_post_SQL_server_held": true,
+        "no_early_slot_release": true,
+        "replacement_after_join_succeeds": true
+      },
+      {
+        "phase": "audit_admission_shared_transports",
+        "transport": "GraphQL",
+        "one_host_budget": true,
+        "cross_protocol_receipt_resource_capacity_shared": true,
+        "two_aliases_check_fresh_membership": true,
+        "rejected_handler_query_delta": 0
+      },
+      {
+        "phase": "audit_admission_scheduled_workers",
+        "transport": "GraphQL",
+        "scheduled_workers": 8,
+        "held_before_release": 2,
+        "capacity_responses_before_release": 6,
+        "total_limit": 2,
+        "per_tenant_limit": 1,
+        "one_success_for_each_tenant": true,
+        "unconditional_aggregate_join": true
+      },
+      {
+        "phase": "audit_admission_fresh_revocation",
+        "transport": "GraphQL",
+        "membership_resource_policy_checked_at_capacity_and_after_release": true,
+        "fresh_authorized_B_succeeds": true,
+        "A_identity_cannot_forge_B": true,
+        "denied_slot_query_handler_delta": 0
+      }
+    ],
+    "settings_equal_baseline": true,
+    "tests_sha256": "82f9da4594d2d4a96848f31dbe7b6922dfdfd2a00855cbbc0f31559089234932",
+    "restart_checks_unchanged": true,
+    "build_sha256": "a1963713bf51b4f6e31614d5c2375e3b5f2427e69ae4ebc12404e3c6929845c9",
+    "Release_warnings": 0,
+    "Release_errors": 0,
+    "status": "passed",
+    "attempt": "audit-read-admission-windows-dev01",
+    "manifest_sha256": "f2a435ebb36e7aa4ea3d0a9b7607092814ef5dbed58753a5f5db34c13cae163c",
+    "source_count": 110,
+    "freezer_count": 112,
+    "declarations": 4,
+    "all_current_frozen_committed_equal": true,
+    "also_windows_provider_final_same_single_execution": true
+  },
+  "final_review": {
+    "engine_revision": "5184517a92a087abe4e0091d256142b6c35a2b39",
+    "consumer_revision": "046daea25984e708f57387707d0f7d6abc986c91",
+    "lanes": [
+      {
+        "kind": "security",
+        "host": "Windows",
+        "path": "D:\\Cephalon\\.worktrees\\ara-consumer\\.local\\ara-security-windows-final01",
+        "manifest_sha256": "cecf8a5d9624d56b0ef7bd05bce9193d1af59c1941c4c30325dafb504d4759a2",
+        "source_count": 85,
+        "current_and_committed_blobs_equal": true,
+        "provider_per_lane_frozen_source": false,
+        "same_single_development_execution": false,
+        "passed": 651,
+        "failed": 0,
+        "old651_names_order_results_exact": true,
+        "tests_sha256": "b417c4e188194f7b1d83219858fb96696602a966d76955fc0956dec0ff57de2a",
+        "build_sha256": "9869e733d13a4d2ec1c6a33a759b9c42f47b5bf01e375fc9b60d0ded7fcf912d",
+        "Release_warnings": 0,
+        "Release_errors": 0
+      },
+      {
+        "kind": "postgres",
+        "host": "Windows",
+        "path": "D:\\Cephalon\\.worktrees\\ara-consumer\\.local\\audit-read-admission-windows-dev01",
+        "manifest_sha256": "f2a435ebb36e7aa4ea3d0a9b7607092814ef5dbed58753a5f5db34c13cae163c",
+        "source_count": 110,
+        "current_and_committed_blobs_equal": true,
+        "provider_per_lane_frozen_source": true,
+        "same_single_development_execution": true,
+        "main_passed": 329,
+        "restart_passed": 3,
+        "total_passed": 332,
+        "failed": 0,
+        "old305_main_prefix_exact": true,
+        "old308_provider_total_preserved": true,
+        "new_checks": 24,
+        "new_observations": [
+          {
+            "phase": "audit_admission_compatibility",
+            "positional_abi_preserved": true,
+            "default_null": true,
+            "inert_callbacks_and_budget_factories": 0
+          },
+          {
+            "phase": "audit_admission_invalid_limits",
+            "invalid_profiles": 4,
+            "caller_factories": 0,
+            "source_and_credential_work": 0
+          },
+          {
+            "phase": "audit_admission_independent_hosts",
+            "selected_host_budget_factories": 2,
+            "positive_same_tenant_overlap_across_hosts": true,
+            "aggregate_counts_only": true
+          },
+          {
+            "phase": "audit_admission_mixed_shutdown",
+            "empty_resource_and_populated_receipt": true,
+            "stop_fault_preserved": true,
+            "both_admissions_closed_permanently": true,
+            "all_server_work_joined_before_single_source_disposal": true
+          },
+          {
+            "phase": "audit_admission_null_overlap",
+            "transport": "HTTP",
+            "scheduled_overlapping_reads": 2,
+            "budget_factories": 0,
+            "unchanged_unlimited_path": true
+          },
+          {
+            "phase": "audit_admission_tenant_isolation",
+            "transport": "HTTP",
+            "total": 2,
+            "per_tenant": 1,
+            "same_principal_switches_A_B": true,
+            "identical_receipt_resource_IDs_isolated": true,
+            "A_capacity_denial_has_no_handler_or_source": true,
+            "B_admitted_below_total": true
+          },
+          {
+            "phase": "audit_admission_total_capacity",
+            "transport": "HTTP",
+            "total": 2,
+            "per_tenant": 2,
+            "positive_A_B_overlap": true,
+            "rejected_handler_and_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_authority_before_capacity",
+            "transport": "HTTP",
+            "invalid_signature_and_forged_tenant_denied": true,
+            "separate_operation_grant_required": true,
+            "revoked_membership_denied_during_saturation": true,
+            "denied_slot_query_handler_delta": 0
+          },
+          {
+            "phase": "audit_admission_fault_release",
+            "transport": "HTTP",
+            "provider_and_wrong_tenant_payload_errors_redacted": true,
+            "capacity_released_after_faults": true,
+            "repaired_authorized_replacement_succeeds": true
+          },
+          {
+            "phase": "audit_admission_client_abort_ownership",
+            "transport": "HTTP",
+            "client_completed_before_held_server": true,
+            "post_SQL_hold_not_active_SQL_claim": true,
+            "cancelled_work_retains_slot_until_join": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_private_budget_ownership",
+            "transport": "HTTP",
+            "cooperative_reader_timeout": true,
+            "work_token_cancelled_while_post_SQL_server_held": true,
+            "no_early_slot_release": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_shared_transports",
+            "transport": "HTTP",
+            "one_host_budget": true,
+            "cross_protocol_receipt_resource_capacity_shared": true,
+            "two_aliases_check_fresh_membership": true,
+            "rejected_handler_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_scheduled_workers",
+            "transport": "HTTP",
+            "scheduled_workers": 8,
+            "held_before_release": 2,
+            "capacity_responses_before_release": 6,
+            "total_limit": 2,
+            "per_tenant_limit": 1,
+            "one_success_for_each_tenant": true,
+            "unconditional_aggregate_join": true
+          },
+          {
+            "phase": "audit_admission_fresh_revocation",
+            "transport": "HTTP",
+            "membership_resource_policy_checked_at_capacity_and_after_release": true,
+            "fresh_authorized_B_succeeds": true,
+            "A_identity_cannot_forge_B": true,
+            "denied_slot_query_handler_delta": 0
+          },
+          {
+            "phase": "audit_admission_null_overlap",
+            "transport": "GraphQL",
+            "scheduled_overlapping_reads": 2,
+            "budget_factories": 0,
+            "unchanged_unlimited_path": true
+          },
+          {
+            "phase": "audit_admission_tenant_isolation",
+            "transport": "GraphQL",
+            "total": 2,
+            "per_tenant": 1,
+            "same_principal_switches_A_B": true,
+            "identical_receipt_resource_IDs_isolated": true,
+            "A_capacity_denial_has_no_handler_or_source": true,
+            "B_admitted_below_total": true
+          },
+          {
+            "phase": "audit_admission_total_capacity",
+            "transport": "GraphQL",
+            "total": 2,
+            "per_tenant": 2,
+            "positive_A_B_overlap": true,
+            "rejected_handler_and_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_authority_before_capacity",
+            "transport": "GraphQL",
+            "invalid_signature_and_forged_tenant_denied": true,
+            "separate_operation_grant_required": true,
+            "revoked_membership_denied_during_saturation": true,
+            "denied_slot_query_handler_delta": 0
+          },
+          {
+            "phase": "audit_admission_fault_release",
+            "transport": "GraphQL",
+            "provider_and_wrong_tenant_payload_errors_redacted": true,
+            "capacity_released_after_faults": true,
+            "repaired_authorized_replacement_succeeds": true
+          },
+          {
+            "phase": "audit_admission_client_abort_ownership",
+            "transport": "GraphQL",
+            "client_completed_before_held_server": true,
+            "post_SQL_hold_not_active_SQL_claim": true,
+            "cancelled_work_retains_slot_until_join": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_private_budget_ownership",
+            "transport": "GraphQL",
+            "cooperative_reader_timeout": true,
+            "work_token_cancelled_while_post_SQL_server_held": true,
+            "no_early_slot_release": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_shared_transports",
+            "transport": "GraphQL",
+            "one_host_budget": true,
+            "cross_protocol_receipt_resource_capacity_shared": true,
+            "two_aliases_check_fresh_membership": true,
+            "rejected_handler_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_scheduled_workers",
+            "transport": "GraphQL",
+            "scheduled_workers": 8,
+            "held_before_release": 2,
+            "capacity_responses_before_release": 6,
+            "total_limit": 2,
+            "per_tenant_limit": 1,
+            "one_success_for_each_tenant": true,
+            "unconditional_aggregate_join": true
+          },
+          {
+            "phase": "audit_admission_fresh_revocation",
+            "transport": "GraphQL",
+            "membership_resource_policy_checked_at_capacity_and_after_release": true,
+            "fresh_authorized_B_succeeds": true,
+            "A_identity_cannot_forge_B": true,
+            "denied_slot_query_handler_delta": 0
+          }
+        ],
+        "settings_equal_baseline": true,
+        "tests_sha256": "82f9da4594d2d4a96848f31dbe7b6922dfdfd2a00855cbbc0f31559089234932",
+        "restart_checks_unchanged": true,
+        "build_sha256": "a1963713bf51b4f6e31614d5c2375e3b5f2427e69ae4ebc12404e3c6929845c9",
+        "Release_warnings": 0,
+        "Release_errors": 0
+      },
+      {
+        "kind": "security",
+        "host": "WSL",
+        "path": "D:\\Cephalon\\.worktrees\\ara-wsl-consumer\\.local\\ara-security-wsl-final01",
+        "manifest_sha256": "6b84ab4b1bb490285d8b3f428d9fa9dad36b2b5f4818f606a135ab86d35da934",
+        "source_count": 85,
+        "current_and_committed_blobs_equal": true,
+        "provider_per_lane_frozen_source": false,
+        "same_single_development_execution": false,
+        "passed": 651,
+        "failed": 0,
+        "old651_names_order_results_exact": true,
+        "tests_sha256": "b417c4e188194f7b1d83219858fb96696602a966d76955fc0956dec0ff57de2a",
+        "build_sha256": "d1f00fc7e5a1a3422ec2ba91fa86833f17eb729e7c792e8a32abf835467b2c8c",
+        "Release_warnings": 0,
+        "Release_errors": 0
+      },
+      {
+        "kind": "postgres",
+        "host": "WSL",
+        "path": "D:\\Cephalon\\.worktrees\\ara-wsl-consumer\\.local\\ara-postgres-wsl-final01",
+        "manifest_sha256": "500fe03912ae90aa3f0a8518ce1e8068555abcfc1bbec78b81afb908a3b11c47",
+        "source_count": 110,
+        "current_and_committed_blobs_equal": true,
+        "provider_per_lane_frozen_source": true,
+        "same_single_development_execution": false,
+        "main_passed": 329,
+        "restart_passed": 3,
+        "total_passed": 332,
+        "failed": 0,
+        "old305_main_prefix_exact": true,
+        "old308_provider_total_preserved": true,
+        "new_checks": 24,
+        "new_observations": [
+          {
+            "phase": "audit_admission_compatibility",
+            "positional_abi_preserved": true,
+            "default_null": true,
+            "inert_callbacks_and_budget_factories": 0
+          },
+          {
+            "phase": "audit_admission_invalid_limits",
+            "invalid_profiles": 4,
+            "caller_factories": 0,
+            "source_and_credential_work": 0
+          },
+          {
+            "phase": "audit_admission_independent_hosts",
+            "selected_host_budget_factories": 2,
+            "positive_same_tenant_overlap_across_hosts": true,
+            "aggregate_counts_only": true
+          },
+          {
+            "phase": "audit_admission_mixed_shutdown",
+            "empty_resource_and_populated_receipt": true,
+            "stop_fault_preserved": true,
+            "both_admissions_closed_permanently": true,
+            "all_server_work_joined_before_single_source_disposal": true
+          },
+          {
+            "phase": "audit_admission_null_overlap",
+            "transport": "HTTP",
+            "scheduled_overlapping_reads": 2,
+            "budget_factories": 0,
+            "unchanged_unlimited_path": true
+          },
+          {
+            "phase": "audit_admission_tenant_isolation",
+            "transport": "HTTP",
+            "total": 2,
+            "per_tenant": 1,
+            "same_principal_switches_A_B": true,
+            "identical_receipt_resource_IDs_isolated": true,
+            "A_capacity_denial_has_no_handler_or_source": true,
+            "B_admitted_below_total": true
+          },
+          {
+            "phase": "audit_admission_total_capacity",
+            "transport": "HTTP",
+            "total": 2,
+            "per_tenant": 2,
+            "positive_A_B_overlap": true,
+            "rejected_handler_and_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_authority_before_capacity",
+            "transport": "HTTP",
+            "invalid_signature_and_forged_tenant_denied": true,
+            "separate_operation_grant_required": true,
+            "revoked_membership_denied_during_saturation": true,
+            "denied_slot_query_handler_delta": 0
+          },
+          {
+            "phase": "audit_admission_fault_release",
+            "transport": "HTTP",
+            "provider_and_wrong_tenant_payload_errors_redacted": true,
+            "capacity_released_after_faults": true,
+            "repaired_authorized_replacement_succeeds": true
+          },
+          {
+            "phase": "audit_admission_client_abort_ownership",
+            "transport": "HTTP",
+            "client_completed_before_held_server": true,
+            "post_SQL_hold_not_active_SQL_claim": true,
+            "cancelled_work_retains_slot_until_join": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_private_budget_ownership",
+            "transport": "HTTP",
+            "cooperative_reader_timeout": true,
+            "work_token_cancelled_while_post_SQL_server_held": true,
+            "no_early_slot_release": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_shared_transports",
+            "transport": "HTTP",
+            "one_host_budget": true,
+            "cross_protocol_receipt_resource_capacity_shared": true,
+            "two_aliases_check_fresh_membership": true,
+            "rejected_handler_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_scheduled_workers",
+            "transport": "HTTP",
+            "scheduled_workers": 8,
+            "held_before_release": 2,
+            "capacity_responses_before_release": 6,
+            "total_limit": 2,
+            "per_tenant_limit": 1,
+            "one_success_for_each_tenant": true,
+            "unconditional_aggregate_join": true
+          },
+          {
+            "phase": "audit_admission_fresh_revocation",
+            "transport": "HTTP",
+            "membership_resource_policy_checked_at_capacity_and_after_release": true,
+            "fresh_authorized_B_succeeds": true,
+            "A_identity_cannot_forge_B": true,
+            "denied_slot_query_handler_delta": 0
+          },
+          {
+            "phase": "audit_admission_null_overlap",
+            "transport": "GraphQL",
+            "scheduled_overlapping_reads": 2,
+            "budget_factories": 0,
+            "unchanged_unlimited_path": true
+          },
+          {
+            "phase": "audit_admission_tenant_isolation",
+            "transport": "GraphQL",
+            "total": 2,
+            "per_tenant": 1,
+            "same_principal_switches_A_B": true,
+            "identical_receipt_resource_IDs_isolated": true,
+            "A_capacity_denial_has_no_handler_or_source": true,
+            "B_admitted_below_total": true
+          },
+          {
+            "phase": "audit_admission_total_capacity",
+            "transport": "GraphQL",
+            "total": 2,
+            "per_tenant": 2,
+            "positive_A_B_overlap": true,
+            "rejected_handler_and_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_authority_before_capacity",
+            "transport": "GraphQL",
+            "invalid_signature_and_forged_tenant_denied": true,
+            "separate_operation_grant_required": true,
+            "revoked_membership_denied_during_saturation": true,
+            "denied_slot_query_handler_delta": 0
+          },
+          {
+            "phase": "audit_admission_fault_release",
+            "transport": "GraphQL",
+            "provider_and_wrong_tenant_payload_errors_redacted": true,
+            "capacity_released_after_faults": true,
+            "repaired_authorized_replacement_succeeds": true
+          },
+          {
+            "phase": "audit_admission_client_abort_ownership",
+            "transport": "GraphQL",
+            "client_completed_before_held_server": true,
+            "post_SQL_hold_not_active_SQL_claim": true,
+            "cancelled_work_retains_slot_until_join": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_private_budget_ownership",
+            "transport": "GraphQL",
+            "cooperative_reader_timeout": true,
+            "work_token_cancelled_while_post_SQL_server_held": true,
+            "no_early_slot_release": true,
+            "replacement_after_join_succeeds": true
+          },
+          {
+            "phase": "audit_admission_shared_transports",
+            "transport": "GraphQL",
+            "one_host_budget": true,
+            "cross_protocol_receipt_resource_capacity_shared": true,
+            "two_aliases_check_fresh_membership": true,
+            "rejected_handler_query_delta": 0
+          },
+          {
+            "phase": "audit_admission_scheduled_workers",
+            "transport": "GraphQL",
+            "scheduled_workers": 8,
+            "held_before_release": 2,
+            "capacity_responses_before_release": 6,
+            "total_limit": 2,
+            "per_tenant_limit": 1,
+            "one_success_for_each_tenant": true,
+            "unconditional_aggregate_join": true
+          },
+          {
+            "phase": "audit_admission_fresh_revocation",
+            "transport": "GraphQL",
+            "membership_resource_policy_checked_at_capacity_and_after_release": true,
+            "fresh_authorized_B_succeeds": true,
+            "A_identity_cannot_forge_B": true,
+            "denied_slot_query_handler_delta": 0
+          }
+        ],
+        "settings_equal_baseline": true,
+        "tests_sha256": "52bad93649cd38231298e0fd1793e000816943665bda258009d8ea35a4991fcc",
+        "restart_checks_unchanged": true,
+        "build_sha256": "24c4b50afa2c9c49c654d55a9f57d1c6af52e7867d977c2230b7dc8176aed94e",
+        "Release_warnings": 0,
+        "Release_errors": 0
+      }
+    ],
+    "cross_host_maps_equal": true,
+    "driver_manifest_sha256": "f76e1207fa588e45ad2dc430f5a5a6fa8d128752502ebfd320eb216abd7fa5df",
+    "actual_runner_sha256": "26ad635947c5e7f16f0af770604ad1632a566f85a8c1203afe79028c7be19356",
+    "raw_phases": [
+      {
+        "name": "engine-head",
+        "exit": 0,
+        "stdout_sha256": "8d519caccfa191df108161fe3ce2b25017f7837f9f952529994e4913656c5af1",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "engine-state",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "consumer-head",
+        "exit": 0,
+        "stdout_sha256": "1d8a089898f4ffe52f0b382c71f591ccf1a8a155805736ce8fbc1add1d9236fd",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "consumer-state",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "security-windows",
+        "exit": 0,
+        "stdout_sha256": "dd59293984466d0a266394aec066bf4961e7b56cef69b6cb85096a4e65095011",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "postgres-windows-reused-original-committed-execution",
+        "exit": 0,
+        "reuse_receipt_sha256": "a52c4f1ad641d80de51dcc9e9277c16c349e361eebb7f8338b91ef0c0fcf20f3",
+        "additional_sdk_execution": false,
+        "manifest_sha256": "f2a435ebb36e7aa4ea3d0a9b7607092814ef5dbed58753a5f5db34c13cae163c"
+      },
+      {
+        "name": "wsl-consumer-init",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "wsl-source-eol",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "wsl-source-ref",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "wsl-source-head",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "wsl-source-sparse",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "wsl-source-detach",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "6225d8bd02d8dd41c2a75145bb29ae33f92244ccd0017f16a7e9ea6566d46778"
+      },
+      {
+        "name": "wsl-source-state",
+        "exit": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "security-wsl",
+        "exit": 0,
+        "stdout_sha256": "c3f57dabd14acda20e599c8a38762f79df31e39d6ba4ced7accdb9e913deaaa6",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "postgres-wsl",
+        "exit": 0,
+        "stdout_sha256": "4cae7398a3606176d0804702b0d911591a16a7f02dc57dff2f39cf07767857fe",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "execution_scheduling": {
+    "unique_sdk_executions": 4,
+    "actual_order": [
+      "original_Windows_provider_development_and_final_once",
+      "Windows_security",
+      "WSL_security",
+      "WSL_provider"
+    ],
+    "scheduling_declaration02": {
+      "manifest_sha256": "09da207c9c5f2abc5a564a05ac288a2489f261603f05c69b0f91fbf75bde7dc9",
+      "declaration_files": 2,
+      "declared_while_first_result_pending": true,
+      "same_development_and_Windows_provider_execution_counted_once": true,
+      "manifest": {
+        "status": "frozen_while_first_dev_pending_before_result",
+        "files": {
+          "internal/validation/audit-read-admission-execution-addendum.md": "d6b002f8923d40f627a0d041d9ae3ae3cdc05ed7be415dd6a3b271f3a31c9e9e"
+        },
+        "source_changed": false,
+        "original_declaration01_retained": true,
+        "reason": "Use the initial already committed clean execution as Windows provider final rather than repeat an unchanged passing suite",
+        "unique_final_sdk_executions": 4
+      }
+    },
+    "unchanged_passing_Windows_provider_not_reexecuted": true,
+    "same_dev_final_manifest_hash": "f2a435ebb36e7aa4ea3d0a9b7607092814ef5dbed58753a5f5db34c13cae163c"
+  },
+  "preparation_attempts": [
+    {
+      "path": "D:\\Cephalon\\.worktrees\\ara-host\\.local\\audit-read-admission-worktree-preparation.json",
+      "sha256": "44ebcc12362f0573e6d2351a1de5c7eec1e72b2e1b7b0de9a3c6d9b78280e700",
+      "receipt": {
+        "status": "retained_initial_setup_failure_corrected_cwd",
+        "failed_cwd": "D:/Cephalon/Cehpalon-Engine-Docs",
+        "failed_git_command": "git worktree add --no-checkout -b features/audit-read-admission-host D:/Cephalon/.worktrees/ara-host 05f119e75bcc2458bee9c610e4ba64f04d4dc6d0",
+        "exit_code": 1,
+        "observed_merged_git_output": "Preparing worktree (new branch 'features/audit-read-admission-host')\nfatal: not a valid branch point: '05f119e75bcc2458bee9c610e4ba64f04d4dc6d0'\n",
+        "output_boundary": "Exact git-operation portion retained from merged tool output; command was preceded by read-only Get-Content of ADR0054 in the same PowerShell call. No stdout/stderr separation was provided by the tool.",
+        "effect": "Docs did not have the Samples commit; worktree/ref creation rejected. No source, SDK or fixture execution occurred in the failed setup.",
+        "correction": "Ran the same git add command from D:/Cephalon/Cehpalon-Engine-Samples; succeeded before source edits. No rejected command re-executed."
+      }
+    },
+    {
+      "path": "D:\\Cephalon\\.worktrees\\ara-consumer\\.local\\pg-reactivation-setup01-interrupted.json",
+      "sha256": "991f238c27354cd0037f9268e755aa7b8142b2984b89662f1d9e10924e31fbf3",
+      "receipt": {
+        "status": "preparing",
+        "profile": "audit-read-admission",
+        "retained_previous_fixture": true,
+        "private_config_exported": false,
+        "helpers": {}
+      }
+    },
+    {
+      "path": "D:\\Cephalon\\.worktrees\\ara-consumer\\.local\\pg-reactivation-setup02-failure.json",
+      "sha256": "8dff2d20254e65fed65f36234c06baaea6b98761df3d774c797bc162d7a95142",
+      "receipt": {
+        "status": "failed",
+        "stage": "preparation_controller_cleanup_acknowledgment",
+        "command_exit": 1,
+        "observation": "Stop-Process could not find enumerated child720152 after parent688780 was stopped; initial controller and child subsequently verified absent. Fixture/helpers remain live.",
+        "source_sha256": "7cd412d508b224295cd518754dc703ffd47dba94032cedfd9f20192e8f5b8c60",
+        "no_sdk_executed": true,
+        "raw_error": "Stop-Process : Cannot find a process with the process identifier 720152. CalledProcessError exit1."
+      }
+    },
+    {
+      "path": "D:\\Cephalon\\.worktrees\\ara-consumer\\.local\\pg-reactivation-setup03.json",
+      "sha256": "555a90f7c915d491b4c8f44e06b633299abec17e59272073d92458fc421fb063",
+      "receipt": {
+        "status": "passed",
+        "scope": "Read-only readiness after retained controller acknowledgment failures; no second container/proxy/anchor launch",
+        "exact_fixture_identity_verified": true,
+        "owned_helper_identity_verified": true,
+        "native_listener_count": 1,
+        "windows_proxy_port": 64863,
+        "initial_controller_absent": true,
+        "sdk_executed": false,
+        "fixture_restarted": false,
+        "helpers_relaunched": false,
+        "private_values_printed": false,
+        "source_sha256": "df1c35337b59027c206e6e08249bdaf6a02a99df7a4ddd92e19930d75454f3f0"
+      }
+    }
+  ],
+  "review_checker_preparation_attempts": [
+    {
+      "attempt": 1,
+      "result": "reviewer assertion used report[admission_passed] string instead of tests[admission_passed] actual verifier guard; no product defect/runtime execution; corrected assertion only"
+    },
+    {
+      "attempt": 2,
+      "result": "all source assertions passed"
+    }
+  ],
+  "final_review_checker_attempts": [
+    {
+      "status": "review_checker_failed_before_receipt",
+      "at_utc": "2026-11-21T20:30:31.748099+00:00",
+      "command": "python -B .local/review-audit-read-admission-final.py --execute-after-sdk-complete",
+      "exit_code": 1,
+      "script_sha256": "338499b2a19b421702cf3ed2080868aacb4c8b6496d0a927ca07a42d7f590a97",
+      "script_snapshot": "audit-read-admission-independent-review-attempt01.py.txt",
+      "traceback": "line154 assert frozen[key]==digest and filehash(source_path(key,engine,consumer))==digest,key; KeyError: consumer/AuditExecutionChecks.cs",
+      "reason": "Security verifier source keys are rooted at security-api/ and Engine src/ while provider/freezer source keys are repository-relative. Reviewer checker did not normalize those declared prefixes.",
+      "correction": "Normalize security consumer flat file keys to consumer/security-api/ and engine/Cehpalon.* to engine/src/ before comparing; keep85 inputs and exact raw manifests. No source, SDK, fixture, runtime rerun or acceptance change."
+    },
+    {
+      "status": "passed_after_security_prefix_normalization",
+      "script_sha256": "f57f0043de2b91b99f9bb3490df966f450c44d3a2d34671b93c2110e15c7d033"
+    }
+  ],
+  "registries": {
+    "service": "e3a87d11187d0b7e958a7f90c86dfca56bca8bb880e8be1f06499d312b21ece4",
+    "security": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489"
+  },
+  "findings": [],
+  "limits": [
+    "Four unique committed-source SDK executions are actual proof; initial Windows provider execution serves both development and final roles once under pre-result scheduling declaration02. Earlier wrong-cwd/controller/cleanup-acknowledgment/checker attempts are retained preparation failures, not SDK/runtime test failures.",
+    "Post-SQL holds demonstrate server completion and capacity-slot ownership, not SQL still executing.",
+    "Budget covers protected dispatch/owned cleanup; authentication/DTO mapping/serialization/wire flush excluded.",
+    "Engine component and hosted CI evidence remain reused baseline, not newly executed host qualification.",
+    "No benchmark/throughput/fairness/distributed capacity/native Windows DB/external IdP/all-provider/production claim. M0 retained."
+  ],
+  "exclusions": [
+    "Remote publication/index-byte/privacy audit, tracking synchronization23/Project253, owned-branch cleanup, fixture stop and final main/user-file audit are root-owned separate receipts."
+  ]
+}

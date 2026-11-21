@@ -1,0 +1,117 @@
+{
+  "status": "passed_source_review_only",
+  "reviewed_at_utc": "2026-11-21T19:50:58.451255+00:00",
+  "reviewer": "independent audit_admission_review agent",
+  "consumer_revision": "046daea25984e708f57387707d0f7d6abc986c91",
+  "consumer_source_commit": "493a4a33497848e4f678e17b9709a8282f6a11e2",
+  "samples_baseline": "05f119e75bcc2458bee9c610e4ba64f04d4dc6d0",
+  "reviewed_host_revision": "255f75f2a6dc0642a83c9009972b8f849bbc8dcc",
+  "source_inputs": {
+    "audit-outbox/AuditReadAdmissionChecks.cs": {
+      "sha256": "de7980544ef702afb9d09b426ff405a34c61a8b88afeb2e9500b504faa317cf1",
+      "git_blob": "e45f75b91649b24b85ec4ae414d3a462091e3199"
+    },
+    "audit-outbox/AuditReceiptTransportHost.cs": {
+      "sha256": "b89fd87eca304509980e5547ab726e088db2fd6cc1e20910986c73022063bac9",
+      "git_blob": "27ed61694e044283bcfa4869ce1b88c16aac56f4"
+    },
+    "audit-outbox/Program.cs": {
+      "sha256": "ba97c7344382ddb7b822882c92a3ba0c565138fe611ab836c9ce5fb7d08e7a98",
+      "git_blob": "84dc432110fe8f7ce0e6eadc9dc6a7e8d78d4d0e"
+    },
+    "audit-outbox/README.md": {
+      "sha256": "fd5d6d59ba5834f85448dcecba169da3ce59d13a5a930b342dc37df7d1e99052",
+      "git_blob": "eecd893b2e658214efe4dd4929c73422b8c7a471"
+    },
+    "audit-outbox/ResourceTransportChecks.cs": {
+      "sha256": "687d8672b2c9ffead0aa77d8bbb826acca97e00bda7f5912c00fa37d24dbd8cf",
+      "git_blob": "23fc4cbfa32da1f8b196547bf90ce3a07e73d02e"
+    },
+    "tools/verify_audit_outbox.py": {
+      "sha256": "899a09a226e0cabd25047d34bb211197465bd8369eea915012a584585f062f4c",
+      "git_blob": "69d3ff205471dff432d1877ead7d839bec09a61e"
+    }
+  },
+  "case_templates": [
+    "audit admission preserves positional ABI and inert invalid unused limits",
+    "audit admission rejects selected invalid limits before caller factories",
+    "audit admission selected hosts own independent aggregate budgets",
+    "audit admission stop fault joins mixed empty and populated reads before source disposal",
+    " null audit budget preserves overlapping scheduled default reads",
+    " saturated tenant A rejects its reads while same-ID tenant B succeeds",
+    " A plus B total saturation rejects authorized work before handler source",
+    " authentication and fresh tenant authority precede saturated capacity",
+    " provider and corruption faults release audit capacity with redacted errors",
+    " client abort retains admitted slot until held post-SQL server completion",
+    " cooperative read timeout retains slot until held completion is released",
+    " receipt resource cross-protocol calls and GraphQL fields share audit budget",
+    " eight synchronized A B workers obey atomic total and tenant limits",
+    " fresh revocation during saturation and after release preserves isolation"
+  ],
+  "declared_new_cases": 24,
+  "declared_provider_total": 332,
+  "checks": [
+    {
+      "scope": "immutable_source_and_change_scope",
+      "result": "passed",
+      "evidence": "Six intended files only; worktree bytes equal immutable046daeaGit blobs; merge tree exactly493a4a3. Host bytes equal reviewed255f75f. No package/SQL/schema/Engine/Operation attribute change."
+    },
+    {
+      "scope": "prior_suite_preservation",
+      "result": "passed",
+      "evidence": "Original ResourceTransportChecks.cs differs only static->static partial declaration. Program prefix through prior36resource/old308provider cases is byte-identical. Verifier preserves old count/registry guards and adds admission24/24observations, prior308 and final332 guards."
+    },
+    {
+      "scope": "declared_matrix",
+      "result": "passed",
+      "evidence": "Four shared plus ten per actual HTTP/GraphQL branches,14 observation templates producing24 observations. Positional/inert/invalid/independenthost/fullStopfault controls and ten transport controls match protocol."
+    },
+    {
+      "scope": "actual_authority_and_tenant_isolation",
+      "result": "passed",
+      "evidence": "TLS+JWT fixture establishes tickets; wrongcrypto/forgedB/no-role/wrong-attribute/otheroperation grants and fresh membership/resource/policy revocation are exercised during saturation and after release. Same key/resource A/B receives isolated tenant pages; denied handler/source deltas asserted."
+    },
+    {
+      "scope": "shared_capacity_and_scheduling",
+      "result": "passed",
+      "evidence": "One dual-transport host combines receipt/resource and actual GraphQL aliases; fresh membership count+2 and no query/handler assertions. Eight Task.Run workers synchronize, two positive held operations/two tenants, six capacity completions observed before release, then one success per tenant."
+    },
+    {
+      "scope": "cooperative_ownership",
+      "result": "passed",
+      "evidence": "Post-SQL hooks deliberately ignore cancellation until release. Client abort and work-token timeout separately witness retained capacity/no early source disposal, rejection of replacement, server join/zero occupancy and subsequent valid work. Tests label SQL-complete boundary explicitly."
+    },
+    {
+      "scope": "fault_and_shutdown",
+      "result": "passed",
+      "evidence": "Injected provider and wrong-tenant payload errors must be redacted, release slots and allow repaired success. Mixed empty/populated Stopfault control closes both admissions, retains occupancy/source while held, joins each before single source disposal and preserves exact injected exception."
+    },
+    {
+      "scope": "unconditional_task_ownership",
+      "result": "passed",
+      "evidence": "Pending clients, scheduled aggregate and disposal are released/cancelled/joined in finally. Watchdog surrounds expected-failure collector rather than being swallowed as semantic failure; await-using host joins remaining server work before return."
+    },
+    {
+      "scope": "runtime_boundary",
+      "result": "passed",
+      "evidence": "README describes declared tests as source until executed; no SDK run/overlap/SQLstillactive/performance/prod proof inferred from this source review."
+    }
+  ],
+  "findings": [],
+  "sdk_or_fixture_executed": false,
+  "review_preparation_attempts": [
+    {
+      "attempt": 1,
+      "result": "reviewer assertion used report[admission_passed] string instead of tests[admission_passed] actual verifier guard; no product defect/runtime execution; corrected assertion only"
+    },
+    {
+      "attempt": 2,
+      "result": "all source assertions passed"
+    }
+  ],
+  "limitations": [
+    "Source review only; committed-source runtime development/final lanes pending.",
+    "Post-SQL holds prove owned completion and slot retention, not a continuing SQL query.",
+    "Existing Engine cleanup semantics reused; no newly injected handler-cleanup failure proof."
+  ]
+}
