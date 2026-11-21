@@ -99,3 +99,18 @@ Admission uses the existing Engine tenant concurrency budget after fresh JWT, me
 The aggregate `ConcurrencySnapshot` contains counts only. Capacity covers protected handler dispatch and cleanup; authentication, response mapping, serialization and network flush are outside it. Cooperative cancellation does not abandon held server work or release its slot early. Shutdown permanently closes both admissions and joins all owned work before disposing the shared source, even when app stopping fails.
 
 `AuditReadAdmissionChecks.cs` declares24 consumer cases in addition to the original308 provider cases: actual HTTPS HTTP/GraphQL, same-ID A/B isolation, authorization before capacity, cross-transport sharing, positive scheduled overlap, redacted faults, cancellation/timeouts and mixed shutdown. Execution results and proof limits are recorded by the verifier and Docs delivery; source presence alone is not a test pass.
+# Offline audit-read contracts
+
+After building, export selected structural OpenAPI3.1 and GraphQL SDL to a new directory:
+
+```powershell
+dotnet PostgresAuditOutbox.Consumer.dll --export-audit-contracts=<new-directory> --http=true --graphql=true --receipt=true --resource=true --security=true
+```
+
+The export branch runs before connection-file parsing and requires no DB, TLS keys or authentication credentials. Boolean flags accept only `true`/`false`; defaults match the host (HTTP/GraphQL/receipt/security on, resource history off). Selected security/read settings must be compatible; inert profiles ignore unused read settings. All-off publishes only a manifest.
+
+Runtime HTTP mapping, GraphQL registration and export use one typed catalog and the existing binding objects. OpenAPI uses the actual serializer metadata, an object-only request envelope, nullable successful roots and adapter errors including503. SDL is compiled by an explicitly owned offline GraphQL provider, which is disposed even if schema compilation fails. Disabled GraphQL does no registration/schema work. The six generated operation IDs are recorded without invoking any handler factory; selected read IDs are a subset.
+
+The artifact manifest records selected IDs, UTF8/LF byte lengths and SHA256 values. Returned bytes are detached per call. Publication requires an existing trusted plain parent and a new destination; it creates new staging files and promotes without overwriting existing output. Failed/partial staging remains available for inspection. Observed paths do not defend hostile filesystem races.
+
+These are structural documents, not validation or authorization capabilities. Custom limit1..200/default50 and cursor bounds, Unicode/duplicate/body/depth checks, current read policy, JWT trust and fresh tenant membership/resource/RBAC-ABAC still apply. Generic bearer metadata chooses no algorithm, issuer, audience or grant. No WebApplication, source, budget, TLS read, authority call or network introspection endpoint is activated by export. Existing M0, unsigned-bookmark, cooperative-budget and provider/production limitations remain.

@@ -90,6 +90,35 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
     AuditReceiptTransportHost(ActivationPlan plan, AuditReceiptTransportProbe probe, TenantOperationConcurrencyBudget? concurrencyBudget)
     { Plan = plan; Probe = probe; admission = new(probe); this.concurrencyBudget = concurrencyBudget; }
 
+    /// <summary>Pure capability selection; no host, source, budget or authority construction.</summary>
+    public static ActivationPlan CompilePlan(AuditReceiptTransportOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var selected = (options.HttpEnabled || options.GraphQLEnabled) && (options.ReceiptLookupEnabled || options.ResourceHistoryEnabled);
+        var config = JsonSerializer.Serialize(new { Cehpalon = new { SchemaVersion = 1, Architecture = "Modular", Topology = "SingleProcess", Pattern = "RequestReply",
+            Modules = new Dictionary<string, object> {
+                [SecurityModule] = new { Enabled = selected && options.SecurityEnabled }, [SourceModule] = new { Enabled = selected },
+                [HostModule] = new { Enabled = selected }, [HttpModule] = new { Enabled = selected && options.HttpEnabled }, [GraphModule] = new { Enabled = selected && options.GraphQLEnabled } } } });
+        var compiled = CompositionCompiler.Compile(config, [new(SecurityModule, ModuleRole.Support), new(SourceModule, ModuleRole.Support, [SecurityModule]),
+            new(HostModule, ModuleRole.Support, [SecurityModule, SourceModule]), new(HttpModule, ModuleRole.EntryPoint, [HostModule]), new(GraphModule, ModuleRole.EntryPoint, [HostModule])]);
+        if (!compiled.IsSuccess) throw new ArgumentException("Invalid receipt transport composition.", nameof(options));
+        return compiled.Plan!;
+    }
+
+    /// <summary>Pure selected bounds; inert profiles intentionally ignore unused values.</summary>
+    public static void ValidateSelectedReadSettings(AuditReceiptTransportOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (!(options.HttpEnabled || options.GraphQLEnabled) || !(options.ReceiptLookupEnabled || options.ResourceHistoryEnabled)) return;
+        if (options.ConcurrencyLimits is { } limits)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limits.MaximumConcurrentReads);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limits.MaximumConcurrentReadsPerTenant);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(limits.MaximumConcurrentReadsPerTenant, limits.MaximumConcurrentReads);
+        }
+        if (options.ReadTimeout is { } bound && (bound <= TimeSpan.Zero || bound > TimeSpan.FromMinutes(1))) throw new ArgumentOutOfRangeException(nameof(options.ReadTimeout));
+    }
+
     /// <summary>
     /// ConfigureHost is trusted to establish TLS, JWT cryptographic trust and the default authentication scheme.
     /// A registered handler alone attests none of those settings. The lease owns the delivered storage and web app,
@@ -102,23 +131,18 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         var selected = (options.HttpEnabled || options.GraphQLEnabled) && (options.ReceiptLookupEnabled || options.ResourceHistoryEnabled);
-        var config = JsonSerializer.Serialize(new { Cehpalon = new { SchemaVersion = 1, Architecture = "Modular", Topology = "SingleProcess", Pattern = "RequestReply",
-            Modules = new Dictionary<string, object> {
-                [SecurityModule] = new { Enabled = selected && options.SecurityEnabled }, [SourceModule] = new { Enabled = selected },
-                [HostModule] = new { Enabled = selected }, [HttpModule] = new { Enabled = selected && options.HttpEnabled }, [GraphModule] = new { Enabled = selected && options.GraphQLEnabled } } } });
-        var compiled = CompositionCompiler.Compile(config, [new(SecurityModule, ModuleRole.Support), new(SourceModule, ModuleRole.Support, [SecurityModule]),
-            new(HostModule, ModuleRole.Support, [SecurityModule, SourceModule]), new(HttpModule, ModuleRole.EntryPoint, [HostModule]), new(GraphModule, ModuleRole.EntryPoint, [HostModule])]);
-        if (!compiled.IsSuccess) throw new ArgumentException("Invalid receipt transport composition.", nameof(options));
+        var plan = CompilePlan(options);
         // A single immutable host-local budget is validated before any caller callback. Inert/null profiles skip it.
         var budget = selected && options.ConcurrencyLimits is { } limits
             ? new TenantOperationConcurrencyBudget(limits.MaximumConcurrentReads, limits.MaximumConcurrentReadsPerTenant) : null;
-        var owner = new AuditReceiptTransportHost(compiled.Plan!, probe ?? new(), budget);
+        var owner = new AuditReceiptTransportHost(plan, probe ?? new(), budget);
         if (budget is not null) Interlocked.Increment(ref owner.Probe.BudgetFactories);
         if (selected)
         {
-            if (options.ReadTimeout is { } bound && (bound <= TimeSpan.Zero || bound > TimeSpan.FromMinutes(1))) throw new ArgumentOutOfRangeException(nameof(options.ReadTimeout));
+            ValidateSelectedReadSettings(options);
             ArgumentNullException.ThrowIfNull(sourceFactory); ArgumentNullException.ThrowIfNull(securityFactory); ArgumentNullException.ThrowIfNull(configureHost);
         }
+        var catalog = AuditReadTransportCatalog.Create(options);
         AuditReceiptTransportSecurity? security = null;
         TenantChangeAuditLookupReader? reader = null;
         TenantChangeAuditResourceHistoryReader? resourceReader = null;
@@ -163,10 +187,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                     builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(owner, security!, reader, resourceReader));
                     if (options.GraphQLEnabled)
                     {
-                        var catalog = new GraphQLOperationCatalog.Builder();
-                        if (options.ReceiptLookupEnabled) catalog.AddQuery("trailReceipt", Binding);
-                        if (options.ResourceHistoryEnabled) catalog.AddQuery("trailResourceHistory", ResourceHistoryBinding);
-                        builder.Services.AddCehpalonGraphQL(catalog.Build());
+                        builder.Services.AddCehpalonGraphQL(catalog.GraphQL());
                     }
                     owner.Probe.GraphQLServices = builder.Services.Count(s => (s.ServiceType.FullName ?? "").StartsWith("HotChocolate.", StringComparison.Ordinal));
                     owner.Probe.AuthenticationServices = builder.Services.Count(s => (s.ServiceType.FullName ?? "").StartsWith("Microsoft.AspNetCore.Authentication.", StringComparison.Ordinal));
@@ -176,8 +197,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                     app.UseAuthentication(); app.UseAuthorization();
                     if (options.HttpEnabled)
                     {
-                        if (options.ReceiptLookupEnabled) { app.MapOperation(LookupPath, Binding); owner.Probe.HttpEndpoints++; }
-                        if (options.ResourceHistoryEnabled) { app.MapOperation(ResourceHistoryPath, ResourceHistoryBinding); owner.Probe.HttpEndpoints++; }
+                        catalog.MapHttp(app, () => owner.Probe.HttpEndpoints++);
                     }
                     if (options.GraphQLEnabled) { app.MapCehpalonGraphQL(GraphQLPath); owner.Probe.GraphQLEndpoints = 1; }
                     await app.StartAsync(token).ConfigureAwait(false); owner.Probe.Events.Enqueue("host.started");

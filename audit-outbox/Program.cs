@@ -8,6 +8,8 @@ using Cehpalon.Engine.Tenancy;
 using securityapi::SecurityApi;
 using Host=securityapi::SecurityApi.Host;
 
+if(args.Any(x=>x.StartsWith("--export-audit-contracts",StringComparison.Ordinal)))return await AuditReadContractExport.RunCommandAsync(args);
+if(args.Any(x=>x.StartsWith("--verify-audit-contracts",StringComparison.Ordinal)))return await ResourceTransportChecks.RunContractCommandAsync(args);
 var arguments=args.Select(x=>x.Split('=',2)).ToDictionary(x=>x[0],x=>x[1],StringComparer.Ordinal);
 var output=Path.GetFullPath(arguments["--output"]);if(File.Exists(output))throw new IOException("Retain prior output.");
 var connection=File.ReadAllText(arguments["--connection-file"]).Trim();var prefix=arguments["--schema"];
