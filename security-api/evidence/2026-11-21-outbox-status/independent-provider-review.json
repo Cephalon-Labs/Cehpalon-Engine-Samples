@@ -1,0 +1,33 @@
+{
+  "scope": "Independent read-only source and retained provider-result review; no SDK, Docker, SQL or network probes by reviewer",
+  "result": "passed, no remaining blocker; exact final committed executions remain root proof",
+  "dev01_main_passed": 57,
+  "prior_main_preserved": 34,
+  "new_status_passed": 23,
+  "restart_passed": 3,
+  "total_passed": 60,
+  "current_and_frozen_hashes_reconciled": 92,
+  "sha256": {
+    "manifest": "596f230467883d4baf09821d6752c82783ad72f0340e693a3fb39d276cb52b7f",
+    "main_results": "391bb6d317c7133e5167792fcd63a1d895509192e874dc4b59fc8e3ca8fd27f6",
+    "StatusChecks.cs": "54032fc725677fa0a28de69a5641564ceea61d190b3b81460b06e95726e67c96",
+    "PostgresStore.cs": "e3954b0f292830ff5e868ae682017b980fbeaa8c565ae27e8b9c1a773d45d63a"
+  },
+  "reviewed": [
+    "Single materialized provider clock and tenant-filtered count/min SQL without payload selection or state writes.",
+    "Exact oldest database timestamp/advance, deterministic mixed active+expired partition and acknowledged-outbox versus sink-presence semantics.",
+    "Distinct inspect authority, B enable cannot grant C, wrong-owner/retained/writer/history/relay denials before source work.",
+    "Actual owned backend Lock-wait observed before caller cancellation; backend quiescence/reuse before followup, without timing/causality claim.",
+    "Original34 main and restart Program prefix byte-identical to prior baseline before appended new status checks.",
+    "Frozen container ID/image/name/restart/readiness and actual PostgreSQL18.7 durability settings/dependency graph reconciled."
+  ],
+  "limits": "No hard timeout, remote freshness, global health, supported Windows database, physical power loss, benchmark or production qualification.",
+  "consumer_commit": "c1544b74b3b9993a98155b09725edfd64cb63f41",
+  "root_final_committed_evidence": {
+    "windows_passed": 60,
+    "wsl_passed": 60,
+    "status_passed_each": 23,
+    "source_hashes_match": 92,
+    "source_clean": true
+  }
+}
