@@ -1,0 +1,42 @@
+{
+  "source_commit": "35e694c0507d18d57a5ffbd552a1af4c42e7dd3e",
+  "development": {
+    "dev01": "Compile failed CS9124 before DB tests; all source/raw retained",
+    "dev02": "32/34; two expected RelayException propagation assumptions corrected; no provider/permission relaxation",
+    "dev03": "34 main plus3 separate-process/server-restart controls passed"
+  },
+  "approved_post_run_report_only_changes": [
+    "consumer/audit-outbox/Program.cs",
+    "consumer/tools/verify_audit_outbox.py"
+  ],
+  "engine_revision": "a72bdcb9cfa0eca49d94ef667e0a62f42c72e781",
+  "source_sha256_count": 91,
+  "relay_registry_sha256": "10bb8282a1a865efe116bfc4cbfe679f26bdd66738bc624fd81ef102291ffd70",
+  "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+  "fixture": {
+    "image": "docker.io/library/postgres@sha256:ec003ee60c23d320d1b81868f255a6fc724ac06d8f1ced4468532f7d8593f357",
+    "image_id": "sha256:22fac36945da9a4145a11bc9a6198ebc00975b8323c8d454740e477c4e84593a",
+    "server_version": "PostgreSQL 18.7 (Debian 18.7-1.pgdg13+5) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+    "container_name": "cehpalon-audit-outbox-pg18-20261121",
+    "volume": "cehpalon-audit-outbox-pg18-20261121-data",
+    "bind": "127.0.0.1:55438",
+    "resource_limits": {
+      "cpu": 1,
+      "memory_mib": 512,
+      "pids": 128
+    },
+    "retained_data": true,
+    "scope": "Owned local conformance fixture only; not provider/production qualification",
+    "container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7"
+  },
+  "private_connection_files": [
+    ".local/private-pg18-windows-connection.env",
+    ".local/private-pg18-connection.env"
+  ],
+  "cleanup": {
+    "windows_proxy_stop_marker": ".local/pg-proxy.stop",
+    "wsl_anchor_stop_marker": ".local/pg-wsl-anchor.stop",
+    "owned_container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7",
+    "retain_volume": true
+  }
+}

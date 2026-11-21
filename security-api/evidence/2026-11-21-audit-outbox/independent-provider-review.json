@@ -1,0 +1,51 @@
+{
+  "scope": "Independent read-only PostgreSQL consumer source review; no SDK, SQL/network probe or provider execution by reviewer",
+  "result": "Independent dev03 source/result review passed; root exact final Windows/WSL both passed37 with91 matching source hashes",
+  "reviewed": [
+    "Domain mutation and redacted Stage use the same actual Npgsql connection/transaction; parameterized values and allowlisted owned schema identifiers.",
+    "Session checks immutable tenant and active transaction lifecycle; no silent autocommit after completion/disposal.",
+    "Tenant-filtered SKIP LOCKED claims; acknowledgement requires exact tenant, lease, receipt and authoritative server expiry; release only clears the same fence.",
+    "Stable closed typed payload codec and exact payload idempotency/conflict behavior; symmetric size bounds.",
+    "Separate freshly resolved service relay authority and checked history permission/current-policy projection; original null-integration HTTPS profile retained."
+  ],
+  "corrections_before_first_provider_execution": [
+    "AllowB must only add tenant B, not arbitrary tenant C; direct protected C-denial added.",
+    "Selected provider history hook reads the PostgreSQL final sink through TenantChangeAuditHistoryReader instead of an uninitialized memory source.",
+    "Claim uses minimum expiry across returned rows; codec Encode and Decode enforce the same size limit."
+  ],
+  "limits": "Source review does not establish actual provider behavior. Final real PostgreSQL results and frozen-source reconciliation are separate.",
+  "consumer_commit": "35e694c0507d18d57a5ffbd552a1af4c42e7dd3e",
+  "dev03_main_passed": 34,
+  "dev03_restart_passed": 3,
+  "frozen_source_hashes_reconciled": 91,
+  "post_execution_report_only_deviations": [
+    {
+      "key": "consumer/audit-outbox/Program.cs",
+      "executing_sha256": "2e1578bdb3c2cde5fe0458aeb2fb6bfda2a98ed740ce821106db866071beebf0",
+      "committed_sha256": "6a3f98ba1dc6764a39ad7869012c5fe7ff20757964e9de84aa647071c2a4a565",
+      "allowed_change": "Host-conditional report topology text only, full diff independently inspected"
+    },
+    {
+      "key": "consumer/tools/verify_audit_outbox.py",
+      "executing_sha256": "6d4bfc6ef514b4d0c41e8be33f9758c4906e9875ee3a608856d663cbbbe14ccd",
+      "committed_sha256": "4fccb6bae69c30980e6f1f1480e4ecedd4d804898266b5e43da514281446ffc9",
+      "allowed_change": "Host-conditional report topology text only, full diff independently inspected"
+    }
+  ],
+  "provider_settings": {
+    "version": "PostgreSQL18.7",
+    "fsync": "on",
+    "synchronous_commit": "on",
+    "full_page_writes": "on"
+  },
+  "restart": "Same frozen container ID/image/name verified; restarted by ID; first readiness probe succeeded; separate read process passed",
+  "dev03_manifest_sha256": "238ac168c1e545b872ba33463d6845d28324f7082c6ec49c0d7948923bf21904",
+  "dev03_main_results_sha256": "32264b7c2a87e5665c8c95a005ea1b4647ca70bc8f46d27c139d7ffebdf23152",
+  "root_final_exact_committed_evidence": {
+    "windows": 37,
+    "wsl": 37,
+    "source_hashes_match": 91,
+    "consumer_source_clean": true,
+    "report_only_new_bytes_validated": true
+  }
+}
