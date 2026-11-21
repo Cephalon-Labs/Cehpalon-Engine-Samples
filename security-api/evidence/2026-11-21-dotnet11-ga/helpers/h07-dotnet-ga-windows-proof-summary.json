@@ -1,0 +1,77 @@
+{
+  "scope": "Development GA Windows consumers; no original benchmark recapture or qualification. #3 Blocked and original gates unchanged.",
+  "samples_source_revision": "66db9282a2273c941d50c608bb0d1334167ae6eb",
+  "source_baseline": "3429c68787894b011a448cac325203476abd6f62",
+  "engine_source_revision": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+  "sdk": "11.0.100",
+  "source_freeze": {
+    "manifest": ".local/dotnet-ga-locked-frozen01/manifest.json",
+    "sha256": "2ab1cddc1716cda35db22e8f4ae56ea92d1017ea4d33689eabe8ae4c87d88aa8",
+    "source_count": 244,
+    "all_match_after_three_tests_and_source_commit": true,
+    "mismatches": []
+  },
+  "historical_retention": {
+    "git_blob_comparison": "baseline versus source commit",
+    "retained_evidence_locks_trace_pins_count": 36244,
+    "all_blobs_identical": true,
+    "changed": []
+  },
+  "consumers": {
+    "security": {
+      "manifest": ".local/dotnet-ga-security-windows01/manifest.json",
+      "manifest_sha256": "e186709d1384a27ed1a81fffd83d70730d828d138bedf9c31462eddd46f96585",
+      "status": "passed",
+      "sdk": "11.0.100",
+      "engine_revision": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+      "engine_dirty": false,
+      "consumer_revision": "3429c68787894b011a448cac325203476abd6f62",
+      "consumer_source_dirty": true,
+      "passed": 651,
+      "failed": 0,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489"
+    },
+    "outbox": {
+      "manifest": ".local/dotnet-ga-outbox-windows01/manifest.json",
+      "manifest_sha256": "e9d20b6293c280787523e9c3e58635ccbdee0ac4b43d3624044d13f87db59851",
+      "status": "passed",
+      "sdk": "11.0.100",
+      "engine_revision": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+      "engine_dirty": false,
+      "consumer_revision": "3429c68787894b011a448cac325203476abd6f62",
+      "consumer_source_dirty": true,
+      "passed": 57,
+      "status_passed": 23,
+      "prior_outbox_passed": 34,
+      "restart_passed": 3,
+      "total_passed": 60,
+      "security_registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489",
+      "source_unchanged": true
+    },
+    "small_api": {
+      "manifest": ".local/dotnet-ga-small-api-windows01/manifest.json",
+      "manifest_sha256": "4f43adc32ac7fe070ffcbec4cfd152a7c2ea9029883b02c6535111ee684e9000",
+      "status": "passed",
+      "sdk": "11.0.100",
+      "engine_revision": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+      "checks": 40,
+      "generated_registry_sha256": "8ce1e17f36dc38f0712d400d0f7d7e8d6eca436b957833d895657e21808f1e06"
+    }
+  },
+  "fixture": {
+    "container_id": "f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7",
+    "image_id": "sha256:22fac36945da9a4145a11bc9a6198ebc00975b8323c8d454740e477c4e84593a",
+    "volume": "cehpalon-audit-outbox-pg18-20261121-data",
+    "state": "ready and idle, awaiting root final Windows/WSL tests",
+    "windows_proxy": "127.0.0.1:59576",
+    "wsl_loopback": "127.0.0.1:55438",
+    "private_config": "Ignored .local private connection files; never export contents",
+    "cleanup": [
+      "After root confirms all tests complete, inspect exact container ID, image ID, name and retained volume; stop only that container by ID.",
+      "Retain image, volume and all generated schemas/raw attempts; no reinitialization or pruning.",
+      "Verify proxy/anchor process command identities against ga-consumer .local scripts; write pg-proxy.stop and pg-wsl-anchor.stop in that exact directory.",
+      "Verify owned helpers exited, Windows59576 listener closed and container stopped; retain sanitized cleanup JSON."
+    ]
+  },
+  "note": "Development runs recorded pre-commit Samples baseline and dirty active source truthfully; exact executing244 inputs match committed source66db9282 and clean Engine b68d8e8. Root performs final clean integrated matrix separately."
+}

@@ -1,0 +1,9 @@
+# Original session observation propagation contracts
+
+Run the repository-pinned SDK with locked restore and Release/warnings-as-errors; use a fresh --output result path. The complete Engine verifier integrates this executable separately.
+
+The corpus checks immutable metadata/legacy signatures, contained UTC narrowing, exact bounded guard intersection, copied/shared invalidity, source/status native expiry under stalled UTC, partial clock/frequency rollback/fault latches, serialized parallel checks, nested decorators and mapper preservation. Tenant cases cover membership/resource/policy/authorization-audit, factory/handler/cleanup, distinct business/cancellation/cleanup outcomes, capacity cleanup, parent/fresh read-set lifetimes and required audit without raw session identifiers. Helpers do not establish authentication.
+
+A pre-change owned baseline at commit9850bed used frozen UTC and three seconds of monotonic advance against a two-second observation. Membership/policy/audit cases all admitted a handler on the old source; their exact source/raw remains under ignored .local/observation-baseline01. The new corresponding cases deny before business, distinguishing pre-audit denial from expiry during accepted audit. This is a bounded controlled gap reproduction, not a remote exploit, real provider, production or benchmark proof.
+
+All preparation/failed attempts and executing source hashes remain under ignored .local. The first focused build initialized the new test lock and failed CS9124 due to a primary-constructor parameter also used for a field initializer; an explicit readonly lower bound corrected compilation. The next locked focused run passed58/58. These focused observations precede final committed integration; root owns exact Windows/WSL/consumer validation and public export. No runtime credentials/tokens/keys or provider state are recorded.

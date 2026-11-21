@@ -1,0 +1,11 @@
+# .NET 11 GA functional regression evidence
+
+SDK11.0.100 and runtime/ASP.NETCore11.0.0, released2026-11-10. Engineb68d8e8705a48ea9a815b72126b05deedf2351b9 and active Samples source66db9282a2273c941d50c608bb0d1334167ae6eb. [Decision and validation report](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/planning/dotnet11-ga.md).
+
+Clean Windows/WSL components1187/1184, platform12passed/2providerNotRun each; consumers651security/60PostgreSQLoutbox/40SmallAPI each. Actual CLI scaffolds133outer checks and39nested self-tests each,14generatedfiles/32observedinputs, real build/run/externalHTTPS and owned cleanup. Counts are scoped; nested/outer checks are not disjoint totals.
+
+Retained failures: installer01's overly strict Linux relative-link check; root driver01's inherited Engine central package policy at the nested WSL Samples clone (NU1008/NU1004 before corpus); scaffold driver01 abort before SDK. Corrected attempts preserve original raw/source. Development consumer runs were precommitdirty; frozen244 bytes match the later source commit. Final clean committed Windows and corrected external WSL sources match85/92/9consumer inventories and141component inputs.
+
+Official metadata/selection/archive hashes and actual SDK probes are retained; SDK binaries are private. Installer02 reviews1830 internal normalized link targets and succeeds alongside retainedRC. Historical RC locks, source, offsets, collectors and benchmark records remain unchanged. This archive does not rerun or qualify the original #20 benchmark, establish GC/scheduler causality, improve maturity, or certify production/provider/supported-host coverage. #3 remains Blocked/M0. LocalWindows26H2/build26300 is outside the checked OS table; WindowsPostgres uses ownedWSL fixture.
+
+Only suitable text/source/raw is published. Private connection files, PFX/PEM/tokens, SDK archives, binaries/caches/build outputs and inherited evidence are excluded. Owned fixture cleanup retains image/volume/data. See attempt-path-map.json, source-inventory-checks.json, reviews, fixture-cleanup.json, publication-review.json and SHA256SUMS. The exporter summary records its earlier pre-publication phase; publication-review and the Docs Git-index proof record final publication checks.

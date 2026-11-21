@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "reviewed_at_date": "2026-11-21",
+  "reviewer": "dotnet_ga_review",
+  "status": "passed_all_declared_review_scopes",
+  "scope": "Independent source, lock graph, frozen-input and retained raw-result review. No SDK execution, provider probes, downloads, large archive hashing or remote writes by reviewer.",
+  "source_revisions": {
+    "engine": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+    "samples": "66db9282a2273c941d50c608bb0d1334167ae6eb"
+  },
+  "source_and_graph_review": {
+    "status": "passed",
+    "engine_changed_files": 16,
+    "samples_changed_files": 10,
+    "active_sdk": "11.0.100",
+    "roll_forward": "disable",
+    "allow_prerelease": false,
+    "jwt_bearer": "11.0.0",
+    "engine_changed_lock_files": 5,
+    "samples_changed_lock_files": 3,
+    "lock_delta": "Only JwtBearer requested/resolved/contentHash and propagated exact project-reference version ranges changed.",
+    "unchanged_dependency_versions": {
+      "Microsoft.IdentityModel": "8.19.2",
+      "HotChocolate": "16.7.1",
+      "Npgsql": "10.0.3",
+      "RabbitMQ.Client": "7.2.2",
+      "Microsoft.CodeAnalysis.CSharp": "4.14.0"
+    },
+    "cli_guards": "Exact GA SDK, allowPrerelease=false, disabled roll-forward and stable JwtBearer template validation have positive and negative checks.",
+    "historical_boundary": "Historical RC evidence, nested trace SDK pins and fixed binary collectors remain unchanged; replay requires their original source and matching retained private RC SDK. Existing RC offsets/results do not qualify GA.",
+    "blocking_findings": []
+  },
+  "engine_focused_evidence": {
+    "root": "D:/Cephalon/.worktrees/ga-engine/.local",
+    "prepare_manifest": "ga-prepare01/manifest.json",
+    "focused_manifest": "ga-focused01/manifest.json",
+    "current_source_hashes_checked": 194,
+    "frozen_source_hashes_checked": 194,
+    "prepared_lock_hashes_checked": 36,
+    "hash_mismatches": [],
+    "locked_restores": "passed",
+    "release_warnings_as_errors_builds": "passed, zero warnings and errors",
+    "tooling": {
+      "passed": 156,
+      "failed": 0,
+      "raw_check_count": 156,
+      "all_raw_checks_passed": true,
+      "migration_negative_cases_passed": 5,
+      "positive_small_api_determinism_case_passed": true
+    },
+    "platform": {
+      "passed": 12,
+      "failed": 0,
+      "not_run": 2,
+      "not_run_reason": "Owned real PostgreSQL and RabbitMQ fixture connections not supplied to this focused smoke.",
+      "framework": ".NET 11.0.0",
+      "runtime": "11.0.0",
+      "os": "Microsoft Windows 10.0.26300",
+      "architecture": "X64"
+    }
+  },
+  "samples_windows_evidence": {
+    "root": "D:/Cephalon/.worktrees/ga-consumer/.local",
+    "source_freeze_manifest": "dotnet-ga-locked-frozen01/manifest.json",
+    "source_freeze_sha256": "2ab1cddc1716cda35db22e8f4ae56ea92d1017ea4d33689eabe8ae4c87d88aa8",
+    "current_source_hashes_checked": 244,
+    "frozen_source_hashes_checked": 244,
+    "hash_mismatches": [],
+    "source_partition": { "consumer": 182, "engine": 62 },
+    "execution_provenance": "Development manifests truthfully record pre-commit Samples baseline 3429c68787894b011a448cac325203476abd6f62 and dirty active source; all 244 executing frozen inputs match committed Samples66db9282 and clean Engine b68d8e8. These are separate from root's clean integrated matrix.",
+    "security": {
+      "manifest": "dotnet-ga-security-windows01/manifest.json",
+      "passed": 651,
+      "failed": 0,
+      "raw_check_count": 651,
+      "all_raw_checks_passed": true,
+      "registry_sha256": "0534d97c0deba2f33744091b828da6a8a4e375d46c44ef2ca938f2088f148489"
+    },
+    "outbox": {
+      "manifest": "dotnet-ga-outbox-windows01/manifest.json",
+      "in_process_passed": 57,
+      "in_process_failed": 0,
+      "prior_outbox_passed": 34,
+      "status_passed": 23,
+      "restart_writer_passed": 1,
+      "restart_reader_passed": 2,
+      "total_passed": 60,
+      "all_raw_checks_passed": true,
+      "source_unchanged": true,
+      "provider_topology": "Windows .NET/Npgsql through owned loopback/stdio proxy to WSL PostgreSQL18.7 container; not native Windows PostgreSQL or power-loss certification.",
+      "relay_registry_sha256": "3651818cbccf40def05650121327f43b2c94b0b23d23aa0589a812a1e0622dd9"
+    },
+    "small_api": {
+      "manifest": "dotnet-ga-small-api-windows01/manifest.json",
+      "passed": 40,
+      "failed": 0,
+      "raw_check_count": 40,
+      "all_raw_checks_passed": true,
+      "framework": ".NET 11.0.0",
+      "generated_registry_sha256": "8ce1e17f36dc38f0712d400d0f7d7e8d6eca436b957833d895657e21808f1e06"
+    },
+    "locked_restores": "Verifier source inspected: all three use locked mode for delivery runs.",
+    "release_warnings_as_errors_builds": "Raw builds passed with zero warnings and errors."
+  },
+  "sdk_and_os_provenance_review": {
+    "official_ga_page": "https://dotnet.microsoft.com/en-us/download/dotnet/11.0",
+    "official_jwt_package": "https://www.nuget.org/packages/Microsoft.AspNetCore.Authentication.JwtBearer/11.0.0",
+    "release_metadata_sha256_independently_checked": "5c40c300da0264784179b299169e8c15cb02f8a1e0363dede2a4f5046de1fcc0",
+    "supported_os_snapshot_sha256_independently_checked": "8b97a3132af49d5667014fde50da670c54c92fe515a2688e0827dbe8dac4de1e",
+    "archive_verification_scope": "Install manifests record matching official SHA512 values; reviewer did not rehash large archives during suites.",
+    "attempt_retention": "install01 failure retained; install02 used the same verified archives, normalized1830 internal TAR links before first Linux extraction, and retained raw SDK11.0.100/runtime11.0.0 outputs.",
+    "os_table_boundary": "Retained current official table still says Go Live/2026-09-28; Windows Server2025 is listed, local Windows26H2/build26300 is not listed. No supported-host qualification inferred."
+  },
+  "program_boundaries": {
+    "issue_3_status": "Blocked",
+    "issue_3_maturity": "M0",
+    "issue_20_row": "unchanged",
+    "original_benchmark_criteria": "unchanged",
+    "qualification_or_performance_promotion": false
+  },
+  "root_full_matrix_review": {
+    "status": "passed_all_declared_functional_scopes",
+    "root": "D:/Cephalon/.worktrees/ga-integration",
+    "engine_revision": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+    "source_state": "exact clean committed source",
+    "windows": {
+      "manifest": ".local/dotnet-ga-windows-final01/manifest.json",
+      "manifest_sha256": "39376bb723975d5162d873d52b670f6b8b40bb7ca0eceece1edff19398bd2f3a",
+      "passed": 1187,
+      "failed": 0,
+      "projects": 20,
+      "source_hashes_checked": 141,
+      "raw_result_hashes_checked": 20,
+      "raw_pass_fail_counts_match_manifest": true,
+      "tooling_passed": 156,
+      "sdk": "11.0.100",
+      "runtime": ".NET 11.0.0",
+      "host": "Windows10.0.26300/win-x64"
+    },
+    "wsl": {
+      "manifest": ".local/dotnet-ga-wsl-source01/.local/dotnet-ga-wsl-final01/manifest.json",
+      "manifest_sha256": "2f287098aaad26d6736a63cea0cdc58449398435e468610f2492f4869ab03426",
+      "passed": 1184,
+      "failed": 0,
+      "projects": 20,
+      "source_hashes_checked": 141,
+      "raw_result_hashes_checked": 20,
+      "raw_pass_fail_counts_match_manifest": true,
+      "tooling_passed": 153,
+      "sdk": "11.0.100",
+      "runtime": ".NET 11.0.0",
+      "host": "WSL Ubuntu22.04/linux-x64"
+    },
+    "cross_host_source_inventories_identical": true,
+    "source_or_result_hash_mismatches": [],
+    "platform_count_difference": "Windows has three additional existing extended-path CLI guards; all remaining named CLI cases are shared.",
+    "locked_restores": "Existing frozen verifier requires locked-mode solution restore on both hosts.",
+    "release_warnings_as_errors_builds": "Both raw solution builds passed with zero warnings and errors.",
+    "compiler_fixture": {
+      "passed_on_both_hosts": true,
+      "handler_factory_calls": 2,
+      "handler_disposals": 2,
+      "business_result": "business:injected",
+      "runtime_libraries": ["Cehpalon.Engine.Core/1.0.0", "CompilerFixture/1.0.0"],
+      "generated_registry_sha256": "514df2f008e0a7a2d6ef6f9088e79407f1d1f97e91e048cfd860f6904bfecd3f",
+      "raw_fixture_and_generated_copy_match_manifests": true
+    },
+    "platform_smoke": {
+      "windows": {
+        "manifest": ".local/dotnet-ga-platform-windows01/manifest.json",
+        "manifest_sha256": "b96e5a7fd49e83a2674008037cbd8c2edbdfb253a62043ae45cd73705cd06e1e",
+        "passed": 12,
+        "failed": 0,
+        "not_run": 2,
+        "source_and_frozen_hashes_checked": 6
+      },
+      "wsl": {
+        "manifest": ".local/dotnet-ga-wsl-source01/.local/dotnet-ga-platform-wsl01/manifest.json",
+        "manifest_sha256": "4b97d638577b3cea0eb5b27396bb4170a865061dee771fa73338dcfa7fc3625c",
+        "passed": 12,
+        "failed": 0,
+        "not_run": 2,
+        "source_and_frozen_hashes_checked": 6
+      },
+      "raw_result_matches_manifests": true,
+      "source_hash_mismatches": [],
+      "runtime": ".NET 11.0.0",
+      "not_run_reason": "Real PostgreSQL and RabbitMQ connections intentionally not selected in the platform no-server lane; the separate outbox lane provides scoped PostgreSQL conformance."
+    },
+    "clean_windows_consumers": {
+      "root": "D:/Cephalon/.worktrees/ga-consumer",
+      "samples_revision": "66db9282a2273c941d50c608bb0d1334167ae6eb",
+      "security": {
+        "manifest": ".local/dotnet-ga-security-windows-final01/manifest.json",
+        "manifest_sha256": "77416a1eab9a6f9fa5dba2fc23a2348447064359358adb435dd85a608c623be1",
+        "passed": 651,
+        "failed": 0,
+        "source_hashes_checked": 85,
+        "engine_and_consumer_reported_clean": true
+      },
+      "outbox": {
+        "manifest": ".local/dotnet-ga-outbox-windows-final01/manifest.json",
+        "manifest_sha256": "cf015637ff2ec9e1f380f425c3f5a31a39783b5c3a25bd2413cd32ca6ef42b6c",
+        "passed": 60,
+        "failed": 0,
+        "in_process_passed": 57,
+        "restart_writer_passed": 1,
+        "restart_reader_passed": 2,
+        "source_hashes_checked": 92,
+        "frozen_source_hashes_checked": 92,
+        "engine_and_consumer_reported_clean": true
+      },
+      "small_api": {
+        "manifest": ".local/dotnet-ga-small-api-windows-final01/manifest.json",
+        "manifest_sha256": "1432abd8bb6e2bfc07e82431e9582231c10f5a6768f9e40c4e15595efb065e6e",
+        "passed": 40,
+        "failed": 0,
+        "source_hashes_checked": 9,
+        "clean_samples_asserted_by_frozen_driver_before_consumer_sequence": true
+      },
+      "all_raw_checks_passed": true,
+      "source_hash_mismatches": [],
+      "release_builds": "All three passed with zero warnings and errors."
+    },
+    "corrected_clean_wsl_consumers": {
+      "root": "D:/Cephalon/.worktrees/ga-wsl-consumer",
+      "driver_manifest": "D:/Cephalon/.worktrees/ga-integration/.local/dotnet-ga-final-driver02/manifest.json",
+      "driver_manifest_sha256": "6549a607d357d39725f6082dc62c48769b9e66a2dc213593c6c792fb91a72319",
+      "driver_status": "passed",
+      "samples_revision": "66db9282a2273c941d50c608bb0d1334167ae6eb",
+      "security": {
+        "manifest": ".local/dotnet-ga-security-wsl-final02/manifest.json",
+        "manifest_sha256": "0ba5b682a07d98543d3d6d2ab11bca04891ddb380e4a595003339b3469ff5f86",
+        "passed": 651,
+        "failed": 0,
+        "source_hashes_checked": 85,
+        "engine_and_consumer_reported_clean": true
+      },
+      "outbox": {
+        "manifest": ".local/dotnet-ga-outbox-wsl-final02/manifest.json",
+        "manifest_sha256": "ba5e089217e22edccb968a4cb999f820fda3c408c4f25dcb85b55702fd33c9ab",
+        "passed": 60,
+        "failed": 0,
+        "in_process_passed": 57,
+        "restart_writer_passed": 1,
+        "restart_reader_passed": 2,
+        "source_hashes_checked": 92,
+        "frozen_source_hashes_checked": 92,
+        "engine_and_consumer_reported_clean": true,
+        "provider_topology": "WSL .NET/Npgsql directly to the owned WSL loopback PostgreSQL container."
+      },
+      "small_api": {
+        "manifest": ".local/dotnet-ga-small-api-wsl-final02/manifest.json",
+        "manifest_sha256": "0f9caf8f3d65efcd0de0447e811b388486189bf5a8ee28d127785f4a47286f40",
+        "passed": 40,
+        "failed": 0,
+        "source_hashes_checked": 9,
+        "clean_samples_asserted_by_frozen_driver_before_consumer_sequence": true
+      },
+      "all_raw_checks_passed": true,
+      "source_hash_mismatches": [],
+      "all_three_source_inventories_equal_final_windows_inventories": true,
+      "strict_flags_and_frozen_driver_review": "Outside-Engine real Git clone uses the same SDK, committed source and unchanged verifiers without initialize-lock; locked restore and warn-as-error Release behavior retained.",
+      "release_builds": "All three passed with zero warnings and errors."
+    },
+    "hosted_ci_metadata_review": {
+      "file": "D:/Cephalon/Cehpalon-Engine-Docs/internal/evidence/dotnet11-ga/hosted-ci.json",
+      "run_ids": [44867631140, 44867631103],
+      "completed_successful_jobs": 4,
+      "runner_labels": ["windows-2025", "ubuntu-24.04"],
+      "scope": "Reviewed retained connector/REST job metadata; did not independently download job artifacts or infer provider, performance or complete supported-host qualification."
+    },
+    "retained_failed_attempts": [
+      {
+        "driver_manifest": ".local/dotnet-ga-final-driver01/manifest.json",
+        "consumer_manifest": ".local/dotnet-ga-samples-wsl-source01/.local/dotnet-ga-security-wsl-final01/manifest.json",
+        "observed_status": "failed",
+        "phase": "WSL security locked restore, before corpus execution",
+        "raw_errors": ["NU1008", "NU1004"],
+        "reviewed_layout_cause": "Samples clone was nested under ga-integration Engine and inherited its ancestor Directory.Packages.props, incorrectly applying Central Package Management to the independently versioned Samples project.",
+        "retained_artifacts": "Driver phases/stderr, failed consumer source freeze, verifier, SDK observation and restore.txt are retained; no build or corpus output exists for this failed attempt.",
+        "correction_boundary": "Separately frozen driver02 relocates the real Git Samples clone outside Engine; same committed source, SDK, dependency pins and locked flags. Product source and benchmark criteria are unchanged."
+      }
+    ],
+    "scaffolds": {
+      "root": "D:/Cephalon/.worktrees/ga-scaffold",
+      "driver02_status": "passed",
+      "windows": {
+        "manifest": ".local/ga-windows01/manifest.json",
+        "manifest_sha256": "729fcb01f32032571a3b1a0f8095bdfa005bbfcb7d6dff1fb5432c54e0dd8293",
+        "outer_verifier_checks": 133,
+        "nested_self_test_passed": 39,
+        "nested_self_test_failed": 0
+      },
+      "wsl": {
+        "manifest": ".local/ga-wsl01/manifest.json",
+        "manifest_sha256": "00a93cef17506cc9cf6da4d7e269e76364b51eaedd9535cb337c9b955274dc34",
+        "outer_verifier_checks": 133,
+        "nested_self_test_passed": 39,
+        "nested_self_test_failed": 0
+      },
+      "per_host_independent_hash_checks": {
+        "tooling_sources": 13,
+        "generated_files": 14,
+        "observed_engine_source_inputs": 32,
+        "command_logs": 28,
+        "package_lock_and_generated_registry_match": true,
+        "self_test_raw_matches_manifest": true,
+        "mismatches": []
+      },
+      "harness_sha256": "b5a875556a1c841cc8bb2e31836a18e6e5792494e1ee3bd6db1e54d4b31ee727",
+      "harness_matches_committed_samples_and_frozen_copy": true,
+      "input_overlay": "Separate GA overlay only; original tracked tooling-small-api engine lock and retained historical copy match byte-for-byte. Frozen SDK/global/config/harness copies match committed Samples source.",
+      "sdk": "11.0.100",
+      "clean_engine_revision": "b68d8e8705a48ea9a815b72126b05deedf2351b9",
+      "optional_capacity_or_metrics_flags": "none",
+      "external_https_statuses_each_host": [200, 200, 403, 403, 401, 401, 404],
+      "owned_serve_exit_each_host": 0,
+      "owned_serve_stopped_each_host": true,
+      "scope": "Functional generation, strict restores, tenant denials, disabled modules, real local HTTPS serve and owned shutdown; no timing or benchmark qualification."
+    },
+    "remaining": []
+  },
+  "tracking_review": {
+    "status": "passed_local_retained_readback_review",
+    "baseline_docs_revision": "2c498b1ef57292b1f437f4b23e2b93d2a928dc5c",
+    "guard": "D:/Cephalon/Cehpalon-Engine-Docs/internal/evidence/dotnet11-ga/final-tracking-guard.json",
+    "guard_sha256": "6e3fdf460d97bfa2621578b33b7e91d9f02a2a96e32f86445bd5f621e839866b",
+    "mirrors_independently_compared": 23,
+    "changed_complete_rows": [3],
+    "other_22_complete_rows_unchanged": true,
+    "other_22_task_files_byte_identical_to_baseline": true,
+    "issue_3_non_title_project_fields_and_other_metadata_unchanged": true,
+    "issue_3_status": "Blocked",
+    "issue_3_maturity": "M0",
+    "issue_20_entire_row_unchanged": true,
+    "milestones_unchanged": true,
+    "retained_project_readback_cards": 23,
+    "retained_project_readback_field_equalities": 253,
+    "preserved_primary_engine_file_hash_mismatches": [],
+    "scope": "Independent local baseline/current comparison and retained GitHub Project readback review; reviewer made no remote calls or writes."
+  },
+  "final_conclusion": "No blocking source, graph, functional-result or tracking finding in the declared GA migration scope. SDK11.0.100/runtime11.0.0 evidence is separate from historical RC traces/benchmarks. #3 remains Blocked/M0, #20 and original benchmark criteria remain unchanged. Hosted CI evidence is job metadata only; no artifact download or qualification promotion is claimed."
+}

@@ -1,0 +1,218 @@
+"""ADR0023 offline EventPipe task/header linkage with method point co-observations."""
+import argparse
+from bisect import bisect_left, bisect_right
+from collections import Counter, defaultdict
+from fractions import Fraction
+import json
+import math
+from pathlib import Path
+import analyze_tooling_tasks as tpl
+
+TPL_SHA = '7fe853f20ad5f257c726283b1a5d72329057508b3c50731e19e3984cd452773b'
+MARKER = 'Cehpalon-Tooling-Diagnostic'
+SAMPLE = 'Microsoft-DotNETCore-SampleProfiler'
+ROW_FIELDS = ('caseIndex', 'size', 'state', 'variant', 'pairSequence', 'phase')
+SPAN_FIELDS = ('sequence', 'stage', 'startTicks', 'endTicks', 'frequency', 'processId', 'osThreadId',
+               *ROW_FIELDS, 'markerBeforeTicks', 'anchorBeforeTicks', 'anchorAfterTicks', 'utcAnchorTicks')
+require = tpl.require
+
+
+def records(path):
+    with Path(path).open(encoding='utf-8-sig') as stream:
+        for line in stream:
+            yield json.loads(line)
+
+
+def number(value):
+    require(type(value) in (int, float) and math.isfinite(value) and value >= 0, 'Finite numeric EventPipe time')
+    return Fraction(str(value))
+
+
+def clock_map(spans, markers, pid):
+    require(len(spans) == len(markers) > 0, 'Complete marker/sidecar cardinality')
+    lower = upper = None
+    for span in spans:
+        sequence = span['sequence']; event = markers[sequence]
+        require(all(type(event.get(k)) is int for k in ('eventId', 'version', 'opcode')) and (event['eventId'], event['version'], event['opcode']) == (1, 0, 0) and type(event.get('templateType')) is str and bool(event['templateType']), 'Exact stage marker template')
+        require(tpl.integer(span.get('processId'), 1) and tpl.integer(span.get('osThreadId'), 1), 'Exact positive sidecar PID/TID')
+        require(all(type(span.get(k)) is int for k in ('caseIndex', 'size', 'pairSequence', 'utcAnchorTicks', 'anchorBeforeTicks', 'anchorAfterTicks')), 'Exact sidecar numeric identities')
+        require(all(type(span.get(k)) is str and span[k] for k in ('stage', 'state', 'variant', 'phase')), 'Exact sidecar text identities')
+        require(type(sequence) is int and sequence > 0, 'Positive exact marker sequence')
+        require(type(event.get('processId')) is int and type(event.get('threadId')) is int
+                and event['processId'] == pid == span['processId'] and event['threadId'] == span['osThreadId'], 'Exact marker PID/native TID')
+        require(all(type(event['payload'].get(k)) is type(span[k]) and event['payload'][k] == span[k] for k in SPAN_FIELDS), 'Exact marker payload/sidecar parity')
+        for key in ('startTicks', 'endTicks', 'frequency', 'markerBeforeTicks', 'markerAfterTicks'):
+            require(type(span.get(key)) is int, 'Exact marker integer clocks')
+        f = span['frequency']
+        require(f > 0 and 0 <= span['startTicks'] <= span['endTicks'] <= span['markerBeforeTicks'] <= span['markerAfterTicks'], 'Ordered marker clock brackets')
+        t = number(event['timeMsec'])
+        lo = t - Fraction(span['markerAfterTicks'] * 1000, f)
+        hi = t - Fraction(span['markerBeforeTicks'] * 1000, f)
+        lower = lo if lower is None else max(lower, lo)
+        upper = hi if upper is None else min(upper, hi)
+    require(lower <= upper, 'Nonempty conditional marker clock intersection')
+    return lower, upper
+
+
+def stage_window(span, offset):
+    require(len(offset) == 2 and offset[0] <= offset[1], 'Ordered offset interval')
+    f = span['frequency']
+    require(type(f) is int and f > 0 and type(span['startTicks']) is int and type(span['endTicks']) is int
+            and 0 <= span['startTicks'] < span['endTicks'], 'Positive exact stage clock interval')
+    start, end = Fraction(span['startTicks'] * 1000, f), Fraction(span['endTicks'] * 1000, f)
+    return start + offset[0], start + offset[1], end + offset[0], end + offset[1]
+
+
+def inside_core(time, window):
+    return window[1] <= time <= window[2] and window[1] <= window[2]
+
+
+def point_kind(frames, tid, pid):
+    require(type(frames) is list and all(type(f) is str for f in frames), 'Structured string stack frames')
+    compiler = [f for f in frames if f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler+<>c__DisplayClass') and '.<CompileNamedTypeAsync>b__' in f]
+    pool = [f for f in frames if f.startswith(('System.Threading.ThreadPoolWorkQueue.', 'System.Threading.PortableThreadPool'))]
+    caller = [f for f in frames if f.startswith('Microsoft.CodeAnalysis.CSharp.MethodCompiler.WaitForWorkers(')]
+    if tid == pid and caller:
+        return 'caller_wait_for_workers', caller
+    if compiler and pool:
+        return 'compiler_pool_point', compiler + pool
+    if compiler:
+        return 'compiler_frame_without_pool', compiler
+    return None, []
+
+
+def link_rows(emits, task_report, points, offset, pid):
+    """Only explicit TPL awaited TaskID links execution headers; methods remain point context."""
+    require(type(task_report.get('process_id')) is int and task_report['process_id'] == pid, 'Task process scope matches selected capture')
+    executions = {t['task_id']: t for t in task_report['tasks'] if t['status'] == 'complete_observed_lifetime'}
+    waits = [(i, w) for i, w in enumerate(task_report['waits']) if w['caller_native_tid'] == pid
+             and w['behavior'] == 1 and w['status'] == 'synchronous_wait_bracket_observed']
+    point_times = {p['sample_record_index']: number(p['time_msec']) for p in points}
+    wait_times = {i: (number(w['begin']['event']['timeMsec']), number(w['end']['event']['timeMsec'])) for i, w in waits}
+    compiler = [p for p in points if p['kind'] == 'compiler_pool_point']
+    caller = [p for p in points if p['kind'] == 'caller_wait_for_workers']
+    # Preserve every containing execution; never pick a favorable/innermost scope silently.
+    by_tid = defaultdict(list)
+    for state in executions.values():
+        by_tid[state['execution_native_tid']].append((state['task_id'], number(state['start']['event']['timeMsec']), number(state['complete']['event']['timeMsec'])))
+    point_contexts = {}; compiler_by_task = defaultdict(list)
+    for point in compiler:
+        t = point_times[point['sample_record_index']]
+        candidates = [task_id for task_id, start, end in by_tid[point['native_tid']] if start <= t <= end]
+        point_contexts[point['sample_record_index']] = sorted(candidates)
+        for task_id in candidates: compiler_by_task[task_id].append(point)
+    output = []
+    for span in emits:
+        require(tpl.integer(span['processId'], 1) and tpl.integer(span['osThreadId'], 1) and span['processId'] == pid and span['osThreadId'] == pid, 'Emit belongs to selected main native caller')
+        window = stage_window(span, offset)
+        points_core = [p for p in caller if inside_core(point_times[p['sample_record_index']], window)]
+        joined = []
+        for index, wait in waits:
+            begin, end = wait_times[index]
+            if end < window[0] or begin > window[3]:
+                continue
+            witnesses = [p for p in points_core if begin <= point_times[p['sample_record_index']] <= end]
+            all_candidates = {p['sample_record_index']: [j for j, other in waits
+                              if wait_times[j][0] <= point_times[p['sample_record_index']] <= wait_times[j][1]]
+                              for p in witnesses}
+            state = executions.get(wait['task_id'])
+            worker_points = []
+            if state:
+                for point in compiler_by_task[wait['task_id']]:
+                    t = point_times[point['sample_record_index']]
+                    ids = point_contexts[point['sample_record_index']]
+                    if wait['task_id'] in ids and begin <= t <= end and inside_core(t, window):
+                        worker_points.append({'sample_record_index': point['sample_record_index'], 'native_tid': point['native_tid'],
+                            'execution_task_candidates': ids, 'execution_scope_ambiguous': len(ids) != 1,
+                            'proc_birth_not_single_observed': point.get('observed_birth_scope') != 'one_birth_observed_partial_sampling',
+                            'native_lifetime_proven': False,
+                            'observed_birth_scope': point.get('observed_birth_scope', 'not_checked_unknown')})
+            joined.append({'wait_index': index, 'awaited_task_id': wait['task_id'],
+                'wait_begin_record_index': wait['begin']['raw_record_index'], 'wait_end_record_index': wait['end']['raw_record_index'],
+                'row_scope': 'entire_wait_inside_guaranteed_emit_core' if inside_core(begin, window) and inside_core(end, window) else 'partial_or_boundary_uncertain',
+                'caller_point_candidates': all_candidates, 'caller_context_witness_count': len(witnesses),
+                'linked_execution_event_lifetime': state is not None,
+                'execution_native_tid': state['execution_native_tid'] if state else None,
+                'compiler_points_during_wait_in_emit': worker_points,
+                'direct_waitforworkers_callsite_proven': False, 'blocked_time_ms': None, 'scheduler_delay_ms': None})
+        output.append({'row_identity': {k: span[k] for k in ROW_FIELDS}, 'emit_sequence': span['sequence'],
+            'eventpipe_window_ms_exact_fraction': [str(v) for v in window],
+            'caller_context_point_indices_in_core': [p['sample_record_index'] for p in points_core],
+            'observed_caller_waits': joined,
+            'status': 'observed_wait_task_header_links_with_conditional_method_context' if joined else 'no_caller_wait_observed_unknown_activity'})
+    return output, point_contexts
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__); parser.add_argument('--folder', required=True); parser.add_argument('--output', required=True)
+    args = parser.parse_args(); base = Path(args.folder); out = Path(args.output); out.mkdir(parents=True, exist_ok=False)
+    (out/'analysis-source.py.txt').write_bytes(Path(__file__).read_bytes())
+    require(tpl.sha(tpl.__file__) == TPL_SHA, 'Pinned TPL assembler source')
+    report = json.loads((base/'analysis/summary.json').read_text(encoding='utf-8-sig'))
+    capture = json.loads((base/'capture.json').read_text(encoding='utf-8-sig')); pid = capture['target_pid']
+    require(capture['status'] == 'completed' and tpl.integer(pid, 1), 'Owned successful capture')
+    require(report['stackExtractionStatus'] == 'completed' and type(report['truncatedStacks']) is int and report['truncatedStacks'] == 0
+            and report['markerErrors'] == [] and report['alignmentStatus'] == 'bounded_consistent', 'Stack/marker gates')
+    spans_path = base/'generator.json.spans.jsonl'; spans = list(records(spans_path))
+    require(all(type(report.get(k)) is int and report[k] == 2956 for k in ('markerEvents', 'sidecarSpans')), 'Exact full parser marker/sidecar counts')
+    require([s['sequence'] for s in spans] == list(range(1, 2957)), 'All 2956 ordered stage spans')
+    emits = [s for s in spans if s['stage'] == 'pe.emit' and s['phase'] in ('primer', 'measurement')]
+    require(len(emits) == 306 and len({tuple(s[k] for k in ROW_FIELDS) for s in emits}) == 306, 'All 306 unique main Emit rows')
+    require(Counter(s['phase'] for s in emits) == {'primer': 36, 'measurement': 270}, 'Full fixed primer/measurement rows')
+    corpus_rows = list(records(base/'generator.json.rows.jsonl'))
+    require(all(type(r.get('phase')) is str and all(type(r['row'].get(k)) is int for k in ('caseIndex', 'size', 'pairSequence')) for r in corpus_rows), 'Exact raw corpus identity types')
+    require(len(corpus_rows) == 306 and [tuple(s[k] for k in ROW_FIELDS) for s in emits] == [tuple(r['phase'] if k == 'phase' else r['row'][k] for k in ROW_FIELDS) for r in corpus_rows], 'Emit identities/order equal full raw row corpus')
+    tracker = tpl.Tasks(pid); markers = {}; raw_samples = Counter(); count = 0
+    for index, e in enumerate(records(base/'analysis/events.jsonl')):
+        count += 1; tracker.add(e, index)
+        require('EventSourceMessage' not in e.get('name', ''), 'Provider errors rejected')
+        if e.get('provider') == MARKER:
+            seq = e['payload']['sequence']; require(type(seq) is int and seq not in markers, 'Unique marker sequence'); markers[seq] = e
+        if e.get('provider') == SAMPLE:
+            require(type(e['processId']) is int and e['processId'] == pid and tpl.integer(e['threadId'], 1), 'Raw sample exact target/native identity')
+            raw_samples[(e['processId'], e['threadId'], number(e['timeMsec']))] += 1
+    require(type(report.get('events')) is int and count == report['events'], 'Every raw parser event counted')
+    require(all(type(report.get(k)) is int and report[k] == 0 for k in ('eventsLost', 'etlxEventsLost', 'payloadReadErrors')), 'Exact integer loss/read gates')
+    offset = clock_map(spans, markers, pid); task_report = tracker.result()
+    births = defaultdict(set); proc_samples = 0; proc_ids = set()
+    if (base/'os.jsonl').exists():
+        for item in records(base/'os.jsonl'):
+            if item.get('kind') != 'sample': continue
+            proc_samples += 1; identity = item['target_identity']; require(identity['pid'] == pid, 'Proc selected process')
+            proc_ids.add(identity['starttime_ticks'])
+            for thread in item.get('threads', []): births[thread['tid']].add(thread['starttime_ticks'])
+        require(len(proc_ids) == 1, 'One observed proc process generation')
+    points = []; stack_samples = Counter(); stack_count = 0
+    for index, item in enumerate(records(base/'analysis/sampled-thread-stacks.jsonl')):
+        stack_count += 1; tid = item['osThreadId']; require(tpl.integer(tid, 1) and type(item['processId']) is int and item['processId'] == pid and item['truncated'] is False, 'Complete target native stack header')
+        t = number(item['timeRelativeMsec']); stack_samples[(pid, tid, t)] += 1
+        kind, frames = point_kind(item['frames'], tid, pid)
+        if kind:
+            points.append({'sample_record_index': index, 'kind': kind, 'process_id': pid, 'native_tid': tid, 'time_msec': item['timeRelativeMsec'],
+                'matching_frames': frames, 'observed_birth_scope': 'one_birth_observed_partial_sampling' if len(births[tid]) == 1 else 'unknown_or_reused_unassigned',
+                'observed_birth_values': sorted(births[tid])})
+    require(raw_samples == stack_samples, 'Exact raw SampleProfiler vs ETLX PID/TID/time multiset parity')
+    require(type(report['stackSamples']) is int and type(report['sampledThreadEvents']) is int and stack_count == report['stackSamples'] == report['sampledThreadEvents'], 'Full sample count parity')
+    rows, contexts = link_rows(emits, task_report, points, offset, pid)
+    for point in points: point['execution_task_candidates'] = contexts.get(point['sample_record_index'], [])
+    for name, values in [('rows.jsonl', rows), ('points.jsonl', points)]:
+        with (out/name).open('x', encoding='utf-8', newline='\n') as stream:
+            for item in values: stream.write(json.dumps(item, separators=(',', ':')) + '\n')
+    (out/'task-observations.json').write_text(json.dumps(task_report, separators=(',', ':'))+'\n', encoding='utf-8', newline='\n')
+    summary = {'status': 'completed_bounded_context_observations', 'source_sha256': tpl.sha(out/'analysis-source.py.txt'), 'assembler_sha256': TPL_SHA,
+        'pid': pid, 'raw_events': count, 'stack_samples': stack_count, 'sample_multiset_parity': True, 'spans': len(spans), 'emit_rows': len(rows),
+        'tpl_records': task_report['tpl_records'], 'tpl_errors': len(task_report['errors']), 'tpl_unfinished_waits': len(task_report['unfinished_waits']),
+        'task_statuses': dict(Counter(t['status'] for t in task_report['tasks'])), 'point_kinds': dict(Counter(p['kind'] for p in points)),
+        'proc_samples': proc_samples, 'clock_offset_ms_exact_fraction': [str(v) for v in offset],
+        'inputs_sha256': {name: tpl.sha(base/name) for name in ['capture.json', 'analysis/summary.json', 'analysis/events.jsonl', 'analysis/sampled-thread-stacks.jsonl', 'generator.json.spans.jsonl', 'generator.json.rows.jsonl']},
+        'outputs_sha256': {p.name: tpl.sha(p) for p in out.iterdir() if p.is_file()},
+        'limits': ['Explicit TPL awaitedTaskID links execution headers, not proven direct WaitForWorkers callsite ownership.',
+                   'All containing/nested scope candidates retained; method frames are point co-observations only.',
+                   'Proc births are sampled partial context; native lifetime/task authority not established.',
+                   'Conditional marker clock core excludes uncertain boundaries; missing samples never imply zero activity.',
+                   'No CPU, blocked time, scheduler delay, GC cause, timing comparison or qualification.']}
+    if (base/'os.jsonl').exists(): summary['inputs_sha256']['os.jsonl'] = tpl.sha(base/'os.jsonl')
+    require(tpl.sha(__file__) == summary['source_sha256'] and tpl.sha(tpl.__file__) == TPL_SHA, 'Analysis source pins unchanged throughout replay')
+    (out/'summary.json').write_text(json.dumps(summary, indent=2)+'\n', encoding='utf-8', newline='\n'); print(json.dumps(summary))
+
+if __name__ == '__main__': main()

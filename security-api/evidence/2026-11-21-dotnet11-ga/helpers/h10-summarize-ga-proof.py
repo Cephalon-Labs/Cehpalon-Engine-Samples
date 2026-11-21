@@ -1,0 +1,21 @@
+import hashlib,json,subprocess
+from pathlib import Path
+r=Path.cwd();e=Path('D:/Cephalon/.worktrees/ga-integration');base='3429c68787894b011a448cac325203476abd6f62';head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();frozen=r/'.local/dotnet-ga-locked-frozen01/manifest.json';f=json.loads(frozen.read_bytes());mismatches=[]
+for key,digest in f['source_sha256'].items():
+ prefix,relative=key.split('/',1);repo=r if prefix=='consumer' else e;p=repo/relative
+ if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=digest:mismatches.append(key)
+def tree(rev):
+ raw=subprocess.check_output(['git','ls-tree','-r','-z',rev]);result={}
+ for item in raw.split(b'\0'):
+  if not item:continue
+  meta,name=item.split(b'\t',1);path=name.decode();result[path]=meta.decode().split()[2]
+ return result
+before,after=tree(base),tree(head)
+def retained(p):
+ return 'evidence' in Path(p).parts or (p.endswith('/engine-lock.json') and p!='small-api/engine-lock.json') or (p.startswith('tooling-traces/') and p.endswith('/global.json'))
+retained_paths=sorted(p for p in before if retained(p));retained_changed=[p for p in retained_paths if before[p]!=after.get(p)]
+summary={'scope':'Development GA Windows consumers; no original benchmark recapture or qualification. #3 Blocked and original gates unchanged.','samples_source_revision':head,'source_baseline':base,'engine_source_revision':f['engine_revision'],'sdk':'11.0.100','source_freeze':{'manifest':'.local/dotnet-ga-locked-frozen01/manifest.json','sha256':hashlib.sha256(frozen.read_bytes()).hexdigest(),'source_count':len(f['source_sha256']),'all_match_after_three_tests_and_source_commit':not mismatches,'mismatches':mismatches},'historical_retention':{'git_blob_comparison':'baseline versus source commit','retained_evidence_locks_trace_pins_count':len(retained_paths),'all_blobs_identical':not retained_changed,'changed':retained_changed},'consumers':{},'fixture':{'container_id':'f42b79b9b0f7acd41a6d96e90e606a8b21cf6bbfd7ed7135da64a1aa622adee7','image_id':'sha256:22fac36945da9a4145a11bc9a6198ebc00975b8323c8d454740e477c4e84593a','volume':'cehpalon-audit-outbox-pg18-20261121-data','state':'ready and idle, awaiting root final Windows/WSL tests','windows_proxy':'127.0.0.1:59576','wsl_loopback':'127.0.0.1:55438','private_config':'Ignored .local private connection files; never export contents','cleanup':['After root confirms all tests complete, inspect exact container ID, image ID, name and retained volume; stop only that container by ID.','Retain image, volume and all generated schemas/raw attempts; no reinitialization or pruning.','Verify proxy/anchor process command identities against ga-consumer .local scripts; write pg-proxy.stop and pg-wsl-anchor.stop in that exact directory.','Verify owned helpers exited, Windows59576 listener closed and container stopped; retain sanitized cleanup JSON.']}}
+for label,folder in [('security','.local/dotnet-ga-security-windows01'),('outbox','.local/dotnet-ga-outbox-windows01'),('small_api','.local/dotnet-ga-small-api-windows01')]:
+ p=r/folder/'manifest.json';m=json.loads(p.read_bytes());keys=['status','sdk','engine_revision','engine_dirty','consumer_revision','consumer_source_dirty','passed','failed','checks','status_passed','prior_outbox_passed','restart_passed','total_passed','registry_sha256','security_registry_sha256','service_registry_sha256','generated_registry_sha256','source_unchanged'];summary['consumers'][label]={'manifest':folder+'/manifest.json','manifest_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),**{k:m[k] for k in keys if k in m}}
+summary['note']='Development runs recorded pre-commit Samples baseline and dirty active source truthfully; exact executing244 inputs match committed source66db9282 and clean Engine b68d8e8. Root performs final clean integrated matrix separately.'
+p=r/'.local/dotnet-ga-windows-proof-summary.json';p.write_text(json.dumps(summary,indent=2)+'\n',encoding='utf-8');print(json.dumps({'summary':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'frozen_count':len(f['source_sha256']),'all_current_source_matches':not mismatches,'historical_count':len(retained_paths),'historical_unchanged':not retained_changed}))

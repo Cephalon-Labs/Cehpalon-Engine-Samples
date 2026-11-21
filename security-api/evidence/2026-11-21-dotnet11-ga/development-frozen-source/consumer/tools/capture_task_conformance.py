@@ -1,0 +1,60 @@
+"""ADR0022 fixed plain/TPL synthetic pair; no Engine or generator workload."""
+import argparse,hashlib,json,os,subprocess,sys,time,traceback
+from pathlib import Path
+import trace_tooling as runtime
+ROOT=Path(__file__).resolve().parents[1]
+PROVIDERS='Microsoft-Windows-DotNETRuntime:0x411C14FCCBD:5,Cehpalon-Task-Conformance:0x1:4,System.Threading.Tasks.TplEventSource:0x43:5'
+def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def save(path,value):Path(path).write_text(json.dumps(value,indent=2,allow_nan=False)+'\n',encoding='utf-8',newline='\n')
+def require(ok,message):
+    if not ok:raise ValueError(message)
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    for name in ['dotnet','target','trace-tool','analyzer','output']:parser.add_argument('--'+name,required=True)
+    a=parser.parse_args();dotnet,target,tool,analyzer=[Path(x).resolve() for x in [a.dotnet,a.target,a.trace_tool,a.analyzer]];out=Path(a.output).resolve()
+    require(os.name!='nt','ADR0022 lane is Linux/WSL only')
+    require(all(x.is_file() for x in [dotnet,target,tool,analyzer]),'All prebuilt pinned binaries must exist')
+    out.mkdir(parents=True,exist_ok=False);snap=out/'source-snapshots';snap.mkdir()
+    sources=[Path(__file__).resolve(),ROOT/'tools/trace_tooling.py',ROOT/'tools/tooling_os_observer.py',ROOT/'tooling-traces/TaskConformance/Program.cs',ROOT/'tooling-traces/TaskConformance/TaskConformance.csproj',ROOT/'tooling-traces/TraceAnalysis/Program.cs']
+    hashes={str(p.relative_to(ROOT)):sha(p) for p in sources}
+    for p in sources:(snap/(str(p.relative_to(ROOT)).replace('/','__')+'.txt')).write_bytes(p.read_bytes())
+    report=dict(status='started',role='synthetic_task_pair_not_benchmark',order=['plain','tpl'],providers=PROVIDERS,sources_sha256=hashes,binaries_sha256={str(p):sha(p) for p in [dotnet,target,tool,analyzer]},limits=['Single pair describes instrumentation only; no inference of mean/variance/speedup.','Extra TPL telemetry can alter execution; task wait can include inline work.','No scheduler events, Engine build, generator workload or original benchmark.'])
+    save(out/'pair.json',report)
+    try:
+        env,_=runtime.diagnostics_environment(dict(os.environ),False)
+        plain=out/'plain';plain.mkdir();command=[str(dotnet),str(target),str(plain/'target.json')]
+        before=time.perf_counter_ns()
+        with (plain/'stdout.txt').open('wb') as stdout,(plain/'stderr.txt').open('wb') as stderr:p=subprocess.run(command,cwd=ROOT,env=env,stdin=subprocess.DEVNULL,stdout=stdout,stderr=stderr,timeout=120)
+        report['plain']=dict(argv=command,exit=p.returncode,process_elapsed_ns=time.perf_counter_ns()-before)
+        save(out/'pair.json',report);require(p.returncode==0,'Plain synthetic target succeeds')
+        require(runtime.read(plain/'target.json')['status']=='passed','Plain semantic proof')
+        runtime.PROVIDERS=PROVIDERS # Explicit declared provider extension; legacy source is unchanged.
+        traced=out/'tpl';before=time.perf_counter_ns()
+        report['tpl_capture']=runtime.capture_runtime([str(dotnet),str(target),str(traced/'target.json')],ROOT,traced,dotnet,tool,analyzer,timeout=120)
+        report['tpl_process_and_collection_elapsed_ns']=time.perf_counter_ns()-before
+        require(runtime.read(traced/'target.json')['status']=='passed','TPL semantic proof')
+        analyzed=traced/'analysis'
+        with (traced/'analyzer.stdout.txt').open('wb') as stdout,(traced/'analyzer.stderr.txt').open('wb') as stderr:p=subprocess.run([str(dotnet),str(analyzer),'--trace',str(traced/'runtime.nettrace'),'--output',str(analyzed)],cwd=ROOT,env=env,stdout=stdout,stderr=stderr,stdin=subprocess.DEVNULL,timeout=600)
+        report['analyzer_exit']=p.returncode;require(p.returncode==0,'Analyzer exits successfully')
+        quality=runtime.read(analyzed/'summary.json');report['analysis_quality']={k:quality.get(k) for k in ['status','eventsLost','etlxEventsLost','payloadReadErrors','stackExtractionStatus','events','eventCounts']}
+        require(quality['status']=='completed' and quality['eventsLost']==0 and quality['etlxEventsLost']==0 and quality['payloadReadErrors']==0 and quality['stackExtractionStatus']=='completed','All parser/loss gates pass')
+        point_count=sum(1 for _ in (traced/'target.json.points.jsonl').open(encoding='utf-8'))
+        marker_count=0
+        for line in (analyzed/'events.jsonl').open(encoding='utf-8'):
+            event=json.loads(line)
+            require(event['name']!='EventSourceMessage','EventSource metadata/command error invalidates conformance')
+            if event['provider']=='Cehpalon-Task-Conformance':
+                require(event['eventId']==1 and event['name']=='Point','Unexpected fixture marker template')
+                marker_count+=1
+        require(marker_count==point_count and point_count>0,'Positive exact marker/sidecar count parity')
+        report['marker_counts']=dict(sidecar=point_count,raw=marker_count)
+        require(hashes=={str(p.relative_to(ROOT)):sha(p) for p in sources},'Frozen source bytes unchanged')
+        require(report['binaries_sha256']=={str(p):sha(p) for p in [dotnet,target,tool,analyzer]},'Frozen binaries unchanged')
+        report['status']='completed'
+        report['target_elapsed_ticks']={name:runtime.read(out/name/'target.json')['elapsedTicks'] for name in ['plain','tpl']}
+        report['target_elapsed_scope']='Fixture target clock excludes final sidecar/result writes; all synchronization and markers included. Single pair only, incomparable to generator/Engine benchmark.'
+    except Exception:
+        report.update(status='failed',failure=traceback.format_exc());raise
+    finally:save(out/'pair.json',report)
+    print(json.dumps({'status':report['status'],'output':str(out)}))
+if __name__=='__main__':main()
