@@ -208,14 +208,21 @@ public sealed class Bridge(Host host):ITransportOperationDispatcher
         if(trailProfile is not null)
         {
             foreach(var operation in new[]{("entity.create","create"),("entity.update","update"),("entity.delete","delete")})
-                builder.Register<EntityMutationRequest,EntityMutationResult>(operation.Item1,operation.Item2,"entity",r=>r with{},r=>new(new(r.Tenant),r.EntityId),()=>{Interlocked.Increment(ref trailProfile.MutationFactories);return host.Execution is null?new EntityMutationHandler(trailProfile,host.Trail,host.Observation,host.Preparation):new AuditExecutionHandler(trailProfile,host.Trail,host.Execution,host.Preparation!,host.Observation);});
-            if(trailEnabled)builder.Register<TrailHistoryRequest,TrailHistoryResult>("trail.history","read","audit-trail",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref trailProfile.HistoryFactories);return new TrailHistoryHandler(trailProfile);});
+                builder.Register<EntityMutationRequest,EntityMutationResult>(operation.Item1,operation.Item2,"entity",r=>r with{},r=>new(new(r.Tenant),r.EntityId),()=>{Interlocked.Increment(ref trailProfile.MutationFactories);return host.TrailIntegration is not null?host.TrailIntegration.CreateHandler():host.Execution is null?new EntityMutationHandler(trailProfile,host.Trail,host.Observation,host.Preparation):new AuditExecutionHandler(trailProfile,host.Trail,host.Execution,host.Preparation!,host.Observation);});
+            if(trailEnabled)builder.Register<TrailHistoryRequest,TrailHistoryResult>("trail.history","read","audit-trail",r=>r with{},r=>new(new(r.Tenant),"tenant"),()=>{Interlocked.Increment(ref trailProfile.HistoryFactories);return host.TrailIntegration is null?new TrailHistoryHandler(trailProfile):host.TrailIntegration.CreateHistoryHandler();});
         }
         return builder;
     }
     // This request-owned adapter must not mutate ASP.NET's ambient static AsyncLocal holder.
     private sealed class FixedContextAccessor(HttpContext context):IHttpContextAccessor
     {public HttpContext? HttpContext{get;set;}=context;}
+}
+
+public interface IEntityTrailIntegration
+{
+    void Activate(TenantOperationRegistry registry);
+    ITenantOperationHandler<EntityMutationRequest,EntityMutationResult> CreateHandler();
+    ITenantOperationHandler<TrailHistoryRequest,TrailHistoryResult> CreateHistoryHandler();
 }
 
 public sealed class Host:IAsyncDisposable
@@ -227,15 +234,16 @@ public sealed class Host:IAsyncDisposable
     public ObservationFixture? Observation{get;private set;}
     public AuditPreparationFixture? Preparation{get;private set;}
     public AuditExecutionFixture? Execution{get;private set;}
+    public IEntityTrailIntegration? TrailIntegration{get;private set;}
     public TenantOperationRegistry? TenantRegistry{get;private set;}
     public TenantOperationRegistry? AlternativeTenantRegistry{get;private set;}
     public IIdentitySessionStatusSource? Sessions{get;private set;}
     public string IdentityScheme{get;private set;}="Bearer";public bool CookieAuthentication{get;private set;}
     public Uri Address=>new(App!.Urls.Single());
-    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null,SessionFixture? sessionProfile=null,ObservationFixture? observationProfile=null,AuditTrailFixture? trailProfile=null,AuditPreparationFixture? preparationProfile=null,AuditExecutionFixture? executionProfile=null)
+    public async Task Start(TlsFixture tls,JwtFixture jwt,bool api=true,bool graphql=true,bool security=true,bool audit=true,bool publicEndpoint=false,JwtProfileFixture? jwtProfile=null,bool cookieAuthentication=false,JweFixture? jweProfile=null,KeyRingFixture? keyRingProfile=null,SessionFixture? sessionProfile=null,ObservationFixture? observationProfile=null,AuditTrailFixture? trailProfile=null,AuditPreparationFixture? preparationProfile=null,AuditExecutionFixture? executionProfile=null,IEntityTrailIntegration? trailIntegration=null)
     {
         if((jweProfile is not null?1:0)+(jwtProfile is not null?1:0)+(cookieAuthentication?1:0)+(keyRingProfile is not null?1:0)>1)throw new ArgumentException("Select exactly one fixture authentication profile.");
-        Execution=executionProfile;if(executionProfile is not null)preparationProfile??=new();
+        Execution=executionProfile;TrailIntegration=trailIntegration;if(executionProfile is not null||trailIntegration is not null)preparationProfile??=new();
         Preparation=preparationProfile;TrailProfile=trailProfile;var trailEnabled=trailProfile is not null&&trailProfile.Mode!=TenantChangeAuditMode.Disabled;Observation=observationProfile;Business.Observation=observationProfile;CookieAuthentication=cookieAuthentication;IdentityScheme=cookieAuthentication?"fixture-cookie":"Bearer";
         var config=System.Text.Json.JsonSerializer.Serialize(new{Cehpalon=new{SchemaVersion=1,Architecture="Modular",Topology="SingleProcess",Pattern="RequestReply",Modules=new{
             api=new{Enabled=api},graphql=new{Enabled=graphql},security=new{Enabled=security},audit=new{Enabled=audit},trail=new{Enabled=trailEnabled},@public=new{Enabled=publicEndpoint}}}});
@@ -251,7 +259,7 @@ public sealed class Host:IAsyncDisposable
         }
         lease=await PlanActivator.ActivateAsync(compiled.Plan!,[
             new("security",_=>{SecurityFactories++;if(sessionProfile is not null){SessionFactoryCalls++;Sessions=sessionProfile.Create();}Authority=new(){Observation=observationProfile};Policy=new(SecurityApi.Authority.Rules(),Authority,observationProfile?.Clock);return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
-            new("trail",_=>{TrailModuleFactories++;Trail=preparationProfile is null?TenantChangeAuditRecorder.Activate(trailProfile!.Policy,trailProfile.CreateSink,timeProvider:observationProfile?.Clock):TenantChangeAuditRecorder.ActivateValidated(preparationProfile.Policy(trailProfile!),TenantRegistry,preparationProfile.RequiredOperations(),trailProfile!.CreateSink,timeProvider:observationProfile?.Clock);return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
+            new("trail",_=>{TrailModuleFactories++;if(TrailIntegration is not null)TrailIntegration.Activate(TenantRegistry!);else Trail=preparationProfile is null?TenantChangeAuditRecorder.Activate(trailProfile!.Policy,trailProfile.CreateSink,timeProvider:observationProfile?.Clock):TenantChangeAuditRecorder.ActivateValidated(preparationProfile.Policy(trailProfile!),TenantRegistry,preparationProfile.RequiredOperations(),trailProfile!.CreateSink,timeProvider:observationProfile?.Clock);return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
             new("audit",_=>{AuditFactories++;Audit=new(){Observation=observationProfile};return ValueTask.FromResult<IAsyncDisposable>(new Empty());}),
             new("api",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),new("graphql",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),new("public",_=>ValueTask.FromResult<IAsyncDisposable>(new Empty())),
             new("host",async token=>
