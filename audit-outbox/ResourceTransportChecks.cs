@@ -20,7 +20,7 @@ using securityapi::SecurityApi;
 
 namespace AuditOutbox;
 
-public static class ResourceTransportChecks
+public static partial class ResourceTransportChecks
 {
     private static readonly TimeSpan Watchdog=TimeSpan.FromSeconds(30),Budget=TimeSpan.FromSeconds(6);
     private const string Selection="tenant entries { receiptId tenant resourceKind resourceId recordedAtUtc mode capturedMode } nextCursor { tenant resourceKind resourceId afterReceiptId }";
