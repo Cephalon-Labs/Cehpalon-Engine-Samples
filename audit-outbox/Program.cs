@@ -161,6 +161,9 @@ await Check("caller cancellation reports actual transaction phase "+(afterCommit
     Require((await Change(host)).Status!=HttpStatusCode.OK&&setup.Integration.Results==0);Require(setup.Integration.LastException?.Outcome==(afterCommit?TenantChangeAuditTransactionOutcome.Committed:TenantChangeAuditTransactionOutcome.RolledBack));Require((await store.Row()).Revision==(afterCommit?1:0)&&(await store.Counts())==(afterCommit?1:0,0,0));
 });
 
+var priorOutboxPassed=passed;var priorOutboxFailed=failed;
+await StatusChecks.Run(Check,()=>Store(),async store=>{var setup=await Start(store);await using var host=setup.Host;Require((await Change(host)).Status==HttpStatusCode.OK);});
+var statusPassed=passed-priorOutboxPassed;var statusFailed=failed-priorOutboxFailed;
 var settingsStore=await Store();var settings=JsonDocument.Parse(await settingsStore.VersionSettings()).RootElement;
-await File.WriteAllTextAsync(output,JsonSerializer.Serialize(new{passed,failed,checks,schemas,settings,scope="Owned PostgreSQL18/Npgsql10.0.3 transaction/outbox conformance; no physical power-loss, all-provider, benchmark or production qualification",providerTopology=OperatingSystem.IsWindows()?"Windows.NET via owned loopback/stdio proxy to WSL container":"WSL.NET directly to WSL loopback container"},new JsonSerializerOptions{WriteIndented=true}));
+await File.WriteAllTextAsync(output,JsonSerializer.Serialize(new{passed,failed,checks,schemas,settings,prior_outbox_passed=priorOutboxPassed,prior_outbox_failed=priorOutboxFailed,status_passed=statusPassed,status_failed=statusFailed,scope="Owned PostgreSQL18/Npgsql10.0.3 transaction/outbox conformance; no physical power-loss, all-provider, benchmark or production qualification",providerTopology=OperatingSystem.IsWindows()?"Windows.NET via owned loopback/stdio proxy to WSL container":"WSL.NET directly to WSL loopback container"},new JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"PostgreSQL audit outbox: {passed}/{passed+failed}");return failed==0?0:1;

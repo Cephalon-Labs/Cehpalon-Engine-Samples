@@ -9,10 +9,11 @@ public enum ProviderFault { None,StageAfterInsert,CommitBefore,CommitAfter,Rollb
 public sealed record DomainRow(string Title,decimal Amount,string Secret,int Revision);
 
 // Local consumer adapter, not a provider installed by Engine activation.
-public sealed class PostgresStore(string connectionString,string schema):ITenantChangeAuditTransactionProvider<DomainSession>,ITenantChangeAuditOutboxSource,ITenantChangeAuditIdempotentSink,ITenantChangeAuditHistorySource
+public sealed class PostgresStore(string connectionString,string schema):ITenantChangeAuditTransactionProvider<DomainSession>,ITenantChangeAuditOutboxSource,ITenantChangeAuditIdempotentSink,ITenantChangeAuditHistorySource,ITenantChangeAuditOutboxStatusSource
 {
     private readonly string schema=Regex.IsMatch(schema,"^ao_[a-f0-9]{32}$",RegexOptions.CultureInvariant)?schema:throw new ArgumentException("Owned schema identifier required.");
-    public ProviderFault Fault;public int HistoryReads;public int Connections,Begins,Stages,Commits,Rollbacks,Disposals,Claims,Acks,Releases,SinkCalls;
+    public ProviderFault Fault;public int HistoryReads,StatusReads,LastStatusBackendPid;
+    public Func<CancellationToken,Task>? BeforeStatusQuery,AfterStatusQuery;public TenantId? StatusOwnerOverride;public int Connections,Begins,Stages,Commits,Rollbacks,Disposals,Claims,Acks,Releases,SinkCalls;
     public DomainSession? RetainedSession;public TenantChangeAuditRecord? LastRecord;public TenantChangeAuditOutboxLease? LastLease;
     public Action? AfterCommit;public bool ShortLease;public Func<Task>? AfterSink;
     public string Schema=>schema;
@@ -27,7 +28,7 @@ public sealed class PostgresStore(string connectionString,string schema):ITenant
         await using var c=await Open(token);await using var cmd=new NpgsqlCommand($"""
             CREATE SCHEMA {schema};
             CREATE TABLE {Table("domain_rows")}(tenant text NOT NULL,id text NOT NULL,title text NOT NULL,amount numeric NOT NULL,secret text NOT NULL,revision integer NOT NULL,PRIMARY KEY(tenant,id));
-            CREATE TABLE {Table("audit_outbox")}(tenant text NOT NULL,receipt uuid NOT NULL,payload text NOT NULL,lease uuid NULL,expires timestamptz NULL,delivered boolean NOT NULL DEFAULT false,PRIMARY KEY(tenant,receipt));
+            CREATE TABLE {Table("audit_outbox")}(tenant text NOT NULL,receipt uuid NOT NULL,payload text NOT NULL,lease uuid NULL,expires timestamptz NULL,delivered boolean NOT NULL DEFAULT false,enqueued_at timestamptz NOT NULL DEFAULT clock_timestamp(),PRIMARY KEY(tenant,receipt));
             CREATE TABLE {Table("audit_sink")}(tenant text NOT NULL,receipt uuid NOT NULL,payload text NOT NULL,PRIMARY KEY(tenant,receipt));
             INSERT INTO {Table("domain_rows")} VALUES('A','shared','original-A',1,'private-domain-A',0),('B','shared','original-B',1,'private-domain-B',0);
             """,c);await cmd.ExecuteNonQueryAsync(token);
@@ -141,6 +142,61 @@ public sealed class PostgresStore(string connectionString,string schema):ITenant
         cmd.Parameters.AddWithValue(tenant.Value);cmd.Parameters.AddWithValue(limit+1);cmd.Parameters.AddWithValue(offset);
         var rows=new List<TenantChangeAuditRecord>();await using(var reader=await cmd.ExecuteReaderAsync(token)){while(await reader.ReadAsync(token))rows.Add(PayloadCodec.Decode(reader.GetString(0)));}
         return new(rows.Take(limit),rows.Count>limit?(offset+limit).ToString(CultureInfo.InvariantCulture):null);
+    }
+    public async ValueTask<TenantChangeAuditOutboxStatus> ReadAsync(TenantId tenant,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();Interlocked.Increment(ref StatusReads);
+        if(BeforeStatusQuery is not null)await BeforeStatusQuery(token);
+        TenantChangeAuditOutboxStatus snapshot;
+        await using(var c=await Open(token))
+        {
+            LastStatusBackendPid=c.ProcessID;
+            await using var cmd=new NpgsqlCommand($"""
+                /* owned-outbox-status-read */
+                WITH snapshot_clock AS MATERIALIZED (SELECT clock_timestamp() AS observed)
+                SELECT snapshot_clock.observed,
+                    count(o.receipt) FILTER(WHERE NOT o.delivered),
+                    count(o.receipt) FILTER(WHERE NOT o.delivered AND (o.lease IS NULL OR o.expires<=snapshot_clock.observed)),
+                    count(o.receipt) FILTER(WHERE NOT o.delivered AND o.lease IS NOT NULL AND o.expires>snapshot_clock.observed),
+                    count(o.receipt) FILTER(WHERE NOT o.delivered AND o.lease IS NOT NULL AND o.expires<=snapshot_clock.observed),
+                    count(o.receipt) FILTER(WHERE o.delivered),min(o.enqueued_at) FILTER(WHERE NOT o.delivered)
+                FROM snapshot_clock LEFT JOIN {Table("audit_outbox")} o ON o.tenant=$1
+                GROUP BY snapshot_clock.observed
+                """,c);
+            cmd.Parameters.AddWithValue(tenant.Value);await using var rows=await cmd.ExecuteReaderAsync(token);if(!await rows.ReadAsync(token))throw new InvalidOperationException("Status aggregate returned no snapshot.");
+            snapshot=new(StatusOwnerOverride??tenant,new DateTimeOffset(rows.GetDateTime(0)),rows.GetInt64(1),rows.GetInt64(2),rows.GetInt64(3),rows.GetInt64(4),rows.GetInt64(5),rows.IsDBNull(6)?null:new DateTimeOffset(rows.GetDateTime(6)));
+        }
+        if(AfterStatusQuery is not null)await AfterStatusQuery(token);
+        return snapshot;
+    }
+    public async Task ExpireLease(TenantChangeAuditOutboxLease lease)
+    {
+        await using var c=await Open(default);await using var cmd=new NpgsqlCommand($"UPDATE {Table("audit_outbox")} SET expires=clock_timestamp()-interval '1 second' WHERE tenant=$1 AND lease=$2",c);cmd.Parameters.AddWithValue(lease.Tenant.Value);cmd.Parameters.AddWithValue(lease.LeaseId);await cmd.ExecuteNonQueryAsync();
+    }
+    public async Task ExpireClaimReceipt(TenantChangeAuditOutboxLease lease,Guid receipt)
+    {
+        await using var c=await Open(default);await using var cmd=new NpgsqlCommand($"UPDATE {Table("audit_outbox")} SET expires=clock_timestamp()-interval '1 second' WHERE tenant=$1 AND lease=$2 AND receipt=$3",c);cmd.Parameters.AddWithValue(lease.Tenant.Value);cmd.Parameters.AddWithValue(lease.LeaseId);cmd.Parameters.AddWithValue(receipt);await cmd.ExecuteNonQueryAsync();
+    }
+    public async Task<(Guid Receipt,DateTimeOffset Enqueued)[]> PendingEnqueueTimes(string tenant="A")
+    {
+        await using var c=await Open(default);await using var cmd=new NpgsqlCommand($"SELECT receipt,enqueued_at FROM {Table("audit_outbox")} WHERE tenant=$1 AND NOT delivered ORDER BY enqueued_at,receipt",c);cmd.Parameters.AddWithValue(tenant);var result=new List<(Guid,DateTimeOffset)>();await using var rows=await cmd.ExecuteReaderAsync();while(await rows.ReadAsync())result.Add((rows.GetGuid(0),new DateTimeOffset(rows.GetDateTime(1))));return result.ToArray();
+    }
+    public async Task<IAsyncDisposable> HoldStatusTableLock()
+    {
+        var c=await Open(default);var tx=await c.BeginTransactionAsync();try{await using var command=new NpgsqlCommand($"LOCK TABLE {Table("audit_outbox")} IN ACCESS EXCLUSIVE MODE",c,tx);await command.ExecuteNonQueryAsync();return new StatusLock(c,tx);}catch{await tx.DisposeAsync();await c.DisposeAsync();throw;}
+    }
+    private sealed class StatusLock(NpgsqlConnection connection,NpgsqlTransaction transaction):IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync(){try{await transaction.RollbackAsync();}finally{await transaction.DisposeAsync();await connection.DisposeAsync();}}
+    }
+    public async Task<bool> StatusQueryIsLockBlocked()
+    {
+        await using var c=await Open(default);await using var cmd=new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND wait_event_type='Lock' AND query LIKE '%owned-outbox-status-read%')",c);cmd.Parameters.AddWithValue(LastStatusBackendPid);return (bool)(await cmd.ExecuteScalarAsync())!;
+    }
+    public async Task<bool> StatusBackendQuiescent(int backendPid)
+    {
+        await using var c=await Open(default);if(c.ProcessID==backendPid)return true;
+        await using var cmd=new NpgsqlCommand("SELECT NOT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND (state='active' OR wait_event_type='Lock'))",c);cmd.Parameters.AddWithValue(backendPid);return (bool)(await cmd.ExecuteScalarAsync())!;
     }
     public async Task<string> VersionSettings()
     {

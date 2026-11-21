@@ -35,7 +35,7 @@ def main():
   run([a.dotnet,'build',project,'--no-restore','-c','Release',*common,'-p:UseSharedCompilation=false','-warnaserror'],'build.txt')
   dll=artifacts/'bin/PostgresAuditOutbox.Consumer/release/PostgresAuditOutbox.Consumer.dll'
   run([a.dotnet,dll,'--connection-file='+str(connection),'--schema=ao_'+uuid.uuid4().hex,'--output='+str(out/'tests.json')],'run.txt')
-  tests=json.loads((out/'tests.json').read_bytes());assert tests['failed']==0 and tests['passed']>=30;report['passed']=tests['passed'];report['schemas'].extend(tests['schemas']);report['settings']=tests['settings']
+  tests=json.loads((out/'tests.json').read_bytes());assert tests['failed']==0 and tests['passed']>=30;report['passed']=tests['passed'];report['status_passed']=tests['status_passed'];report['prior_outbox_passed']=tests['prior_outbox_passed'];assert tests['status_failed']==0 and tests['prior_outbox_failed']==0 and tests['prior_outbox_passed']==34 and tests['status_passed']>=20;report['schemas'].extend(tests['schemas']);report['settings']=tests['settings']
   # Two independently launched processes with the same private owned schema around an actual server restart.
   restart_schema='ao_'+uuid.uuid4().hex;report['restart_schema']=restart_schema;save()
   run([a.dotnet,dll,'--connection-file='+str(connection),'--schema='+restart_schema,'--phase=restart-write','--output='+str(out/'restart-write.json')],'restart-write.txt')
@@ -62,6 +62,6 @@ def main():
    prefix,relative=key.split('/',1);file=(engine if prefix=='engine' else ROOT)/relative;assert hashlib.sha256(file.read_bytes()).hexdigest()==digest,key
   report.update(status='passed',source_unchanged=True,total_passed=report['passed']+report['restart_passed'])
  except Exception as error:report.update(status='failed',error=str(error));save();raise
- save();print(json.dumps({k:report[k] for k in ['status','passed','restart_passed','total_passed']}))
+ save();print(json.dumps({k:report[k] for k in ['status','passed','status_passed','restart_passed','total_passed']}))
 
 if __name__=='__main__':main()

@@ -115,7 +115,7 @@ public sealed class RelayHost
     private sealed class Factory(TenantOperationDispatcher dispatcher):IOperationHandlerFactory
     {
         public THandler Create<THandler>() where THandler:class
-            =>(THandler)(object)new RelayGateway(dispatcher);
+            =>(THandler)(object)(typeof(THandler)==typeof(RelayGateway)?(object)new RelayGateway(dispatcher):typeof(THandler)==typeof(StatusGateway)?new StatusGateway(dispatcher):throw new InvalidOperationException("Unknown generated gateway."));
     }
 }
 [Operation("outbox.relay")]
