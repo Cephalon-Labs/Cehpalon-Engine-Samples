@@ -1,5 +1,19 @@
 # Experimental protected Small API consumer
 
+For a local Visual Studio build, open `SmallApi.Consumer.slnx` (or a solution
+containing the consumer and all seven referenced Engine projects) and choose
+Build. The root `Cehpalon.Samples.slnx` also includes all other checked-in consumers.
+Repository NuGet settings enable automatic
+restore. If `obj` is removed while Visual Studio remains open, this sample also
+restores missing assets before the real build using the pinned SDK and locked
+packages. The recovery step skips design-time/IntelliSense builds and skips
+restore when the assets file exists. CLI users can use `dotnet build`, which
+already restores automatically; `--no-restore` still requires a prior restore.
+This is a test executable: running it requires a fresh `--output=<report.json>`
+path and it exits after its conformance checks. Recovery is supplied by the shared
+Samples `Directory.Build.targets`; custom intermediate layouts require explicit
+restore with matching output properties.
+
 This external project consumes the exact clean Engine revision in `engine-lock.json`. Three generated Core gateways reuse the same tenant-aware catalog handler over typed HTTP POST and optional HotChocolate16.7.1 GraphQL. Pinned stable JwtBearer11.0.0 validates process-local RSA fixture tokens before fresh tenant identity/membership/resource/policy checks. No real IdP, database, broker, cache or AI service is required.
 
 Run from the Samples root with the pinned SDK:

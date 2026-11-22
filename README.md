@@ -1,5 +1,24 @@
 # Cehpalon Engine Samples
 
+For local Visual Studio builds, open [Cehpalon.Samples.slnx](Cehpalon.Samples.slnx).
+It includes all six source consumers and their ten Engine dependencies, so Build
+can build referenced projects as well. NuGet automatic restore is enabled in this
+repository. If a consumer's default `obj` directory is removed while the IDE is
+open, `Directory.Build.targets` provides locked restore before the real build.
+It skips IntelliSense/design-time builds, CLI builds and existing assets. Set
+`CehpalonRestoreMissingAssets=false` to disable this fallback. Custom intermediate
+layouts require explicit restore with the same output properties. This is scoped
+to these checked-in consumers and their current package graphs; generated CLI
+consumers remain separate and use their documented `dotnet build` workflow.
+Build does not run the fixtures. Several executables require a fresh report path;
+the audit/outbox fixture additionally requires its separately configured provider.
+
+Reproduce build/restore checks in an isolated Samples checkout with a clean Engine:
+
+```powershell
+python tools/verify_visual_studio_restore.py --engine-root <clean-engine> --msbuild <VS-MSBuild.exe> --output .local/build-restore/new-attempt --run-consumers
+```
+
 MIT-licensed consumer and end-to-end proof repository. Baseline: 2026-10-27.
 
 The current root SDK is stable .NET11.0.100. The active protected Small API, optional security and PostgreSQL audit-outbox consumers use the current GA package graph. Historical consumer locks, benchmark results and nested trace SDK pins retain their original revisions: replay them from those exact Samples/Engine sources with the retained matching RC SDK. Running an old collector under the current GA root does not establish matching runtime offsets or renewed benchmark qualification.

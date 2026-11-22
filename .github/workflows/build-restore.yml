@@ -1,0 +1,65 @@
+name: Checked-in consumer build and restore
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Directory.Build.targets'
+      - 'NuGet.Config'
+      - 'Cehpalon.Samples.slnx'
+      - 'small-api/SmallApi.Consumer.slnx'
+      - 'tools/verify_visual_studio_restore.py'
+      - '.github/workflows/build-restore.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Directory.Build.targets'
+      - 'NuGet.Config'
+      - 'Cehpalon.Samples.slnx'
+      - 'small-api/SmallApi.Consumer.slnx'
+      - 'tools/verify_visual_studio_restore.py'
+      - '.github/workflows/build-restore.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-build-restore:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: Cehpalon-Engine-Samples
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Cephalon-Labs/Cehpalon-Engine
+          ref: 5184517a92a087abe4e0091d256142b6c35a2b39
+          path: Cehpalon-Engine
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: Cehpalon-Engine-Samples/global.json
+      - name: Check actual Visual Studio MSBuild recovery and consumer behavior
+        shell: pwsh
+        working-directory: Cehpalon-Engine-Samples
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $buildTool = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (-not $buildTool) { throw 'Visual Studio MSBuild is required for this check' }
+          python tools/verify_visual_studio_restore.py --engine-root ../Cehpalon-Engine --msbuild "$buildTool" --output .local/build-restore/ci --run-consumers
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$buildTool" .local/build-restore/ci/Validation.slnx -restore -t:Build -p:BuildingInsideVisualStudio=true "-p:EngineRoot=$env:GITHUB_WORKSPACE/Cehpalon-Engine" -p:UseSharedCompilation=false -warnaserror -v:minimal *> .local/build-restore/ci/solution-build.txt
+          if ($LASTEXITCODE -ne 0) { Get-Content .local/build-restore/ci/solution-build.txt; exit $LASTEXITCODE }
+      - name: Retain reports and logs without binaries or obj trees
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: consumer-build-restore
+          path: |
+            Cehpalon-Engine-Samples/.local/build-restore/ci/manifest.json
+            Cehpalon-Engine-Samples/.local/build-restore/ci/*.txt
+            Cehpalon-Engine-Samples/.local/build-restore/ci/*-consumer.json
+          if-no-files-found: warn

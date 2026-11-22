@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <_CehpalonConsumerRestore Condition="'$(MSBuildProjectName)' == 'PortableCore.Consumer' or '$(MSBuildProjectName)' == 'TenantIdentity.Consumer' or '$(MSBuildProjectName)' == 'SmallApi.Consumer' or '$(MSBuildProjectName)' == 'SecurityApi.Consumer' or '$(MSBuildProjectName)' == 'PostgresAuditOutbox.Consumer' or '$(MSBuildProjectName)' == 'SmallApi.Benchmark'">true</_CehpalonConsumerRestore>
+  </PropertyGroup>
+  <!-- Applies to the six Engine consumer projects, not the standalone trace tools.
+       VS can cache a successful restore after obj is removed outside the IDE.
+       This fallback covers the consumers' default obj layout and current locked
+       package graphs; it is not a general replacement for SDK restore/build. -->
+  <Target Name="RestoreMissingVisualStudioAssets"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(_CehpalonConsumerRestore)' == 'true' and '$(EngineRoot)' != '' and '$(BuildingInsideVisualStudio)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(CehpalonRestoreMissingAssets)' != 'false' and !Exists('$(ProjectAssetsFile)')">
+    <Message Importance="high" Text="$(MSBuildProjectName): restoring missing NuGet assets for Visual Studio Build." />
+    <!-- Environment preserves a caller-selected EngineRoot without shell quoting
+         its value or applying a project-specific obj path to every reference. -->
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
+          EnvironmentVariables="EngineRoot=$(EngineRoot)"
+          Command="dotnet restore &quot;$(MSBuildProjectFullPath)&quot; --locked-mode -p:Configuration=&quot;$(Configuration)&quot;" />
+    <Error Condition="!Exists('$(ProjectAssetsFile)')"
+           Text="Restore did not create $(ProjectAssetsFile). For a custom intermediate-output layout, run an explicit restore with the same output properties before Build." />
+  </Target>
+</Project>
