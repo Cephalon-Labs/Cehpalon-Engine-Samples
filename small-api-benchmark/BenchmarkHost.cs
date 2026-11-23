@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -38,17 +39,30 @@ public sealed class BenchmarkHost:IAsyncDisposable
     private IAsyncDisposable? nativeResource;
     private bool disposed;
     private StartupTrace? startupTrace;
+    private IPAddress? fixtureListenIp,fixturePeerIp;
     private int firstBusinessRequest;
     public static string Config(bool api,bool graphql,bool worker=false)=>JsonSerializer.Serialize(new{Cehpalon=new{SchemaVersion=1,Architecture="Modular",Topology="SingleProcess",Pattern="RequestReply",Modules=new{api=new{Enabled=api},graphql=new{Enabled=graphql},worker=new{Enabled=worker}}}});
     public static CompositionCompilation ValidateConfiguration(string configuration)=>CompositionCompiler.Compile(configuration,[new("host",ModuleRole.Support),new("api",ModuleRole.EntryPoint,["host"]),new("graphql",ModuleRole.EntryPoint,["host"]),new("worker",ModuleRole.EntryPoint),new("database",ModuleRole.EntryPoint),new("cache",ModuleRole.EntryPoint),new("broker",ModuleRole.EntryPoint),new("ai",ModuleRole.EntryPoint),new("retrieval",ModuleRole.EntryPoint)]);
-    public static async Task<BenchmarkHost> StartAsync(string variant,string transport,bool tls=true,string? fixtureDirectory=null,StartupTrace? startupTrace=null)
+    public static async Task<BenchmarkHost> StartAsync(string variant,string transport,bool tls=true,string? fixtureDirectory=null,StartupTrace? startupTrace=null,
+        IPAddress? fixtureListenIp=null,IPAddress? fixturePeerIp=null)
     {
         if(variant is not("baseline" or "engine") || transport is not("http" or "graphql"))throw new ArgumentException("Unknown benchmark variant/transport.");
+        if (fixtureListenIp is not null || fixturePeerIp is not null)
+            PrivateFixtureAddress.ValidateServe(fixtureListenIp, fixturePeerIp, fixtureDirectory, tls);
         startupTrace?.Mark("host.construct.begin");
-        var host=new BenchmarkHost{Variant=variant,Transport=transport,startupTrace=startupTrace};
+        var host=new BenchmarkHost{Variant=variant,Transport=transport,startupTrace=startupTrace,
+            fixtureListenIp=fixtureListenIp,fixturePeerIp=fixturePeerIp};
         startupTrace?.Mark("host.construct.end");
         if(tls)host.tls=new(fixtureDirectory,startupTrace);
-        try{await host.Start();return host;}catch{await host.DisposeAsync();throw;}
+        try
+        {
+            if (fixtureListenIp is not null && (!host.tls!.Server.HasPrivateKey ||
+                !host.tls.Server.MatchesHostname(fixtureListenIp.ToString(), allowWildcards:false, allowCommonName:false)))
+                throw new ArgumentException("The TLS fixture certificate must have a private key and the exact private IP SAN.");
+            await host.Start();
+            return host;
+        }
+        catch{await host.DisposeAsync();throw;}
     }
     private async Task Start()
     {
@@ -62,11 +76,29 @@ public sealed class BenchmarkHost:IAsyncDisposable
             var builder=WebApplication.CreateSlimBuilder(new WebApplicationOptions{Args=[],EnvironmentName="Production"});builder.Logging.ClearProviders();
             startupTrace?.Mark("builder.end");
             startupTrace?.Mark("services.begin");
-            builder.WebHost.ConfigureKestrel(options=>options.Listen(IPAddress.Loopback,0,listen=>
+            if (fixtureListenIp is not null) builder.Configuration[WebHostDefaults.PreferHostingUrlsKey] = "false";
+            builder.WebHost.ConfigureKestrel(options =>
             {
-                listen.Protocols=HttpProtocols.Http1;
-                if(tls is not null)listen.UseHttps(https=>{https.ServerCertificate=tls.Server;https.SslProtocols=SslProtocols.Tls13;});
-            }));
+                // Private mode has one code-defined endpoint even if host configuration supplies other URLs.
+                if (fixtureListenIp is not null) options.Configure();
+                options.Listen(fixtureListenIp??IPAddress.Loopback,0,listen=>
+                {
+                    listen.Protocols=HttpProtocols.Http1;
+                    if (fixturePeerIp is not null)
+                    {
+                        // Admit the actual socket peers before HTTPS and every fixture route.
+                        listen.Use(next => connection =>
+                        {
+                            if (connection.RemoteEndPoint is IPEndPoint remote &&
+                                (remote.Address.Equals(fixturePeerIp) || remote.Address.Equals(fixtureListenIp)))
+                                return next(connection);
+                            connection.Abort();
+                            return Task.CompletedTask;
+                        });
+                    }
+                    if(tls is not null)listen.UseHttps(https=>{https.ServerCertificate=tls.Server;https.SslProtocols=SslProtocols.Tls13;});
+                });
+            });
             builder.Services.AddAuthentication("public-fixture").AddScheme<AuthenticationSchemeOptions,PublicFixtureAuthentication>("public-fixture",_=>{});builder.Services.AddAuthorization();
             var dispatch=new Dispatch(Store,Variant=="engine");
             builder.Services.AddSingleton<ITransportOperationDispatcher>(dispatch);
@@ -173,14 +205,35 @@ public sealed class PublicFixtureAuthentication(IOptionsMonitor<AuthenticationSc
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()=>Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub","public-synthetic-fixture")],Scheme.Name)),Scheme.Name)));
 }
 
+internal static class PrivateFixtureAddress
+{
+    internal static bool IsSupported(IPAddress address)
+    {
+        if (address.AddressFamily != AddressFamily.InterNetwork) return false;
+        var bytes = address.GetAddressBytes();
+        return bytes[0] == 10 || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
+            (bytes[0] == 192 && bytes[1] == 168);
+    }
+
+    internal static void ValidateServe(IPAddress? listenIp, IPAddress? peerIp, string? fixtureDirectory, bool tls)
+    {
+        if (listenIp is null || peerIp is null || !IsSupported(listenIp) || !IsSupported(peerIp) || listenIp.Equals(peerIp))
+            throw new ArgumentException("Serving a private fixture requires distinct RFC1918 IPv4 listener and peer addresses.");
+        if (!tls || string.IsNullOrWhiteSpace(fixtureDirectory))
+            throw new ArgumentException("Serving a private fixture requires HTTPS and a pre-created fixture directory.");
+    }
+}
+
 public sealed class TlsFixture:IDisposable
 {
     private readonly RSA? rootKey,leafKey;
     private readonly byte[]? generatedPfx;
     public X509Certificate2 Root{get;}
     public X509Certificate2 Server{get;}
-    public TlsFixture(string? fixtureDirectory=null,StartupTrace? startupTrace=null)
+    public TlsFixture(string? fixtureDirectory=null,StartupTrace? startupTrace=null,IPAddress? fixtureListenIp=null)
     {
+        if (fixtureListenIp is not null && (fixtureDirectory is not null || !PrivateFixtureAddress.IsSupported(fixtureListenIp)))
+            throw new ArgumentException("A new fixture SAN requires an RFC1918 IPv4 address.");
         if(fixtureDirectory is not null)
         {
             startupTrace?.Mark("tls.root.load.begin");
@@ -195,7 +248,9 @@ public sealed class TlsFixture:IDisposable
         rootKey=RSA.Create(2048);leafKey=RSA.Create(2048);
         var now=DateTimeOffset.UtcNow;var ca=new CertificateRequest("CN=Cehpalon benchmark fixture CA",rootKey,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1);
         ca.CertificateExtensions.Add(new X509BasicConstraintsExtension(true,false,0,true));ca.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign|X509KeyUsageFlags.CrlSign,true));Root=ca.CreateSelfSigned(now.AddMinutes(-5),now.AddHours(49));
-        var leaf=new CertificateRequest("CN=localhost",leafKey,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1);leaf.CertificateExtensions.Add(new X509BasicConstraintsExtension(false,false,0,true));leaf.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature,true));leaf.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection{new("1.3.6.1.5.5.7.3.1")},true));var san=new SubjectAlternativeNameBuilder();san.AddDnsName("localhost");san.AddIpAddress(IPAddress.Loopback);leaf.CertificateExtensions.Add(san.Build());
+        var leaf=new CertificateRequest("CN=localhost",leafKey,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1);leaf.CertificateExtensions.Add(new X509BasicConstraintsExtension(false,false,0,true));leaf.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature,true));leaf.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection{new("1.3.6.1.5.5.7.3.1")},true));var san=new SubjectAlternativeNameBuilder();san.AddDnsName("localhost");san.AddIpAddress(IPAddress.Loopback);
+        if (fixtureListenIp is not null) san.AddIpAddress(fixtureListenIp);
+        leaf.CertificateExtensions.Add(san.Build());
         using var publicLeaf=leaf.Create(Root,now.AddMinutes(-2),now.AddHours(48),RandomNumberGenerator.GetBytes(16));using var keyed=publicLeaf.CopyWithPrivateKey(leafKey);generatedPfx=keyed.Export(X509ContentType.Pfx);Server=X509CertificateLoader.LoadPkcs12(generatedPfx,null,OperatingSystem.IsWindows()?X509KeyStorageFlags.UserKeySet:X509KeyStorageFlags.EphemeralKeySet);
         startupTrace?.Mark("tls.generate.end");
     }
