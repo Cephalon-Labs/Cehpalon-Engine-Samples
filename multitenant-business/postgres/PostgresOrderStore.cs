@@ -1,3 +1,4 @@
+using System.Data;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using Cehpalon.Engine.Tenancy;
@@ -13,16 +14,19 @@ internal sealed class CommitUncertainException(Exception inner)
 internal sealed class CommittedWithoutResultException(Exception inner)
     : Exception("The order transaction committed and its result could not be returned.", inner);
 
-internal sealed class PostgresOrderStore(NpgsqlDataSource source, Action? afterUpdate = null)
+internal sealed class PostgresOrderStore(NpgsqlDataSource source,
+    Func<int, CancellationToken, ValueTask>? afterUpdate = null, Action<int>? beforeUpdate = null)
 {
     internal const string ReadOperation = "orders.read";
     internal const string UpdateOperation = "orders.complete";
     internal const string ResourceKind = "order";
     private int openAttempts;
     private int commandAttempts;
+    private int acknowledgedRollbacks;
 
     internal int OpenAttempts => Volatile.Read(ref openAttempts);
     internal int CommandAttempts => Volatile.Read(ref commandAttempts);
+    internal int AcknowledgedRollbacks => Volatile.Read(ref acknowledgedRollbacks);
     internal int LastBackend { get; private set; }
 
     internal static string ResourceId(int orderId)
@@ -56,10 +60,12 @@ internal sealed class PostgresOrderStore(NpgsqlDataSource source, Action? afterU
             BindOrder(command, context.Tenant, orderId);
             command.Parameters.Add(new NpgsqlParameter<int> { TypedValue = expectedRevision });
             Interlocked.Increment(ref commandAttempts);
+            beforeUpdate?.Invoke(connection.ProcessID);
             OrderRow? updated;
             await using (var rows = await command.ExecuteReaderAsync(token))
                 updated = await rows.ReadAsync(token) ? ReadOrder(rows) : null;
-            if (updated is not null) afterUpdate?.Invoke();
+            if (updated is not null && afterUpdate is not null)
+                await afterUpdate(connection.ProcessID, token);
             return updated;
         }, token);
 
@@ -87,7 +93,7 @@ internal sealed class PostgresOrderStore(NpgsqlDataSource source, Action? afterU
         {
             Demand();
             LastBackend = connection.ProcessID;
-            transaction = await connection.BeginTransactionAsync(token);
+            transaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, token);
             Demand();
             await using (var scope = new NpgsqlCommand(
                 "SELECT set_config('cephalon_orders.tenant_id', $1, true)", connection, transaction))
@@ -115,6 +121,7 @@ internal sealed class PostgresOrderStore(NpgsqlDataSource source, Action? afterU
                 {
                     using var rollbackDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     await transaction.RollbackAsync(rollbackDeadline.Token);
+                    Interlocked.Increment(ref acknowledgedRollbacks);
                 }
                 catch (Exception rollbackFailure)
                 {

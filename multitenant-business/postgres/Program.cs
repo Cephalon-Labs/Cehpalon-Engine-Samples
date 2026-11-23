@@ -3,6 +3,7 @@ using Cehpalon.Engine.Core;
 using Cehpalon.Engine.Identity;
 using Cehpalon.Engine.Tenancy;
 using Npgsql;
+using static OrderFixture;
 
 if (args.Length != 0)
 {
@@ -95,7 +96,11 @@ static async Task RunAsync()
     Console.WriteLine("Commit acknowledged. Same backend had no tenant scope after return. Stale revision changed zero rows.");
 
     using var afterMutation = CancellationTokenSource.CreateLinkedTokenSource(token);
-    var aborting = new PostgresOrderStore(source, afterMutation.Cancel);
+    var aborting = new PostgresOrderStore(source, (_, _) =>
+    {
+        afterMutation.Cancel();
+        return ValueTask.CompletedTask;
+    });
     var rollback = CreateDispatcher(beta, aborting);
     var canceled = await RejectAsync<OperationCanceledException>(() =>
         rollback.DispatchAsync<CompleteOrderRequest, OrderRow>(PostgresOrderStore.UpdateOperation,
@@ -107,6 +112,8 @@ static async Task RunAsync()
     Check(await FindAsync(a, alpha) == new OrderRow(1, "complete", 1), "Rollback affected another tenant.");
     Console.WriteLine("Post-write cancellation rolled back. Same backend had no tenant scope after return.");
 
+    await ConcurrentOrderChecks.RunAsync(settings, alpha, beta, correlation, token);
+
     async Task<OrderRow> FindAsync(TenantOperationDispatcher dispatcher, TenantId tenant)
     {
         var result = await dispatcher.DispatchAsync<OrderRequest, OrderRow>(
@@ -116,65 +123,68 @@ static async Task RunAsync()
     }
 }
 
-static TenantOperationDispatcher CreateDispatcher(TenantId tenant, PostgresOrderStore store,
-    Func<TenantOperationContext, CancellationToken, Task>? beforeRead = null,
-    string readAction = PostgresOrderStore.ReadOperation)
+internal static class OrderFixture
 {
-    var registry = new TenantOperationRegistryBuilder()
-        .Register<OrderRequest, OrderRow>(PostgresOrderStore.ReadOperation, readAction,
-            PostgresOrderStore.ResourceKind, request => request,
-            request => new(request.Tenant, PostgresOrderStore.ResourceId(request.OrderId)), () => new ReadOrder(store, beforeRead))
-        .Register<CompleteOrderRequest, OrderRow>(PostgresOrderStore.UpdateOperation, PostgresOrderStore.UpdateOperation,
-            PostgresOrderStore.ResourceKind, request => request,
-            request => new(request.Tenant, PostgresOrderStore.ResourceId(request.OrderId)), () => new CompleteOrder(store))
-        .Build();
-    var authority = new FixtureAuthority(tenant, readAction);
-    return new TenantOperationDispatcher(registry,
-        new TenantSecurityServices(authority, new(["fixture"], ["fixture"]), authority, authority, TimeSpan.FromSeconds(10), authority));
-}
+    internal static TenantOperationDispatcher CreateDispatcher(TenantId tenant, PostgresOrderStore store,
+        Func<TenantOperationContext, CancellationToken, Task>? beforeRead = null,
+        string readAction = PostgresOrderStore.ReadOperation)
+    {
+        var registry = new TenantOperationRegistryBuilder()
+            .Register<OrderRequest, OrderRow>(PostgresOrderStore.ReadOperation, readAction,
+                PostgresOrderStore.ResourceKind, request => request,
+                request => new(request.Tenant, PostgresOrderStore.ResourceId(request.OrderId)), () => new ReadOrder(store, beforeRead))
+            .Register<CompleteOrderRequest, OrderRow>(PostgresOrderStore.UpdateOperation, PostgresOrderStore.UpdateOperation,
+                PostgresOrderStore.ResourceKind, request => request,
+                request => new(request.Tenant, PostgresOrderStore.ResourceId(request.OrderId)), () => new CompleteOrder(store))
+            .Build();
+        var authority = new FixtureAuthority(tenant, readAction);
+        return new TenantOperationDispatcher(registry,
+            new TenantSecurityServices(authority, new(["fixture"], ["fixture"]), authority, authority, TimeSpan.FromSeconds(10), authority));
+    }
 
-static async Task CheckRuntimeRoleAsync(NpgsqlDataSource source, CancellationToken token)
-{
-    await using var connection = await source.OpenConnectionAsync(token);
-    await using var command = new NpgsqlCommand("""
-        SELECT current_setting('server_version_num') = '180006'
-            AND current_user = session_user AND current_user = 'cephalon_orders_runtime'
-            AND role.rolcanlogin AND NOT role.rolsuper AND NOT role.rolbypassrls
-            AND NOT pg_has_role(role.oid, orders.relowner, 'MEMBER')
-            AND NOT has_schema_privilege(role.rolname, space.oid, 'CREATE')
-            AND NOT has_database_privilege(role.rolname, current_database(), 'CREATE')
-            AND orders.relrowsecurity AND orders.relforcerowsecurity
-        FROM pg_roles AS role
-        JOIN pg_class AS orders ON orders.oid = 'cephalon_orders.orders'::regclass
-        JOIN pg_namespace AS space ON space.oid = orders.relnamespace
-        WHERE role.rolname = current_user
-        """, connection);
-    Check(await command.ExecuteScalarAsync(token) is true, "Runtime role, schema or PostgreSQL version did not match.");
-}
+    internal static async Task CheckRuntimeRoleAsync(NpgsqlDataSource source, CancellationToken token)
+    {
+        await using var connection = await source.OpenConnectionAsync(token);
+        await using var command = new NpgsqlCommand("""
+            SELECT current_setting('server_version_num') = '180006'
+                AND current_user = session_user AND current_user = 'cephalon_orders_runtime'
+                AND role.rolcanlogin AND NOT role.rolsuper AND NOT role.rolbypassrls
+                AND NOT pg_has_role(role.oid, orders.relowner, 'MEMBER')
+                AND NOT has_schema_privilege(role.rolname, space.oid, 'CREATE')
+                AND NOT has_database_privilege(role.rolname, current_database(), 'CREATE')
+                AND orders.relrowsecurity AND orders.relforcerowsecurity
+            FROM pg_roles AS role
+            JOIN pg_class AS orders ON orders.oid = 'cephalon_orders.orders'::regclass
+            JOIN pg_namespace AS space ON space.oid = orders.relnamespace
+            WHERE role.rolname = current_user
+            """, connection);
+        Check(await command.ExecuteScalarAsync(token) is true, "Runtime role, schema or PostgreSQL version did not match.");
+    }
 
-static async Task CheckReturnAsync(NpgsqlDataSource source, int backend, CancellationToken token)
-{
-    await using var connection = await source.OpenConnectionAsync(token);
-    Check(connection.ProcessID == backend, "The one-connection fixture did not reuse its backend.");
-    await using var command = new NpgsqlCommand("""
-        SELECT NULLIF(current_setting('cephalon_orders.tenant_id', true), '') IS NULL
-            AND NOT EXISTS (SELECT 1 FROM cephalon_orders.orders)
-        """, connection);
-    Check(await command.ExecuteScalarAsync(token) is true, "An unscoped pooled connection saw tenant state or rows.");
-}
+    internal static async Task CheckReturnAsync(NpgsqlDataSource source, int backend, CancellationToken token)
+    {
+        await using var connection = await source.OpenConnectionAsync(token);
+        Check(connection.ProcessID == backend, "The fixture did not reuse its expected backend.");
+        await using var command = new NpgsqlCommand("""
+            SELECT NULLIF(current_setting('cephalon_orders.tenant_id', true), '') IS NULL
+                AND NOT EXISTS (SELECT 1 FROM cephalon_orders.orders)
+            """, connection);
+        Check(await command.ExecuteScalarAsync(token) is true, "An unscoped pooled connection saw tenant state or rows.");
+    }
 
-static (int Opens, int Commands) Work(PostgresOrderStore store) => (store.OpenAttempts, store.CommandAttempts);
+    internal static (int Opens, int Commands) Work(PostgresOrderStore store) => (store.OpenAttempts, store.CommandAttempts);
 
-static void Check(bool passed, string message)
-{
-    if (!passed) throw new ProofFailure(message);
-}
+    internal static void Check(bool passed, string message)
+    {
+        if (!passed) throw new ProofFailure(message);
+    }
 
-static async Task<T> RejectAsync<T>(Func<Task> operation) where T : Exception
-{
-    try { await operation(); }
-    catch (T failure) { return failure; }
-    throw new ProofFailure($"Expected rejection ({typeof(T).Name}).");
+    internal static async Task<T> RejectAsync<T>(Func<Task> operation) where T : Exception
+    {
+        try { await operation(); }
+        catch (T failure) { return failure; }
+        throw new ProofFailure($"Expected rejection ({typeof(T).Name}).");
+    }
 }
 
 internal sealed class ProofFailure(string message) : Exception(message);
@@ -222,7 +232,7 @@ internal sealed class FixtureAuthority(TenantId authorized, string readAction) :
     public ValueTask<ResourceScopeSnapshot?> ResolveAsync(TenantId requestedTenant, string kind, string resourceId,
         CancellationToken cancellationToken) =>
         ValueTask.FromResult<ResourceScopeSnapshot?>(requestedTenant.Equals(authorized) && kind == PostgresOrderStore.ResourceKind &&
-            resourceId == "1" ? new(authorized, kind, resourceId, "fixture-v1") : null);
+            resourceId is ("1" or "2" or "3" or "4") ? new(authorized, kind, resourceId, "fixture-v1") : null);
 
     public ValueTask<bool> IsAllowedAsync(TenantAccessRequest request, CancellationToken cancellationToken) =>
         ValueTask.FromResult(request.Action == readAction || request.Action == PostgresOrderStore.UpdateOperation);
