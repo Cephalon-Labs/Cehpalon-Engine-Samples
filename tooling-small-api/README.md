@@ -65,3 +65,5 @@ python tools/verify_tooling_small_api.py --dotnet <pinned-sdk> --engine-root <ch
 The option includes the earlier capacity, tenant-capacity and drain checks. [Preserved initial and extended attempts](evidence/2026-11-20-live-metrics/README.md) retain each collection and actual cadence. These are bounded functional and collection-cost observations; the canonical performance gates remain open.
 
 The [separate-process listener comparison](metrics-overhead/README.md) measures server resources and complete HTTPS response costs against no listener. Its complete WSL series and both incomplete Windows attempts are retained separately with the original benchmark criteria unchanged.
+
+The [dispatch and lifecycle histogram probe](dispatch-lifecycle-metrics/README.md) verifies exact observation counts over both protected transports and repeats the wire controls with throwing observers.
