@@ -23,8 +23,9 @@ At every SQL checkpoint, compare all rows of the four fixture tables to
 the expected snapshot, including the unchanged tenant B stock and order
 and its empty outbox and inbox. Validate broker counters independently
 of application receipts. Each application phase runs in a separate
-managed process. The two intentional exits are controlled process returns.
-Each broker stop is graceful and preserves its volume. The proof covers
+managed process. The app calls `Environment.Exit` at the two intentional
+checkpoints before its asynchronous disposal scope returns. Each broker
+stop is graceful and preserves its volume. The proof covers
 two duplicate-delivery windows in the single-node fixture. Application
 crashes, TLS, multi-node failover, poison handling and broader Business
 acceptance require separate evidence.
@@ -35,7 +36,8 @@ Use a new ignored output directory and retain failures:
 python3 multitenant-business/order-replay-proof/run-proof.py --dotnet /path/to/dotnet --engine-root /path/to/clean/Engine --samples-revision <full-samples-sha> --output .local/order-replay/<attempt>
 ```
 
-On success, review `report.json` for publication. Build logs, provider
-stdout/stderr and fixture values stay private. At teardown the controller
+On success, review `report.json` for publication. It includes the fixed
+synthetic ledger rows and counters. Generated credentials, listener
+endpoints, build logs and provider stdout/stderr stay private. At teardown the controller
 verifies that the exact owned containers, volumes and bridge are absent
 and loopback listeners are closed.
