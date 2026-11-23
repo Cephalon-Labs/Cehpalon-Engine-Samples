@@ -32,7 +32,8 @@ var factory = new ConnectionFactory
 };
 
 await using var connection = await factory.CreateConnectionAsync(token);
-Require(connection.ServerProperties.TryGetValue("version", out var version) && version is byte[] versionBytes &&
+Require(connection.ServerProperties is { } properties &&
+    properties.TryGetValue("version", out var version) && version is byte[] versionBytes &&
     Encoding.UTF8.GetString(versionBytes) == "4.4.0", "Expected an actual RabbitMQ 4.4.0 connection.");
 var shutdown = new TaskCompletionSource<ShutdownEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
 connection.ConnectionShutdownAsync += (_, reason) =>
