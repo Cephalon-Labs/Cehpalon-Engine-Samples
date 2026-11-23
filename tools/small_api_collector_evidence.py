@@ -4,6 +4,7 @@ These guards establish the declared preparation/phase boundaries. They do not
 stream offered-record gzip files, infer an acceptance pass or retry a failure.
 Full raw-record/manifest audits belong after the complete experiment.
 """
+import gzip
 import json
 from pathlib import Path
 
@@ -173,3 +174,40 @@ def validate_preflight_rejection(directory, rate, transport):
     forbidden.extend(name for name in ('load-result.json', 'warmup-result.json') if (directory / name).exists())
     require(not forbidden, 'A rejected preflight has evidence of later warmup/measurement: ' + ', '.join(sorted(set(forbidden))))
     return failure
+
+
+
+def audit_successful_preflight_rows(directory, rate):
+    """Reconcile successful remote raw observations with their full planned prefix."""
+    directory = Path(directory)
+    expected = rate * 2
+    context = read_json(directory / 'preflight-evidence-accounting.json')
+    frequency = context['stopwatchFrequency']
+    started, joined = context['phaseStartedTicks'], context['requestsCompletedTicks']
+    prefix = []
+    with gzip.open(directory / 'preflight-requests.jsonl.gz', 'rt', encoding='utf-8') as stream:
+        header = json.loads(next(stream))
+        columns = header['columns']
+        required = {'index', 'operation', 'scheduledTicks', 'sentTicks', 'completedTicks', 'httpStatus', 'bodyBytes', 'error'}
+        require(header.get('schema') == 1 and header.get('frequency') == frequency
+                and len(set(columns)) == len(columns) and required.issubset(columns), 'Unexpected raw preflight schema.')
+        for index, line in enumerate(stream):
+            values = json.loads(line)
+            require(index < expected and isinstance(values, list) and len(values) == len(columns), 'Malformed or extra raw preflight row.')
+            row = dict(zip(columns, values))
+            require(row['index'] == index and row['scheduledTicks'] == started + index * frequency // rate,
+                    'Raw preflight offered schedule differs.')
+            require(row['scheduledTicks'] <= row['sentTicks'] <= row['completedTicks'] <= joined
+                    and row['httpStatus'] == 200 and row['bodyBytes'] > 0 and row['error'] == '',
+                    'Raw preflight does not show contract-valid responses.')
+            prefix.append(row['operation'])
+    require(len(prefix) == expected, 'Raw preflight offers are incomplete.')
+    planned = 0
+    with gzip.open(directory / 'offered-manifest.jsonl.gz', 'rt', encoding='utf-8') as stream:
+        for planned, line in enumerate(stream, 1):
+            row = json.loads(line)
+            require(row.get('index') == planned - 1, 'Malformed ordered manifest.')
+            if planned <= expected:
+                require(row.get('operation') == prefix[planned - 1], 'Executed operations differ from the planned prefix.')
+    require(planned == rate * 180, 'Planned preflight manifest is incomplete.')
+    return {'actual_offers': len(prefix), 'planned_offers': planned, 'ordered_prefix_matches': True}

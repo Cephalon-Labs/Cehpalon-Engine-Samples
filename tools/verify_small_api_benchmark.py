@@ -34,7 +34,8 @@ def main():
     if sdk!=lock['sdk']:raise ValueError('SDK differs from Engine pin')
     sources=[*sorted((ROOT/'small-api-benchmark').glob('*.cs')),*sorted((ROOT/'small-api-benchmark').glob('*.csproj')),*sorted((ROOT/'small-api-benchmark').glob('*.json')),Path(__file__),ROOT/'global.json',ROOT/'NuGet.Config',ROOT/'Directory.Build.targets']
     if (ROOT/'tools/benchmark_small_api.py').exists():sources.append(ROOT/'tools/benchmark_small_api.py')
-    for name in ('small_api_collector_evidence.py','probe_small_api_collector.py'):
+    for name in ('small_api_collector_evidence.py','probe_small_api_collector.py',
+                 'small_api_reference_resources.py','small_api_remote_driver.py'):
         if (ROOT/'tools'/name).exists():sources.append(ROOT/'tools'/name)
     report={'observed_at_utc':datetime.now(timezone.utc).isoformat(),'engine_revision':lock['engine_revision'],'samples_source_revision':run(['git','rev-parse','HEAD']),'source_state':'uncommitted integration' if dirty else 'exact clean committed source','sdk':sdk,'source_sha256':{p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},'status':'started','scope':'Public synthetic fixture conformance and build; not protected tenant/IdP, dedicated performance reference, supported-Windows or production qualification'}
     def save():(output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8',newline='\n')

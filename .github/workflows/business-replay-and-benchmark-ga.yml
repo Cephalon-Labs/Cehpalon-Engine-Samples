@@ -14,6 +14,9 @@ on:
       - 'tools/benchmark_small_api.py'
       - 'tools/small_api_collector_evidence.py'
       - 'tools/probe_small_api_collector.py'
+      - 'tools/small_api_remote_driver.py'
+      - 'tools/small_api_reference_resources.py'
+      - 'tools/test_small_api*.py'
       - 'global.json'
       - 'NuGet.Config'
       - 'Directory.Build.targets'
@@ -99,6 +102,9 @@ jobs:
             /tools/benchmark_small_api.py
             /tools/small_api_collector_evidence.py
             /tools/probe_small_api_collector.py
+            /tools/small_api_remote_driver.py
+            /tools/small_api_reference_resources.py
+            /tools/test_small_api*.py
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -112,6 +118,11 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
+      - name: Verify collector and remote preflight contracts
+        if: matrix.os == 'ubuntu-24.04'
+        working-directory: samples
+        shell: bash
+        run: python -m unittest discover -s tools -p 'test_small_api*.py'
       - name: Verify locked GA Release build and emitted registry
         working-directory: samples
         shell: pwsh

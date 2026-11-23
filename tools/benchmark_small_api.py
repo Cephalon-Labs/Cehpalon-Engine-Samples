@@ -1,4 +1,4 @@
-"""Full-duration, retained Small API observations; this shared WSL host does not qualify W0.
+"""Full-duration Small API observations and guarded two-host W0 reference execution.
 
 Never lower protocol defaults to turn a failed gate into a pass. The optional phase
 selector only leaves explicitly unrun phases; it does not shorten an executed phase.
@@ -6,6 +6,7 @@ selector only leaves explicitly unrun phases; it does not shorten an executed ph
 import argparse
 import base64
 import errno
+from ipaddress import IPv4Address, IPv4Network
 from datetime import datetime, timezone
 import hashlib
 import http.client
@@ -24,12 +25,17 @@ import time
 import tempfile
 import traceback
 from urllib.parse import urlsplit
-from small_api_collector_evidence import validate_collector_preparation, validate_phase_telemetry, validate_preflight_rejection
+from small_api_collector_evidence import audit_successful_preflight_rows, validate_collector_preparation, validate_phase_telemetry, validate_preflight_rejection
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_CPUS, DRIVER_CPUS, ORCHESTRATOR_CPUS = (0, 2), (4, 6), (8, 10)
 ORDER = ('BE', 'EB', 'BE', 'EB', 'BE')
 MIB = 1024 * 1024
+PHASES = ('startup', 'idle', 'load', 'diagnostics')
+OBSERVATIONAL = 'OBSERVATIONAL; nonqualifying W0 reference environment'
+LAB = 'LAB; nonqualifying remote TLS preflight only'
+REFERENCE = 'W0; guarded two-host reference attempt'
+PRIVATE_SUBNETS = tuple(IPv4Network(value) for value in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'))
 
 
 def stamp():
@@ -64,6 +70,26 @@ def optional_read(path):
 
 class InfrastructureFailure(RuntimeError):
     pass
+
+
+def read_remote_configuration(path, lab):
+    config = json.loads(path.read_text(encoding='utf-8'))
+    required = {'app', 'driver'} if lab else {'app', 'driver', 'build_manifest'}
+    if not isinstance(config, dict) or set(config) != required:
+        raise ValueError('Unexpected remote configuration fields; see the private configuration contract.')
+    app, driver = config['app'], config['driver']
+    app_keys = {'listen_ip', 'driver_ip'} if lab else {'listen_ip', 'driver_ip', 'resources'}
+    if not isinstance(app, dict) or set(app) != app_keys or not isinstance(driver, dict):
+        raise ValueError('Expected app and driver configuration objects with the declared fields.')
+    listen, peer = IPv4Address(app['listen_ip']), IPv4Address(app['driver_ip'])
+    if not all(isinstance(app[key], str) and any(ip in network for network in PRIVATE_SUBNETS)
+               for key, ip in (('listen_ip', listen), ('driver_ip', peer))):
+        raise ValueError('Remote benchmark fixture requires two RFC1918 IPv4 addresses.')
+    if listen == peer or driver.get('app_host') != str(listen):
+        raise ValueError('App bind IP, declared driver IP and TLS destination do not agree.')
+    if not lab and (not isinstance(config['build_manifest'], str) or not Path(config['build_manifest']).is_absolute()):
+        raise ValueError('Use the absolute path to the exact locked Release build manifest.')
+    return config
 
 
 class Progress:
@@ -110,7 +136,13 @@ class Runner:
         self.owned = []
         self.fixture = None
         self.ca = None
-        self.manifest = {}
+        self.remote = None
+        self.app_resources = None
+        self.reference_preflight_passed = False
+        self.remote_config = getattr(args, 'remote_config', None)
+        self.remote_preflight_lab = getattr(args, 'remote_preflight_lab', False)
+        self.classification = (LAB if self.remote_preflight_lab else REFERENCE) if self.remote_config else OBSERVATIONAL
+        self.manifest = {'classification': self.classification, 'reference_environment_qualified': False}
 
     def invoke(self, command, name, cwd=ROOT):
         with (self.output / (name + '.stdout.txt')).open('xb') as stdout, (self.output / (name + '.stderr.txt')).open('xb') as stderr:
@@ -140,6 +172,49 @@ class Runner:
     def command(self, cpus, *arguments):
         return list(map(str, ['taskset', '--cpu-list', ','.join(map(str, cpus)), self.args.dotnet, self.args.assembly, *arguments]))
 
+    def configure_remote(self, engine_revision, samples_revision, sdk):
+        from small_api_remote_driver import RemoteDriver
+        config = read_remote_configuration(self.remote_config, self.remote_preflight_lab)
+        self.network = config['app']
+        if not self.remote_preflight_lab:
+            from small_api_reference_resources import AppResources
+            self.app_resources = AppResources(self.network['resources'])
+            app = self.app_resources.check()
+            build = Path(config['build_manifest'])
+            receipt = json.loads(build.read_text(encoding='utf-8'))
+            if (receipt.get('status') not in ('build-only', 'passed') or receipt.get('sdk') != sdk
+                    or receipt.get('source_state') != 'exact clean committed source'
+                    or receipt.get('samples_source_revision') != samples_revision
+                    or receipt.get('engine_revision') != engine_revision
+                    or receipt.get('assembly_sha256') != sha(self.args.assembly)):
+                raise InfrastructureFailure('Release artifact does not match the exact locked build receipt.')
+            self.manifest['reference_build_manifest_sha256'] = sha(build)
+            self.manifest['reference_app_resources'] = app
+        # Align runtime switches on both sides with the helper's fixed launch environment.
+        fixed = {'DOTNET_NOLOGO': '1', 'DOTNET_CLI_TELEMETRY_OPTOUT': '1',
+                 'DOTNET_EnableDiagnostics': '0', 'DOTNET_PROCESSOR_COUNT': '2'}
+        self.environment = {key: value for key, value in self.environment.items()
+                            if not key.upper().startswith(('DOTNET_', 'COMPLUS_'))}
+        self.environment.update(fixed)
+        self.remote = RemoteDriver(config['driver'], self.args.assembly, sdk, lab=self.remote_preflight_lab)
+        driver = self.remote.probe()
+        self.manifest['remote_driver'] = driver
+        if not self.remote_preflight_lab:
+            from small_api_reference_resources import verify_driver_resources
+            verify_driver_resources(app, driver['resources'])
+        self.manifest['network'] = {'topology': 'TLS app and SSH-launched load driver',
+                                    'app_ip': self.network['listen_ip'], 'driver_ip': self.network['driver_ip'],
+                                    'startup_first_business_response': 'App host via the same private TLS listener'}
+
+    def server_command(self, *arguments):
+        if self.remote is None:
+            return self.command(SERVER_CPUS, *arguments)
+        arguments += ('--fixture-listen-ip=' + self.network['listen_ip'],
+                      '--fixture-peer-ip=' + self.network['driver_ip'])
+        if self.app_resources is not None:
+            return self.app_resources.command(self.args.dotnet, self.args.assembly, *arguments)
+        return list(map(str, (self.args.dotnet, self.args.assembly, *arguments)))
+
     def preflight(self):
         def git(directory, *arguments):
             return subprocess.check_output(['git', *arguments], cwd=directory, text=True).strip()
@@ -151,10 +226,11 @@ class Runner:
         if git(ROOT, 'status', '--porcelain'):
             raise InfrastructureFailure('Require clean committed Samples source before any measurement.')
         original_affinity = sorted(os.sched_getaffinity(0))
-        needed = set(SERVER_CPUS + DRIVER_CPUS + ORCHESTRATOR_CPUS)
-        if not needed.issubset(original_affinity):
-            raise InfrastructureFailure('Predeclared CPU allocation is unavailable; do not silently remap a measured attempt.')
-        os.sched_setaffinity(0, ORCHESTRATOR_CPUS)
+        if not self.remote_config:
+            needed = set(SERVER_CPUS + DRIVER_CPUS + ORCHESTRATOR_CPUS)
+            if not needed.issubset(original_affinity):
+                raise InfrastructureFailure('Predeclared CPU allocation is unavailable; do not silently remap a measured attempt.')
+            os.sched_setaffinity(0, ORCHESTRATOR_CPUS)
         sdk = self.invoke([self.args.dotnet, '--version'], 'sdk-version')
         sdk_pin = json.loads((ROOT / 'global.json').read_text(encoding='utf-8'))['sdk']['version']
         if sdk != sdk_pin or sdk != benchmark_lock['sdk']:
@@ -194,25 +270,28 @@ class Runner:
             if unified is not None:
                 cgroup_path = Path('/sys/fs/cgroup') / unified.lstrip('/')
         cgroup_files = {name: optional_read(cgroup_path / name) if cgroup_path else None for name in ['cpu.max', 'cpu.stat', 'cpuset.cpus.effective', 'memory.max', 'memory.current', 'memory.events']}
-        self.manifest = {
-            'schema_version': 1, 'declared_at_utc': stamp(), 'status': 'preflight-complete',
+        samples_revision = git(ROOT, 'rev-parse', 'HEAD')
+        if self.remote_config:
+            self.configure_remote(engine_revision, samples_revision, sdk)
+        self.manifest.update({
+            'schema_version': 1, 'declared_at_utc': stamp(), 'status': 'preflight-preparing',
             'orchestrator_pid': os.getpid(),
-            'classification': 'OBSERVATIONAL; nonqualifying W0 reference environment',
-            'reference_environment_qualified': False,
-            'reference_failures': ['WSL CPUs are shared and nonreserved; affinity does not establish dedicated vCPUs.', 'No owned 2GiB application memory cap is established.', 'Host and driver share one WSL/Windows machine; this is not native deployment proof.'],
+            'reference_failures': [] if self.app_resources is not None else (
+                ['Remote laboratory proof is preflight-only and does not establish dedicated hardware.'] if self.remote else
+                ['Loopback observation does not establish reserved app resources or an independent load driver.']),
             'budgets_unchanged': True,
             'collector_preparation': {'decision': 'ADR0011', 'control_pool_separate': True, 'load_pool_initially_fresh': True, 'held_http11_responses_required': 128, 'load_tls_connection_identities_required': 128, 'shared_barrier_deadline_seconds': 30, 'preflight_seconds': 2, 'preparation_retries': 0, 'entered_phase_tls_evidence_required': True, 'boundary': 'A verified simultaneous held-response barrier establishes observed preparation readiness; it is not sustained capacity or production qualification.'},
-            'engine_revision': engine_revision, 'samples_revision': git(ROOT, 'rev-parse', 'HEAD'), 'sdk': sdk,
+            'engine_revision': engine_revision, 'samples_revision': samples_revision, 'sdk': sdk,
             'source_sha256': source_hashes, 'assembly': str(self.args.assembly), 'assembly_sha256': sha(self.args.assembly),
             'deployment': {'dotnet': str(self.args.dotnet), 'assembly_directory': str(self.args.assembly.parent), 'server_working_directory': str(self.args.server_working_directory), 'output_directory': str(self.output), 'boundary': 'Filesystem/deployment paths are explicit and shared by both variants; native storage does not establish dedicated CPU/RAM or native OS deployment proof.'},
             'artifact_provenance_boundary': 'Caller-supplied compiled artifact hash captured; clean committed source and package hashes captured. Compilation provenance must also be retained by the build workflow.',
             'runtimeconfig': json.loads(self.args.assembly.with_suffix('.runtimeconfig.json').read_text()),
             'deps_sha256': sha(self.args.assembly.with_suffix('.deps.json')),
-            'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'server_cpus': SERVER_CPUS, 'driver_cpus': DRIVER_CPUS, 'orchestrator_cpus': ORCHESTRATOR_CPUS, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS}, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_ROOT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'DOTNET_TieredCompilation', 'DOTNET_TieredPGO', 'DOTNET_ReadyToRun', 'DOTNET_TC_QuickJit', 'DOTNET_TC_QuickJitForLoops', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_TieredPGO', 'COMPlus_ReadyToRun']}},
+            'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'controller_affinity': sorted(os.sched_getaffinity(0)), 'server_cpus': SERVER_CPUS if self.remote is None else None, 'driver_cpus': DRIVER_CPUS if self.remote is None else None, 'orchestrator_cpus': ORCHESTRATOR_CPUS if self.remote is None else None, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS} if self.remote is None else None, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_ROOT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'DOTNET_TieredCompilation', 'DOTNET_TieredPGO', 'DOTNET_ReadyToRun', 'DOTNET_TC_QuickJit', 'DOTNET_TC_QuickJitForLoops', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_TieredPGO', 'COMPlus_ReadyToRun']}},
             'protocol': {'requested_phases': self.args.phases, 'startup_launches_per_variant_transport': 30, 'startup_order': 'BE/EB alternation by index', 'idle_pairs_per_transport': 5, 'load_pairs_per_transport': 5, 'pair_order': ORDER, 'warmup_seconds': 60, 'idle_settle_seconds': 120, 'idle_samples': 60, 'idle_sample_hz': 1, 'measured_load_seconds': 180, 'offered_requests_per_second': 1000, 'maximum_outstanding': 128, 'request_timeout_seconds': 1, 'latency': 'completed minus scheduled; drops/errors retained; no outlier filtering', 'diagnostic_rate_sweeps': {'rates_and_order': [{'rate': 100, 'order': 'BE'}, {'rate': 500, 'order': 'EB'}, {'rate': 2000, 'order': 'BE'}], 'transports': ['http', 'graphql'], 'warmup_seconds': 60, 'measured_seconds': 180, 'maximum_outstanding': 128, 'acceptance_budget_role': 'None: diagnostics never replace or select an acceptance rate; structured failed collector preflights remain failed attempts without timed runs.'}, 'startup_cache_boundary': 'Fresh processes with OS cache state observed; not machine-cold boots', 'cv_analysis': 'Population standard deviation divided by mean, all five p95 observations per variant/transport'},
             'budgets': {'startup_p95_ms': 1000, 'startup_engine_extra_ms': 150, 'idle_rss_mib': 256, 'idle_engine_extra_mib': 16, 'load_p95_ms': 20, 'load_p99_ms': 50, 'engine_p95_extra': 'max(1ms,15% baseline p95)', 'engine_allocation_extra_bytes_per_request': 1024, 'success_floor': .999, 'unplanned_errors_timeouts_drops': 0, 'p95_coefficient_of_variation': .10},
             'private_fixture': 'Private server.pfx stays in task-owned Linux-home .local/share storage with verified0700/0600 modes; never copy it into evidence. Only public CA DER/hash may be retained externally.'
-        }
+        })
         write_json(self.output / 'manifest.json', self.manifest)
         private_base = Path.home() / '.local/share/cehpalon-benchmark-fixtures'
         private_base.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -220,7 +299,10 @@ class Runner:
         container = Path(tempfile.mkdtemp(prefix='attempt-', dir=private_base))
         self.fixture = container / 'fixture'
         self.ca = self.fixture / 'root-ca.der'
-        self.invoke([self.args.dotnet, self.args.assembly, '--create-fixture=' + str(self.fixture)], 'fixture-create')
+        fixture_command = [self.args.dotnet, self.args.assembly, '--create-fixture=' + str(self.fixture)]
+        if self.remote is not None:
+            fixture_command.append('--fixture-listen-ip=' + self.network['listen_ip'])
+        self.invoke(fixture_command, 'fixture-create')
         os.chmod(self.fixture, 0o700)
         private = self.fixture / 'server.pfx'
         if not private.is_file() or not self.ca.is_file():
@@ -231,7 +313,27 @@ class Runner:
         self.manifest['private_fixture_path'] = str(self.fixture)
         self.manifest['private_fixture_modes_verified'] = {'directory': '0700', 'pfx': '0600'}
         self.manifest['public_ca_sha256'] = sha(self.ca)
+        if self.remote is not None:
+            self.remote_preflight()
+        self.manifest['status'] = 'preflight-complete'
         write_json(self.output / 'manifest.json', self.manifest)
+
+    def remote_preflight(self):
+        cases = []
+        for transport in ('http', 'graphql'):
+            for variant in ('baseline', 'engine'):
+                directory = self.output / 'remote-preflight' / transport / variant
+                self.progress.update(phase='remote-preflight', variant=variant, transport=transport)
+                with Server(self, directory, variant, transport) as server:
+                    preflight = self.child_driver(server, directory / 'driver', preflight_only=True)
+                if not server.shutdown['passed']:
+                    raise InfrastructureFailure('Remote qualification fixture did not shut down cleanly.')
+                raw = audit_successful_preflight_rows(directory / 'driver', 1000)
+                cases.append({'variant': variant, 'transport': transport, **preflight, 'raw_accounting': raw})
+                write_json(self.output / 'remote-preflight-summary.json',
+                           {'completed_lanes': cases, 'timed_phases_entered': False})
+        self.reference_preflight_passed = self.app_resources is not None
+        self.manifest['reference_environment_qualified'] = self.reference_preflight_passed
 
     def startup(self):
         observations = []
@@ -259,34 +361,71 @@ class Runner:
         write_json(self.output / 'startup-summary.json', summaries)
         return summaries
 
-    def child_driver(self, server, directory, warm_only=False, rate=1000, allow_capacity_failure=False):
+    def wait_for_driver(self, server, process, timeout):
+        self.owned.append(process)
+        deadline = time.monotonic() + timeout
+        try:
+            while process.poll() is None:
+                if server.process.poll() is not None:
+                    raise InfrastructureFailure('Server died during driver phase.')
+                if time.monotonic() > deadline:
+                    raise InfrastructureFailure('Load driver exceeded its bounded protocol timeout.')
+                self.progress.tick()
+                time.sleep(.25)
+        finally:
+            if process.poll() is None:
+                self.terminate(process)
+
+    def child_driver(self, server, directory, warm_only=False, rate=1000, allow_capacity_failure=False, preflight_only=False):
         directory.mkdir(parents=True, exist_ok=False)
-        command = self.command(DRIVER_CPUS, '--load-client', '--url=' + server.ready['address'], '--ca-file=' + str(self.ca), '--transport=' + server.transport, '--output=' + str(directory), '--warmup=60', '--seconds=' + ('1' if warm_only else '180'), '--rate=' + str(rate))
+        arguments = ['--load-client', '--url=' + server.ready['address'], '--transport=' + server.transport,
+                     '--warmup=60', '--seconds=' + ('1' if warm_only else '180'), '--rate=' + str(rate)]
         if warm_only:
-            command.append('--warmup-only=true')
-        write_json(directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
-        with (directory / 'stdout.txt').open('xb') as stdout, (directory / 'stderr.txt').open('xb') as stderr:
-            process = subprocess.Popen(command, cwd=self.args.server_working_directory, env=self.environment, stdout=stdout, stderr=stderr, start_new_session=True)
-            self.owned.append(process)
-            deadline = time.monotonic() + (120 if warm_only else 300)
-            try:
-                while process.poll() is None:
-                    if server.process.poll() is not None:
-                        raise InfrastructureFailure('Server died during driver phase.')
-                    if time.monotonic() > deadline:
-                        raise InfrastructureFailure('Load driver exceeded its bounded protocol timeout.')
-                    self.progress.tick()
-                    time.sleep(.25)
-            finally:
-                if process.poll() is None:
-                    self.terminate(process)
+            arguments.append('--warmup-only=true')
+        if preflight_only:
+            arguments.append('--preflight-only=true')
+        timeout = 120 if warm_only or preflight_only else 300
+        if self.remote is not None:
+            write_json(directory / 'invocation.json', {'driver_location': 'separate SSH host', 'arguments': arguments,
+                                                        'observed_at_utc': stamp()})
+            process = self.remote.start(arguments, self.ca, directory, timeout)
+            # Transport timeout includes collection of raw evidence, outside driver clocks.
+            self.wait_for_driver(server, process, timeout + 60)
+        else:
+            command = self.command(DRIVER_CPUS, *arguments, '--ca-file=' + str(self.ca), '--output=' + str(directory))
+            write_json(directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
+            with (directory / 'stdout.txt').open('xb') as stdout, (directory / 'stderr.txt').open('xb') as stderr:
+                process = subprocess.Popen(command, cwd=self.args.server_working_directory, env=self.environment,
+                                           stdout=stdout, stderr=stderr, start_new_session=True)
+                self.wait_for_driver(server, process, timeout)
         # Missing readiness/failure telemetry is an infrastructure defect, even if
         # the driver emitted a plausible numerical result or a nonzero exit.
         try:
-            validate_collector_preparation(directory)
-            validate_phase_telemetry(directory, 'preflight')
+            preparation = validate_collector_preparation(directory)
+            accounting = validate_phase_telemetry(directory, 'preflight')
         except (ValueError, OSError, KeyError, TypeError) as error:
             raise InfrastructureFailure('Incomplete collector readiness/preflight evidence: ' + str(error)) from error
+        if preflight_only:
+            result = json.loads((directory / 'preflight-result.json').read_text(encoding='utf-8'))
+            canonical = {
+                'schemaVersion': 1, 'mode': 'preflight-only', 'status': 'passed',
+                'transport': server.transport, 'rate': rate, 'seconds': 2, 'offeredCount': rate * 2,
+                'plannedManifestOffers': rate * 180, 'enteredPhases': ['preflight'],
+                'warmupEntered': False, 'measuredEntered': False,
+                'telemetryFile': 'preflight-evidence-accounting.json',
+            }
+            later = ('warmup-requests.jsonl.gz', 'measured-requests.jsonl.gz', 'load-result.json', 'warmup-result.json')
+            collector = json.loads((directory / 'collector-preflight.json').read_text(encoding='utf-8'))
+            if (process.returncode != 0 or any(result.get(key) != value for key, value in canonical.items())
+                    or result.get('preparation', {}).get('barrier') != preparation['barrier']
+                    or not phase_correct(result.get('preflight'), rate * 2)
+                    or result.get('state', {}).get('passed') is not True
+                    or result['preflight'] != collector.get('preflight') or result['state'] != collector.get('state')
+                    or accounting['offeredCount'] != rate * 2 or any((directory / name).exists() for name in later)):
+                raise InfrastructureFailure('Remote TLS/collector preflight did not satisfy the original contract.')
+            return {'offered': result['offeredCount'], 'correct': result['preflight']['correct'],
+                    'held_tls_connections': preparation['barrier']['distinctConnectionCount'],
+                    'measured_entered': False, 'warmup_entered': False}
         result_path = directory / ('warmup-result.json' if warm_only else 'load-result.json')
         if not result_path.is_file():
             preflight_path = directory / 'collector-preflight.json'
@@ -500,11 +639,15 @@ class Server:
         self.process = None
         self.shutdown = None
         self.ready = None
+        self.resource_before = None
 
     def __enter__(self):
         self.directory.mkdir(parents=True, exist_ok=False)
         ready_file, self.state_file = self.directory / 'ready.json', self.directory / 'final-state.json'
-        command = self.runner.command(SERVER_CPUS, '--mode=serve', '--variant=' + self.variant, '--transport=' + self.transport, '--fixture-dir=' + str(self.runner.fixture), '--ready-file=' + str(ready_file), '--state-file=' + str(self.state_file))
+        command = self.runner.server_command('--mode=serve', '--variant=' + self.variant, '--transport=' + self.transport, '--fixture-dir=' + str(self.runner.fixture), '--ready-file=' + str(ready_file), '--state-file=' + str(self.state_file))
+        if self.runner.app_resources is not None:
+            self.resource_before = self.runner.app_resources.check()
+            write_json(self.directory / 'app-resources-before.json', self.resource_before)
         write_json(self.directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
         self.stdout = (self.directory / 'server.stdout.txt').open('xb')
         self.stderr = (self.directory / 'server.stderr.txt').open('xb')
@@ -538,6 +681,8 @@ class Server:
             self.startup_milliseconds = (self.verified_ns - self.started_ns) / 1e6
             # Provenance inspection follows the counted first response and is
             # outside startup/load timing; both variants use this same observer.
+            if self.resource_before is not None:
+                write_json(self.directory / 'app-process-resources.json', self.runner.app_resources.observe(self.process.pid))
             mappings = Path(f'/proc/{self.process.pid}/maps').read_text()
             loaded = sorted({line.split()[-1] for line in mappings.splitlines() if any(name in line for name in ('libcoreclr.so', 'libhostpolicy.so', 'System.Private.CoreLib.dll', 'Microsoft.AspNetCore.Server.Kestrel.Core.dll'))})
             write_json(self.directory / 'loaded-runtime.json', {'process_id': self.process.pid, 'paths': loaded, 'inspection_after_first_response': True})
@@ -548,9 +693,12 @@ class Server:
 
     def verify_first_response(self):
         address = urlsplit(self.ready['address'])
-        if address.scheme != 'https' or address.hostname not in ('localhost', '127.0.0.1', '::1'):
-            raise InfrastructureFailure('Only owned localhost HTTPS fixture addresses are allowed.')
-        if self.ready.get('processId') != self.process.pid or self.ready.get('datasetId') != 'cehpalon-small-api-v1':
+        hosts = ('localhost', '127.0.0.1', '::1') if self.runner.remote is None else (self.runner.network['listen_ip'],)
+        if (address.scheme != 'https' or address.hostname not in hosts or not address.port or address.username
+                or address.password or address.path not in ('', '/') or address.query or address.fragment):
+            raise InfrastructureFailure('Readiness address differs from the owned HTTPS fixture endpoint.')
+        if (self.ready.get('processId') != self.process.pid or self.ready.get('datasetId') != 'cehpalon-small-api-v1'
+                or self.ready.get('variant') != self.variant or self.ready.get('transport') != self.transport):
             raise InfrastructureFailure('Ready identity/dataset differs from the owned process.')
         if base64.b64decode(self.ready['rootCaDerBase64']) != self.runner.ca.read_bytes():
             raise InfrastructureFailure('Readiness CA differs from precreated fixture CA.')
@@ -567,7 +715,7 @@ class Server:
             tls_cipher = client.sock.cipher() if client.sock else None
             response = client.getresponse()
             body = json.loads(response.read())
-            if response.status != 200 or 'errors' in body:
+            if tls_protocol != 'TLSv1.3' or not tls_cipher or response.status != 200 or 'errors' in body:
                 raise InfrastructureFailure('First business response was not a valid success.')
             item = body if self.transport == 'http' else body.get('data', {}).get('catalogItem')
             if item != {'id': 1, 'label': 'item-00001', 'revision': 0, 'amountMinorUnits': 17}:
@@ -580,6 +728,12 @@ class Server:
     def stop(self):
         if self.shutdown is not None:
             return
+        resource_failure = None
+        if self.resource_before is not None and self.process is not None and self.process.poll() is None:
+            try:
+                self.runner.app_resources.verify_after(self.resource_before, self.process.pid)
+            except (OSError, RuntimeError, ValueError) as exception:
+                resource_failure = str(exception)
         started = time.monotonic_ns()
         graceful = False
         error = None
@@ -620,7 +774,15 @@ class Server:
         if self.transport == 'http':
             for name in ('GraphQLFactories', 'GraphQLServices', 'GraphQLDiagnosticConstructors', 'GraphQLExecutorInitializations', 'GraphQLSchemasReady'):
                 disabled = disabled and probes.get(name[0].lower() + name[1:], probes.get(name)) == 0
-        passed = graceful and elapsed <= 5000 and self.process.returncode == 0 and closed and owned and disabled
+        if self.resource_before is not None:
+            try:
+                verified = self.runner.app_resources.verify_after(self.resource_before)
+                write_json(self.directory / 'app-resources-after.json', verified)
+            except (OSError, RuntimeError, ValueError) as exception:
+                resource_failure = resource_failure or str(exception)
+        if resource_failure is not None:
+            write_json(self.directory / 'app-resource-failure.json', {'error': resource_failure})
+        passed = graceful and elapsed <= 5000 and self.process.returncode == 0 and closed and owned and disabled and resource_failure is None
         self.shutdown = {'requested_monotonic_ns': started, 'elapsed_ms': elapsed, 'graceful': graceful, 'exit_code': self.process.returncode if self.process else None, 'listener_closed': closed, 'owned_handlers_balanced': owned, 'disabled_probes_zero': disabled, 'passed': passed, 'error': error}
         write_json(self.directory / 'shutdown.json', self.shutdown)
         self.stdout.close()
@@ -628,6 +790,8 @@ class Server:
 
     def __exit__(self, exception_type, exception, tb):
         self.stop()
+        if exception_type is None and (self.directory / 'app-resource-failure.json').is_file():
+            raise InfrastructureFailure('Application resource evidence changed during the run.')
 
 
 def main():
@@ -639,9 +803,11 @@ def main():
     parser.add_argument('--server-working-directory', type=Path, default=ROOT)
     parser.add_argument('--phases', default='startup,idle,load,diagnostics')
     parser.add_argument('--preflight-only', action='store_true')
+    parser.add_argument('--remote-config', type=Path)
+    parser.add_argument('--remote-preflight-lab', action='store_true')
     args = parser.parse_args()
     if sys.platform != 'linux':
-        parser.error('This observational orchestrator is Linux-only; Windows remains a separate proof gate.')
+        parser.error('The Small API benchmark orchestrator requires Linux.')
     args.dotnet, args.assembly, args.engine_root = args.dotnet.resolve(), args.assembly.resolve(), args.engine_root.resolve()
     args.server_working_directory = args.server_working_directory.resolve()
     if not args.server_working_directory.is_dir():
@@ -649,6 +815,10 @@ def main():
     args.phases = args.phases.split(',')
     if len(set(args.phases)) != len(args.phases) or any(phase not in ('startup', 'idle', 'load', 'diagnostics') for phase in args.phases):
         parser.error('Select unique phases from startup,idle,load,diagnostics; full defaults are never shortened.')
+    if args.remote_preflight_lab and not (args.remote_config and args.preflight_only):
+        parser.error('Laboratory remote mode requires --remote-config and --preflight-only.')
+    if args.remote_config and not args.preflight_only and tuple(args.phases) != PHASES:
+        parser.error('The original reference run requires all W0 phases in the declared order.')
     output = (ROOT / args.output).resolve()
     private = (ROOT / '.local').resolve()
     native_private = (Path.home() / '.local/share/cehpalon-benchmark-runs').resolve()
@@ -663,9 +833,13 @@ def main():
     def interrupted(signum, frame):
         raise KeyboardInterrupt('Received signal ' + str(signum) + '; stopping only owned processes.')
     signal.signal(signal.SIGTERM, interrupted)
-    summary = {'started_at_utc': stamp(), 'classification': 'OBSERVATIONAL; nonqualifying W0 reference environment', 'reference_gate_passed': False, 'completed_phases': [], 'not_run_phases': ['startup', 'idle', 'load', 'diagnostics']}
+    summary = {'started_at_utc': stamp(), 'classification': runner.classification, 'reference_preflight_passed': False,
+               'reference_gate_passed': False, 'completed_phases': [], 'not_run_phases': list(PHASES)}
     try:
         runner.preflight()
+        summary['reference_preflight_passed'] = runner.reference_preflight_passed
+        if args.remote_config and not args.preflight_only and not runner.reference_preflight_passed:
+            raise InfrastructureFailure('Timed reference phases require successful real-host and remote collector preflight.')
         if not args.preflight_only:
             for phase in args.phases:
                 summary[phase] = getattr(runner, phase)()
@@ -677,13 +851,19 @@ def main():
             if phase == 'diagnostics':
                 continue  # Diagnostic capacity failures are reported, never scored as acceptance budgets.
             numeric.append(summary[phase]['all_budget_observations_passed'] if phase == 'load' else all(item['budget_observation_passed'] for item in summary[phase]))
-        summary.update(status='preflight-only' if args.preflight_only else 'observations-complete', numeric_budget_observations_passed=all(numeric) if numeric else None, completed_at_utc=stamp())
-        runner.manifest.update(status=summary['status'], completed_at_utc=summary['completed_at_utc'])
+        passed = runner.reference_preflight_passed and tuple(summary['completed_phases']) == PHASES and all(numeric)
+        status = ('preflight-only' if args.preflight_only else 'observations-complete' if not args.remote_config
+                  else 'reference-passed' if passed else 'reference-failed')
+        summary.update(status=status, reference_gate_passed=passed,
+                       numeric_budget_observations_passed=all(numeric) if numeric else None, completed_at_utc=stamp())
+        runner.manifest.update(status=status, reference_gate_passed=passed, completed_at_utc=summary['completed_at_utc'])
         write_json(output / 'manifest.json', runner.manifest)
         write_json(output / 'summary.json', summary)
-        runner.progress.update(status=summary['status'], phase='complete', reference_gate_passed=False)
-        print(json.dumps({'status': summary['status'], 'completed_phases': summary['completed_phases'], 'reference_gate_passed': False, 'output': str(output)}))
-        return 0
+        runner.progress.update(status=status, phase='complete', reference_gate_passed=passed)
+        print(json.dumps({'status': status, 'completed_phases': summary['completed_phases'],
+                          'reference_preflight_passed': runner.reference_preflight_passed,
+                          'reference_gate_passed': passed, 'output': str(output)}))
+        return 1 if status == 'reference-failed' else 0
     except BaseException as error:
         summary.update(status='aborted-infrastructure', error=repr(error), completed_at_utc=stamp())
         runner.manifest.update(status='aborted-infrastructure', error=repr(error), completed_at_utc=summary['completed_at_utc'])
