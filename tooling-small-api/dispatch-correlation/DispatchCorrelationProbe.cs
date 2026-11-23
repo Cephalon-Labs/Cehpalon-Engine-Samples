@@ -335,7 +335,7 @@ internal static partial class DispatchCorrelationProbe
         var error = capture.GraphQl ? json.GetProperty("errors")[0] : json;
         var code = capture.GraphQl ? error.GetProperty("extensions").GetProperty("code") : error.GetProperty("code");
         Require(status == (capture.GraphQl ? 200 : httpStatus) && code.GetString() == errorCode &&
-            error.GetProperty("message").GetString() == message &&
+            error.GetProperty(capture.GraphQl ? "message" : "title").GetString() == message &&
             !body.Contains(capture.CleanupFaultSentinel, StringComparison.Ordinal),
             "Public error response differed or exposed the private fault.");
     }

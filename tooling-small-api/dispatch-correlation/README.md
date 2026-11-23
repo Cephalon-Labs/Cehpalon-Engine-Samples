@@ -76,8 +76,9 @@ In each lane:
    one active permit before and after close, and cancel only a second
    wait while the original drain remains pending.
 2. For each transport check an authorized overload, an authenticated
-   tenant denial and an anonymous denial. Compare the sanitized public
-   envelopes and outer dispatch completion to the native request Activity.
+   tenant denial and an anonymous denial. Verify the fixed HTTP problem
+   title and GraphQL field error message, then compare outer dispatch
+   completion to the native request Activity.
    Confirm those requests add no new handler, mutation or cleanup.
 3. Release the mutation and wait for cleanup to reach the barrier.
    Verify the write has happened, the permit is still held, and the
@@ -97,5 +98,5 @@ histogram observations across the two lanes. Treat the result as controlled
 local graceful drain and fresh activation. Admission close is observed
 while the listener is intentionally still online, before generated host
 shutdown begins. Wait cancellation concerns one drain waiter. The
-synthetic cleanup fault concerns an admitted handler. The result establishes
-neither crash durability nor exporter recovery.
+synthetic cleanup fault concerns an admitted handler. Crash durability
+and exporter recovery require their own evidence.
