@@ -12,6 +12,7 @@ const string usage="PostgreSQL audit/outbox fixture setup:\n  --connection-file=
 if(args.Length==0 || args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine(usage);return 0;}
 if(args.Any(x=>x.StartsWith("--export-audit-contracts",StringComparison.Ordinal)))return await AuditReadContractExport.RunCommandAsync(args);
 if(args.Any(x=>x.StartsWith("--verify-audit-contracts",StringComparison.Ordinal)))return await ResourceTransportChecks.RunContractCommandAsync(args);
+if(args[0]=="--measure-audit-history")return await ResourceTransportChecks.RunHistoryMeasurementAsync(args);
 var arguments=new Dictionary<string,string>(StringComparer.Ordinal);
 foreach(var argument in args)
 {

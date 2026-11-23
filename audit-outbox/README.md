@@ -1,5 +1,32 @@
 # Optional PostgreSQL audit transaction/outbox consumer
 
+## Paired resource-history measurement
+
+For the bounded WSL experiment, build two copies of this consumer in Release
+with SDK 11.0.100 and point `EngineRoot` at the clean revisions under comparison.
+Both binaries must come from the same consumer source and use the locked Npgsql
+version. Run the controller under Linux or WSL with a fresh output directory,
+a dedicated PostgreSQL 18.7 fixture, and a mode-0600 connection file with
+`Pooling=false`. The seed command creates a new owned schema and does not
+reuse an existing benchmark corpus.
+
+```sh
+python3 tools/measure_audit_history_https.py \
+  --dotnet /path/to/dotnet \
+  --before /path/to/before/PostgresAuditOutbox.Consumer.dll \
+  --after /path/to/after/PostgresAuditOutbox.Consumer.dll \
+  --connection-file /private/fixture.conn \
+  --schema "ao_$(python3 -c 'import uuid; print(uuid.uuid4().hex)')" \
+  --output .local/audit-history-https/example
+```
+
+Use `--preflight` with a separate schema and output before the full measurement.
+The controller and servers are separate processes. Raw rows contain timing,
+counts and response digests. Server stderr can contain fixture details and
+stays local. Allocation covers the server's managed process, while latency
+covers a warm TLS request through receipt of the complete response. See the
+[measurement protocol](https://github.com/Cephalon-Labs/Cehpalon-Engine-Docs/blob/main/internal/validation/audit-history-https-allocation.md).
+
 F5 without arguments displays provider setup guidance and exits successfully without opening a database. This is not a PostgreSQL conformance pass. To run provider checks, explicitly supply `--connection-file=<private-file> --schema=<owned-schema> --output=<new-report.json>`. Missing/duplicate options or unreadable files return actionable exit2 before provider setup.
 
 Experimental local proof using existing Core/Composition, generated HTTP/GraphQL gateways and a separately generated protected relay gateway. The project alone references pinned Npgsql10.0.3; the prior security-api consumer and its651-case corpus keep their package graph and default behavior. Select the trusted `IEntityTrailIntegration` sample hook to activate this provider against the same immutable tenant registry before credentials/listener creation. Provider/history handler factories stay lazy. The hook is sample integration, not a new engine authorization shortcut.
