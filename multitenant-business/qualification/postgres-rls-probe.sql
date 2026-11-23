@@ -97,10 +97,20 @@ END
 $$;
 
 \if :{?keep_runtime_fixture}
+\else
+    \set keep_runtime_fixture false
+\endif
+\if :keep_runtime_fixture
+    \set runtime_password
     \getenv runtime_password CEPHALON_PROBE_RUNTIME_PASSWORD
-    RESET ROLE;
-    ALTER ROLE cephalon_probe_runtime LOGIN PASSWORD :'runtime_password';
-    COMMIT;
+    SELECT LENGTH(:'runtime_password') > 0 AS has_runtime_password \gset
+    \if :has_runtime_password
+        RESET ROLE;
+        ALTER ROLE cephalon_probe_runtime LOGIN PASSWORD :'runtime_password';
+        COMMIT;
+    \else
+        DO $$ BEGIN RAISE EXCEPTION 'Runtime fixture password is required'; END $$;
+    \endif
 \else
     ROLLBACK;
 \endif
