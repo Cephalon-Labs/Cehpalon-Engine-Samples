@@ -11,7 +11,9 @@ restore when the assets file exists. CLI users can use `dotnet build`, which
 already restores automatically; `--no-restore` still requires a prior restore.
 This is a test executable: F5 or a run without arguments creates a fresh report in
 the Samples `.local/small-api-runs` directory, prints its path, executes 40 checks
-and exits. Each run uses a new timestamp/GUID filename. An explicit
+and exits. Select the `SmallApi.Consumer` debug profile. It leaves the browser
+closed and the tests choose their own temporary loopback ports. Each run uses a
+new timestamp/GUID filename. An explicit
 `--output=<new-report.json>` remains supported; existing reports are preserved.
 Use `--help` for usage. Invalid/duplicate arguments return exit code 2 before
 creating fixture hosts. Recovery is supplied by the shared
