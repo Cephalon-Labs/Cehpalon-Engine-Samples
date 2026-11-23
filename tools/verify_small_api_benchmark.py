@@ -45,12 +45,14 @@ def main():
         run([args.dotnet,'restore',project,'--locked-mode','--artifacts-path',artifacts,'--configfile',ROOT/'NuGet.Config',prop],'restore.txt')
         run([args.dotnet,'build',project,'-c','Release','--no-restore','--artifacts-path',artifacts,prop,'-p:UseSharedCompilation=false','-nr:false','-warnaserror'],'build.txt')
         assembly=artifacts/'bin/SmallApi.Benchmark/release/SmallApi.Benchmark.dll'
+        deployment = {entry.relative_to(assembly.parent).as_posix(): hashlib.sha256(entry.read_bytes()).hexdigest()
+                      for entry in sorted(assembly.parent.rglob('*')) if entry.is_file()}
         deps=json.loads(assembly.with_suffix('.deps.json').read_text())
         if any(any(word in name.lower() for word in ['codeanalysis','codegeneration']) for name in deps['libraries']):raise ValueError('Compiler-only library in runtime graph')
         generated=list((artifacts/'obj').rglob('OperationRegistrations.g.cs'))
         if len(generated)!=1:raise ValueError('Expected one actual generated registry')
         (output/'OperationRegistrations.g.cs.txt').write_bytes(generated[0].read_bytes())
-        report.update(assembly_sha256=hashlib.sha256(assembly.read_bytes()).hexdigest(),generated_registry_sha256=hashlib.sha256(generated[0].read_bytes()).hexdigest(),runtime_libraries=sorted(deps['libraries']))
+        report.update(deployment_sha256=deployment,assembly_sha256=hashlib.sha256(assembly.read_bytes()).hexdigest(),generated_registry_sha256=hashlib.sha256(generated[0].read_bytes()).hexdigest(),runtime_libraries=sorted(deps['libraries']))
         if not args.build_only:
             run([args.dotnet,assembly,'--mode=conformance','--output='+str(output/'conformance')],'conformance-run.txt')
             result=json.loads((output/'conformance/summary.json').read_text())

@@ -25,7 +25,7 @@ import time
 import tempfile
 import traceback
 from urllib.parse import urlsplit
-from small_api_collector_evidence import audit_successful_preflight_rows, validate_collector_preparation, validate_phase_telemetry, validate_preflight_rejection
+from small_api_collector_evidence import audit_reference_driver, audit_successful_preflight_rows, validate_collector_preparation, validate_phase_telemetry, validate_preflight_rejection
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_CPUS, DRIVER_CPUS, ORCHESTRATOR_CPUS = (0, 2), (4, 6), (8, 10)
@@ -182,17 +182,23 @@ class Runner:
             app = self.app_resources.check()
             build = Path(config['build_manifest'])
             receipt = json.loads(build.read_text(encoding='utf-8'))
+            deployment = self.args.assembly.parent
+            paths = sorted(deployment.rglob('*'))
+            if any(path.is_symlink() for path in paths):
+                raise InfrastructureFailure('The locked Release deployment contains a symbolic link.')
+            files = {path.relative_to(deployment).as_posix(): sha(path) for path in paths if path.is_file()}
             if (receipt.get('status') not in ('build-only', 'passed') or receipt.get('sdk') != sdk
                     or receipt.get('source_state') != 'exact clean committed source'
                     or receipt.get('samples_source_revision') != samples_revision
                     or receipt.get('engine_revision') != engine_revision
-                    or receipt.get('assembly_sha256') != sha(self.args.assembly)):
+                    or receipt.get('assembly_sha256') != sha(self.args.assembly)
+                    or not files or receipt.get('deployment_sha256') != files):
                 raise InfrastructureFailure('Release artifact does not match the exact locked build receipt.')
             self.manifest['reference_build_manifest_sha256'] = sha(build)
             self.manifest['reference_app_resources'] = app
         # Align runtime switches on both sides with the helper's fixed launch environment.
         fixed = {'DOTNET_NOLOGO': '1', 'DOTNET_CLI_TELEMETRY_OPTOUT': '1',
-                 'DOTNET_EnableDiagnostics': '0', 'DOTNET_PROCESSOR_COUNT': '2'}
+                 'DOTNET_EnableDiagnostics': '0', 'DOTNET_PROCESSOR_COUNT': '2', 'DOTNET_ROLL_FORWARD': 'Disable'}
         self.environment = {key: value for key, value in self.environment.items()
                             if not key.upper().startswith(('DOTNET_', 'COMPLUS_'))}
         self.environment.update(fixed)
@@ -287,7 +293,7 @@ class Runner:
             'artifact_provenance_boundary': 'Caller-supplied compiled artifact hash captured; clean committed source and package hashes captured. Compilation provenance must also be retained by the build workflow.',
             'runtimeconfig': json.loads(self.args.assembly.with_suffix('.runtimeconfig.json').read_text()),
             'deps_sha256': sha(self.args.assembly.with_suffix('.deps.json')),
-            'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'controller_affinity': sorted(os.sched_getaffinity(0)), 'server_cpus': SERVER_CPUS if self.remote is None else None, 'driver_cpus': DRIVER_CPUS if self.remote is None else None, 'orchestrator_cpus': ORCHESTRATOR_CPUS if self.remote is None else None, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS} if self.remote is None else None, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_ROOT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'DOTNET_TieredCompilation', 'DOTNET_TieredPGO', 'DOTNET_ReadyToRun', 'DOTNET_TC_QuickJit', 'DOTNET_TC_QuickJitForLoops', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_TieredPGO', 'COMPlus_ReadyToRun']}},
+            'environment': {'uname': list(platform.uname()), 'python': sys.version, 'openssl': ssl.OPENSSL_VERSION, 'page_size': os.sysconf('SC_PAGE_SIZE'), 'original_affinity': original_affinity, 'controller_affinity': sorted(os.sched_getaffinity(0)), 'server_cpus': SERVER_CPUS if self.remote is None else None, 'driver_cpus': DRIVER_CPUS if self.remote is None else None, 'orchestrator_cpus': ORCHESTRATOR_CPUS if self.remote is None else None, 'cpu_governors': {str(cpu): optional_read(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor') for cpu in SERVER_CPUS} if self.remote is None else None, 'meminfo': optional_read('/proc/meminfo'), 'cgroup': cgroup, 'cgroup_files': cgroup_files, 'dotnet_environment': {key: self.environment.get(key) for key in ['DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_EnableDiagnostics', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_ROLL_FORWARD', 'DOTNET_ROOT', 'DOTNET_gcServer', 'DOTNET_GCHeapHardLimit', 'DOTNET_TieredCompilation', 'DOTNET_TieredPGO', 'DOTNET_ReadyToRun', 'DOTNET_TC_QuickJit', 'DOTNET_TC_QuickJitForLoops', 'COMPlus_gcServer', 'COMPlus_TieredCompilation', 'COMPlus_TieredPGO', 'COMPlus_ReadyToRun']}},
             'protocol': {'requested_phases': self.args.phases, 'startup_launches_per_variant_transport': 30, 'startup_order': 'BE/EB alternation by index', 'idle_pairs_per_transport': 5, 'load_pairs_per_transport': 5, 'pair_order': ORDER, 'warmup_seconds': 60, 'idle_settle_seconds': 120, 'idle_samples': 60, 'idle_sample_hz': 1, 'measured_load_seconds': 180, 'offered_requests_per_second': 1000, 'maximum_outstanding': 128, 'request_timeout_seconds': 1, 'latency': 'completed minus scheduled; drops/errors retained; no outlier filtering', 'diagnostic_rate_sweeps': {'rates_and_order': [{'rate': 100, 'order': 'BE'}, {'rate': 500, 'order': 'EB'}, {'rate': 2000, 'order': 'BE'}], 'transports': ['http', 'graphql'], 'warmup_seconds': 60, 'measured_seconds': 180, 'maximum_outstanding': 128, 'acceptance_budget_role': 'None: diagnostics never replace or select an acceptance rate; structured failed collector preflights remain failed attempts without timed runs.'}, 'startup_cache_boundary': 'Fresh processes with OS cache state observed; not machine-cold boots', 'cv_analysis': 'Population standard deviation divided by mean, all five p95 observations per variant/transport'},
             'budgets': {'startup_p95_ms': 1000, 'startup_engine_extra_ms': 150, 'idle_rss_mib': 256, 'idle_engine_extra_mib': 16, 'load_p95_ms': 20, 'load_p99_ms': 50, 'engine_p95_extra': 'max(1ms,15% baseline p95)', 'engine_allocation_extra_bytes_per_request': 1024, 'success_floor': .999, 'unplanned_errors_timeouts_drops': 0, 'p95_coefficient_of_variation': .10},
             'private_fixture': 'Private server.pfx stays in task-owned Linux-home .local/share storage with verified0700/0600 modes; never copy it into evidence. Only public CA DER/hash may be retained externally.'
@@ -334,6 +340,19 @@ class Runner:
                            {'completed_lanes': cases, 'timed_phases_entered': False})
         self.reference_preflight_passed = self.app_resources is not None
         self.manifest['reference_environment_qualified'] = self.reference_preflight_passed
+
+    def audit_reference_timed_evidence(self):
+        receipts = []
+        for phase, subdir in (('idle', 'warmup'), ('load', 'driver')):
+            for transport in ('http', 'graphql'):
+                for index in range(5):
+                    for variant in ('baseline', 'engine'):
+                        directory = self.output / phase / transport / f'{index:02d}-{variant}' / subdir
+                        receipt = audit_reference_driver(directory, transport, warm_only=phase == 'idle')
+                        receipts.append({'directory': directory.relative_to(self.output).as_posix(), **receipt})
+            self.progress.tick(force=True)
+        write_json(self.output / 'reference-timed-evidence-audit.json', {'status': 'passed', 'drivers': receipts})
+        return len(receipts)
 
     def startup(self):
         observations = []
@@ -391,6 +410,8 @@ class Runner:
             process = self.remote.start(arguments, self.ca, directory, timeout)
             # Transport timeout includes collection of raw evidence, outside driver clocks.
             self.wait_for_driver(server, process, timeout + 60)
+            if getattr(process, 'failure', None) or process.returncode not in (0, 1):
+                raise InfrastructureFailure('Remote driver transport, resource validation or owned cleanup failed.')
         else:
             command = self.command(DRIVER_CPUS, *arguments, '--ca-file=' + str(self.ca), '--output=' + str(directory))
             write_json(directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
@@ -686,8 +707,17 @@ class Server:
                 self.resource_live = self.runner.app_resources.observe(self.process.pid)
                 write_json(self.directory / 'app-process-resources.json', self.resource_live)
             mappings = Path(f'/proc/{self.process.pid}/maps').read_text()
-            loaded = sorted({line.split()[-1] for line in mappings.splitlines() if any(name in line for name in ('libcoreclr.so', 'libhostpolicy.so', 'System.Private.CoreLib.dll', 'Microsoft.AspNetCore.Server.Kestrel.Core.dll'))})
+            runtime_names = ('libcoreclr.so', 'libhostpolicy.so', 'System.Private.CoreLib.dll')
+            kestrel = 'Microsoft.AspNetCore.Server.Kestrel.Core.dll'
+            loaded = sorted({line.split(maxsplit=5)[-1] for line in mappings.splitlines()
+                             if any(name in line for name in (*runtime_names, kestrel))})
             write_json(self.directory / 'loaded-runtime.json', {'process_id': self.process.pid, 'paths': loaded, 'inspection_after_first_response': True})
+            if self.runner.remote is not None:
+                shared = self.runner.args.dotnet.parent / 'shared'
+                required = {str(shared / 'Microsoft.NETCore.App' / '11.0.0' / name) for name in runtime_names}
+                required.add(str(shared / 'Microsoft.AspNetCore.App' / '11.0.0' / kestrel))
+                if set(loaded) != required:
+                    raise InfrastructureFailure('Loaded app runtime differs from the pinned .NET/ASP.NET Core 11.0.0 deployment.')
             return self
         except BaseException:
             self.stop()
@@ -763,8 +793,8 @@ class Server:
             try:
                 with socket.create_connection((address.hostname, address.port), timeout=.25):
                     pass
-            except OSError:
-                closed = True
+            except OSError as exception:
+                closed = self.runner.remote is None or exception.errno == errno.ECONNREFUSED
         try:
             state = json.loads(self.state_file.read_text()) if self.state_file.is_file() else None
         except (OSError, json.JSONDecodeError) as exception:
@@ -855,6 +885,9 @@ def main():
                 continue  # Diagnostic capacity failures are reported, never scored as acceptance budgets.
             numeric.append(summary[phase]['all_budget_observations_passed'] if phase == 'load' else all(item['budget_observation_passed'] for item in summary[phase]))
         passed = runner.reference_preflight_passed and tuple(summary['completed_phases']) == PHASES and all(numeric)
+        if passed:
+            runner.progress.update(phase='reference-audit')
+            summary['reference_timed_driver_audits'] = runner.audit_reference_timed_evidence()
         status = ('preflight-only' if args.preflight_only else 'observations-complete' if not args.remote_config
                   else 'reference-passed' if passed else 'reference-failed')
         summary.update(status=status, reference_gate_passed=passed,
@@ -879,9 +912,20 @@ def main():
         print(json.dumps({'status': summary['status'], 'error': repr(error), 'output': str(output)}), file=sys.stderr)
         return 1
     finally:
+        cleanup_errors = []
         for process in reversed(runner.owned):
-            runner.terminate(process)
+            try:
+                runner.terminate(process)
+            except Exception as error:
+                cleanup_errors.append(repr(error))
         runner.progress.events.close()
+        if cleanup_errors:
+            write_json(output / 'cleanup-failures.json', {'errors': cleanup_errors})
+            summary.update(status='aborted-infrastructure', reference_gate_passed=False, owned_cleanup_failed=True)
+            runner.manifest.update(status=summary['status'], reference_gate_passed=False, owned_cleanup_failed=True)
+            write_json(output / 'summary.json', summary)
+            write_json(output / 'manifest.json', runner.manifest)
+            return 1
 
 
 if __name__ == '__main__':
