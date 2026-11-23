@@ -235,7 +235,7 @@ class ReplayProof(broker.Proof):
         expected_exit, expected_receipt = PHASES[phase]
         postgres = (f"Host=127.0.0.1;Port={self.pg_port};Database={DATABASE};Username={RUNTIME};"
                     f"Password={self.runtime_value};SSL Mode=Disable")
-        amqp = f"amqp://cephalon_fixture:{quote(self.fixture_value, safe='')}@127.0.0.1:{port}/%2f"
+        amqp = f"amqp://cephalon_fixture:{quote(self.fixture_value, safe='')}@127.0.0.1:{port}/"
         environment = {"CEPHALON_ORDER_REPLAY_POSTGRES": postgres, "CEPHALON_ORDER_REPLAY_AMQP": amqp}
         result = self.run(phase, (self.dotnet, assembly, phase), extra_env=environment, timeout=60, check=False)
         require(result.returncode == expected_exit and self.text(result) == expected_receipt and not result.stderr,
