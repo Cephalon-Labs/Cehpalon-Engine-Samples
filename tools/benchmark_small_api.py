@@ -27,7 +27,6 @@ from urllib.parse import urlsplit
 from small_api_collector_evidence import validate_collector_preparation, validate_phase_telemetry, validate_preflight_rejection
 
 ROOT = Path(__file__).resolve().parents[1]
-ENGINE_REVISION = '6804271d429106864e01e4ec546a41dff771f84b'
 SERVER_CPUS, DRIVER_CPUS, ORCHESTRATOR_CPUS = (0, 2), (4, 6), (8, 10)
 ORDER = ('BE', 'EB', 'BE', 'EB', 'BE')
 MIB = 1024 * 1024
@@ -145,8 +144,10 @@ class Runner:
         def git(directory, *arguments):
             return subprocess.check_output(['git', *arguments], cwd=directory, text=True).strip()
         engine = self.args.engine_root
-        if git(engine, 'rev-parse', 'HEAD') != ENGINE_REVISION or git(engine, 'status', '--porcelain'):
-            raise InfrastructureFailure('Require exact clean pinned Engine commit ' + ENGINE_REVISION)
+        benchmark_lock = json.loads((ROOT / 'small-api-benchmark/engine-lock.json').read_text(encoding='utf-8'))
+        engine_revision = benchmark_lock['engine_revision']
+        if git(engine, 'rev-parse', 'HEAD') != engine_revision or git(engine, 'status', '--porcelain'):
+            raise InfrastructureFailure('Require exact clean pinned Engine commit ' + engine_revision)
         if git(ROOT, 'status', '--porcelain'):
             raise InfrastructureFailure('Require clean committed Samples source before any measurement.')
         original_affinity = sorted(os.sched_getaffinity(0))
@@ -155,9 +156,9 @@ class Runner:
             raise InfrastructureFailure('Predeclared CPU allocation is unavailable; do not silently remap a measured attempt.')
         os.sched_setaffinity(0, ORCHESTRATOR_CPUS)
         sdk = self.invoke([self.args.dotnet, '--version'], 'sdk-version')
-        lock = json.loads((ROOT / 'global.json').read_text())['sdk']['version']
-        if sdk != lock:
-            raise InfrastructureFailure('SDK differs from global.json.')
+        sdk_pin = json.loads((ROOT / 'global.json').read_text(encoding='utf-8'))['sdk']['version']
+        if sdk != sdk_pin or sdk != benchmark_lock['sdk']:
+            raise InfrastructureFailure('SDK differs from global.json or the benchmark lock.')
         self.invoke([self.args.dotnet, '--info'], 'sdk-info')
         self.invoke(['lscpu', '--json'], 'lscpu')
         self.invoke(['ldd', '--version'], 'glibc')
@@ -201,7 +202,7 @@ class Runner:
             'reference_failures': ['WSL CPUs are shared and nonreserved; affinity does not establish dedicated vCPUs.', 'No owned 2GiB application memory cap is established.', 'Host and driver share one WSL/Windows machine; this is not native deployment proof.'],
             'budgets_unchanged': True,
             'collector_preparation': {'decision': 'ADR0011', 'control_pool_separate': True, 'load_pool_initially_fresh': True, 'held_http11_responses_required': 128, 'load_tls_connection_identities_required': 128, 'shared_barrier_deadline_seconds': 30, 'preflight_seconds': 2, 'preparation_retries': 0, 'entered_phase_tls_evidence_required': True, 'boundary': 'A verified simultaneous held-response barrier establishes observed preparation readiness; it is not sustained capacity or production qualification.'},
-            'engine_revision': ENGINE_REVISION, 'samples_revision': git(ROOT, 'rev-parse', 'HEAD'), 'sdk': sdk,
+            'engine_revision': engine_revision, 'samples_revision': git(ROOT, 'rev-parse', 'HEAD'), 'sdk': sdk,
             'source_sha256': source_hashes, 'assembly': str(self.args.assembly), 'assembly_sha256': sha(self.args.assembly),
             'deployment': {'dotnet': str(self.args.dotnet), 'assembly_directory': str(self.args.assembly.parent), 'server_working_directory': str(self.args.server_working_directory), 'output_directory': str(self.output), 'boundary': 'Filesystem/deployment paths are explicit and shared by both variants; native storage does not establish dedicated CPU/RAM or native OS deployment proof.'},
             'artifact_provenance_boundary': 'Caller-supplied compiled artifact hash captured; clean committed source and package hashes captured. Compilation provenance must also be retained by the build workflow.',

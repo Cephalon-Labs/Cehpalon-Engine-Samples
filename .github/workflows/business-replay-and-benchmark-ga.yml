@@ -1,0 +1,128 @@
+name: Business replay and Small API GA build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'multitenant-business/order-replay/**'
+      - 'multitenant-business/order-replay-proof/**'
+      - 'multitenant-business/recovery-broker/run-proof.py'
+      - 'small-api-benchmark/*.cs'
+      - 'small-api-benchmark/*.csproj'
+      - 'small-api-benchmark/*.json'
+      - 'tools/verify_small_api_benchmark.py'
+      - 'tools/benchmark_small_api.py'
+      - 'tools/small_api_collector_evidence.py'
+      - 'tools/probe_small_api_collector.py'
+      - 'global.json'
+      - 'NuGet.Config'
+      - 'Directory.Build.targets'
+      - 'build/SampleRunArguments.cs'
+      - '.github/workflows/business-replay-and-benchmark-ga.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  order-replay:
+    name: Durable order and inventory replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      ENGINE_REVISION: 6fe7254404cf6b148370bd95befe8331e8932354
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: samples
+          sparse-checkout: |
+            multitenant-business/order-replay
+            multitenant-business/order-replay-proof
+            multitenant-business/recovery-broker
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Cephalon-Labs/Cehpalon-Engine
+          ref: ${{ env.ENGINE_REVISION }}
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: samples/global.json
+      - name: Verify the joined PostgreSQL and RabbitMQ restart proof
+        working-directory: samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=.local/order-replay/ci
+          log="$RUNNER_TEMP/order-replay.log"
+          if ! python3 multitenant-business/order-replay-proof/run-proof.py --dotnet "$(command -v dotnet)" --engine-root ../engine --samples-revision "$(git rev-parse HEAD)" --output "$output" >"$log" 2>&1; then
+            echo 'The durable order replay fixture failed.' >&2
+            if [[ -f "$output/report.json" ]]; then
+              echo 'The runner created a restricted local report.' >&2
+            fi
+            exit 1
+          fi
+      - name: Publish the sanitized replay report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: business-order-replay
+          path: samples/.local/order-replay/ci/report.json
+          if-no-files-found: error
+          retention-days: 14
+
+  benchmark-ga-build:
+    name: Small API benchmark GA build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      ENGINE_REVISION: 5e92ac1c7fa1e150e7e97de6d68e94b31ffba053
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: samples
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.gitattributes
+            /.gitignore
+            /global.json
+            /NuGet.Config
+            /Directory.Build.targets
+            /build/SampleRunArguments.cs
+            /small-api-benchmark/*
+            !/small-api-benchmark/evidence/
+            /tools/verify_small_api_benchmark.py
+            /tools/benchmark_small_api.py
+            /tools/small_api_collector_evidence.py
+            /tools/probe_small_api_collector.py
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Cephalon-Labs/Cehpalon-Engine
+          ref: ${{ env.ENGINE_REVISION }}
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: samples/global.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Verify locked GA Release build and emitted registry
+        working-directory: samples
+        shell: pwsh
+        run: |
+          $dotnet = (Get-Command dotnet -CommandType Application | Select-Object -First 1).Source
+          python tools/verify_small_api_benchmark.py --dotnet $dotnet --engine-root ../engine --output .local/small-api-ga/ci --build-only --require-clean
+          exit $LASTEXITCODE
+      - name: Publish the untimed build manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: small-api-ga-build-${{ matrix.os }}
+          path: samples/.local/small-api-ga/ci/manifest.json
+          if-no-files-found: error
+          retention-days: 14
