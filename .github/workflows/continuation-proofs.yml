@@ -49,7 +49,7 @@ jobs:
         shell: pwsh
         working-directory: samples
         run: |
-          $dotnet = (Get-Command dotnet -CommandType Application).Source
+          $dotnet = (Get-Command dotnet -CommandType Application | Select-Object -First 1).Source
           python tooling-small-api/dispatch-correlation/verify.py --dotnet $dotnet --engine-root ../engine --engine-revision $env:ENGINE_REVISION --output .local/dispatch-correlation/ci --drain
           exit $LASTEXITCODE
       - name: Publish sanitized wire receipts
