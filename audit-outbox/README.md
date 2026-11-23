@@ -25,6 +25,13 @@ To compare the optional Engine read deadline, pass the same binary in both
 arguments and add `--compare-read-deadline`. The before arm uses `null` and
 the after arm uses two seconds. The preflight observes actual PostgreSQL lock
 waits for timeout, caller cancellation and successful reuse controls.
+
+Set `ReportReadTimeout = true` on `AuditReceiptTransportOptions` together with a
+positive `ReadTimeout` to return `audit.read_timeout` for this reader's own
+deadline. HTTP uses 504 with a fixed public message. GraphQL reports a field
+error with the same code. This choice is off by default. Provider faults keep
+the generic error response, and the implementation continues to await owned
+provider work and honor caller cancellation.
 The controller and servers are separate processes. Raw rows contain timing,
 counts and response digests. Server stderr can contain fixture details and
 stays local. Allocation covers the server's managed process, while latency

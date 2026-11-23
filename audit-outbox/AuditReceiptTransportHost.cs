@@ -23,6 +23,7 @@ public sealed record AuditReceiptTransportOptions(bool HttpEnabled = true, bool 
 {
     public bool ReceiptLookupEnabled { get; init; } = true;
     public bool ResourceHistoryEnabled { get; init; }
+    public bool ReportReadTimeout { get; init; }
     public AuditReadConcurrencyLimits? ConcurrencyLimits { get; init; }
 }
 /// <summary>Optional host-local shared dispatch limits; no queue, rate or wire-response bound.</summary>
@@ -143,6 +144,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
             ArgumentNullException.ThrowIfNull(sourceFactory); ArgumentNullException.ThrowIfNull(securityFactory); ArgumentNullException.ThrowIfNull(configureHost);
         }
         var catalog = AuditReadTransportCatalog.Create(options);
+        var reportReadTimeout = options.ReportReadTimeout && options.ReadTimeout.HasValue;
         AuditReceiptTransportSecurity? security = null;
         TenantChangeAuditLookupReader? reader = null;
         TenantChangeAuditResourceHistoryReader? resourceReader = null;
@@ -165,8 +167,8 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                     if (candidate.IsDisposed || candidate.IsReady || candidate.InitializationAttempts != 0) throw new ArgumentException("The receipt source must be newly owned and uninitialized.");
                     Interlocked.Increment(ref owner.Probe.SourceOpenAttempts); await candidate.OpenExistingAsync(token).ConfigureAwait(false);
                     var observed = new ObservedSource(candidate, owner.Probe);
-                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
-                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
+                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed, reportReadTimeout)!;
+                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed, reportReadTimeout)!;
                     owner.Probe.Events.Enqueue("source.ready"); return new OwnedSource(candidate, owner.Probe);
                 }
                 catch (Exception failure)
@@ -184,7 +186,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                 {
                     var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], EnvironmentName = "Production" });
                     builder.Logging.ClearProviders(); configureHost!(builder); builder.Services.AddAuthorization();
-                    builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(owner, security!, reader, resourceReader));
+                    builder.Services.AddSingleton<ITransportOperationDispatcher>(new Bridge(owner, security!, reader, resourceReader, reportReadTimeout));
                     if (options.GraphQLEnabled)
                     {
                         builder.Services.AddCehpalonGraphQL(catalog.GraphQL());
@@ -313,7 +315,8 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         }
     }
     sealed class Bridge(AuditReceiptTransportHost owner, AuditReceiptTransportSecurity security,
-        TenantChangeAuditLookupReader? reader, TenantChangeAuditResourceHistoryReader? resourceReader) : ITransportOperationDispatcher
+        TenantChangeAuditLookupReader? reader, TenantChangeAuditResourceHistoryReader? resourceReader,
+        bool reportReadTimeout) : ITransportOperationDispatcher
     {
         public async ValueTask<OperationResult<TResponse>> DispatchAsync<TRequest, TResponse>(HttpContext http, string id, TRequest request, OperationContext correlation, CancellationToken token)
         {
@@ -325,9 +328,9 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
             if (lookup) owner.Probe.LastDispatchToken = token; else owner.Probe.LastResourceDispatchToken = token;
             var registry = new TenantOperationRegistryBuilder();
             if (reader is not null) registry.Register<LookupRequest, LookupResult>("trail.lookup", "read", "audit-trail", r => r with { }, r => new(new(r.Tenant), "tenant"),
-                () => { Interlocked.Increment(ref owner.Probe.HandlerFactories); return new LookupHandler(reader, owner.Probe); });
+                () => { Interlocked.Increment(ref owner.Probe.HandlerFactories); return new LookupHandler(reader, owner.Probe, reportReadTimeout); });
             if (resourceReader is not null) registry.Register<ResourceHistoryRequest, ResourceHistoryResult>("trail.resource-history", "read", "audit-trail", r => r with { }, r => new(new(r.Tenant), "tenant"),
-                () => { Interlocked.Increment(ref owner.Probe.ResourceHandlerFactories); return new ResourceHandler(resourceReader, owner.Probe); });
+                () => { Interlocked.Increment(ref owner.Probe.ResourceHandlerFactories); return new ResourceHandler(resourceReader, owner.Probe, reportReadTimeout); });
             var identity = new AspNetCoreJwtIdentitySource(new RequestAccessor(http), security.AuthenticationScheme);
             var services = new TenantSecurityServices(identity, security.TrustPolicy, security.Memberships, security.Resources,
                 security.MaximumLeaseLifetime ?? TimeSpan.FromSeconds(30), security.AccessPolicy);
@@ -363,20 +366,36 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
             throw new InvalidOperationException("The audit read gateway is not selected.");
         }
     }
-    sealed class LookupHandler(TenantChangeAuditLookupReader reader, AuditReceiptTransportProbe probe) : ITenantOperationHandler<LookupRequest, LookupResult>
+    sealed class LookupHandler(TenantChangeAuditLookupReader reader, AuditReceiptTransportProbe probe, bool reportReadTimeout) : ITenantOperationHandler<LookupRequest, LookupResult>
     {
         public async ValueTask<OperationResult<LookupResult>> HandleAsync(LookupRequest request, TenantOperationContext context, CancellationToken token)
         {
-            var record = await reader.FindAsync(context, request.ReceiptId, token).ConfigureAwait(false);
-            Interlocked.Increment(ref probe.ReaderResults); return OperationResult<LookupResult>.Success(new(context.Tenant.Value, record));
+            try
+            {
+                var record = await reader.FindAsync(context, request.ReceiptId, token).ConfigureAwait(false);
+                Interlocked.Increment(ref probe.ReaderResults); return OperationResult<LookupResult>.Success(new(context.Tenant.Value, record));
+            }
+            catch (TenantChangeAuditReadTimeoutException) when (reportReadTimeout)
+            {
+                token.ThrowIfCancellationRequested();
+                return OperationResult<LookupResult>.Failure(TransportErrors.AuditReadTimeout());
+            }
         }
     }
-    sealed class ResourceHandler(TenantChangeAuditResourceHistoryReader reader, AuditReceiptTransportProbe probe) : ITenantOperationHandler<ResourceHistoryRequest, ResourceHistoryResult>
+    sealed class ResourceHandler(TenantChangeAuditResourceHistoryReader reader, AuditReceiptTransportProbe probe, bool reportReadTimeout) : ITenantOperationHandler<ResourceHistoryRequest, ResourceHistoryResult>
     {
         public async ValueTask<OperationResult<ResourceHistoryResult>> HandleAsync(ResourceHistoryRequest request, TenantOperationContext context, CancellationToken token)
         {
-            var page = await reader.ReadAsync(context, request.Query, token).ConfigureAwait(false);
-            Interlocked.Increment(ref probe.ResourceReaderResults); return OperationResult<ResourceHistoryResult>.Success(new(context.Tenant.Value, page));
+            try
+            {
+                var page = await reader.ReadAsync(context, request.Query, token).ConfigureAwait(false);
+                Interlocked.Increment(ref probe.ResourceReaderResults); return OperationResult<ResourceHistoryResult>.Success(new(context.Tenant.Value, page));
+            }
+            catch (TenantChangeAuditReadTimeoutException) when (reportReadTimeout)
+            {
+                token.ThrowIfCancellationRequested();
+                return OperationResult<ResourceHistoryResult>.Failure(TransportErrors.AuditReadTimeout());
+            }
         }
     }
     sealed class Admission(AuditReceiptTransportProbe probe)

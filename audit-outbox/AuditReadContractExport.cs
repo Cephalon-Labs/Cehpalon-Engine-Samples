@@ -51,7 +51,8 @@ public static class AuditReadContractExport
         var enabled = plan.ActivationOrder.ToHashSet(StringComparer.Ordinal);
         var http = enabled.Contains("receipt.http"); var graph = enabled.Contains("receipt.graphql");
         var files = new SortedDictionary<string, byte[]>(StringComparer.Ordinal);
-        if (http) files.Add("openapi.json", Utf8.GetBytes(OpenApi(catalog, counters).ToJsonString(Json) + "\n"));
+        if (http) files.Add("openapi.json", Utf8.GetBytes(OpenApi(catalog, counters,
+            options.ReportReadTimeout && options.ReadTimeout.HasValue).ToJsonString(Json) + "\n"));
         if (graph) files.Add("schema.graphql", await GraphQLSchema(catalog, counters).ConfigureAwait(false));
         var artifacts = files.Select(x => new { name = x.Key, bytes = x.Value.LongLength, sha256 = Convert.ToHexStringLower(SHA256.HashData(x.Value)) }).ToArray();
         files.Add("manifest.json", Utf8.GetBytes(JsonSerializer.Serialize(new
@@ -97,7 +98,7 @@ public static class AuditReadContractExport
         }
     }
 
-    static JsonObject OpenApi(AuditReadTransportCatalog catalog, AuditReadContractExportCounters counters)
+    static JsonObject OpenApi(AuditReadTransportCatalog catalog, AuditReadContractExportCounters counters, bool reportReadTimeout)
     {
         var paths = new JsonObject();
         foreach (var exposure in catalog.Exposures)
@@ -110,6 +111,9 @@ public static class AuditReadContractExport
                     ["content"] = Content("application/problem+json", ObjectEnvelope(Resource(OperationHttpAdapter.ExportErrorJsonSchema(), "error:" + exposure.OperationId + ":" + code))) };
             responses["401"] = new JsonObject { ["description"] = "Authentication challenge; framework may emit no response body" };
             responses["405"] = new JsonObject { ["description"] = "Method rejected; framework may emit no response body" };
+            if (reportReadTimeout)
+                responses["504"] = new JsonObject { ["description"] = "Configured audit read deadline elapsed",
+                    ["content"] = Content("application/problem+json", ObjectEnvelope(Resource(OperationHttpAdapter.ExportErrorJsonSchema(), "error:" + exposure.OperationId + ":504"))) };
             paths[exposure.Path] = new JsonObject { ["post"] = new JsonObject {
                 ["operationId"] = exposure.OperationId, ["security"] = new JsonArray(new JsonObject { ["Bearer"] = new JsonArray() }),
                 ["requestBody"] = new JsonObject { ["required"] = true, ["content"] = Content("application/json", ObjectEnvelope(Resource(exposure.RequestSchema(), "request:" + exposure.OperationId))) },
