@@ -9,8 +9,12 @@ restores missing assets before the real build using the pinned SDK and locked
 packages. The recovery step skips design-time/IntelliSense builds and skips
 restore when the assets file exists. CLI users can use `dotnet build`, which
 already restores automatically; `--no-restore` still requires a prior restore.
-This is a test executable: running it requires a fresh `--output=<report.json>`
-path and it exits after its conformance checks. Recovery is supplied by the shared
+This is a test executable: F5 or a run without arguments creates a fresh report in
+the Samples `.local/small-api-runs` directory, prints its path, executes 40 checks
+and exits. Each run uses a new timestamp/GUID filename. An explicit
+`--output=<new-report.json>` remains supported; existing reports are preserved.
+Use `--help` for usage. Invalid/duplicate arguments return exit code 2 before
+creating fixture hosts. Recovery is supplied by the shared
 Samples `Directory.Build.targets`; custom intermediate layouts require explicit
 restore with matching output properties.
 

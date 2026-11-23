@@ -10,7 +10,9 @@ It skips IntelliSense/design-time builds, CLI builds and existing assets. Set
 layouts require explicit restore with the same output properties. This is scoped
 to these checked-in consumers and their current package graphs; generated CLI
 consumers remain separate and use their documented `dotnet build` workflow.
-Build does not run the fixtures. Several executables require a fresh report path;
+Build does not run the fixtures. Small API runs without arguments and prints a
+fresh report path under `.local/small-api-runs`. Other executables require an
+explicit fresh report path;
 the audit/outbox fixture additionally requires its separately configured provider.
 
 Reproduce build/restore checks in an isolated Samples checkout with a clean Engine:

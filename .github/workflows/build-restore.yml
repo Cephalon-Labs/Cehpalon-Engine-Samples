@@ -8,6 +8,8 @@ on:
       - 'NuGet.Config'
       - 'Cehpalon.Samples.slnx'
       - 'small-api/SmallApi.Consumer.slnx'
+      - 'small-api/*.cs'
+      - 'tools/verify_small_api_launch.py'
       - 'tools/verify_visual_studio_restore.py'
       - '.github/workflows/build-restore.yml'
   pull_request:
@@ -17,6 +19,8 @@ on:
       - 'NuGet.Config'
       - 'Cehpalon.Samples.slnx'
       - 'small-api/SmallApi.Consumer.slnx'
+      - 'small-api/*.cs'
+      - 'tools/verify_small_api_launch.py'
       - 'tools/verify_visual_studio_restore.py'
       - '.github/workflows/build-restore.yml'
   workflow_dispatch:
@@ -56,6 +60,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$buildTool" .local/build-restore/ci/Validation.slnx -restore -t:Build -p:BuildingInsideVisualStudio=true "-p:EngineRoot=$env:GITHUB_WORKSPACE/Cehpalon-Engine" -p:UseSharedCompilation=false -warnaserror -v:minimal *> .local/build-restore/ci/solution-build.txt
           if ($LASTEXITCODE -ne 0) { Get-Content .local/build-restore/ci/solution-build.txt; exit $LASTEXITCODE }
+          python tools/verify_small_api_launch.py --assembly small-api/bin/Debug/net11.0/SmallApi.Consumer.dll --output .local/small-api-launch/ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain reports and logs without binaries or obj trees
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -65,4 +71,6 @@ jobs:
             Cehpalon-Engine-Samples/.local/build-restore/ci/manifest.json
             Cehpalon-Engine-Samples/.local/build-restore/ci/*.txt
             Cehpalon-Engine-Samples/.local/build-restore/ci/*-consumer.json
+            Cehpalon-Engine-Samples/.local/small-api-launch/ci/*.json
+            Cehpalon-Engine-Samples/.local/small-api-launch/ci/*.txt
           if-no-files-found: warn

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -8,8 +9,23 @@ using System.Text;
 using System.Text.Json;
 using SmallApi;
 
-var output=Path.GetFullPath(args.Single(a=>a.StartsWith("--output=",StringComparison.Ordinal))[9..]);
-if(File.Exists(output)) throw new IOException("Use a new report path.");
+const string usage="Usage: SmallApi.Consumer [--output=<new-report.json>]\nWith no arguments, a fresh report is saved under .local/small-api-runs.";
+if(args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine(usage);return 0;}
+if(args.Length>1 || (args.Length==1 && (!args[0].StartsWith("--output=",StringComparison.Ordinal) || string.IsNullOrWhiteSpace(args[0][9..]))))
+{
+    Console.Error.WriteLine(usage);return 2;
+}
+string output;
+try {output=Path.GetFullPath(args.Length==0?DefaultReportPath():args[0][9..]);}
+catch(Exception error) when(error is ArgumentException or NotSupportedException or PathTooLongException)
+{
+    Console.Error.WriteLine("Invalid report path. "+usage);return 2;
+}
+if(File.Exists(output) || Directory.Exists(output))
+{
+    Console.Error.WriteLine("Report path already exists. Choose a new --output path; previous reports are preserved.");return 2;
+}
+Console.WriteLine($"Report: {output}");
 var checks=new List<object>();var passed=0;var failed=0;
 void Require(bool ok,string message) {if(!ok) throw new InvalidOperationException(message);}
 async Task Check(string name,Func<Task> test)
@@ -204,3 +220,22 @@ Directory.CreateDirectory(Path.GetDirectoryName(output)!);
 await using(var file=new FileStream(output,FileMode.CreateNew,FileAccess.Write)) await JsonSerializer.SerializeAsync(file,new{observedAtUtc=DateTimeOffset.UtcNow,framework=RuntimeInformation.FrameworkDescription,os=RuntimeInformation.OSDescription,
     scope="Protected localhost HTTPS fixture, pinned JWT validation, generated Core gateway, tenant dispatcher, synthetic in-memory data. Not W0 public benchmark, real IdP/provider, supported-Windows, production, or full performance gate.",passed,failed,checks,profiles},new JsonSerializerOptions{WriteIndented=true,IncludeFields=true});
 Console.WriteLine($"Small API protected consumer: {passed}/{passed+failed}");return failed==0?0:1;
+
+static string DefaultReportPath()
+{
+    // Locate the checked-in Samples root from either normal VS working directory
+    // or the binary location. Copied binaries fall back to their current directory.
+    string? root=null;
+    foreach(var start in new[]{Environment.CurrentDirectory,AppContext.BaseDirectory})
+    {
+        for(var directory=new DirectoryInfo(start);directory is not null;directory=directory.Parent)
+        {
+            if(!File.Exists(Path.Combine(directory.FullName,"Cehpalon.Samples.slnx")) ||
+               !File.Exists(Path.Combine(directory.FullName,"small-api","SmallApi.Consumer.csproj"))) continue;
+            root=directory.FullName;break;
+        }
+        if(root is not null) break;
+    }
+    var name=DateTime.UtcNow.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture)+"-"+Guid.NewGuid().ToString("N")+".json";
+    return Path.Combine(root??Environment.CurrentDirectory,".local","small-api-runs",name);
+}
