@@ -56,7 +56,8 @@ SELECT jsonb_build_object(
                       FROM cephalon_replay.stock), '[]'::jsonb),
     'orders', coalesce((SELECT jsonb_agg(jsonb_build_array(tenant_id, order_id, sku, quantity, status, revision)
                                         ORDER BY tenant_id, order_id) FROM cephalon_replay.orders), '[]'::jsonb),
-    'outbox', coalesce((SELECT jsonb_agg(jsonb_build_array(tenant_id, event_id, order_id, sku, quantity, published)
+    'outbox', coalesce((SELECT jsonb_agg(jsonb_build_array(tenant_id, event_id, order_id, sku, quantity,
+                                                        event_type, schema_version, aggregate_version, trace_id, published)
                                         ORDER BY tenant_id, event_id) FROM cephalon_replay.outbox), '[]'::jsonb),
     'inbox', coalesce((SELECT jsonb_agg(jsonb_build_array(tenant_id, event_id, order_id) ORDER BY tenant_id, event_id)
                        FROM cephalon_replay.inbox), '[]'::jsonb));
@@ -81,7 +82,8 @@ def ledger_expected(*, created, published, reserved):
     return {
         "stock": [["A", sku, 8 if reserved else 10], ["B", sku, 20]],
         "orders": orders,
-        "outbox": [["A", event, order, sku, 2, published]] if created else [],
+        "outbox": [["A", event, order, sku, 2, "order.placed", 1, 0,
+                    "00000000000000000000000000000101", published]] if created else [],
         "inbox": [["A", event, order]] if reserved else [],
     }
 
