@@ -5,15 +5,19 @@ using Cehpalon.Engine.Tenancy;
 using Npgsql;
 using static OrderFixture;
 
-if (args.Length != 0)
-{
-    Console.Error.WriteLine("Run with the disposable PostgreSQL proof runner.");
-    return 2;
-}
-
 try
 {
-    await RunAsync();
+    if (args.Length == 0)
+        await RunAsync();
+    else if (args is ["--crash-stage", var stoppedSignal])
+        await OrderCrashChecks.StageAsync(ReadRuntimeSettings(), stoppedSignal);
+    else if (args is ["--crash-verify"])
+        await OrderCrashChecks.VerifyAsync(ReadRuntimeSettings());
+    else
+    {
+        Console.Error.WriteLine("Run with the disposable PostgreSQL proof runner.");
+        return 2;
+    }
     return 0;
 }
 catch (ProofFailure failure)
@@ -29,21 +33,9 @@ catch (Exception failure)
 
 static async Task RunAsync()
 {
-    Check(Environment.Version == new Version(11, 0, 0), "Expected .NET runtime 11.0.0.");
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     var token = deadline.Token;
-    // The fixture owns the role credentials and a one-connection pool on loopback.
-    var connectionString = Environment.GetEnvironmentVariable("CEPHALON_ORDERS_RUNTIME")
-        ?? throw new ProofFailure("A disposable runtime connection is required.");
-    var settings = new NpgsqlConnectionStringBuilder(connectionString);
-    Check(settings.Host == "127.0.0.1" && settings.Database == "cephalon_app_proof" &&
-        settings.Username == "cephalon_orders_runtime", "Unexpected fixture connection.");
-    settings.Pooling = true;
-    settings.MaxPoolSize = 1;
-    settings.MinPoolSize = 0;
-    settings.NoResetOnClose = false;
-    settings.Multiplexing = false;
-    settings.Enlist = false;
+    var settings = ReadRuntimeSettings();
     await using var source = NpgsqlDataSource.Create(settings.ConnectionString);
     await CheckRuntimeRoleAsync(source, token);
 
@@ -125,6 +117,24 @@ static async Task RunAsync()
 
 internal static class OrderFixture
 {
+    internal static NpgsqlConnectionStringBuilder ReadRuntimeSettings()
+    {
+        Check(Environment.Version == new Version(11, 0, 0), "Expected .NET runtime 11.0.0.");
+        // The fixture owns the role credentials and a one-connection pool on loopback.
+        var connectionString = Environment.GetEnvironmentVariable("CEPHALON_ORDERS_RUNTIME")
+            ?? throw new ProofFailure("A disposable runtime connection is required.");
+        var settings = new NpgsqlConnectionStringBuilder(connectionString);
+        Check(settings.Host == "127.0.0.1" && settings.Database == "cephalon_app_proof" &&
+            settings.Username == "cephalon_orders_runtime", "Unexpected fixture connection.");
+        settings.Pooling = true;
+        settings.MaxPoolSize = 1;
+        settings.MinPoolSize = 0;
+        settings.NoResetOnClose = false;
+        settings.Multiplexing = false;
+        settings.Enlist = false;
+        return settings;
+    }
+
     internal static TenantOperationDispatcher CreateDispatcher(TenantId tenant, PostgresOrderStore store,
         Func<TenantOperationContext, CancellationToken, Task>? beforeRead = null,
         string readAction = PostgresOrderStore.ReadOperation)
@@ -232,7 +242,7 @@ internal sealed class FixtureAuthority(TenantId authorized, string readAction) :
     public ValueTask<ResourceScopeSnapshot?> ResolveAsync(TenantId requestedTenant, string kind, string resourceId,
         CancellationToken cancellationToken) =>
         ValueTask.FromResult<ResourceScopeSnapshot?>(requestedTenant.Equals(authorized) && kind == PostgresOrderStore.ResourceKind &&
-            resourceId is ("1" or "2" or "3" or "4") ? new(authorized, kind, resourceId, "fixture-v1") : null);
+            resourceId is ("1" or "2" or "3" or "4" or "5") ? new(authorized, kind, resourceId, "fixture-v1") : null);
 
     public ValueTask<bool> IsAllowedAsync(TenantAccessRequest request, CancellationToken cancellationToken) =>
         ValueTask.FromResult(request.Action == readAction || request.Action == PostgresOrderStore.UpdateOperation);

@@ -45,3 +45,9 @@ authority sources. The fixture covers a bounded PostgreSQL transaction and
 migration. Real identity, additional migration versions, broader order or stock
 semantics, performance qualification, HTTPS, events and the Business workload
 require their corresponding proof.
+
+Append `--crash-recovery` to run the crash and reopen proof after the
+normal checks. The runner stops and restarts only its own disposable
+PostgreSQL container. Separate application processes stage and verify
+the acknowledged and held changes. See [the recovery protocol](RECOVERY-PROTOCOL.md)
+for the crash boundary, retained storage checks and scope.
