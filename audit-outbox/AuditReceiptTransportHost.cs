@@ -165,8 +165,8 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                     if (candidate.IsDisposed || candidate.IsReady || candidate.InitializationAttempts != 0) throw new ArgumentException("The receipt source must be newly owned and uninitialized.");
                     Interlocked.Increment(ref owner.Probe.SourceOpenAttempts); await candidate.OpenExistingAsync(token).ConfigureAwait(false);
                     var observed = new ObservedSource(candidate, owner.Probe);
-                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithBudget(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
-                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithBudget(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
+                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
+                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed)!;
                     owner.Probe.Events.Enqueue("source.ready"); return new OwnedSource(candidate, owner.Probe);
                 }
                 catch (Exception failure)
