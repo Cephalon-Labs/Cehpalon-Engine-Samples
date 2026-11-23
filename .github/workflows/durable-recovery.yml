@@ -1,0 +1,128 @@
+name: Durable PostgreSQL and RabbitMQ recovery
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'multitenant-business/postgres/**'
+      - 'multitenant-business/recovery-broker/**'
+      - 'global.json'
+      - 'NuGet.Config'
+      - 'Directory.Build.targets'
+      - '.github/workflows/durable-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-recovery:
+    name: PostgreSQL order recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ENGINE_REVISION: 6fe7254404cf6b148370bd95befe8331e8932354
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: samples
+          sparse-checkout: multitenant-business/postgres
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Cephalon-Labs/Cehpalon-Engine
+          ref: ${{ env.ENGINE_REVISION }}
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: samples/global.json
+      - name: Verify committed orders and held transaction recovery on the owned database
+        working-directory: samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=.local/postgres-recovery/ci
+          log="$RUNNER_TEMP/postgres-recovery.log"
+          if ! bash multitenant-business/postgres/run-proof.sh "$(command -v dotnet)" ../engine "$output" --crash-recovery >"$log" 2>&1; then
+            echo 'The owned PostgreSQL recovery proof failed.' >&2
+            for phase in restore build bootstrap migration-apply seed results recovery-results; do
+              if [[ -f "$output/$phase.log" ]]; then
+                printf 'Reached stage: %s\n' "$phase" >&2
+              fi
+            done
+            exit 1
+          fi
+          python3 - "$log" "$output/hosted-receipt.json" <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          log, destination = map(Path, sys.argv[1:])
+          gates = {
+              "pre_stop": "Crash stage ready with one acknowledged commit and one held update.",
+              "old_process_joined": "Crash stage application joined after the stop signal.",
+              "same_storage_wal_recovery": "Owned PostgreSQL restarted on the same storage and reported WAL recovery.",
+              "commit_and_isolation_readback": "Fresh application saw only the acknowledged update and preserved tenant isolation after restart.",
+              "cleanup": "Owned container and volume removed; loopback port closed.",
+          }
+          lines = log.read_text(encoding="utf-8").splitlines()
+          for gate, expected in gates.items():
+              if lines.count(expected) != 1:
+                  raise ValueError(f"Missing or duplicate receipt for {gate}")
+          receipt = {
+              "samples": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "engine": os.environ["ENGINE_REVISION"],
+              "proof": list(gates),
+              "transcript_sha256": hashlib.sha256(log.read_bytes()).hexdigest(),
+          }
+          with destination.open("x", encoding="utf-8") as stream:
+              json.dump(receipt, stream, indent=2)
+              stream.write("\n")
+          print(", ".join(gates))
+          PY
+      - name: Publish sanitized PostgreSQL receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: postgres-recovery
+          path: samples/.local/postgres-recovery/ci/hosted-receipt.json
+          if-no-files-found: error
+          retention-days: 14
+
+  rabbitmq-recovery:
+    name: RabbitMQ quorum queue recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: samples
+          sparse-checkout: multitenant-business/recovery-broker
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: samples/global.json
+      - name: Verify pending, unacknowledged and acknowledged messages across owned restarts
+        working-directory: samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=.local/rabbitmq-recovery/ci
+          log="$RUNNER_TEMP/rabbitmq-recovery.log"
+          if ! python3 multitenant-business/recovery-broker/run-proof.py --dotnet "$(command -v dotnet)" --samples-revision "$(git rev-parse HEAD)" --output "$output" >"$log" 2>&1; then
+            echo 'The owned RabbitMQ recovery proof failed.' >&2
+            if [[ -f "$output/report.json" ]]; then
+              echo 'The runner created a local proof report.' >&2
+            fi
+            exit 1
+          fi
+      - name: Publish sanitized RabbitMQ receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: rabbitmq-recovery
+          path: samples/.local/rabbitmq-recovery/ci/report.json
+          if-no-files-found: error
+          retention-days: 14
