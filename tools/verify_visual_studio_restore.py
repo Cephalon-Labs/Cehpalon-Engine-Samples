@@ -51,7 +51,7 @@ def main():
     report = {'scope': 'Checked-in consumer build recovery; no benchmark/provider/platform qualification',
               'engine_revision': subprocess.check_output(['git', '-C', str(engine), 'rev-parse', 'HEAD'], text=True).strip(),
               'status': 'started', 'commands': [], 'checks': [], 'source_sha256': {}}
-    sources = ['global.json', 'NuGet.Config', 'Directory.Build.targets', 'Cehpalon.Samples.slnx',
+    sources = ['build/SampleRunArguments.cs', 'global.json', 'NuGet.Config', 'Directory.Build.targets', 'Cehpalon.Samples.slnx',
                'small-api/SmallApi.Consumer.slnx', 'tools/verify_visual_studio_restore.py']
     sources += [x for p in PROJECTS for x in [p, (Path(p).parent / 'packages.lock.json').as_posix()]]
     for name in sources:

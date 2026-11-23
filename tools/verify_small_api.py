@@ -34,7 +34,7 @@ def main():
     sdk = run([args.dotnet, '--version'], 'sdk-version.txt')
     if sdk != lock['sdk']: raise ValueError('SDK differs from lock')
     manifest = {'observed_at_utc':datetime.now(timezone.utc).isoformat(), 'engine_revision':lock['engine_revision'], 'sdk':sdk, 'status':'started', 'scope':lock['scope'], 'source_sha256':{}}
-    sources = [*sorted((ROOT/'small-api').glob('*.cs')), ROOT/'small-api/SmallApi.Consumer.csproj', ROOT/'small-api/packages.lock.json', ROOT/'small-api/engine-lock.json', Path(__file__), ROOT/'global.json', ROOT/'NuGet.Config']
+    sources = [*sorted((ROOT/'small-api').glob('*.cs')), ROOT/'small-api/SmallApi.Consumer.csproj', ROOT/'small-api/packages.lock.json', ROOT/'small-api/engine-lock.json', Path(__file__), ROOT/'global.json', ROOT/'NuGet.Config', ROOT/'Directory.Build.targets', ROOT/'build/SampleRunArguments.cs']
     for path in sources: manifest['source_sha256'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     def save(): (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8',newline='\n')
     save()

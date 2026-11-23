@@ -15,7 +15,9 @@ if(Option("create-fixture") is { } fixturePath)
     Console.WriteLine(JsonSerializer.Serialize(new{created=true,certificateSha256=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fixture.Server.RawData)).ToLowerInvariant()},Wire.Json));return 0;
 }
 using var startupTrace=Option("startup-trace") is { } tracePath?new StartupTrace(tracePath,managedEntryTimestamp):null;
-var mode=Option("mode")??"serve";
+// Empty IDE launch is a finite correctness smoke test. Existing explicit modes
+// and nonempty serve invocations retain their original benchmark protocol.
+var mode=Option("mode")??(args.Length==0?"self-test":"serve");
 if(mode=="conformance")
 {
     var type=typeof(BenchmarkHost).Assembly.GetType("SmallApi.Benchmark.Conformance")??throw new InvalidOperationException("Conformance module must be integrated.");

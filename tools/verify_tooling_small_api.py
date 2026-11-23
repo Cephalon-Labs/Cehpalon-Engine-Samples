@@ -183,6 +183,15 @@ def main():
         result = output / 'self-test.json'
         run([args.dotnet, assembly, '--self-test', '--output', result], consumer, 'self-test.txt')
         verify_self_test(read_json(result), check, report)
+        raw = run([args.dotnet, assembly], consumer, 'self-test-empty-args.txt')
+        paths = [Path(line[8:]) for line in raw.splitlines() if line.startswith('Report: ')]
+        check(len(paths) == 1 and paths[0].is_relative_to(assembly.parent / '.local/self-test-runs'), 'empty args selects bounded self-test report, never serving')
+        explicit_result = report.get('self_test')
+        default_result = read_json(paths[0])
+        verify_self_test(default_result, check, report)
+        report['empty_args_self_test'] = report.get('self_test')
+        report['self_test'] = explicit_result
+        (output / 'self-test-empty-args.json').write_bytes(paths[0].read_bytes())
         verify_serve_early(cli, args.dotnet, assembly, consumer, output, run, check, report)
         snapshots = args.snapshots or args.live_metrics
         tenant_capacity = args.tenant_capacity or args.drain or snapshots

@@ -5,8 +5,7 @@ using Cehpalon.Engine.Core;
 using Cehpalon.Engine.Identity;
 using Cehpalon.Engine.Tenancy;
 
-var output=Path.GetFullPath(args.Single(a=>a.StartsWith("--output=",StringComparison.Ordinal))[9..]);
-if(File.Exists(output)) throw new IOException("Use a new output file.");
+if(!Cehpalon.Samples.SampleRunArguments.TryReport(args,"tenant-identity",out var output,out var usageExit)) return usageExit;
 var checks=new List<object>();var passed=0;var failed=0;
 void Assert(bool ok,string reason) {if(!ok) throw new InvalidOperationException(reason);}
 async Task Check(string name,Func<Task> action)

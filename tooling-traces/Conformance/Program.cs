@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+if(args.Length==0 || args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine("Usage: Conformance <new-output.json>. Run through the owned collector controller for diagnostic evidence.");return 0;}
 var output = Path.GetFullPath(args.Single());
 DiagnosticSpans.Initialize(output + ".spans.jsonl");
 DiagnosticSpans.Case(1, "collector-conformance", -2, 0, "conformance");

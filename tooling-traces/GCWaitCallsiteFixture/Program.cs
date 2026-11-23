@@ -73,6 +73,8 @@ internal static class Program
 
     public static void Main(string[] args)
     {
+        if (!OperatingSystem.IsLinux())
+        { Console.Error.WriteLine("This GC/syscall actor requires Linux and the owned stdin controller; no native fixture work started."); Environment.ExitCode = 2; return; }
         var lateBirth = args is ["dynamic"];
         if (args.Length != 0 && !lateBirth)
             throw new ArgumentException("Supported mode is dynamic");

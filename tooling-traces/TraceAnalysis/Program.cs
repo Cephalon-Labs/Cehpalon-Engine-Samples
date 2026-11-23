@@ -20,6 +20,8 @@ static class ProgramMain
 
     internal static int Run(string[] args)
     {
+        if (args.Length == 0 || args.Length == 1 && args[0] is "--help" or "-h")
+        { Console.WriteLine("Usage: TraceAnalysis --trace <nettrace> --output <new-directory> [--spans <sidecar>] | --self-test. Runtime resume requires an explicit owned PID."); return 0; }
         if (args.Length == 2 && args[0] == "--resume" && int.TryParse(args[1], out var pid) && pid > 0)
         {
             try

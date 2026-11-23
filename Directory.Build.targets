@@ -2,6 +2,9 @@
   <PropertyGroup>
     <_CehpalonConsumerRestore Condition="'$(MSBuildProjectName)' == 'PortableCore.Consumer' or '$(MSBuildProjectName)' == 'TenantIdentity.Consumer' or '$(MSBuildProjectName)' == 'SmallApi.Consumer' or '$(MSBuildProjectName)' == 'SecurityApi.Consumer' or '$(MSBuildProjectName)' == 'PostgresAuditOutbox.Consumer' or '$(MSBuildProjectName)' == 'SmallApi.Benchmark'">true</_CehpalonConsumerRestore>
   </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'PortableCore.Consumer' or '$(MSBuildProjectName)' == 'TenantIdentity.Consumer' or '$(MSBuildProjectName)' == 'SmallApi.Consumer' or '$(MSBuildProjectName)' == 'SecurityApi.Consumer'">
+    <Compile Include="$(MSBuildThisFileDirectory)build/SampleRunArguments.cs" Link="SampleRunArguments.cs" />
+  </ItemGroup>
   <!-- Applies to the six Engine consumer projects, not the standalone trace tools.
        VS can cache a successful restore after obj is removed outside the IDE.
        This fallback covers the consumers' default obj layout and current locked

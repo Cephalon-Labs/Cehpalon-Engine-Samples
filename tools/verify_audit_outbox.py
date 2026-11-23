@@ -19,7 +19,7 @@ def main():
   for folder in folders:
    for file in sorted((root/folder).rglob('*')):
     if file.is_file() and not {'evidence','bin','obj','.local','.git'}.intersection(file.relative_to(root).parts) and file.suffix in {'.cs','.csproj','.json','.txt'}:retain(prefix,root,file)
- for prefix,root,names in [('consumer',ROOT,['global.json','NuGet.Config','tools/verify_audit_outbox.py']),('engine',engine,['global.json','NuGet.Config','Directory.Packages.props'])]:
+ for prefix,root,names in [('consumer',ROOT,['global.json','NuGet.Config','Directory.Build.targets','build/SampleRunArguments.cs','tools/verify_audit_outbox.py']),('engine',engine,['global.json','NuGet.Config','Directory.Packages.props'])]:
   for name in names:retain(prefix,root,root/name)
  (out/'fixture-info.json').write_text(json.dumps(fixture,indent=2)+'\n',encoding='utf-8');save()
  env=dict(os.environ,DOTNET_NOLOGO='1',DOTNET_CLI_TELEMETRY_OPTOUT='1')

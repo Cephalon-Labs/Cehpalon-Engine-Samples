@@ -32,7 +32,7 @@ def main():
     if args.require_clean and dirty:raise ValueError('Require clean committed Samples source')
     sdk=run([args.dotnet,'--version'],'sdk-version.txt')
     if sdk!=lock['sdk']:raise ValueError('SDK differs from Engine pin')
-    sources=[*sorted((ROOT/'small-api-benchmark').glob('*.cs')),*sorted((ROOT/'small-api-benchmark').glob('*.csproj')),*sorted((ROOT/'small-api-benchmark').glob('*.json')),Path(__file__),ROOT/'global.json',ROOT/'NuGet.Config']
+    sources=[*sorted((ROOT/'small-api-benchmark').glob('*.cs')),*sorted((ROOT/'small-api-benchmark').glob('*.csproj')),*sorted((ROOT/'small-api-benchmark').glob('*.json')),Path(__file__),ROOT/'global.json',ROOT/'NuGet.Config',ROOT/'Directory.Build.targets']
     if (ROOT/'tools/benchmark_small_api.py').exists():sources.append(ROOT/'tools/benchmark_small_api.py')
     for name in ('small_api_collector_evidence.py','probe_small_api_collector.py'):
         if (ROOT/'tools'/name).exists():sources.append(ROOT/'tools'/name)

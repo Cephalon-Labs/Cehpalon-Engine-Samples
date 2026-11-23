@@ -1,5 +1,7 @@
 # Optional authentication, RBAC/ABAC and audit history consumer
 
+F5 with no arguments runs the existing local fixture suite and prints a fresh report path under Samples `.local/security-api-runs`. This uses ephemeral fixture credentials, not a configured external IdP. Explicit `--output=<new-report.json>` remains supported.
+
 Experimental local consumer of Core, Composition, CodeGeneration, the JWT identity bridge, Authorization and Tenancy. It starts only owned ephemeral localhost HTTPS endpoints and exits after its test matrix. Actual JwtBearer validates ephemeral RS256 fixture tokens with fixed issuer/audience/type/lifetime. No fixture key/token is persisted. The copied TLS/JWT fixture classes retain the preceding `small-api` fixture behavior; they do not implement a real IdP.
 
 ```powershell

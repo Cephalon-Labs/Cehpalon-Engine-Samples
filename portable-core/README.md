@@ -1,5 +1,7 @@
 # Experimental portable Core consumer
 
+F5 with no arguments runs the existing five checks and prints a fresh report path under Samples `.local/portable-core-runs`. Explicit `--output=<new-report.json>` remains supported; invalid/duplicate/existing destinations return2 before fixtures.
+
 This is an executable in-process integration proof for W1 Core/Composition and operation code generation. It is separate from the Small API, business and AI sample lanes. The API/GraphQL/Worker names select **module recorders**; this consumer starts no HTTP/GraphQL server or background worker and makes no tenant/identity/provider/production claim.
 
 One `[Operation("calculator.add")]` business handler is registered by the Engine incremental generator. Generated registration calls are lazy and typed. `appsettings` profile JSON selects a validated immutable module plan before any owned resources are created. Disabled module recorder factory/constructor/connection/endpoint/background counters remain zero. Handlers are new owned instances per call and are disposed on success/business error; the module lease cleans up once.

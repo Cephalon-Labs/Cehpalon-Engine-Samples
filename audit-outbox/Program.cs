@@ -8,11 +8,28 @@ using Cehpalon.Engine.Tenancy;
 using securityapi::SecurityApi;
 using Host=securityapi::SecurityApi.Host;
 
+const string usage="PostgreSQL audit/outbox fixture setup:\n  --connection-file=<private-file> --schema=<owned-schema> --output=<new-report.json>\nNo arguments show this setup guide only; no PostgreSQL test was executed. See audit-outbox/README.md for the owned provider workflow.";
+if(args.Length==0 || args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine(usage);return 0;}
 if(args.Any(x=>x.StartsWith("--export-audit-contracts",StringComparison.Ordinal)))return await AuditReadContractExport.RunCommandAsync(args);
 if(args.Any(x=>x.StartsWith("--verify-audit-contracts",StringComparison.Ordinal)))return await ResourceTransportChecks.RunContractCommandAsync(args);
-var arguments=args.Select(x=>x.Split('=',2)).ToDictionary(x=>x[0],x=>x[1],StringComparer.Ordinal);
-var output=Path.GetFullPath(arguments["--output"]);if(File.Exists(output))throw new IOException("Retain prior output.");
-var connection=File.ReadAllText(arguments["--connection-file"]).Trim();var prefix=arguments["--schema"];
+var arguments=new Dictionary<string,string>(StringComparer.Ordinal);
+foreach(var argument in args)
+{
+    var pair=argument.Split('=',2);
+    if(pair.Length!=2 || pair[0] is not ("--connection-file" or "--schema" or "--output") || string.IsNullOrWhiteSpace(pair[1]) || !arguments.TryAdd(pair[0],pair[1]))
+    {Console.Error.WriteLine(usage);return 2;}
+}
+if(arguments.Count!=3) {Console.Error.WriteLine(usage);return 2;}
+string output,connection;
+try
+{
+    output=Path.GetFullPath(arguments["--output"]);
+    if(File.Exists(output) || Directory.Exists(output)) {Console.Error.WriteLine("Use a fresh output path.");return 2;}
+    connection=File.ReadAllText(arguments["--connection-file"]).Trim();
+}
+catch(Exception error) when(error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+{Console.Error.WriteLine("Report or private connection file could not be opened. "+usage);return 2;}
+var prefix=arguments["--schema"];
 var checks=new List<object>();var passed=0;var failed=0;var schemas=new List<string>();
 void Require(bool value){if(!value)throw new InvalidOperationException("PostgreSQL outbox proof assertion failed.");}
 async Task Check(string name,Func<Task> action){try{await action();passed++;checks.Add(new{name,passed=true});}catch(Exception error){failed++;checks.Add(new{name,passed=false,error_type=error.GetType().FullName,error=error.Message});}}

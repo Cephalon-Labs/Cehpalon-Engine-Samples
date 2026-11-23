@@ -32,7 +32,7 @@ def main():
             if file.is_file() and not {'obj','bin','evidence','.local'}.intersection(file.relative_to(root).parts) and file.suffix in ('.cs','.csproj','.json','.txt'):
                 key = ('consumer/' if root==ROOT/'security-api' else 'engine/')+file.relative_to(root).as_posix()
                 report['source_sha256'][key]=hashlib.sha256(file.read_bytes()).hexdigest()
-    for file in [Path(__file__).resolve(), ROOT/'global.json', ROOT/'NuGet.Config', engine/'global.json', engine/'NuGet.Config', engine/'Directory.Packages.props']:
+    for file in [Path(__file__).resolve(), ROOT/'global.json', ROOT/'NuGet.Config', ROOT/'Directory.Build.targets', ROOT/'build/SampleRunArguments.cs', engine/'global.json', engine/'NuGet.Config', engine/'Directory.Packages.props']:
         prefix = 'engine/' if file.is_relative_to(engine) else 'consumer/'
         relative = file.relative_to(engine if prefix=='engine/' else ROOT).as_posix()
         report['source_sha256'][prefix+relative]=hashlib.sha256(file.read_bytes()).hexdigest()

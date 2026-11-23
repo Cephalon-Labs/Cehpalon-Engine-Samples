@@ -3,6 +3,7 @@ using System.Diagnostics.Tracing;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
+if(args.Length==0 || args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine("Usage: TaskConformance <new-output.json>. Use the owned TPL collector controller for diagnostic evidence.");return 0;}
 var output = Path.GetFullPath(args.Single());
 if (File.Exists(output) || File.Exists(output + ".points.jsonl")) throw new IOException("Output must be new.");
 var cases = new List<object>();

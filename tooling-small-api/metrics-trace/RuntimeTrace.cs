@@ -6,6 +6,7 @@ using Microsoft.Diagnostics.NETCore.Client;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
 
+if(args.Length==0 || args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine("Usage: RuntimeTrace collect/analyze <paired options including --output>. Use the owned metrics trace controller; no process was attached.");return;}
 var json = new JsonSerializerOptions { WriteIndented = false };
 var options = new Dictionary<string, string>();
 for (var i = 1; i < args.Length; i += 2) options.Add(args[i], args[i + 1]);

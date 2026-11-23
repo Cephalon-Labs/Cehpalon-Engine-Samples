@@ -35,7 +35,7 @@ def main():
     project=ROOT/'portable-core/PortableCore.Consumer.csproj'
     artifact=output/'artifacts'
     manifest={'observed_at_utc':datetime.now(timezone.utc).isoformat(),'engine_revision':lock['engine_revision'],'sdk':lock['sdk'],'scope':lock['scope'],'source_sha256':{},'status':'started'}
-    for name in ['portable-core/PortableCore.Consumer.csproj','portable-core/Program.cs','portable-core/engine-lock.json','portable-core/packages.lock.json','tools/verify_portable_core.py','global.json','NuGet.Config']:
+    for name in ['portable-core/PortableCore.Consumer.csproj','portable-core/Program.cs','portable-core/engine-lock.json','portable-core/packages.lock.json','tools/verify_portable_core.py','global.json','NuGet.Config','Directory.Build.targets','build/SampleRunArguments.cs']:
         manifest['source_sha256'][name]=sha(ROOT/name)
     for path in sorted((ROOT/'portable-core/profiles').glob('*.json')): manifest['source_sha256'][str(path.relative_to(ROOT))]=sha(path)
     manifest_path=output/'manifest.json'

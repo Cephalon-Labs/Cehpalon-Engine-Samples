@@ -3,9 +3,7 @@ using System.Text.Json;
 using Cehpalon.Engine.Core;
 using Cehpalon.Engine.Composition;
 
-var outputArgument=args.SingleOrDefault(a=>a.StartsWith("--output=",StringComparison.Ordinal)) ?? throw new ArgumentException("--output=<new-file.json> is required");
-var outputPath=Path.GetFullPath(outputArgument[9..]);
-if(File.Exists(outputPath)) throw new IOException("Preserve previous consumer results.");
+if(!Cehpalon.Samples.SampleRunArguments.TryReport(args,"portable-core",out var outputPath,out var usageExit)) return usageExit;
 var results=new List<object>(); var passed=0; var failed=0;
 async Task Check(string name,Func<Task> test)
 {

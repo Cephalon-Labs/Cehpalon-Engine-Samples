@@ -1,5 +1,7 @@
 # Small API public fixture and direct-handler comparison
 
+An empty-argument IDE launch now executes one finite HTTP correctness smoke test and exits. It does not run a benchmark. Existing explicit modes and nonempty serve invocations keep their measurement protocol and all original acceptance criteria.
+
 Experimental W0-shaped synthetic catalog for Engine #9/#11. It is separate from the protected20,000-record tenant consumer. This project has exactly10,000 records, IDs1..10000, initial `item-{id:D5}` labels, revision0 and integer amount `id*17`. GetItem, ListItems and SetLabel use the same store, typed validators, handler implementations and per-invocation owned disposal in both variants. Pages contain20 ascending records. SetLabel applies an optimistic revision under the store lock, without inserting keys.
 
 `--variant=baseline` maps native ASP.NET Core Minimal API endpoints and native HotChocolate16.7.1 typed field resolvers to direct owned handlers. It does not invoke Core dispatch, generated registrations, Composition compilation or plan activation. `--variant=engine` uses generated typed Core registrations, immutable Composition activation and Engine HTTP/GraphQL adapters. Both variants share portable Core result/context/interface representation types; this does not mean the baseline invokes Core runtime dispatch. Both are compiled into the same executable and carry the same package graph, so footprint comparisons measure activation/path differences, not separately stripped package-distribution sizes.

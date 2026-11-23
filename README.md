@@ -10,10 +10,18 @@ It skips IntelliSense/design-time builds, CLI builds and existing assets. Set
 layouts require explicit restore with the same output properties. This is scoped
 to these checked-in consumers and their current package graphs; generated CLI
 consumers remain separate and use their documented `dotnet build` workflow.
-Build does not run the fixtures. Small API runs without arguments and prints a
-fresh report path under `.local/small-api-runs`. Other executables require an
-explicit fresh report path;
-the audit/outbox fixture additionally requires its separately configured provider.
+Build does not run fixtures. F5/empty arguments run finite conformance in Portable
+Core, Tenant/Identity, Small API and Security API, with fresh ignored reports in
+`.local/<sample>-runs`. Benchmark uses a finite correctness smoke, without changing
+explicit measurement modes or gates. Audit/Outbox shows setup guidance until the
+caller supplies the real private connection file/schema/output; this is not a
+provider test pass. Existing user launch profiles are preserved.
+
+Seven standalone diagnostic helpers are separate from this sixteen-project
+consumer solution. Empty Windows launches now show usage for file/collector
+helpers; Linux-only actors reject the platform with a message. Their valid
+controlled protocols and historical evidence remain separate; no trace capture
+or scheduler/GC qualification is implied.
 
 Reproduce build/restore checks in an isolated Samples checkout with a clean Engine:
 

@@ -21,6 +21,7 @@ def main():
     out.mkdir(parents=True, exist_ok=False)
     manifest = {'status': 'started', 'checks': [], 'commands': [],
                 'assembly_sha256': hashlib.sha256(dll.read_bytes()).hexdigest(),
+                'helper_sha256': hashlib.sha256((ROOT / 'build/SampleRunArguments.cs').read_bytes()).hexdigest(),
                 'program_sha256': hashlib.sha256((ROOT / 'small-api/Program.cs').read_bytes()).hexdigest(),
                 'scope': 'No-argument/explicit-report fixture launch; no serving, provider or benchmark qualification'}
 

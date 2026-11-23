@@ -9,6 +9,18 @@ on:
       - 'Cehpalon.Samples.slnx'
       - 'small-api/SmallApi.Consumer.slnx'
       - 'small-api/*.cs'
+      - 'build/**'
+      - 'portable-core/*.cs'
+      - 'tenant-identity/*.cs'
+      - 'security-api/*.cs'
+      - 'audit-outbox/Program.cs'
+      - 'small-api-benchmark/Program.cs'
+      - 'tooling-traces/**/Program.cs'
+      - 'tooling-small-api/metrics-trace/**'
+      - 'tooling*/engine-lock.json'
+      - 'tools/verify_sample_launches.py'
+      - 'tools/verify_diagnostic_launches.py'
+      - 'tools/verify_tooling*.py'
       - 'tools/verify_small_api_launch.py'
       - 'tools/verify_visual_studio_restore.py'
       - '.github/workflows/build-restore.yml'
@@ -20,6 +32,18 @@ on:
       - 'Cehpalon.Samples.slnx'
       - 'small-api/SmallApi.Consumer.slnx'
       - 'small-api/*.cs'
+      - 'build/**'
+      - 'portable-core/*.cs'
+      - 'tenant-identity/*.cs'
+      - 'security-api/*.cs'
+      - 'audit-outbox/Program.cs'
+      - 'small-api-benchmark/Program.cs'
+      - 'tooling-traces/**/Program.cs'
+      - 'tooling-small-api/metrics-trace/**'
+      - 'tooling*/engine-lock.json'
+      - 'tools/verify_sample_launches.py'
+      - 'tools/verify_diagnostic_launches.py'
+      - 'tools/verify_tooling*.py'
       - 'tools/verify_small_api_launch.py'
       - 'tools/verify_visual_studio_restore.py'
       - '.github/workflows/build-restore.yml'
@@ -43,7 +67,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Cephalon-Labs/Cehpalon-Engine
-          ref: 5184517a92a087abe4e0091d256142b6c35a2b39
+          ref: ff66a46220740ab7ccf1002dce15d2af5b8ee668
           path: Cehpalon-Engine
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -62,6 +86,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Get-Content .local/build-restore/ci/solution-build.txt; exit $LASTEXITCODE }
           python tools/verify_small_api_launch.py --assembly small-api/bin/Debug/net11.0/SmallApi.Consumer.dll --output .local/small-api-launch/ci
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/verify_sample_launches.py --output .local/sample-launches/ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/verify_diagnostic_launches.py --output .local/diagnostic-launches/ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/verify_tooling.py --dotnet dotnet --engine-root ../Cehpalon-Engine --output .local/generated-portable/ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/verify_tooling_small_api.py --dotnet dotnet --engine-root ../Cehpalon-Engine --output .local/generated-small-api/ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain reports and logs without binaries or obj trees
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -73,4 +105,11 @@ jobs:
             Cehpalon-Engine-Samples/.local/build-restore/ci/*-consumer.json
             Cehpalon-Engine-Samples/.local/small-api-launch/ci/*.json
             Cehpalon-Engine-Samples/.local/small-api-launch/ci/*.txt
+            Cehpalon-Engine-Samples/.local/sample-launches/ci/*.json
+            Cehpalon-Engine-Samples/.local/sample-launches/ci/*.txt
+            Cehpalon-Engine-Samples/.local/diagnostic-launches/ci/*.json
+            Cehpalon-Engine-Samples/.local/diagnostic-launches/ci/*.txt
+            Cehpalon-Engine-Samples/.local/generated-portable/ci/manifest.json
+            Cehpalon-Engine-Samples/.local/generated-small-api/ci/manifest.json
+            Cehpalon-Engine-Samples/.local/generated-small-api/ci/self-test*.json
           if-no-files-found: warn

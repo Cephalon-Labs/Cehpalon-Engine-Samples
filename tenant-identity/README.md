@@ -1,5 +1,7 @@
 # Experimental tenant/identity consumer
 
+F5 with no arguments runs the existing ten checks and prints a fresh report path under Samples `.local/tenant-identity-runs`. Explicit `--output=<new-report.json>` remains supported; previous reports are preserved.
+
 This consumer exercises the portable tenant boundary through a **generated Core gateway**. One tenant-aware business handler serves A and B; both tenants deliberately have resource ID `shared`. Fixture identities, membership, resource ownership and policy are authoritative only within this in-process test. No tokens, real IdP, database, cache/retrieval provider, event/job transport or production isolation are qualified here.
 
 The requested tenant is selection, not authority. Core correlation metadata containing tenant/admin/issuer/subject strings grants nothing. Fresh configured authority sources and fixed operation/action/resource-kind binding precede the business factory. The trusted snapshot callback copies mutable request fields before asynchronous lookups. The fixture data port checks `TenantOperationContext.DemandAccess` and its resource version before reading.

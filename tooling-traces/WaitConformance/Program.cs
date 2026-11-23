@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 
+if(args.Length==0 || args.Length==1 && args[0] is "--help" or "-h") {Console.WriteLine("Usage: WaitConformance <new-output.json>. The actual syscall fixture requires Linux x64 and its owned controller.");return 0;}
 if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
     throw new PlatformNotSupportedException("This synthetic syscall fixture is Linux x64 only.");
 var output = Path.GetFullPath(args.Single());

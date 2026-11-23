@@ -5,8 +5,7 @@ using System.Text.Json;
 using SecurityApi;
 using Host=SecurityApi.Host;
 
-var output=Path.GetFullPath(args.Single(a=>a.StartsWith("--output=",StringComparison.Ordinal))[9..]);
-if(File.Exists(output))throw new IOException("Retain previous output.");
+if(!Cehpalon.Samples.SampleRunArguments.TryReport(args,"security-api",out var output,out var usageExit)) return usageExit;
 var checks=new List<object>();var passed=0;var failed=0;
 void Require(bool value){if(!value)throw new InvalidOperationException("Consumer assertion failed.");}
 async Task Check(string name,Func<Task> action)
