@@ -22,6 +22,85 @@ python tools/verify_small_api_benchmark.py --dotnet <absolute-sdk-host> --engine
 
 Omit `--build-only` for the ordered conformance matrix. `--transport=http` is API-only; `graphql` enables API plus GraphQL HTTP at `/graphql`. HTTP POST routes are `/api/catalog/get`, `/api/catalog/list`, `/api/catalog/set`; fields are `catalogItem`, `catalogPage`, `setLabel`, all with typed `input` arguments. The first verified request must inspect actual expected business data, not only readiness.
 
+## Two-host reference execution
+
+Run the controller on the approved Linux x64 app machine. Use a
+separate approved Linux x64 driver machine on a private network. The
+controller checks an existing isolated cgroup v2 app leaf with exactly
+two exclusive CPUs and `memory.max=2147483648`, complete ancestor
+limits, and disjoint controller affinity. Run the controller with
+delegation to move its own child into that leaf. The runner does not
+provision resources. Inspect both machines' upstream reservations
+and use a quiet driver allocation for the attempt.
+
+Build on the app host with the locked verifier shown above. Stage the
+identical directory containing the emitted assembly and all dependencies
+on the driver. Stage both `tools/small_api_remote_driver.py` and
+`tools/small_api_reference_resources.py` beside one another at an
+absolute path on the driver. Install the pinned .NET SDK 11.0.100 with
+.NET and ASP.NET Core runtime 11.0.0 on each machine. Give the driver
+account an existing private job directory with mode 0700. Configure a
+scoped SSH key and an independently verified server host key.
+
+Create a private configuration under the ignored `.local` directory.
+The following values are illustrative.
+
+```json
+{
+  "app": {
+    "listen_ip": "10.40.0.10",
+    "driver_ip": "10.40.0.20",
+    "resources": {
+      "cgroup": "/sys/fs/cgroup/benchmark/app",
+      "controller_cpus": [4, 5]
+    }
+  },
+  "driver": {
+    "host": "10.40.0.20",
+    "user": "benchmark",
+    "port": 22,
+    "known_hosts": "/private/benchmark/known_hosts",
+    "identity_file": "/private/benchmark/id_ed25519",
+    "remote_helper": "/opt/benchmark/tools/small_api_remote_driver.py",
+    "remote_dotnet": "/opt/dotnet/dotnet",
+    "remote_publish_dir": "/opt/benchmark/application",
+    "remote_job_root": "/home/benchmark/.local/jobs",
+    "app_host": "10.40.0.10"
+  },
+  "build_manifest": "/private/benchmark/build/manifest.json"
+}
+```
+
+The app listens on a dynamic port at the declared private IPv4 address.
+Allow the controller at that address and the direct driver address to
+reach that listener on your private network. The certificate uses the
+private IPv4 SAN and the socket admits only the controller and driver
+source addresses. SSH verifies the staged driver and transfers the
+fixture CA certificate. The private server key stays on the app host.
+
+Use the same configuration for a dedicated preflight or a full W0
+attempt. Use a new output directory for each attempt.
+
+```text
+python3 tools/benchmark_small_api.py --dotnet <GA-dotnet> --assembly <Release-assembly> --engine-root <clean-engine> --remote-config .local/remote-config.json --output .local/reference/<attempt> --preflight-only
+```
+
+The remote preflight performs the original collector preparation and a
+two-second offered-work probe on each of the four baseline/Engine and
+HTTP/GraphQL lanes. It writes raw results per lane and a summary. For
+the full attempt, omit `--preflight-only` after confirming the two real
+allocations. The runner repeats the admission and collector preflight
+before entering all four original phase families and checks the timed
+acceptance rows before publishing a reference verdict.
+
+The laboratory switch `--remote-preflight-lab --preflight-only` uses
+only the `app.listen_ip` and `app.driver_ip` and the same `driver`
+configuration. It exercises SSH and TLS across isolated test endpoints.
+Its summary cannot mark the reference environment qualified and it
+cannot start timing.
+
+## Manual fixture and existing loopback protocol
+
 For process timing, pre-generate one fresh shared fixture **outside measurement**:
 
 ```text
