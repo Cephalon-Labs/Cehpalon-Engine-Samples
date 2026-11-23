@@ -31,6 +31,8 @@ mkdir -- "$evidence"
     -z "$(git -C "$engine" status --porcelain)" ]] || fail 'Engine checkout differs from the pinned clean revision.'
 [[ "$("$dotnet" --version)" == "$sdk_pin" ]] || fail 'SDK differs from Samples global.json.'
 "$dotnet" --list-runtimes | grep -q '^Microsoft.NETCore.App 11\.0\.0 ' || fail 'The pinned .NET runtime is unavailable.'
+proof_inputs=(Business.Postgres.Consumer.csproj Program.cs PostgresOrderStore.cs ConcurrentOrderChecks.cs
+    migrations/001_orders.sql packages.lock.json run-proof.sh OVERLAP-PROTOCOL.md)
 {
     printf 'Engine %s\n' "$expected_engine"
     printf 'Samples %s\n' "$(git -C "$sample" rev-parse HEAD)"
@@ -42,7 +44,7 @@ mkdir -- "$evidence"
     printf 'SDK %s\n' "$sdk_pin"
     printf 'Host %s\n' "$(uname -smr)"
     printf 'Docker %s\n' "$(docker info --format '{{.ServerVersion}}')"
-    sha256sum Business.Postgres.Consumer.csproj Program.cs PostgresOrderStore.cs migrations/001_orders.sql packages.lock.json run-proof.sh
+    sha256sum "${proof_inputs[@]}"
 } >"$evidence/inputs-before.txt"
 artifacts="$evidence/artifacts"
 "$dotnet" restore "$project" --configfile "$sample/NuGet.Config" --locked-mode \
@@ -131,7 +133,11 @@ unset MIGRATOR_PASSWORD
 admin >"$evidence/seed.log" 2>&1 <<'SQL'
 INSERT INTO cephalon_orders.orders (tenant_id, order_id, status, revision) VALUES
     ('A', 1, 'pending', 0),
-    ('B', 1, 'review', 0);
+    ('B', 1, 'review', 0),
+    ('A', 2, 'pending', 0),
+    ('B', 2, 'review', 0),
+    ('A', 3, 'pending', 0),
+    ('A', 4, 'pending', 0);
 SQL
 echo 'Migration rollback, explicit apply, owner and repeat refusal verified.'
 
@@ -141,6 +147,6 @@ sha256sum "$assembly" "$runtime_config" >"$evidence/binaries.sha256"
 CEPHALON_ORDERS_RUNTIME="Host=127.0.0.1;Port=$port;Database=cephalon_app_proof;Username=cephalon_orders_runtime;Password=$RUNTIME_PASSWORD;SSL Mode=Disable" \
     "$dotnet" "$assembly" | tee "$evidence/results.log"
 unset RUNTIME_PASSWORD
-sha256sum --check <(tail -n 6 "$evidence/inputs-before.txt")
+sha256sum --check <(tail -n "${#proof_inputs[@]}" "$evidence/inputs-before.txt")
 [[ "$(git -C "$engine" rev-parse HEAD)" == "$expected_engine" &&
     -z "$(git -C "$engine" status --porcelain)" ]] || fail 'Pinned Engine worktree changed during proof.'

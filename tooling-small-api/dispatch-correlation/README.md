@@ -50,3 +50,53 @@ checkout, and use a fresh ignored output path:
 ```text
 python tooling-small-api/dispatch-correlation/verify.py --dotnet <dotnet> --engine-root <engine-checkout> --engine-revision <full-engine-sha> --output .local/dispatch-correlation/<attempt>
 ```
+
+## Graceful drain and fresh activation
+
+The drain matrix uses the same exact generated consumer and an opt-in
+proof overlay. Run `verify.py` with `--drain` added to the command above.
+A successful attempt writes `drain-results.json` to the new local output
+folder. Use Engine `5e92ac1c7fa1e150e7e97de6d68e94b31ffba053` on both
+hosts, and retain complete failed attempts under the ignored output root.
+Any complete rerun follows a stated preparation or fixture correction.
+
+Run two isolated lanes. In the total-budget lane hold a GraphQL mutation
+before it writes, then hold its owned handler during cleanup. In the
+tenant-budget lane hold an HTTP mutation and its owned cleanup, which
+disposes the handler before raising a synthetic cleanup fault. The total
+limit is two in each lane and the tenant lane also sets a per-tenant limit
+of two, leaving one spare slot before admission closes. The overlay calls
+the public budget drain API while the generated listener is still online,
+and extends owned cleanup with a deterministic test barrier. It keeps the
+generated host disposal and permission checks on their normal paths.
+
+In each lane:
+
+1. Wait for the admitted handler to enter, then close admissions. Confirm
+   one active permit before and after close, and cancel only a second
+   wait while the original drain remains pending.
+2. For each transport check an authorized overload, an authenticated
+   tenant denial and an anonymous denial. Verify the fixed HTTP problem
+   title and GraphQL field error message, then compare outer dispatch
+   completion to the native request Activity.
+   Confirm those requests add no new handler, mutation or cleanup.
+3. Release the mutation and wait for cleanup to reach the barrier.
+   Verify the write has happened, the permit is still held, and the
+   admitted request has not emitted its completion or histogram.
+   Start generated host shutdown and verify it waits for cleanup.
+4. Release cleanup and join the admitted response, drain and shutdown.
+   Match the success or fault outcome, confirm observation after actual
+   disposal, verify closed and empty capacity, and check that the old
+   HTTPS port refuses a fresh connection.
+5. Start a new generated host with the same budget mode. Verify open,
+   empty capacity before requests, successful authorized HTTP and GraphQL
+   reads under new request traces, and closure after disposal. The new
+   in-memory catalog starts at the fixture's initial revision.
+
+Each host must produce 18 wire controls, 14 completion records and 20
+histogram observations across the two lanes. Treat the result as controlled
+local graceful drain and fresh activation. Admission close is observed
+while the listener is intentionally still online, before generated host
+shutdown begins. Wait cancellation concerns one drain waiter. The
+synthetic cleanup fault concerns an admitted handler. Crash durability
+and exporter recovery require their own evidence.

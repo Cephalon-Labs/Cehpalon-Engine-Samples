@@ -1,0 +1,138 @@
+name: Protected HTTPS drain and PostgreSQL transactions
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tooling-small-api/dispatch-correlation/**'
+      - 'tooling-small-api/engine-lock.json'
+      - 'multitenant-business/postgres/**'
+      - 'global.json'
+      - 'NuGet.Config'
+      - 'Directory.Build.targets'
+      - '.github/workflows/continuation-proofs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  https-drain:
+    name: Protected HTTPS drain (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      ENGINE_REVISION: 5e92ac1c7fa1e150e7e97de6d68e94b31ffba053
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: samples
+          sparse-checkout: tooling-small-api/dispatch-correlation
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Cephalon-Labs/Cehpalon-Engine
+          ref: ${{ env.ENGINE_REVISION }}
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: samples/global.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Verify graceful drain and a restarted host over HTTPS
+        shell: pwsh
+        working-directory: samples
+        run: |
+          $dotnet = (Get-Command dotnet -CommandType Application | Select-Object -First 1).Source
+          python tooling-small-api/dispatch-correlation/verify.py --dotnet $dotnet --engine-root ../engine --engine-revision $env:ENGINE_REVISION --output .local/dispatch-correlation/ci --drain
+          exit $LASTEXITCODE
+      - name: Publish sanitized wire receipts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: https-drain-${{ matrix.os }}
+          path: |
+            samples/.local/dispatch-correlation/ci/drain-results.json
+            samples/.local/dispatch-correlation/ci/manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  postgres-orders:
+    name: PostgreSQL overlapping order transactions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      ENGINE_REVISION: 6fe7254404cf6b148370bd95befe8331e8932354
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: samples
+          sparse-checkout: multitenant-business/postgres
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Cephalon-Labs/Cehpalon-Engine
+          ref: ${{ env.ENGINE_REVISION }}
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: samples/global.json
+      - name: Verify scoped transactions using the pinned disposable PostgreSQL image
+        shell: bash
+        working-directory: samples
+        run: |
+          set -euo pipefail
+          output=.local/postgres-app/ci
+          log="$RUNNER_TEMP/postgres-application.log"
+          if ! bash multitenant-business/postgres/run-proof.sh "$(command -v dotnet)" ../engine "$output" >"$log" 2>&1; then
+            echo 'The disposable PostgreSQL order proof failed.' >&2
+            for phase in restore build bootstrap migration-rollback migration-apply migration-repeat seed results; do
+              if [[ -f "$output/$phase.log" ]]; then
+                printf 'Reached stage: %s\n' "$phase" >&2
+              fi
+            done
+            exit 1
+          fi
+          python3 - "$log" "$output/hosted-receipt.json" <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          log, destination = map(Path, sys.argv[1:])
+          labels = {
+              "tenant_overlap": "Distinct tenant updates overlapped on separate PostgreSQL backends and committed independently.",
+              "conditional_update": "Same-order contention had one committed update and one zero-row conditional outcome.",
+              "lock_wait_cancellation": "PostgreSQL lock-wait cancellation rolled back and the same backend returned without tenant scope.",
+              "cleanup": "Owned container and volume removed; loopback port closed.",
+          }
+          lines = log.read_text(encoding="utf-8").splitlines()
+          for case, expected in labels.items():
+              if lines.count(expected) != 1:
+                  raise ValueError(f"Missing or duplicate receipt for {case}")
+          receipt = {
+              "samples": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "engine": os.environ["ENGINE_REVISION"],
+              "proof": list(labels),
+              "log_sha256": hashlib.sha256(log.read_bytes()).hexdigest(),
+          }
+          with destination.open("x", encoding="utf-8") as stream:
+              json.dump(receipt, stream, indent=2)
+              stream.write("\n")
+          print(", ".join(labels))
+          PY
+      - name: Publish sanitized transaction receipts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: postgres-order-transactions
+          path: samples/.local/postgres-app/ci/hosted-receipt.json
+          if-no-files-found: error
+          retention-days: 14
