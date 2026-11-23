@@ -34,7 +34,8 @@ def main():
     if sdk!=lock['sdk']:raise ValueError('SDK differs from Engine pin')
     sources=[*sorted((ROOT/'small-api-benchmark').glob('*.cs')),*sorted((ROOT/'small-api-benchmark').glob('*.csproj')),*sorted((ROOT/'small-api-benchmark').glob('*.json')),Path(__file__),ROOT/'global.json',ROOT/'NuGet.Config',ROOT/'Directory.Build.targets']
     if (ROOT/'tools/benchmark_small_api.py').exists():sources.append(ROOT/'tools/benchmark_small_api.py')
-    for name in ('small_api_collector_evidence.py','probe_small_api_collector.py'):
+    for name in ('small_api_collector_evidence.py','probe_small_api_collector.py',
+                 'small_api_reference_resources.py','small_api_remote_driver.py'):
         if (ROOT/'tools'/name).exists():sources.append(ROOT/'tools'/name)
     report={'observed_at_utc':datetime.now(timezone.utc).isoformat(),'engine_revision':lock['engine_revision'],'samples_source_revision':run(['git','rev-parse','HEAD']),'source_state':'uncommitted integration' if dirty else 'exact clean committed source','sdk':sdk,'source_sha256':{p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},'status':'started','scope':'Public synthetic fixture conformance and build; not protected tenant/IdP, dedicated performance reference, supported-Windows or production qualification'}
     def save():(output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8',newline='\n')
@@ -44,12 +45,14 @@ def main():
         run([args.dotnet,'restore',project,'--locked-mode','--artifacts-path',artifacts,'--configfile',ROOT/'NuGet.Config',prop],'restore.txt')
         run([args.dotnet,'build',project,'-c','Release','--no-restore','--artifacts-path',artifacts,prop,'-p:UseSharedCompilation=false','-nr:false','-warnaserror'],'build.txt')
         assembly=artifacts/'bin/SmallApi.Benchmark/release/SmallApi.Benchmark.dll'
+        deployment = {entry.relative_to(assembly.parent).as_posix(): hashlib.sha256(entry.read_bytes()).hexdigest()
+                      for entry in sorted(assembly.parent.rglob('*')) if entry.is_file()}
         deps=json.loads(assembly.with_suffix('.deps.json').read_text())
         if any(any(word in name.lower() for word in ['codeanalysis','codegeneration']) for name in deps['libraries']):raise ValueError('Compiler-only library in runtime graph')
         generated=list((artifacts/'obj').rglob('OperationRegistrations.g.cs'))
         if len(generated)!=1:raise ValueError('Expected one actual generated registry')
         (output/'OperationRegistrations.g.cs.txt').write_bytes(generated[0].read_bytes())
-        report.update(assembly_sha256=hashlib.sha256(assembly.read_bytes()).hexdigest(),generated_registry_sha256=hashlib.sha256(generated[0].read_bytes()).hexdigest(),runtime_libraries=sorted(deps['libraries']))
+        report.update(deployment_sha256=deployment,assembly_sha256=hashlib.sha256(assembly.read_bytes()).hexdigest(),generated_registry_sha256=hashlib.sha256(generated[0].read_bytes()).hexdigest(),runtime_libraries=sorted(deps['libraries']))
         if not args.build_only:
             run([args.dotnet,assembly,'--mode=conformance','--output='+str(output/'conformance')],'conformance-run.txt')
             result=json.loads((output/'conformance/summary.json').read_text())
