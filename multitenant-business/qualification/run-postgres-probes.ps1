@@ -1,10 +1,11 @@
 # Requires PowerShell 7, Docker, and the Samples-pinned .NET SDK.
 [CmdletBinding()]
-param()
+param([switch] $RuntimePool)
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $image = 'registry-1.docker.io/library/postgres@sha256:9770878138a2e83abcb10856d30cc3f24dae0d317bb956db6ab9159de6c3c80d'
+$imageConfig = 'sha256:79061104669bb30919d015b549c764e2d8021a18ee39cb175581a2588fe90dbe'
 $name = "cephalon-pg-probe-$([guid]::NewGuid().ToString('N'))"
 $password = [guid]::NewGuid().ToString('N')
 $priorConnection = [Environment]::GetEnvironmentVariable('CEPHALON_PROBE_POSTGRES')
@@ -16,12 +17,15 @@ function Invoke-Checked {
 }
 
 Invoke-Checked docker @('version', '--format', '{{.Server.Version}}')
+$expectedSdk = (Get-Content -Raw (Join-Path $PSScriptRoot '../../global.json') | ConvertFrom-Json).sdk.version
 $sdk = Invoke-Checked dotnet @('--version')
-if ($sdk -ne '11.0.100-rc.3.26522.148') { throw 'Run from the Samples checkout using its pinned .NET SDK.' }
+if ($sdk -ne $expectedSdk) { throw "Run from the Samples checkout using its pinned .NET SDK ($expectedSdk)." }
 try {
     Invoke-Checked docker @('run', '--detach', '--name', $name, '--platform', 'linux/amd64',
         '--publish', '127.0.0.1::5432', '--env', "POSTGRES_PASSWORD=$password",
         '--env', 'POSTGRES_DB=cephalon_probe', $image)
+    $observedImage = Invoke-Checked docker @('container', 'inspect', '--format', '{{.Image}}', $name)
+    if ($observedImage -ne $imageConfig) { throw 'The PostgreSQL fixture image configuration does not match the linux/amd64 pin.' }
 
     $deadline = [Diagnostics.Stopwatch]::StartNew()
     do {
@@ -38,13 +42,27 @@ try {
     $version = Invoke-Checked docker @('exec', $name, 'psql', '-XAt', '-U', 'postgres',
         '-d', 'cephalon_probe', '-c', 'SHOW server_version_num')
     if ($version -ne '180006') { throw 'Expected PostgreSQL 18.6.' }
+    Write-Host "SDK $sdk, PostgreSQL $version, image configuration $observedImage."
+
+    $probeUser = 'postgres'
+    $probePassword = $password
+    $sqlEnvironment = @()
+    $sqlOptions = @()
+    $appArguments = @()
+    if ($RuntimePool) {
+        $probeUser = 'cephalon_probe_runtime'
+        $probePassword = [guid]::NewGuid().ToString('N')
+        $sqlEnvironment = @('--env', "CEPHALON_PROBE_RUNTIME_PASSWORD=$probePassword")
+        $sqlOptions = @('-v', 'keep_runtime_fixture=1')
+        $appArguments = @('--', '--runtime-pool')
+    }
 
     Get-Content -Raw (Join-Path $PSScriptRoot 'postgres-rls-probe.sql') |
-        docker exec -i $name psql -X -v ON_ERROR_STOP=1 -U postgres -d cephalon_probe
+        docker exec -i @sqlEnvironment $name psql -X -v ON_ERROR_STOP=1 -U postgres -d cephalon_probe @sqlOptions
     if ($LASTEXITCODE -ne 0) { throw "SQL RLS probe failed with exit code $LASTEXITCODE." }
 
-    $env:CEPHALON_PROBE_POSTGRES = "Host=127.0.0.1;Port=$port;Database=cephalon_probe;Username=postgres;Password=$password;SSL Mode=Disable"
-    Invoke-Checked dotnet @('run', '--file', (Join-Path $PSScriptRoot 'PostgresPoolProbe.cs'))
+    $env:CEPHALON_PROBE_POSTGRES = "Host=127.0.0.1;Port=$port;Database=cephalon_probe;Username=$probeUser;Password=$probePassword;SSL Mode=Disable"
+    Invoke-Checked dotnet (@('run', '--file', (Join-Path $PSScriptRoot 'PostgresPoolProbe.cs')) + $appArguments)
 }
 finally {
     [Environment]::SetEnvironmentVariable('CEPHALON_PROBE_POSTGRES', $priorConnection)
