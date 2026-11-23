@@ -107,7 +107,7 @@ class ReplayProof(broker.Proof):
         require(engine_head == ENGINE and not engine_status, "Expected the pinned clean Engine checkout.")
         directories = (HERE, APP)
         files = [path for directory in directories for path in sorted(directory.glob("*.*")) if path.is_file()]
-        files.extend((BROKER_SUPPORT, ROOT / "global.json", ROOT / "NuGet.Config"))
+        files.extend((BROKER_SUPPORT, ROOT / "global.json", ROOT / "NuGet.Config", ROOT / "Directory.Build.targets"))
         return {path.relative_to(ROOT).as_posix(): digest(path) for path in files}
 
     def build_replay(self):
@@ -264,6 +264,8 @@ class ReplayProof(broker.Proof):
         port = self.restart(self.disconnect(port))
         self.app(assembly, "verify", port)
         self.checkpoint("verified_after_final_restart", created=True, published=True, reserved=True, ready=0)
+        require(len(self.report["phases"]) == 6 and len(self.report["checkpoints"]) == 9 and
+                len(self.report["restarts"]) == 3, "The declared phase, ledger or restart matrix was incomplete.")
 
     def cleanup_postgres(self):
         label = f"label={PG_LABEL}={self.pg_name}"
