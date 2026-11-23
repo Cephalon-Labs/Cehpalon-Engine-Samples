@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if (( $# != 3 )); then
-    echo 'Usage: bash run-proof.sh DOTNET ENGINE_ROOT NEW_EVIDENCE_DIRECTORY' >&2
+if (( $# < 3 || $# > 4 )) || { (( $# == 4 )) && [[ "$4" != --crash-recovery ]]; }; then
+    echo 'Usage: bash run-proof.sh DOTNET ENGINE_ROOT NEW_EVIDENCE_DIRECTORY [--crash-recovery]' >&2
     exit 2
 fi
+crash_recovery=${4:-}
 dotnet=$(realpath -- "$1")
 engine=$(realpath -- "$2")
 evidence=$(realpath -m -- "$3")
@@ -32,7 +33,8 @@ mkdir -- "$evidence"
 [[ "$("$dotnet" --version)" == "$sdk_pin" ]] || fail 'SDK differs from Samples global.json.'
 "$dotnet" --list-runtimes | grep -q '^Microsoft.NETCore.App 11\.0\.0 ' || fail 'The pinned .NET runtime is unavailable.'
 proof_inputs=(Business.Postgres.Consumer.csproj Program.cs PostgresOrderStore.cs ConcurrentOrderChecks.cs
-    migrations/001_orders.sql packages.lock.json run-proof.sh OVERLAP-PROTOCOL.md)
+    migrations/001_orders.sql packages.lock.json run-proof.sh OVERLAP-PROTOCOL.md
+    OrderCrashChecks.cs recovery-proof.sh RECOVERY-PROTOCOL.md)
 {
     printf 'Engine %s\n' "$expected_engine"
     printf 'Samples %s\n' "$(git -C "$sample" rev-parse HEAD)"
@@ -55,10 +57,16 @@ artifacts="$evidence/artifacts"
 container=
 port=
 volume=
+stage_pid=
+stage_signal=
 cleanup() {
     local status=$?
     trap - EXIT
     set +e
+    if [[ -n "$stage_pid" ]]; then
+        : >"$stage_signal"
+        wait "$stage_pid" || status=1
+    fi
     if [[ -n "$container" ]]; then
         if ! docker rm --force --volumes "$container" >/dev/null ||
             docker container inspect "$container" >/dev/null 2>&1 ||
@@ -79,6 +87,7 @@ export MIGRATOR_PASSWORD RUNTIME_PASSWORD
 MIGRATOR_PASSWORD=$(tr -d '-' </proc/sys/kernel/random/uuid)
 RUNTIME_PASSWORD=$(tr -d '-' </proc/sys/kernel/random/uuid)
 container=$(docker run --detach --platform linux/amd64 --publish '127.0.0.1::5432' \
+    --name "cephalon-pg-order-proof-$(tr -d '-' </proc/sys/kernel/random/uuid)" \
     --env POSTGRES_PASSWORD --env POSTGRES_DB=cephalon_app_proof "$image")
 unset POSTGRES_PASSWORD
 binding=$(docker port "$container" 5432/tcp)
@@ -89,14 +98,17 @@ volume=$(docker inspect --format '{{range .Mounts}}{{if eq .Type "volume"}}{{.Na
 [[ "$(docker inspect --format '{{.Image}}' "$container")" == "$image_config" ]] || fail 'PostgreSQL image configuration differs.'
 printf 'PostgreSQL image %s\nPostgreSQL config %s\n' "$image" "$image_config"
 
-for (( check=0; check<90; check++ )); do
-    if docker exec "$container" pg_isready -h 127.0.0.1 -q -U postgres -d cephalon_app_proof; then
-        break
-    fi
-    sleep 0.5
-done
-(( check < 90 )) || fail 'PostgreSQL TCP readiness timed out.'
-
+wait_for_postgres() {
+    local check
+    for (( check=0; check<90; check++ )); do
+        if docker exec "$container" pg_isready -h 127.0.0.1 -q -U postgres -d cephalon_app_proof; then
+            break
+        fi
+        sleep 0.5
+    done
+    (( check < 90 )) || fail 'PostgreSQL TCP readiness timed out.'
+}
+wait_for_postgres
 admin() {
     docker exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres -d cephalon_app_proof "$@"
 }
@@ -144,9 +156,17 @@ echo 'Migration rollback, explicit apply, owner and repeat refusal verified.'
 assembly="$artifacts/bin/Business.Postgres.Consumer/release/Business.Postgres.Consumer.dll"
 runtime_config="${assembly%.dll}.runtimeconfig.json"
 sha256sum "$assembly" "$runtime_config" >"$evidence/binaries.sha256"
-CEPHALON_ORDERS_RUNTIME="Host=127.0.0.1;Port=$port;Database=cephalon_app_proof;Username=cephalon_orders_runtime;Password=$RUNTIME_PASSWORD;SSL Mode=Disable" \
-    "$dotnet" "$assembly" | tee "$evidence/results.log"
-unset RUNTIME_PASSWORD
+use_runtime_connection() {
+    export CEPHALON_ORDERS_RUNTIME="Host=127.0.0.1;Port=$port;Database=cephalon_app_proof;Username=cephalon_orders_runtime;Password=$RUNTIME_PASSWORD;SSL Mode=Disable"
+}
+use_runtime_connection
+"$dotnet" "$assembly" | tee "$evidence/results.log"
+if [[ "$crash_recovery" == --crash-recovery ]]; then
+    source "$project_root/recovery-proof.sh"
+    run_crash_proof >"$evidence/recovery-results.log"
+    cat "$evidence/recovery-results.log"
+fi
+unset RUNTIME_PASSWORD CEPHALON_ORDERS_RUNTIME
 sha256sum --check <(tail -n "${#proof_inputs[@]}" "$evidence/inputs-before.txt")
 [[ "$(git -C "$engine" rev-parse HEAD)" == "$expected_engine" &&
     -z "$(git -C "$engine" status --porcelain)" ]] || fail 'Pinned Engine worktree changed during proof.'
