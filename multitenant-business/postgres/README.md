@@ -34,8 +34,14 @@ on the same backend after each commit or rollback under test and expects to
 see neither tenant scope nor rows. The runner confirms removal of the owned container,
 its volume and the loopback listener.
 
+The concurrent checks use two application connections plus a read-only
+fixture observer. They verify separate tenant writes, contention on one
+eligible row, and cancellation while PostgreSQL reports the blocked
+UPDATE. See [the concurrent protocol](OVERLAP-PROTOCOL.md) for ordering
+receipts and boundaries.
+
 Application authorization comes from the Engine tenant dispatcher with synthetic
 authority sources. The fixture covers a bounded PostgreSQL transaction and
 migration. Real identity, additional migration versions, broader order or stock
-semantics, concurrency qualification, HTTPS, events and the Business workload
+semantics, performance qualification, HTTPS, events and the Business workload
 require their corresponding proof.
