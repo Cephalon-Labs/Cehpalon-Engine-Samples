@@ -38,6 +38,8 @@ jobs:
           $log = Join-Path $env:RUNNER_TEMP 'postgres-runtime-probe.log'
           pwsh -NoProfile -File multitenant-business/qualification/run-postgres-probes.ps1 -RuntimePool *> $log
           if ($LASTEXITCODE -ne 0) { throw 'The runtime-login PostgreSQL probe failed.' }
-          $counts = Select-String -LiteralPath $log -Pattern '^(Commit|Rollback): reused backend \d+, runtime role and exact RLS rows verified\.$'
-          if (@($counts).Count -ne 2) { throw 'Expected both commit and rollback verification receipts.' }
-          $counts | ForEach-Object { $_.Line }
+          foreach ($outcome in 'Commit', 'Rollback') {
+            $receipts = @(Select-String -LiteralPath $log -Pattern "^${outcome}: reused backend \d+, runtime role and exact RLS rows verified\.$")
+            if ($receipts.Count -ne 1) { throw "Expected one $outcome verification receipt." }
+            $receipts[0].Line
+          }
