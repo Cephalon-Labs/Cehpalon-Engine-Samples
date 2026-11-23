@@ -201,7 +201,7 @@ class Runner:
         self.manifest['remote_driver'] = driver
         if not self.remote_preflight_lab:
             from small_api_reference_resources import verify_driver_resources
-            verify_driver_resources(app, driver['resources'])
+            self.manifest['reference_driver_resources'] = verify_driver_resources(app, driver['resources'])
         self.manifest['network'] = {'topology': 'TLS app and SSH-launched load driver',
                                     'app_ip': self.network['listen_ip'], 'driver_ip': self.network['driver_ip'],
                                     'startup_first_business_response': 'App host via the same private TLS listener'}
@@ -640,14 +640,15 @@ class Server:
         self.shutdown = None
         self.ready = None
         self.resource_before = None
+        self.resource_live = None
 
     def __enter__(self):
         self.directory.mkdir(parents=True, exist_ok=False)
         ready_file, self.state_file = self.directory / 'ready.json', self.directory / 'final-state.json'
-        command = self.runner.server_command('--mode=serve', '--variant=' + self.variant, '--transport=' + self.transport, '--fixture-dir=' + str(self.runner.fixture), '--ready-file=' + str(ready_file), '--state-file=' + str(self.state_file))
         if self.runner.app_resources is not None:
-            self.resource_before = self.runner.app_resources.check()
+            self.resource_before = self.runner.app_resources.verify_after(self.runner.manifest['reference_app_resources'])
             write_json(self.directory / 'app-resources-before.json', self.resource_before)
+        command = self.runner.server_command('--mode=serve', '--variant=' + self.variant, '--transport=' + self.transport, '--fixture-dir=' + str(self.runner.fixture), '--ready-file=' + str(ready_file), '--state-file=' + str(self.state_file))
         write_json(self.directory / 'invocation.json', {'command': command, 'observed_at_utc': stamp()})
         self.stdout = (self.directory / 'server.stdout.txt').open('xb')
         self.stderr = (self.directory / 'server.stderr.txt').open('xb')
@@ -682,7 +683,8 @@ class Server:
             # Provenance inspection follows the counted first response and is
             # outside startup/load timing; both variants use this same observer.
             if self.resource_before is not None:
-                write_json(self.directory / 'app-process-resources.json', self.runner.app_resources.observe(self.process.pid))
+                self.resource_live = self.runner.app_resources.observe(self.process.pid)
+                write_json(self.directory / 'app-process-resources.json', self.resource_live)
             mappings = Path(f'/proc/{self.process.pid}/maps').read_text()
             loaded = sorted({line.split()[-1] for line in mappings.splitlines() if any(name in line for name in ('libcoreclr.so', 'libhostpolicy.so', 'System.Private.CoreLib.dll', 'Microsoft.AspNetCore.Server.Kestrel.Core.dll'))})
             write_json(self.directory / 'loaded-runtime.json', {'process_id': self.process.pid, 'paths': loaded, 'inspection_after_first_response': True})
@@ -731,7 +733,8 @@ class Server:
         resource_failure = None
         if self.resource_before is not None and self.process is not None and self.process.poll() is None:
             try:
-                self.runner.app_resources.verify_after(self.resource_before, self.process.pid)
+                live = self.runner.app_resources.verify_after(self.resource_live or self.resource_before, self.process.pid)
+                write_json(self.directory / 'app-process-resources-before-stop.json', live)
             except (OSError, RuntimeError, ValueError) as exception:
                 resource_failure = str(exception)
         started = time.monotonic_ns()
@@ -867,6 +870,8 @@ def main():
     except BaseException as error:
         summary.update(status='aborted-infrastructure', error=repr(error), completed_at_utc=stamp())
         runner.manifest.update(status='aborted-infrastructure', error=repr(error), completed_at_utc=summary['completed_at_utc'])
+        if isinstance(getattr(error, 'evidence', None), dict):
+            write_json(output / 'failed-resource-evidence.json', error.evidence)
         write_json(output / 'manifest.json', runner.manifest)
         (output / 'failure-traceback.txt').write_text(traceback.format_exc(), encoding='utf-8')
         write_json(output / 'summary.json', summary)
