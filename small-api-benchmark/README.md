@@ -10,15 +10,17 @@ Native baseline transport parsing is independent of Engine adapter execution. Th
 
 The profile has no external authentication or tenant authority. A fixed server-owned `public-fixture` principal permits only synthetic public fixture operations through protected adapter prerequisites. It is never derived from caller headers and is **not identity/tenant/security certification**. The separate protected sample supplies those bounded negative tests. All fixture controls are loopback-only synthetic tooling, not an application management API.
 
-Build with the pinned SDK, official isolated NuGet source, locked restore and explicit EngineRoot pointing to the exact clean Engine revision in `engine-lock.json`. No package publication is required. Example from Samples:
+The active benchmark build uses .NET SDK `11.0.100` and runtime `11.0.0`.
+Use a clean Engine checkout at the revision in `engine-lock.json`. The
+build verifier and measurement orchestrator read that benchmark lock.
+Historical evidence retains its original Engine, SDK, protocol and results.
+Run a locked Release build without starting a benchmark from Samples:
 
-```powershell
-dotnet restore small-api-benchmark/SmallApi.Benchmark.csproj --locked-mode --configfile NuGet.Config
-dotnet build small-api-benchmark/SmallApi.Benchmark.csproj -c Release --no-restore
-dotnet small-api-benchmark/bin/Release/net11.0/SmallApi.Benchmark.dll --mode=self-test --variant=engine --transport=graphql
+```text
+python tools/verify_small_api_benchmark.py --dotnet <absolute-sdk-host> --engine-root <clean-engine-checkout> --output .local/small-api-benchmark/<new-attempt> --require-clean --build-only
 ```
 
-Use the private pinned `dotnet` executable, not an unrelated installed SDK. `--transport=http` is API-only; `graphql` enables API plus GraphQL HTTP at `/graphql`. HTTP POST routes are `/api/catalog/get`, `/api/catalog/list`, `/api/catalog/set`; fields are `catalogItem`, `catalogPage`, `setLabel`, all with typed `input` arguments. The first verified request must inspect actual expected business data, not only readiness.
+Omit `--build-only` for the ordered conformance matrix. `--transport=http` is API-only; `graphql` enables API plus GraphQL HTTP at `/graphql`. HTTP POST routes are `/api/catalog/get`, `/api/catalog/list`, `/api/catalog/set`; fields are `catalogItem`, `catalogPage`, `setLabel`, all with typed `input` arguments. The first verified request must inspect actual expected business data, not only readiness.
 
 For process timing, pre-generate one fresh shared fixture **outside measurement**:
 
