@@ -739,7 +739,9 @@ class Server:
         context.load_verify_locations(cadata=ssl.DER_cert_to_PEM_cert(self.runner.ca.read_bytes()))
         context.check_hostname = True
         context.verify_mode = ssl.CERT_REQUIRED
-        client = http.client.HTTPSConnection(address.hostname, address.port, context=context, timeout=10)
+        source_address = (self.runner.network['listen_ip'], 0) if self.runner.remote is not None else None
+        client = http.client.HTTPSConnection(address.hostname, address.port, context=context, timeout=10,
+                                            source_address=source_address)
         try:
             payload = {'id': 1} if self.transport == 'http' else {'query': '{catalogItem(input:{id:1}){id label revision amountMinorUnits}}'}
             client.request('POST', '/api/catalog/get' if self.transport == 'http' else '/graphql', json.dumps(payload, separators=(',', ':')).encode(), {'Content-Type': 'application/json'})

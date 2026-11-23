@@ -569,8 +569,11 @@ class RemoteDriver:
         self._check_host_pin()
         request = message({"protocol": PROTOCOL, "operation": "probe"})
         reply = subprocess.run(self.command, input=request, capture_output=True, timeout=30)
-        require(reply.returncode == 0 and len(reply.stdout) <= MAX_MESSAGE and reply.stdout.count(b"\n") == 1,
-                "Pinned SSH host did not provide a complete driver probe.")
+        if reply.returncode != 0 or len(reply.stdout) > MAX_MESSAGE or reply.stdout.count(b"\n") != 1:
+            error = RemoteDriverError("Pinned SSH host did not provide a complete driver probe.")
+            error.evidence = {"stage": "ssh-probe", "exit_code": reply.returncode,
+                              "stdout_bytes": len(reply.stdout), "stderr": reply.stderr[:8192].decode(errors="replace")}
+            raise error
         observed = json.loads(reply.stdout)
         require(observed.get("protocol") == PROTOCOL and observed.get("helper_sha256") == self.helper_sha
                 and observed.get("resource_helper_sha256") == self.resource_sha and observed.get("sdk") == self.sdk
