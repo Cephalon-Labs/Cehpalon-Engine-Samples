@@ -1,5 +1,6 @@
 -- Run via psql -X against a disposable PostgreSQL 18.6 fixture database
--- as the fixture administrator. The transaction rolls back all fixture DDL.
+-- as the fixture administrator. The transaction rolls back fixture DDL by default.
+-- The disposable runtime-role mode keeps it only until the container is removed.
 \set ON_ERROR_STOP on
 BEGIN;
 
@@ -95,4 +96,11 @@ BEGIN
 END
 $$;
 
-ROLLBACK;
+\if :{?keep_runtime_fixture}
+    \getenv runtime_password CEPHALON_PROBE_RUNTIME_PASSWORD
+    RESET ROLE;
+    ALTER ROLE cephalon_probe_runtime LOGIN PASSWORD :'runtime_password';
+    COMMIT;
+\else
+    ROLLBACK;
+\endif
