@@ -241,18 +241,39 @@ def main():
     parser.add_argument("--schema", required=True)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--preflight", action="store_true")
+    parser.add_argument("--compare-read-deadline", action="store_true",
+                        help="Use one binary and compare null with a two-second Engine read deadline")
     args = parser.parse_args()
+    if args.compare_read_deadline:
+        require(args.before.resolve() == args.after.resolve(), "Deadline comparison requires the exact same binary")
     args.output.mkdir(parents=True, exist_ok=False)
     binaries = {"before": args.before, "after": args.after}
+    timeouts = {"before": None, "after": 2000 if args.compare_read_deadline else None}
 
     def command(lane, mode):
-        return [args.dotnet, binaries[lane], "--measure-audit-history", mode, args.connection_file, args.schema]
+        parts = [args.dotnet, binaries[lane], "--measure-audit-history", mode, args.connection_file, args.schema]
+        if mode == "serve" and timeouts[lane] is not None:
+            parts.append("deadline")
+        return parts
 
     with (args.output / "seed.json").open("xb") as seed, (args.output / "seed.stderr.log").open("xb") as error:
         subprocess.run(command("before", "seed"), stdout=seed, stderr=error, check=True, timeout=180)
     fixture = json.loads((args.output / "seed.json").read_bytes())
     require(fixture["kind"] == "seeded" and fixture["resource_rows"] == 512 and fixture["distractor_rows"] == 128
             and fixture["settings"]["server_version"].startswith("PostgreSQL 18.7 "), "Unexpected PostgreSQL fixture")
+    deadline_checks = []
+    if args.preflight and args.compare_read_deadline:
+        receipt = args.output / "deadline-controls.jsonl"
+        with receipt.open("xb") as raw, (args.output / "deadline-controls.stderr.log").open("xb") as error:
+            subprocess.run(command("before", "verify-deadline"), stdout=raw, stderr=error, check=True, timeout=240)
+        deadline_checks = [json.loads(row) for row in receipt.read_bytes().splitlines()]
+        expected = {(transport, scenario) for transport in ("http", "graphql") for scenario in (
+            "deadline-elapses", "caller-with-deadline", "caller-without-deadline", "null-outlasts-deadline")}
+        require(len(deadline_checks) == len(expected) and
+                {(row["transport"], row["scenario"]) for row in deadline_checks} == expected and
+                all(row["kind"] == "deadline_control" and row["lock_observed_before_signal"]
+                    and row["joined_backend"] and row["successful_reuse"] for row in deadline_checks),
+                "Incomplete live PostgreSQL deadline controls")
     canonical, batches = {}, []
     pairs = (PAIRS[0],) if args.preflight else PAIRS
     for pair, order in enumerate(pairs, 1):
@@ -264,6 +285,8 @@ def main():
                     raw.flush()
 
                 credentials = server.read("ready")
+                require(credentials["read_timeout_ms"] == timeouts[lane], "Unexpected server read deadline")
+                emit(dict(kind="read_deadline", read_timeout_ms=credentials["read_timeout_ms"]))
                 context = ssl.create_default_context(cadata=credentials["ca"])
                 require(context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED, "TLS trust weakened")
                 for transport in ("http", "graphql"):
@@ -285,7 +308,8 @@ def main():
             print(f"pair {pair} {lane}: verified", flush=True)
 
     (args.output / "summary.json").write_text(json.dumps(
-        dict(status="passed", preflight=args.preflight, fixture=fixture, measured_requests=len(batches) * MEASURED,
+        dict(status="passed", preflight=args.preflight, fixture=fixture, read_timeout_ms=timeouts,
+             deadline_lock_controls=len(deadline_checks), measured_requests=len(batches) * MEASURED,
              controls=len(pairs) * 2 * 2 * 9, batches=batches, comparisons=[] if args.preflight else summarize(batches)),
         indent=2) + "\n", encoding="utf-8")
 

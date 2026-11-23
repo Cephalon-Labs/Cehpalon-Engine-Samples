@@ -21,6 +21,10 @@ python3 tools/measure_audit_history_https.py \
 ```
 
 Use `--preflight` with a separate schema and output before the full measurement.
+To compare the optional Engine read deadline, pass the same binary in both
+arguments and add `--compare-read-deadline`. The before arm uses `null` and
+the after arm uses two seconds. The preflight observes actual PostgreSQL lock
+waits for timeout, caller cancellation and successful reuse controls.
 The controller and servers are separate processes. Raw rows contain timing,
 counts and response digests. Server stderr can contain fixture details and
 stays local. Allocation covers the server's managed process, while latency
