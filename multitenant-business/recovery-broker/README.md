@@ -15,7 +15,8 @@ and a loopback AMQP port. The project restore is locked.
 3. Gracefully stop the exact owned broker container. Require exit zero,
    a closed listener and shutdown observed by the first client. Start the
    same container with the same volume and unchanged node name. Verify
-   a new process start, broker readiness and two ready records.
+   a new process start, AMQP Connection.Start from the loopback listener
+   and two ready records.
 4. Open a new AMQP session with automatic recovery disabled. Consume the
    former pending and unacknowledged IDs once each and verify each payload
    and persistent property. Require the unacknowledged record to arrive

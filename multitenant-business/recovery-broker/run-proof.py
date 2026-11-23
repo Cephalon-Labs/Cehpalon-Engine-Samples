@@ -8,6 +8,7 @@ import platform
 import re
 import secrets
 import socket
+import struct
 import subprocess
 import time
 
@@ -40,6 +41,20 @@ def port_open(port):
             return True
     except ConnectionRefusedError:
         return False
+
+
+def amqp_ready(port):
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.75) as connection:
+            connection.sendall(b"AMQP\x00\x00\x09\x01")
+            with connection.makefile("rb") as reply:
+                header = reply.read(11)
+    except (ConnectionError, TimeoutError):
+        return False
+    if len(header) != 11:
+        return False
+    frame_type, channel, size, class_id, method_id = struct.unpack("!BHIHH", header)
+    return (frame_type, channel, class_id, method_id) == (1, 0, 10, 10) and size >= 4
 
 
 def wait_until(action, description, seconds=60):
@@ -131,7 +146,7 @@ class Proof:
         self.docker("network", "network", "create", "--driver", "bridge", "--label", label, self.name)
         self.docker("volume", "volume", "create", "--label", label, self.name)
         container = self.text(self.docker("container", "container", "create", "--platform", "linux/amd64",
-            "--name", self.name, "--hostname", self.name, "--label", label, "--network", self.name,
+            "--name", self.name, "--label", label, "--network", self.name,
             "--publish", "127.0.0.1::5672", "--env", "RABBITMQ_DEFAULT_USER=cephalon_fixture",
             "--env", "RABBITMQ_DEFAULT_PASS", "--mount", f"type=volume,source={self.name},target=/var/lib/rabbitmq",
             IMAGE, extra_env={"RABBITMQ_DEFAULT_PASS": self.fixture_value}))
@@ -144,7 +159,7 @@ class Proof:
         label = '{{index .Config.Labels "' + LABEL + '"}}'
         fields = "{{.Id}} {{.Image}} {{.Config.Hostname}} " + label
         identity = self.text(self.docker("ownership", "container", "inspect", "--format", fields, self.container))
-        require(identity == f"{self.container} {CONFIG} {self.name} {self.name}", "Owned fixture identity changed.")
+        require(identity == f"{self.container} {CONFIG} {self.container[:12]} {self.name}", "Owned fixture identity changed.")
         mount = self.text(self.docker("ownership", "container", "inspect", "--format",
             "{{range .Mounts}}{{println .Type .Name .Destination}}{{end}}", self.container))
         require(mount == f"volume {self.name} /var/lib/rabbitmq", "Expected the same owned broker volume.")
@@ -161,13 +176,12 @@ class Proof:
         self.ports.add(port)
 
         def ready():
-            if not port_open(port):
-                return None
-            result = self.docker("ready", "container", "exec", self.container,
-                                 "rabbitmq-diagnostics", "-q", "check_running", check=False, timeout=20)
-            return True if result.returncode == 0 else None
+            active = self.text(self.docker("ready", "container", "inspect", "--format",
+                                          "{{.State.Running}}", self.container))
+            require(active == "true", "The owned broker exited during startup.")
+            return True if amqp_ready(port) else None
 
-        wait_until(ready, "running broker and AMQP loopback")
+        wait_until(ready, "AMQP Connection.Start from the broker")
         version = self.text(self.docker("broker-version", "container", "exec", self.container,
                                         "rabbitmq-diagnostics", "-q", "server_version"))
         erlang = self.text(self.docker("broker-version", "container", "exec", self.container,
@@ -302,7 +316,13 @@ def main():
     finally:
         try:
             if fixture_attempted:
-                proof.cleanup()
+                if proof.report["status"] == "failed" and proof.container is not None:
+                    try:
+                        proof.docker("broker-private", "container", "logs", proof.container, check=False)
+                    finally:
+                        proof.cleanup()
+                else:
+                    proof.cleanup()
         except Exception as error:
             proof.report.update(status="failed", cleanup_failure=str(error))
             raise
