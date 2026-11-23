@@ -24,6 +24,7 @@ public sealed record AuditReceiptTransportOptions(bool HttpEnabled = true, bool 
     public bool ReceiptLookupEnabled { get; init; } = true;
     public bool ResourceHistoryEnabled { get; init; }
     public bool ReportReadTimeout { get; init; }
+    public bool CollectReadStatistics { get; init; }
     public AuditReadConcurrencyLimits? ConcurrencyLimits { get; init; }
 }
 /// <summary>Optional host-local shared dispatch limits; no queue, rate or wire-response bound.</summary>
@@ -79,6 +80,7 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
     public static readonly OperationBinding<AuditResourceHistoryRequest, AuditResourceHistoryResponse> ResourceHistoryBinding = new("trail.resource-history", ValidateResourceHistory);
     readonly Admission admission;
     readonly TenantOperationConcurrencyBudget? concurrencyBudget;
+    readonly TenantChangeAuditReadStatistics? readStatistics;
     ActivationLease? lease;
     public ActivationPlan Plan { get; }
     public AuditReceiptTransportProbe Probe { get; }
@@ -88,8 +90,11 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
     public bool IsAdmissionClosed => admission.IsClosed;
     /// <summary>Aggregate protected-dispatch occupancy only; authentication and response mapping/wire are excluded.</summary>
     public TenantOperationConcurrencySnapshot? ConcurrencySnapshot => concurrencyBudget?.GetSnapshot();
-    AuditReceiptTransportHost(ActivationPlan plan, AuditReceiptTransportProbe probe, TenantOperationConcurrencyBudget? concurrencyBudget)
-    { Plan = plan; Probe = probe; admission = new(probe); this.concurrencyBudget = concurrencyBudget; }
+    /// <summary>Optional cumulative reader outcomes, with no tenant or request labels.</summary>
+    public TenantChangeAuditReadStatisticsSnapshot? ReadStatistics => readStatistics?.GetSnapshot();
+    AuditReceiptTransportHost(ActivationPlan plan, AuditReceiptTransportProbe probe, TenantOperationConcurrencyBudget? concurrencyBudget,
+        TenantChangeAuditReadStatistics? readStatistics)
+    { Plan = plan; Probe = probe; admission = new(probe); this.concurrencyBudget = concurrencyBudget; this.readStatistics = readStatistics; }
 
     /// <summary>Pure capability selection; no host, source, budget or authority construction.</summary>
     public static ActivationPlan CompilePlan(AuditReceiptTransportOptions options)
@@ -136,7 +141,8 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
         // A single immutable host-local budget is validated before any caller callback. Inert/null profiles skip it.
         var budget = selected && options.ConcurrencyLimits is { } limits
             ? new TenantOperationConcurrencyBudget(limits.MaximumConcurrentReads, limits.MaximumConcurrentReadsPerTenant) : null;
-        var owner = new AuditReceiptTransportHost(plan, probe ?? new(), budget);
+        var readStatistics = selected && options.CollectReadStatistics ? new TenantChangeAuditReadStatistics() : null;
+        var owner = new AuditReceiptTransportHost(plan, probe ?? new(), budget, readStatistics);
         if (budget is not null) Interlocked.Increment(ref owner.Probe.BudgetFactories);
         if (selected)
         {
@@ -167,8 +173,8 @@ public sealed class AuditReceiptTransportHost : IAsyncDisposable
                     if (candidate.IsDisposed || candidate.IsReady || candidate.InitializationAttempts != 0) throw new ArgumentException("The receipt source must be newly owned and uninitialized.");
                     Interlocked.Increment(ref owner.Probe.SourceOpenAttempts); await candidate.OpenExistingAsync(token).ConfigureAwait(false);
                     var observed = new ObservedSource(candidate, owner.Probe);
-                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed, reportReadTimeout)!;
-                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed, reportReadTimeout)!;
+                    if (options.ReceiptLookupEnabled) reader = TenantChangeAuditLookupReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed, reportReadTimeout, readStatistics)!;
+                    if (options.ResourceHistoryEnabled) resourceReader = TenantChangeAuditResourceHistoryReader.ActivateWithReadTimeout(security!.ReadPolicy, options.ReadTimeout, () => observed, reportReadTimeout, readStatistics)!;
                     owner.Probe.Events.Enqueue("source.ready"); return new OwnedSource(candidate, owner.Probe);
                 }
                 catch (Exception failure)

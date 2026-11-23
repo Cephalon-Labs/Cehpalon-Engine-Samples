@@ -20,9 +20,9 @@ public static partial class ResourceTransportChecks
     public static async Task<int> RunHistoryMeasurementAsync(string[] args)
     {
         var deadlineEnabled = args.Length == 5 && args[1] == "serve" && args[4] == "deadline";
-        if ((args.Length != 4 && !deadlineEnabled) || args[1] is not ("seed" or "serve" or "verify-deadline" or "verify-timeout-wire"))
+        if ((args.Length != 4 && !deadlineEnabled) || args[1] is not ("seed" or "serve" or "verify-deadline" or "verify-timeout-wire" or "verify-read-statistics"))
         {
-            Console.Error.WriteLine("Usage: --measure-audit-history seed|serve|verify-deadline|verify-timeout-wire <private-connection-file> <owned-schema> [deadline for serve]");
+            Console.Error.WriteLine("Usage: --measure-audit-history seed|serve|verify-deadline|verify-timeout-wire|verify-read-statistics <private-connection-file> <owned-schema> [deadline for serve]");
             return 2;
         }
 
@@ -58,9 +58,10 @@ public static partial class ResourceTransportChecks
         var fixture = new Fixture(store, connection, args[2], tls, jwt);
         var policy = new TenantChangeAuditPolicy(TenantChangeAuditMode.BeforeAfterSnapshots,
             [new("entity.update", "update", "entity", MeasurementFields.Select(name => new TenantChangeFieldRule(name, name == "secret")))]);
-        if (args[1] == "verify-timeout-wire")
+        if (args[1] is "verify-timeout-wire" or "verify-read-statistics")
         {
-            await VerifyTimeoutWireAsync(() => new Fixture(store, connection, args[2], tls, jwt), policy);
+            await VerifyTimeoutWireAsync(() => new Fixture(store, connection, args[2], tls, jwt), policy,
+                collectStatistics: args[1] == "verify-read-statistics");
             return 0;
         }
         if (args[1] == "verify-deadline")

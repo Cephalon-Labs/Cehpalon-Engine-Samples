@@ -32,6 +32,16 @@ deadline. HTTP uses 504 with a fixed public message. GraphQL reports a field
 error with the same code. This choice is off by default. Provider faults keep
 the generic error response, and the implementation continues to await owned
 provider work and honor caller cancellation.
+
+Set `CollectReadStatistics = true` on `AuditReceiptTransportOptions` to share
+one in-process collector across the selected receipt lookup and resource
+history readers. Read the four cumulative counts from `host.ReadStatistics`.
+This option is independent of timeout reporting and defaults to false. A
+cross-tenant request denied before reading does not affect the counts. The
+sample does not expose the counts through either transport. Run
+`--measure-audit-history verify-read-statistics <private-connection-file> <owned-schema>`
+against a separately seeded fixture to check counters and PostgreSQL cleanup.
+
 The controller and servers are separate processes. Raw rows contain timing,
 counts and response digests. Server stderr can contain fixture details and
 stays local. Allocation covers the server's managed process, while latency

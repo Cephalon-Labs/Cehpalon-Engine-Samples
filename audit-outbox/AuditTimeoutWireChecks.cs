@@ -6,10 +6,10 @@ namespace AuditOutbox;
 
 public static partial class ResourceTransportChecks
 {
-    private static async Task VerifyTimeoutWireAsync(Func<Fixture> create, TenantChangeAuditPolicy policy)
+    private static async Task VerifyTimeoutWireAsync(Func<Fixture> create, TenantChangeAuditPolicy policy, bool collectStatistics = false)
     {
         var optedIn = new AuditReceiptTransportOptions(true, true, ReadTimeout: MeasurementReadDeadline)
-            { ResourceHistoryEnabled = true, ReportReadTimeout = true };
+            { ResourceHistoryEnabled = true, ReportReadTimeout = true, CollectReadStatistics = collectStatistics };
         var timeoutSchema = ContractOpenApi(await AuditReadContractExport.BuildArtifactsAsync(optedIn));
         var defaultSchema = ContractOpenApi(await AuditReadContractExport.BuildArtifactsAsync(optedIn with { ReportReadTimeout = false }));
         var disabledSchema = ContractOpenApi(await AuditReadContractExport.BuildArtifactsAsync(optedIn with { ReadTimeout = null }));
@@ -32,6 +32,7 @@ public static partial class ResourceTransportChecks
             var options = optedIn with { HttpEnabled = !graph, GraphQLEnabled = graph, ReceiptLookupEnabled = lookup,
                 ResourceHistoryEnabled = !lookup, ReportReadTimeout = scenario != "legacy-timeout" };
             await using var host = await fixture.Start(options, policy);
+            Require(host.ReadStatistics == (collectStatistics ? new TenantChangeAuditReadStatisticsSnapshot() : null));
             using var client = fixture.Client(host);
             using var caller = new CancellationTokenSource();
             var sql = fixture.Sql();
@@ -77,6 +78,8 @@ public static partial class ResourceTransportChecks
                 {
                     var pid = await sql.Observe(fixture.Probe, pending, caller.Token, lookup).WaitAsync(Watchdog);
                     lockObserved = true;
+                    TenantChangeAuditReadStatisticsSnapshot? initial = collectStatistics ? default(TenantChangeAuditReadStatisticsSnapshot) : null;
+                    Require(host.ReadStatistics == initial);
                     if (scenario == "caller-abort")
                     {
                         caller.Cancel();
@@ -117,12 +120,40 @@ public static partial class ResourceTransportChecks
             }
 
             Require(Results() == 0 && fixture.Probe.ActiveDispatches == 0);
+            TenantChangeAuditReadStatisticsSnapshot failed = scenario switch
+            {
+                "typed-timeout" or "legacy-timeout" => new(0, 1, 0, 0),
+                "provider-timeout" => new(0, 0, 0, 1),
+                "caller-abort" => new(0, 0, 1, 0),
+                _ => default
+            };
+            var failureSnapshot = host.ReadStatistics;
+            TenantChangeAuditReadStatisticsSnapshot? expectedFailure = collectStatistics ? failed : null;
+            Require(failureSnapshot == expectedFailure);
             var queries = QueryCount();
             Require((await Send("both-reader")).Success(graph) && QueryCount() == queries + 1 && Results() == 1);
+            TenantChangeAuditReadStatisticsSnapshot? expectedReuse = collectStatistics ? failed with { Succeeded = 1 } : null;
+            Require(host.ReadStatistics == expectedReuse);
             WriteMeasurement(new { kind = "wire_timeout_control", transport = graph ? "graphql" : "http",
                 operation = lookup ? "receipt" : "resource", scenario, status, code, source_queries = queries,
                 lock_observed = lockObserved, quiescent_under_lock = quiescentUnderLock,
                 no_failed_result_published = true, successful_reuse = true });
+            if (collectStatistics)
+                WriteMeasurement(new { kind = "read_statistics_control", transport = graph ? "graphql" : "http",
+                    operation = lookup ? "receipt" : "resource", scenario, failure_snapshot = failureSnapshot, snapshot_after_reuse = host.ReadStatistics });
+        }
+
+        if (collectStatistics)
+        {
+            await using var inactive = await AuditReceiptTransportHost.ActivateAsync(optedIn with { HttpEnabled = false, GraphQLEnabled = false });
+            Require(inactive.App is null && inactive.ReadStatistics is null);
+            var fixture = create();
+            await using var mixed = await fixture.Start(optedIn, policy);
+            using var client = fixture.Client(mixed);
+            var result = await fixture.Siblings(client, fixture.Token("both-reader"), mixed: true);
+            Require(result.Success(true) && fixture.Source.ResourceQueries == 1 && fixture.Source.LookupQueries == 1);
+            Require(mixed.ReadStatistics == new TenantChangeAuditReadStatisticsSnapshot(2, 0, 0, 0));
+            WriteMeasurement(new { kind = "read_statistics_shared", inactive_has_no_collector = true, snapshot = mixed.ReadStatistics });
         }
     }
 }
