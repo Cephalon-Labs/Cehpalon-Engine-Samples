@@ -11,6 +11,8 @@ import subprocess
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 SOURCE = HERE / "DispatchCorrelationProbe.cs"
+DRAIN_SOURCE = HERE / "DispatchDrainProbe.cs"
+DRAIN_ENGINE = "5e92ac1c7fa1e150e7e97de6d68e94b31ffba053"
 GENERATED_FILES = {
     "Catalog.cs", "Consumer.csproj", "ContractExport.cs", "FixtureHost.cs",
     "NuGet.Config", "Program.cs", "README.md", "SelfTest.cs",
@@ -70,12 +72,54 @@ def verify_receipts(result):
         raise ValueError("Concurrent proof receipts differ from the declared overlap cases.")
 
 
+def verify_drain_receipts(result):
+    if (result["runtime"] != ".NET 11.0.0" or result["outcome"] != "passed"
+            or result["wireCases"] != 18 or result["completions"] != 14 or result["histograms"] != 20
+            or result["unscopedSignals"] != 0 or len(result["lanes"]) != 2):
+        raise ValueError("Drain proof has incomplete receipts.")
+
+    for lane, budget, cleanup, held_transport, held_status in zip(
+        result["lanes"], ("total", "tenant"), ("success", "fault"), ("graphql", "http"), (200, 500)
+    ):
+        if lane["Budget"] != budget or lane["CleanupOutcome"] != cleanup:
+            raise ValueError("Drain budget or owned cleanup outcome differs.")
+        checked = ("CanceledWaitDidNotReleaseWork", "CompletionAfterOwnedCleanup", "OwnedListenerClosed",
+                   "FreshListenerClosed")
+        if any(lane[name] is not True for name in checked):
+            raise ValueError("Drain waiter, cleanup order or listener proof differs.")
+        for case, active, closed in (("Open", 1, False), ("Closed", 1, True), ("HeldCleanup", 1, True),
+                                     ("Drained", 0, True), ("RestartedOpen", 0, False)):
+            snapshot = {"MaximumConcurrentOperations": 2, "ActiveOperations": active, "IsAdmissionClosed": closed}
+            if lane[case] != snapshot:
+                raise ValueError("Drain permit accounting differs.")
+        expected = []
+        for transport in ("http", "graphql"):
+            expected.extend([
+                (transport, "authorized-after-close", 503 if transport == "http" else 200, 1, 1, "Failure"),
+                (transport, "authenticated-denial-after-close", 403 if transport == "http" else 200, 1, 1, "Failure"),
+                (transport, "anonymous-after-close", 401, 0, 0, None),
+            ])
+        expected.extend([
+            (held_transport, "admitted-during-close", held_status, 1, 2, cleanup.capitalize()),
+            ("http", "fresh-host-owner", 200, 1, 2, "Success"),
+            ("graphql", "fresh-host-owner", 200, 1, 2, "Success"),
+        ])
+        columns = ("Transport", "Scenario", "Status", "Records", "Histograms", "Outcome")
+        if [tuple(row[column] for column in columns) for row in lane["Cases"]] != expected:
+            raise ValueError("Drain transport or completion receipts differ.")
+        if any(row["Records"] and (
+            row["TraceMatchesNative"] is not True or row["PrivateValuesExcluded"] is not True
+        ) for row in lane["Cases"]):
+            raise ValueError("Drain trace or privacy confirmation missing.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dotnet", required=True, type=Path)
     parser.add_argument("--engine-root", required=True, type=Path)
     parser.add_argument("--engine-revision", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--drain", action="store_true", help="Verify owned graceful drain and fresh activation")
     args = parser.parse_args()
     engine = args.engine_root.resolve(strict=True)
     dotnet = args.dotnet.resolve(strict=True)
@@ -86,11 +130,14 @@ def main():
         raise ValueError("Use a new ignored output directory under Samples .local.")
     if re.fullmatch("[0-9a-f]{40}", revision) is None:
         raise ValueError("An exact full Engine commit is required.")
+    if args.drain and revision != DRAIN_ENGINE:
+        raise ValueError("The drain protocol requires its declared Engine revision.")
     output.mkdir(parents=True, exist_ok=False)
     env = dict(os.environ, DOTNET_NOLOGO="1", DOTNET_CLI_TELEMETRY_OPTOUT="1")
     report = {
         "status": "started", "engine_revision": revision,
-        "probe_sha256": digest(SOURCE), "verifier_sha256": digest(Path(__file__)),
+        "probe_sha256": digest(SOURCE), "drain_probe_sha256": digest(DRAIN_SOURCE),
+        "verifier_sha256": digest(Path(__file__)),
         "protocol_sha256": digest(HERE / "README.md"), "steps": []
     }
 
@@ -145,12 +192,36 @@ def main():
                      "DispatchCorrelationProbe.CreateDispatcher(core.Build())")
         replace_once(fixture, "app.UseAuthentication();",
                      "app.Use(DispatchCorrelationProbe.ObserveRequest);\n                app.UseAuthentication();")
+        overlay = [project, fixture]
+        if args.drain:
+            replace_once(fixture, "    private ActivationLease? lease;",
+                         "    private ActivationLease? lease;\n"
+                         "    public Task CloseAdmissionForProof(CancellationToken token = default) =>\n"
+                         "        tenantBudget?.DrainAsync(token) ?? budget?.DrainAsync(token)\n"
+                         '        ?? throw new InvalidOperationException("Drain proof requires a budget.");')
+            catalog = generated / "Catalog.cs"
+            replace_once(catalog, "ITenantOperationHandler<SetLabel,Item>,IDisposable",
+                         "ITenantOperationHandler<SetLabel,Item>,IDisposable,IAsyncDisposable")
+            disposal = "    public void Dispose() => Interlocked.Increment(ref store.Disposals);"
+            replace_once(catalog, disposal, disposal + "\n"
+                         "    public ValueTask DisposeAsync() => DispatchCorrelationProbe.DisposeOwnedHandler(store, Dispose);")
+            overlay.append(catalog)
+        else:
+            # The optional proof class still compiles in ordinary mode. No drain path can reach this helper.
+            replace_once(fixture, "    private ActivationLease? lease;",
+                         "    private ActivationLease? lease;\n"
+                         "    public Task CloseAdmissionForProof(CancellationToken token = default) =>\n"
+                         '        throw new InvalidOperationException("Drain overlay not selected.");')
         replace_once(project, '<Project Sdk="Microsoft.NET.Sdk.Web">',
                      '<Project Sdk="Microsoft.NET.Sdk.Web">\n'
                      '  <PropertyGroup><StartupObject>DispatchCorrelationProbe</StartupObject></PropertyGroup>\n'
-                     '  <ItemGroup><Compile Include="DispatchCorrelationProbe.cs" /></ItemGroup>')
-        shutil.copyfile(SOURCE, generated / SOURCE.name)
-        report["proof_overlay_sha256"] = {path.name: digest(path) for path in (project, fixture, generated / SOURCE.name)}
+                     '  <ItemGroup><Compile Include="DispatchCorrelationProbe.cs" />'
+                     '<Compile Include="DispatchDrainProbe.cs" /></ItemGroup>')
+        for proof in (SOURCE, DRAIN_SOURCE):
+            copy = generated / proof.name
+            shutil.copyfile(proof, copy)
+            overlay.append(copy)
+        report["proof_overlay_sha256"] = {path.name: digest(path) for path in overlay}
 
         artifacts = output / "consumer-artifacts"
         lock = generated / "packages.lock.json"
@@ -170,9 +241,11 @@ def main():
         report["consumer_binary_sha256"] = {
             path.name: digest(path) for path in (runtime, assembly, binary / "Cehpalon.Engine.Core.dll")
         }
-        receipt = output / "trace-results.json"
-        run("wire-proof", generated, dotnet, assembly, receipt)
-        verify_receipts(read_json(receipt))
+        receipt = output / ("drain-results.json" if args.drain else "trace-results.json")
+        mode = ("--drain",) if args.drain else ()
+        run("wire-proof", generated, dotnet, assembly, receipt, *mode)
+        verify = verify_drain_receipts if args.drain else verify_receipts
+        verify(read_json(receipt))
         verify_engine("after")
         if verify_inventory(engine, generated) != report["engine_input_count"]:
             raise ValueError("Engine source inputs changed across proof.")

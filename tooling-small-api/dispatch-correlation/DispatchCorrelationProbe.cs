@@ -10,7 +10,7 @@ using Cehpalon.Engine.Core;
 using Microsoft.AspNetCore.Http.Features;
 using PortableConsumers.Generated;
 
-internal static class DispatchCorrelationProbe
+internal static partial class DispatchCorrelationProbe
 {
     private const string RequestHeader = "X-Cehpalon-Proof-Request";
     private const string ServerActivity = "Microsoft.AspNetCore.Hosting.HttpRequestIn";
@@ -27,7 +27,11 @@ internal static class DispatchCorrelationProbe
     private static void RecordCompletion(OperationDispatchCompletion completion)
     {
         if (current.Value is { } capture)
+        {
+            if (capture.Cleanup is { } cleanup)
+                capture.CleanupBeforeCompletion = cleanup.Completed && cleanup.Store.Disposals == 1;
             capture.Records.Enqueue(completion);
+        }
         else
             Interlocked.Increment(ref unscopedSignals);
     }
@@ -63,8 +67,9 @@ internal static class DispatchCorrelationProbe
 
     public static async Task<int> Main(string[] args)
     {
-        Require(args.Length == 1 && Environment.Version == new Version(11, 0, 0),
-            "Expected report path and .NET 11.0.0 runtime.");
+        var drain = args is [_, "--drain"];
+        Require((args.Length == 1 || drain) && Environment.Version == new Version(11, 0, 0),
+            "Expected report path, an optional drain mode and .NET 11.0.0 runtime.");
         Require(typeof(OperationDispatchCompletion).GetProperties().Select(property => property.Name)
             .Order(StringComparer.Ordinal).SequenceEqual(new[] { "Duration", "Outcome", "SpanId", "TraceId" }),
             "Completion DTO property allowlist differs.");
@@ -92,6 +97,8 @@ internal static class DispatchCorrelationProbe
                 Interlocked.Increment(ref unscopedSignals);
         });
         meter.Start();
+        if (drain)
+            return await RunDrainProof(args[0]);
 
         var checks = new List<CaseReceipt>();
         var shutdowns = 0;
@@ -213,15 +220,20 @@ internal static class DispatchCorrelationProbe
         Require(requests.TryAdd(capture.Key, capture), "Duplicate fixture request key.");
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, capture.GraphQl ? "/graphql" : "/api/catalog/get");
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                capture.GraphQl ? "/graphql" : capture.Cleanup is null ? "/api/catalog/get" : "/api/catalog/set");
             var tenant = capture.Response == ResponseKind.TenantDenied ? "tenant-b" : "tenant-a";
-            var inputs = Enumerable.Range(1, capture.Fields)
-                .ToDictionary(index => $"input{index}", index => new { tenant, id = index });
-            var fields = Enumerable.Range(1, capture.Fields)
-                .Select(index => $"field{index}: catalogItem(input: $input{index}) {{ id tenant }}");
-            var queryVariables = inputs.Keys.Select(name => $"${name}: GetItemInput!");
-            var query = $"query {capture.QuerySentinel}({string.Join(", ", queryVariables)}) {{ {string.Join(" ", fields)} }}";
-            request.Content = JsonContent.Create(capture.GraphQl ? new { query, variables = inputs } : (object)inputs["input1"]);
+            if (capture.Cleanup is not null)
+            {
+                var input = new { tenant, id = 1, expectedRevision = 0, label = capture.MutationSentinel };
+                request.Content = JsonContent.Create(capture.GraphQl ? new
+                {
+                    query = $"mutation {capture.QuerySentinel}($input: SetLabelInput!) {{ field1: setLabel(input: $input) {{ id tenant label revision }} }}",
+                    variables = new { input }
+                } : (object)input);
+            }
+            else
+                request.Content = ReadContent(capture, tenant);
             request.Headers.Add(RequestHeader, capture.Key);
             request.Headers.Add("X-Tenant", "tenant-b");
             request.Headers.Add("X-Proof-Private", capture.HeaderSentinel);
@@ -235,45 +247,30 @@ internal static class DispatchCorrelationProbe
             if (capture.Response == ResponseKind.Anonymous)
                 Require(status == 401, "Anonymous request was accepted.");
             else
-            {
-                using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-                var json = document.RootElement;
-                if (capture.Response == ResponseKind.Owner)
-                {
-                    Require(status == 200, "Owner returned an unexpected status.");
-                    for (var field = 1; field <= capture.Fields; field++)
-                    {
-                        var item = capture.GraphQl ? json.GetProperty("data").GetProperty($"field{field}") : json;
-                        Require(item.GetProperty("id").GetInt32() == field &&
-                            item.GetProperty("tenant").GetString() == tenant, "Owner data differed.");
-                    }
-                }
-                else
-                {
-                    var code = capture.GraphQl
-                        ? json.GetProperty("errors")[0].GetProperty("extensions").GetProperty("code")
-                        : json.GetProperty("code");
-                    Require(status == (capture.GraphQl ? 200 : 403) && code.GetString() == "access.denied",
-                        "Authenticated tenant denial differed.");
-                }
-            }
+                await VerifyResponse(response, capture, tenant);
 
             var native = capture.Native ?? throw new InvalidOperationException("Native request Activity was not recorded.");
             if (capture.Header == "valid")
                 Require(native.Format == ActivityIdFormat.W3C && native.TraceId == capture.SentTraceId &&
                     native.ParentSpanId == capture.SentParentSpanId && native.SpanId != native.ParentSpanId,
                     "Native server trace did not link to the supplied valid parent.");
-            var expectedOutcome = capture.Response == ResponseKind.Owner ? OperationDispatchOutcome.Success : OperationDispatchOutcome.Failure;
+            var expectedOutcome = capture.Response switch
+            {
+                ResponseKind.Owner => OperationDispatchOutcome.Success,
+                ResponseKind.CleanupFault => OperationDispatchOutcome.Fault,
+                _ => OperationDispatchOutcome.Failure,
+            };
             var expectedCount = capture.Response == ResponseKind.Anonymous || !capture.Enabled ? 0 : capture.Fields;
             var expectedHistograms = capture.Response switch
             {
                 ResponseKind.Owner => 2 * capture.Fields,
-                ResponseKind.TenantDenied => 1,
+                ResponseKind.TenantDenied or ResponseKind.Overloaded => 1,
+                ResponseKind.CleanupFault => 2,
                 _ => 0
             };
             var records = capture.Records.ToArray();
             Require(records.Length == expectedCount && capture.Histograms.Count == expectedHistograms &&
-                capture.Histograms.All(item => item == (expectedOutcome == OperationDispatchOutcome.Success ? "success" : "failure")),
+                capture.Histograms.All(item => item == expectedOutcome.ToString().ToLowerInvariant()),
                 "Outer completion or Core histogram counts and outcomes differed.");
             ActivityTraceId? traceId = native.Format == ActivityIdFormat.W3C ? native.TraceId : null;
             ActivitySpanId? spanId = native.Format == ActivityIdFormat.W3C ? native.SpanId : null;
@@ -295,6 +292,54 @@ internal static class DispatchCorrelationProbe
         }
     }
 
+    private static HttpContent ReadContent(RequestCapture capture, string tenant)
+    {
+        var inputs = Enumerable.Range(1, capture.Fields)
+            .ToDictionary(index => $"input{index}", index => new { tenant, id = index });
+        var selection = capture.CheckFreshRevision ? "id tenant revision" : "id tenant";
+        var fields = Enumerable.Range(1, capture.Fields)
+            .Select(index => $"field{index}: catalogItem(input: $input{index}) {{ {selection} }}");
+        var queryVariables = inputs.Keys.Select(name => $"${name}: GetItemInput!");
+        var query = $"query {capture.QuerySentinel}({string.Join(", ", queryVariables)}) {{ {string.Join(" ", fields)} }}";
+        return JsonContent.Create(capture.GraphQl ? new { query, variables = inputs } : (object)inputs["input1"]);
+    }
+
+    private static async Task VerifyResponse(HttpResponseMessage response, RequestCapture capture, string tenant)
+    {
+        var status = (int)response.StatusCode;
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+        var json = document.RootElement;
+        if (capture.Response == ResponseKind.Owner)
+        {
+            Require(status == 200, "Owner returned an unexpected status.");
+            for (var field = 1; field <= capture.Fields; field++)
+            {
+                var item = capture.GraphQl ? json.GetProperty("data").GetProperty($"field{field}") : json;
+                Require(item.GetProperty("id").GetInt32() == field &&
+                    item.GetProperty("tenant").GetString() == tenant, "Owner data differed.");
+                if (capture.CheckFreshRevision || capture.Cleanup is not null)
+                    Require(item.GetProperty("revision").GetInt32() == (capture.CheckFreshRevision ? 0 : 1),
+                        "Expected initial restart data or the one admitted write.");
+            }
+            return;
+        }
+
+        var (httpStatus, errorCode, message) = capture.Response switch
+        {
+            ResponseKind.TenantDenied => (403, "access.denied", "Access denied."),
+            ResponseKind.Overloaded => (503, "operation.capacity_exceeded", "Operation capacity is temporarily unavailable."),
+            ResponseKind.CleanupFault => (500, "internal.error", "An internal error occurred."),
+            _ => throw new InvalidOperationException("Unexpected response case."),
+        };
+        var error = capture.GraphQl ? json.GetProperty("errors")[0] : json;
+        var code = capture.GraphQl ? error.GetProperty("extensions").GetProperty("code") : error.GetProperty("code");
+        Require(status == (capture.GraphQl ? 200 : httpStatus) && code.GetString() == errorCode &&
+            error.GetProperty("message").GetString() == message &&
+            !body.Contains(capture.CleanupFaultSentinel, StringComparison.Ordinal),
+            "Public error response differed or exposed the private fault.");
+    }
+
     private static void ValidateStructuredRecord(OperationDispatchCompletion record, RequestCapture capture)
     {
         var payload = JsonSerializer.Serialize(new
@@ -312,7 +357,8 @@ internal static class DispatchCorrelationProbe
             "Structured event field allowlist differed.");
         var sentinels = new[] { capture.Key, capture.CorrelationSentinel, capture.BaggageSentinel, capture.TagSentinel,
             capture.TraceStateSentinel, capture.HeaderSentinel, capture.QuerySentinel, capture.Authorization,
-            capture.TraceParent, "tenant-a", "tenant-b", "catalog.get", "alice" };
+            capture.TraceParent, capture.MutationSentinel, capture.CleanupFaultSentinel,
+            "tenant-a", "tenant-b", "catalog.get", "catalog.set", "alice" };
         Require(sentinels.Where(value => value.Length != 0).All(value => !payload.Contains(value, StringComparison.Ordinal)),
             "A private fixture value appeared in the completion projection.");
     }
@@ -322,7 +368,7 @@ internal static class DispatchCorrelationProbe
         if (!condition) throw new InvalidOperationException(message);
     }
 
-    private enum ResponseKind { Owner, TenantDenied, Anonymous }
+    private enum ResponseKind { Owner, TenantDenied, Anonymous, Overloaded, CleanupFault }
 
     private sealed class RequestCapture(bool graphQl, string scenario, bool enabled, string header,
         ResponseKind response, int fields, string authorization)
@@ -349,6 +395,11 @@ internal static class DispatchCorrelationProbe
         public string TagSentinel => "tag-" + Key;
         public string HeaderSentinel => "header-" + Key;
         public string QuerySentinel => "query_" + Key;
+        public string MutationSentinel => "mutation-" + Key;
+        public string CleanupFaultSentinel => "cleanup-fault-" + Key;
+        public bool CheckFreshRevision { get; init; }
+        public CleanupGate? Cleanup { get; init; }
+        public bool CleanupBeforeCompletion;
         public NativeCapture? Native;
         public ConcurrentQueue<OperationDispatchCompletion> Records { get; } = new();
         public ConcurrentQueue<string> Histograms { get; } = new();
